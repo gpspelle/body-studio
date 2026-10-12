@@ -197,9 +197,9 @@ def landmarks(prof: list) -> dict:
     waist = min(prof, key=lambda r: abs(r[0] - NAVEL))
     if abs(waist[0] - NAVEL) > 0.02:
         raise ValueError("nothing measured at navel height")
-    return {"neck_cm": min(band(*NECK_BAND), key=lambda r: r[1])[1],
-            "waist_cm": waist[1],
-            "hip_cm": max(band(*HIP_BAND), key=lambda r: r[1])[1]}
+    neck, hip = min(band(*NECK_BAND), key=lambda r: r[1]), max(band(*HIP_BAND), key=lambda r: r[1])
+    return {"neck_cm": neck[1], "waist_cm": waist[1], "hip_cm": hip[1],
+            "levels": {"neck_cm": neck[0], "waist_cm": waist[0], "hip_cm": hip[0]}}   # fraction of stature
 
 
 # ---------------------------------------------------------------- file and command line
@@ -216,9 +216,11 @@ def load_points(ply_path: Path, min_opacity: float = 0.5):
 def measure(ply_path: Path, sex: str, height_cm: float, weight_kg: float | None = None,
             tape_waist_cm: float | None = None) -> dict:
     pts, up = load_points(ply_path)
-    m = landmarks(profile(pts, up, height_cm))
+    prof = profile(pts, up, height_cm)
+    m = landmarks(prof)
     out = {"measurements": m, "body_fat": estimates(sex, height_cm, m["neck_cm"], m["waist_cm"],
-                                                    m["hip_cm"], weight_kg)}
+                                                    m["hip_cm"], weight_kg),
+           "profile": prof}
     if tape_waist_cm:
         out["tape_check"] = tape_check(m["waist_cm"], tape_waist_cm)
     return out

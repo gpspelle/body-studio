@@ -11,4 +11,9 @@
 - `body-studio measure`: neck, waist and hip circumferences from a finished body, scaled by
   the person's height, and an experimental body fat estimate (US Navy, US Army one-site,
   relative fat mass), with an optional tape-measure check. See `docs/body-fat.md`.
+- Progress: follow one person over time. A panel at the edge (Progress) with body fat from the
+  tape measures and its trend, weight, waist, neck and hips with the change since the first
+  entry (grey when within measurement noise), and scans compared by the circumference at every
+  height. `body-studio person`, `tape`, `scan` and `progress` do the same in the terminal. Each
+  person is kept in `people/<name>.json` in the data folder. See `docs/progress.md`.
 - English and Portuguese. Version, source code and license links at the bottom.

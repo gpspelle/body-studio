@@ -30,12 +30,14 @@ def _dc(c: float) -> float:
     return (c - 0.5) / C0
 
 
-def write_body(path: Path, n: int = 40000, seed: int = 1) -> Path:
+def write_body(path: Path, n: int = 40000, seed: int = 1, trunk: float = 1.0) -> Path:
+    """`trunk` scales the trunk's radius, to stand in for the same person at another time."""
     rnd = random.Random(seed)
-    lengths = [math.dist(a, b) + r for a, b, r, _ in PARTS]
+    parts = [(a, b, r * trunk if col is SHIRT and r > 0.1 else r, col) for a, b, r, col in PARTS]
+    lengths = [math.dist(a, b) + r for a, b, r, _ in parts]
     rows = []
     for _ in range(n):
-        a, b, r, col = rnd.choices(PARTS, weights=lengths)[0]
+        a, b, r, col = rnd.choices(parts, weights=lengths)[0]
         t = rnd.random()
         c = [a[i] + (b[i] - a[i]) * t for i in range(3)]
         u, v = rnd.uniform(-1, 1), rnd.random() * 2 * math.pi

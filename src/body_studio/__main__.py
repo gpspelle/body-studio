@@ -7,6 +7,10 @@
     body-studio check                 show which tools are installed
     body-studio measure BODY.ply --sex m --height 178 [--weight 80] [--tape-waist 86]
                                       neck, waist, hips and a body fat estimate (experimental)
+    body-studio person NAME --sex m --height 178     add a person whose progress you follow
+    body-studio tape NAME --waist 86 [--neck 38] [--hip 98] [--weight 80] [--date 2026-10-12]
+    body-studio scan NAME VIDEO/run_DATE_TIME        add a finished body to their history
+    body-studio progress NAME                        tape, body fat and scans over time
 """
 from __future__ import annotations
 
@@ -48,6 +52,9 @@ def main(argv: list[str] | None = None) -> None:
     if cmd == "measure":
         from .measure import main as measure_main
         return measure_main(rest)
+    if cmd in ("person", "tape", "scan", "progress"):
+        from .history import main as history_main
+        return history_main(cmd, rest, DEFAULT_DATA)
     if cmd in ("setup", "check"):
         from splat_studio.__main__ import main as splat_main
         return splat_main([cmd, *rest])

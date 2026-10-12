@@ -78,6 +78,36 @@ something is off. Film in underwear or tight clothing, waistband below the navel
 Expect about ±4.5 points of body fat for one person; it is best for following the same person
 over time. Research and sources: [docs/body-fat.md](docs/body-fat.md).
 
+## Following a person over time
+
+Click **Progress** to follow one person: a tape measure every week or two, a scan now and then.
+The body stays in the middle; the panel sits at the right edge (at the bottom on a phone).
+
+![Progress panel](docs/images/progress-desktop.png)
+
+- **Body fat**, from the tape measures, with its trend. One formula for the whole series (US Navy
+  when neck and waist are there, and hips for women), so a change in the number is a change in
+  the body. It is about ±4.5 points off for one person; the change over time is what counts.
+- **Tape measures**: weight, waist, neck and hips, each with its latest value, the change since
+  the first entry and a small line of every entry. A change smaller than the measurement noise
+  (1 kg, 1 cm, 0.5 cm at the neck) reads "about the same", in grey.
+- **Scans**: add the body on screen to the person's history (dated by its run). Each scan is
+  measured once, with the person's height, and the panel draws the circumference at every
+  height of the body on screen over the first scan, with the change at the neck, waist and hips.
+  Tap a date to show that body.
+
+The same from the terminal:
+
+```bash
+body-studio person Anna --sex f --height 168
+body-studio tape Anna --waist 74 --neck 32 --hip 98 --weight 61     # today; --date 2026-10-01 for another day
+body-studio scan Anna Anna_front/run_20261012_120000
+body-studio progress Anna
+```
+
+Each person is one file, `people/<name>.json` in the data folder. How the design was chosen:
+[docs/progress.md](docs/progress.md).
+
 ## Development
 
 ```bash
@@ -133,6 +163,27 @@ body-studio run IMG_1234.MOV --quality preview
 ```
 
 O corpo pronto fica em `workspace/<vídeo>/run_<data_hora>/splat/<qualidade>_<passos>_object.ply`.
+
+### Acompanhar uma pessoa ao longo do tempo
+
+Clique em **Evolução** para acompanhar uma pessoa: fita métrica a cada uma ou duas semanas, um
+escaneamento de vez em quando. O corpo continua no centro; o painel fica na borda direita (embaixo,
+no celular).
+
+<img src="docs/images/progress-phone.png" width="220" alt="Painel de evolução no celular">
+
+- **Gordura corporal**, pela fita métrica, com a tendência. Uma só fórmula para a série inteira
+  (Marinha dos EUA quando há pescoço e cintura, e quadril para mulheres), então uma mudança no
+  número é uma mudança no corpo. Erra cerca de ±4,5 pontos para uma pessoa; o que conta é a mudança.
+- **Fita métrica**: peso, cintura, pescoço e quadril, cada um com o último valor, a mudança desde
+  a primeira medida e uma pequena linha com todas as medidas. Uma mudança menor que o ruído da
+  medida (1 kg, 1 cm, 0,5 cm no pescoço) aparece como "praticamente igual", em cinza.
+- **Escaneamentos**: adicione o corpo na tela ao histórico da pessoa (com a data da execução). Cada
+  um é medido uma vez, com a altura da pessoa, e o painel desenha a circunferência em cada altura
+  do corpo na tela sobre a do primeiro escaneamento, com a mudança no pescoço, na cintura e no quadril.
+
+No terminal: `body-studio person`, `tape`, `scan` e `progress` (exemplos acima, em inglês). Cada
+pessoa é um arquivo, `people/<nome>.json` na pasta de dados.
 
 ### Medidas e gordura corporal (experimental)
 

@@ -24,6 +24,7 @@
   <span class="mark">Body Studio</span>
   <span id="job" class="pill" role="status" hidden></span>
   <button id="lang" class="link" data-i18n-aria-label="lang.label"></button>
+  <button id="progressBtn" class="btn" aria-controls="progress" aria-expanded="false" data-i18n="prog.open"></button>
   <label class="btn" for="pick" data-i18n="app.new"></label>
   <input id="pick" type="file" accept=".mov,.mp4,.m4v,video/*" hidden>
 </header>
@@ -42,6 +43,56 @@
     <a href="https://github.com/gpspelle/body-studio/blob/main/LICENSE" target="_blank" rel="noopener" data-i18n="foot.license"></a>
   </footer>
 </div>
+<aside id="progress" class="panel" data-i18n-aria-label="prog.open" hidden>
+  <div class="panel-head">
+    <select id="who" data-i18n-aria-label="prog.person"></select>
+    <button id="closeProgress" class="link" data-i18n-aria-label="prog.close">✕</button>
+  </div>
+  <form id="personForm" class="form" hidden>
+    <p class="quiet" data-i18n="prog.intro"></p>
+    <label><span data-i18n="prog.name"></span><input name="name" required autocomplete="off"></label>
+    <label><span data-i18n="prog.sex"></span><select name="sex"><option value="f" data-i18n="prog.female"></option><option value="m" data-i18n="prog.male"></option></select></label>
+    <label><span data-i18n="prog.height"></span><input name="height_cm" type="number" inputmode="decimal" step="0.1" min="80" max="250" required></label>
+    <button class="btn" data-i18n="prog.save"></button>
+    <p class="err" role="alert"></p>
+  </form>
+  <div id="personView" hidden>
+    <section class="fat">
+      <h2 data-i18n="prog.bodyFat"></h2>
+      <div id="fatNow"></div>
+      <svg id="fatChart" class="chart" viewBox="0 0 300 64" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <p id="fatNote" class="small"></p>
+    </section>
+    <section>
+      <h2 data-i18n="prog.tape"></h2>
+      <div id="tapeRows" class="rows"></div>
+    </section>
+    <section>
+      <h2 data-i18n="prog.scans"></h2>
+      <div id="scanList" class="chips"></div>
+      <p id="noScans" class="small" data-i18n="prog.noScans"></p>
+      <button id="addScan" class="btn" data-i18n="prog.addScan"></button>
+      <p id="scanErr" class="err" role="alert"></p>
+      <div id="scanRows" class="rows"></div>
+      <figure id="profile" hidden>
+        <figcaption class="small" data-i18n="prog.profile"></figcaption>
+        <svg id="profileChart" class="chart" viewBox="0 0 300 200" aria-hidden="true"></svg>
+      </figure>
+    </section>
+    <section>
+      <form id="tapeForm" class="form tape">
+        <label><span data-i18n="prog.date"></span><input name="date" type="date" required></label>
+        <label><span data-i18n="prog.weight"></span><input name="weight_kg" type="number" inputmode="decimal" step="0.1" placeholder="kg"></label>
+        <label><span data-i18n="prog.waist"></span><input name="waist_cm" type="number" inputmode="decimal" step="0.1" placeholder="cm"></label>
+        <label><span data-i18n="prog.neck"></span><input name="neck_cm" type="number" inputmode="decimal" step="0.1" placeholder="cm"></label>
+        <label><span data-i18n="prog.hips"></span><input name="hip_cm" type="number" inputmode="decimal" step="0.1" placeholder="cm"></label>
+        <button class="btn" data-i18n="prog.add"></button>
+        <p class="err" role="alert"></p>
+      </form>
+      <details id="entries"><summary></summary><ul></ul></details>
+    </section>
+  </div>
+</aside>
 <div id="drop" class="drop" hidden><p class="big" data-i18n="drop.title"></p></div>
 
 <script type="module">
@@ -125,13 +176,24 @@ function measure(mesh) {
 
 // Whole body in view, head to feet, centred between the top bar and the shelf. The width
 // allowed for is the body's diagonal, so outstretched arms stay in frame while it turns.
+// With the progress panel open, the body stays centred in the space the panel leaves.
 const CHROME = 84;                                // px kept clear at the top and at the bottom
+function covered() {                              // px the panel takes on the right, or at the bottom
+  const el = $("progress");
+  if (el.hidden) return { right: 0, bottom: 0 };
+  const r = el.getBoundingClientRect();
+  return innerWidth <= 600 ? { right: 0, bottom: innerHeight - r.top } : { right: innerWidth - r.left, bottom: 0 };
+}
 function frame() {
   const { center, size } = fit;
+  const cover = covered();
+  const w = innerWidth - cover.right, h = innerHeight - cover.bottom;
+  if (cover.right || cover.bottom) camera.setViewOffset(innerWidth, innerHeight, cover.right / 2, cover.bottom / 2, innerWidth, innerHeight);
+  else camera.clearViewOffset();
   const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
-  const free = Math.max(0.5, 1 - 2 * CHROME / innerHeight);    // share of the height the body may use
+  const free = Math.max(0.3, (h - 2 * CHROME) / innerHeight);   // share of the height the body may use
   const width = Math.hypot(size.x, size.z);
-  const dist = 1.08 * Math.max(size.y / 2 / (tanV * free), width / 2 / (tanV * camera.aspect * 0.92)) + width / 2;
+  const dist = 1.08 * Math.max(size.y / 2 / (tanV * free), width / 2 / (tanV * (w / innerHeight) * 0.92)) + width / 2;
   camera.near = dist / 100; camera.far = dist * 20; camera.updateProjectionMatrix();
   camera.position.set(center.x, center.y + size.y * 0.05, center.z + dist);
   controls.target.copy(center);
@@ -163,12 +225,13 @@ async function show(body) {
   controls.autoRotate = true;
   $("loading").hidden = true;
   window.bodyViewer = { numSplats: () => mesh.numSplats || 0, size: () => fit.size.toArray(), file: () => current };
+  dispatchEvent(new Event("bodyshown"));
 }
 
 // ---------------------------------------------------------------- library and runs
-let shown = "";
+let shown = "", bodyList = [];
 async function refreshBodies() {
-  const bodies = await (await fetch("/api/bodies")).json();
+  const bodies = bodyList = await (await fetch("/api/bodies")).json();
   const key = bodies.map((b) => b.file).join("|");
   if (key !== shown) {
     shown = key;
@@ -242,8 +305,16 @@ addEventListener("keydown", (e) => {
   if (e.key === " " && mesh) { e.preventDefault(); controls.autoRotate = !controls.autoRotate; }
 });
 
+// for the progress panel (progress.js)
+window.bodyApp = {
+  bodies: () => bodyList,
+  current: () => bodyList.find((b) => b.file === current) || null,
+  show: (id) => { const b = bodyList.find((x) => x.id === id); if (b) show(b); },
+  reframe: () => { if (fit) frame(); },
+};
 refreshBodies(); refreshJobs();
 setInterval(refreshJobs, 2000);
 </script>
+<script type="module" src="/static/progress.js"></script>
 </body>
 </html>

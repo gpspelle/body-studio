@@ -16,6 +16,7 @@ from splat_studio.server import jobs as splat_jobs
 from splat_studio.server.library import DataDir
 
 from body_studio import server
+from tests.fakes.bodyply import write_body
 
 # Stands in for splat-studio: reports its stages and writes a body where splat-studio would.
 FAKE = r"""
@@ -65,8 +66,10 @@ class Server(unittest.TestCase):
         with urllib.request.urlopen(self.base + path) as r:
             return r.status, r.read()
 
-    def post(self, path, body):
-        req = urllib.request.Request(self.base + path, data=body, method="POST")
+    def post(self, path, body, method="POST"):
+        if isinstance(body, dict):
+            body = json.dumps(body).encode()
+        req = urllib.request.Request(self.base + path, data=body, method=method)
         try:
             with urllib.request.urlopen(req) as r:
                 return r.status, json.loads(r.read())
@@ -102,6 +105,43 @@ class Server(unittest.TestCase):
             self.get("/files/../../fake.py")
         self.assertEqual(e.exception.code, 404)
 
+    def test_people_tape_and_scans_over_time(self):
+        status, p = self.post("/api/people", {"name": "Anna", "sex": "f", "height_cm": 168})
+        self.assertEqual(status, 201)
+        self.assertEqual(p["person"]["id"], "anna")
+        self.assertEqual(json.loads(self.get("/api/people")[1])[0]["name"], "Anna")
+        self.post("/api/people/anna/tape", {"date": "2026-09-01", "waist_cm": 78, "neck_cm": 32, "hip_cm": 100})
+        status, p = self.post("/api/people/anna/tape", {"date": "2026-10-12", "waist_cm": "75.5", "neck_cm": 32,
+                                                        "hip_cm": 99})
+        self.assertEqual(status, 201)
+        self.assertEqual(p["tape"]["waist_cm"]["since_first"], -2.5)
+        self.assertEqual(p["body_fat"]["equation"], "navy")
+
+        run = "Anna/run_20261012_120000"
+        write_body(self.d / "data" / "workspace" / run / "splat" / "standard_30000_object.ply")
+        status, p = self.post("/api/people/anna/scans", {"body": run})
+        self.assertEqual(status, 201)
+        self.assertEqual(p["scans"][0]["date"], "2026-10-12")
+        for _ in range(400):                    # measured in the background
+            p = json.loads(self.get("/api/people/anna")[1])
+            if p["scans"][0]["status"] != "measuring":
+                break
+            time.sleep(0.05)
+        self.assertEqual(p["scans"][0]["status"], "done", p["scans"][0])
+        self.assertIn("waist_cm", p["scans"][0]["measurements"])
+
+        entry = p["entries"][0]["id"]
+        status, p = self.post(f"/api/people/anna/entries/{entry}", b"", method="DELETE")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(p["entries"]), 1)
+
+    def test_people_errors_carry_a_code(self):
+        self.assertEqual(self.post("/api/people", {"name": "Bo", "sex": "x", "height_cm": 170}),
+                         (400, {"error": "sex must be m or f", "code": "bad_sex"}))
+        self.assertEqual(self.post("/api/people/nobody/tape", {"waist_cm": 80})[0], 404)
+        self.post("/api/people", {"name": "Bo", "sex": "m", "height_cm": 170})
+        self.assertEqual(self.post("/api/people/bo/scans", {"body": "../../fake.py"})[1]["code"], "no_body")
+        self.assertEqual(self.post("/api/people/bo/tape", b"not json")[1]["code"], "bad_request")
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ USER_FACING = [
     "src/body_studio/pipeline.py",
     "src/body_studio/server.py",
     "src/body_studio/library.py",
+    "src/body_studio/history.py",
 ]
 DOCS = ["README.md", "docs/*"]
 OPT_OUT = re.compile(r"^\s*no docs needed:\s*\S", re.I | re.M)

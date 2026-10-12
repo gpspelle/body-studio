@@ -51,7 +51,10 @@ import path. Why not a shared library extracted from both: splat-studio already 
 5. **Viewer and library polish.** Front/side/back buttons, a soft ground shadow, share a body
    as a small SPZ file instead of a raw PLY. Keep the row of bodies short (recent ones, the rest
    behind a "More" list), with delete that asks first.
-6. **Later, if wanted.** Comparing two bodies side by side. Measurements and a body fat
+6. **Progress over time: started.** Per-person history of tape measures and scans (Progress
+   panel, `person`/`tape`/`scan`/`progress` commands). Next steps in `docs/progress.md`: the
+   change painted on the body itself, two bodies side by side, a smoothed trend.
+7. **Later, if wanted.** Measurements and a body fat
    estimate started as `body-studio measure` (experimental); next: check it against a tape on
    real underwear captures, then an input form on the page (sex, height, weight, optional tape).
    Research in `docs/body-fat.md`.

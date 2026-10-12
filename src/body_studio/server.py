@@ -8,6 +8,13 @@
     POST /api/upload?name= raw video bytes; saved to videos/ and queued
     GET  /files/<path>     a body's .ply (only files inside workspace/)
 
+    GET  /api/people                    people whose progress is followed
+    GET  /api/people/<id>               one person's tape measures, body fat and scans over time
+    POST /api/people                    {name, sex, height_cm}: add a person or change them
+    POST /api/people/<id>/tape          {date, weight_kg, waist_cm, neck_cm, hip_cm}
+    POST /api/people/<id>/scans         {body, date}: add a finished body; measured in the background
+    DELETE /api/people/<id>/entries/<e> remove one tape entry or scan
+
 Runs go through splat-studio's own job runner (splat_studio.server.jobs.Runner): one at a time,
 under a pseudo-terminal, with measured time left, lock files, timeline.jsonl and advice in
 seconds of video. Standard library only, like splat-studio.
@@ -26,12 +33,23 @@ from urllib.parse import parse_qs, unquote, urlparse
 from splat_studio.server.jobs import Runner, validate_options
 from splat_studio.server.library import DataDir
 
-from . import __version__, library
+from . import __version__, history, library
 from .pipeline import job_options
 
 STATIC = Path(__file__).resolve().parent / "static"
 VIDEO_EXT = {".mov", ".mp4", ".m4v"}
 MAX_UPLOAD = 8 * 1024 ** 3
+MAX_JSON = 64 * 1024
+
+
+def measure_pending(root: Path, pid: str) -> threading.Thread:
+    """Measure a person's new (or re-scaled) scans one after another, off the request thread."""
+    def work():
+        for s in history.pending_scans(root, pid):
+            history.measure_scan(root, pid, s["id"], history.ply_for(root, s["body"]))
+    th = threading.Thread(target=work, daemon=True)
+    th.start()
+    return th
 
 
 def vendor_dir() -> Path:
@@ -114,10 +132,72 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._json({"version": __version__})
             if p.startswith("/files/"):
                 return self._file(library.safe_path(data.root, p[len("/files/"):]))
+            if p == "/api/people":
+                return self._json(history.people(data.root))
+            m = re.fullmatch(r"/api/people/([^/]+)", p)
+            if m:
+                return self._history(lambda: history.progress(history.load(data.root, m.group(1))))
             self.send_error(404)
+
+        def _history(self, fn, code: int = 200):
+            try:
+                return self._json(fn(), code)
+            except history.HistoryError as e:
+                return self._json({"error": str(e), "code": e.code}, 404 if e.code == "no_person" else 400)
+
+        def _body_json(self) -> dict:
+            size = int(self.headers.get("Content-Length") or 0)
+            if not 0 < size <= MAX_JSON:
+                raise history.HistoryError("send a small JSON object", "bad_request")
+            try:
+                d = json.loads(self.rfile.read(size))
+            except ValueError:
+                raise history.HistoryError("send a small JSON object", "bad_request")
+            if not isinstance(d, dict):
+                raise history.HistoryError("send a small JSON object", "bad_request")
+            return d
+
+        def _people_post(self, path: str):
+            root = data.root
+            if path == "/api/people":
+                d = self._body_json()
+                person = history.upsert_person(root, d.get("name"), d.get("sex"), d.get("height_cm"))
+                measure_pending(root, person["id"])
+                return history.progress(history.load(root, person["id"]))
+            m = re.fullmatch(r"/api/people/([^/]+)/(tape|scans)", path)
+            if not m:
+                return None
+            pid, what = m.groups()
+            history.load(root, pid)
+            d = self._body_json()
+            if what == "tape":
+                history.add_tape(root, pid, d.get("date"), **{f: d.get(f) for f in history.TAPE_FIELDS})
+            else:
+                body = str(d.get("body") or "")
+                if not history.ply_for(root, body):
+                    raise history.HistoryError("no finished body with that id", "no_body")
+                history.add_scan(root, pid, body, d.get("date"))
+                measure_pending(root, pid)
+            return history.progress(history.load(root, pid))
+
+        def do_DELETE(self):
+            m = re.fullmatch(r"/api/people/([^/]+)/entries/([^/]+)", unquote(urlparse(self.path).path))
+            if not m:
+                return self.send_error(404)
+
+            def delete():
+                history.delete_entry(data.root, *m.groups())
+                return history.progress(history.load(data.root, m.group(1)))
+            return self._history(delete)
 
         def do_POST(self):
             u = urlparse(self.path)
+            if u.path.startswith("/api/people"):
+                try:
+                    r = self._people_post(u.path)
+                except history.HistoryError as e:
+                    return self._json({"error": str(e), "code": e.code}, 404 if e.code == "no_person" else 400)
+                return self._json(r, 201) if r is not None else self.send_error(404)
             if u.path != "/api/upload":
                 return self.send_error(404)
             name = safe_name(parse_qs(u.query).get("name", ["video.mov"])[0])
