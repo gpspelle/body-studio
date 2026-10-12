@@ -63,6 +63,21 @@ Background removal always runs; the untouched splat and the fog-free copy are ke
 While a video is processed, the top bar shows the stage and the time left, measured from the
 run itself. If a run fails, it says why in terms of the video (for example, which seconds to film again).
 
+### Measurements and body fat (experimental)
+
+```bash
+body-studio measure workspace/<video>/run_<date_time>/splat/standard_30000_object.ply \
+    --sex m --height 178 --weight 80 --tape-waist 86
+```
+
+Prints neck, waist (at the navel) and hip circumferences, measured on the body like a tape, and
+a body fat estimate from the US Navy, US Army one-site and relative fat mass equations.
+`--height` is required: it gives the body its real size. `--weight` adds the Army equation.
+`--tape-waist` (your own tape measure, same day) checks the capture: more than 2 cm apart means
+something is off. Film in underwear or tight clothing, waistband below the navel, long hair tied up.
+Expect about ±4.5 points of body fat for one person; it is best for following the same person
+over time. Research and sources: [docs/body-fat.md](docs/body-fat.md).
+
 ## Development
 
 ```bash
@@ -118,3 +133,19 @@ body-studio run IMG_1234.MOV --quality preview
 ```
 
 O corpo pronto fica em `workspace/<vídeo>/run_<data_hora>/splat/<qualidade>_<passos>_object.ply`.
+
+### Medidas e gordura corporal (experimental)
+
+```bash
+body-studio measure workspace/<vídeo>/run_<data_hora>/splat/standard_30000_object.ply \
+    --sex m --height 178 --weight 80 --tape-waist 86
+```
+
+Mostra as circunferências do pescoço, da cintura (na altura do umbigo) e do quadril, medidas no
+corpo como uma fita métrica, e uma estimativa de gordura corporal pelas equações da Marinha dos
+EUA, do Exército dos EUA (um ponto) e da massa gorda relativa. `--height` é obrigatório: dá ao
+corpo o tamanho real. `--weight` acrescenta a equação do Exército. `--tape-waist` (sua própria
+fita métrica, no mesmo dia) confere a captura: mais de 2 cm de diferença indica um problema.
+Filme de roupa íntima ou roupa justa, com o elástico abaixo do umbigo e o cabelo comprido preso.
+Espere cerca de ±4,5 pontos de gordura corporal para uma pessoa; serve melhor para acompanhar a
+mesma pessoa ao longo do tempo. Pesquisa e fontes (em inglês): [docs/body-fat.md](docs/body-fat.md).

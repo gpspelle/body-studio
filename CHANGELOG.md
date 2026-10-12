@@ -8,4 +8,7 @@
 - Background and fog removal always run.
 - Runs use splat-studio's job runner: stage and measured time left in the top bar, failures
   explained in seconds of video.
+- `body-studio measure`: neck, waist and hip circumferences from a finished body, scaled by
+  the person's height, and an experimental body fat estimate (US Navy, US Army one-site,
+  relative fat mass), with an optional tape-measure check. See `docs/body-fat.md`.
 - English and Portuguese. Version, source code and license links at the bottom.

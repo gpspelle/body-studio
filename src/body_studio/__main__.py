@@ -5,6 +5,8 @@
     body-studio run VIDEO [options]   whole pipeline in the terminal (see `run --help`)
     body-studio setup                 install ffmpeg, COLMAP and Brush (splat-studio's setup)
     body-studio check                 show which tools are installed
+    body-studio measure BODY.ply --sex m --height 178 [--weight 80] [--tape-waist 86]
+                                      neck, waist, hips and a body fat estimate (experimental)
 """
 from __future__ import annotations
 
@@ -43,6 +45,9 @@ def main(argv: list[str] | None = None) -> None:
     if cmd == "run":
         from .pipeline import main as run_main
         return run_main(rest)
+    if cmd == "measure":
+        from .measure import main as measure_main
+        return measure_main(rest)
     if cmd in ("setup", "check"):
         from splat_studio.__main__ import main as splat_main
         return splat_main([cmd, *rest])
