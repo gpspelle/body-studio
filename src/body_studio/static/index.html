@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Body Studio</title>
+<link rel="stylesheet" href="/static/body.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='3.5' r='2.5' fill='%23888'/%3E%3Crect x='5' y='7' width='6' height='8' rx='3' fill='%23888'/%3E%3C/svg%3E">
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/three.module.min.js",
+    "three/addons/": "/vendor/three/addons/",
+    "@sparkjsdev/spark": "/vendor/spark/spark.module.min.js"
+  }
+}
+</script>
+</head>
+<body>
+<canvas id="stage" aria-label="3D view of the body"></canvas>
+
+<header class="bar">
+  <span class="mark">Body Studio</span>
+  <span id="job" class="pill" hidden></span>
+  <label class="btn" for="pick">New body</label>
+  <input id="pick" type="file" accept=".mov,.mp4,.m4v,video/*" hidden>
+</header>
+
+<div id="empty" class="center" hidden>
+  <p class="big">Drop a video of a person</p>
+  <p class="quiet">They stand still in an A-pose while you walk around them, three loops: low, chest, above the head.</p>
+</div>
+<div id="loading" class="center" hidden><p class="quiet" id="loadingText">Loading…</p></div>
+
+<nav id="shelf" class="shelf" aria-label="Your bodies"></nav>
+<div id="drop" class="drop" hidden><p class="big">Drop to start</p></div>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+
+// ---------------------------------------------------------------- scene
+const canvas = $("stage");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.01, 1000);
+scene.add(new SparkRenderer({ renderer }));
+const holder = new THREE.Group();            // orientation lives here; the splat stays untouched
+scene.add(holder);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.enablePan = false;                  // the body stays in the centre
+controls.autoRotate = true;                  // a slow turntable until someone touches it
+controls.autoRotateSpeed = 0.8;
+controls.minPolarAngle = THREE.MathUtils.degToRad(20);
+controls.maxPolarAngle = THREE.MathUtils.degToRad(115);
+controls.addEventListener("start", () => (controls.autoRotate = false));
+
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  if (fit) frame();
+});
+renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+
+// Brush writes the scene's up direction into the PLY header (numbers or a letter).
+function upAxisFromPly(bytes) {
+  const head = new TextDecoder("latin1").decode(bytes.subarray(0, Math.min(bytes.length, 65536)));
+  const end = head.indexOf("end_header");
+  const m = end > 0 && head.slice(0, end).match(/comment\s+Vertical axis:\s*([^\n\r]+)/);
+  if (!m) return null;
+  const n = m[1].match(/[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?/g);
+  const v = n && n.length === 3 ? new THREE.Vector3(+n[0], +n[1], +n[2])
+    : { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) }[m[1].trim().toLowerCase()];
+  return v && v.lengthSq() > 1e-8 ? v.normalize() : null;
+}
+
+// The body's extent from its opaque splats (5th-95th percentile), in world space.
+function measure(mesh) {
+  holder.updateMatrixWorld(true);
+  const m = holder.matrixWorld, n = mesh.numSplats || 0, stride = Math.max(1, Math.floor(n / 150000));
+  const xs = [], ys = [], zs = [], p = new THREE.Vector3();
+  mesh.forEachSplat((i, c, _s, _q, opacity) => {
+    if (i % stride || opacity < 0.3) return;
+    p.copy(c).applyMatrix4(m); xs.push(p.x); ys.push(p.y); zs.push(p.z);
+  });
+  if (xs.length < 10) {
+    const b = mesh.getBoundingBox(true).applyMatrix4(m);
+    return { center: b.getCenter(new THREE.Vector3()), size: b.getSize(new THREE.Vector3()) };
+  }
+  const pct = (a, q) => { a.sort((x, y) => x - y); return a[Math.floor(q * (a.length - 1))]; };
+  const lo = new THREE.Vector3(pct(xs, .005), pct(ys, .005), pct(zs, .005));   // keep hands and feet
+  const hi = new THREE.Vector3(pct(xs, .995), pct(ys, .995), pct(zs, .995));
+  return { center: lo.clone().add(hi).multiplyScalar(.5), size: hi.clone().sub(lo) };
+}
+
+// Whole body in view, head to feet, centred between the top bar and the shelf. The width
+// allowed for is the body's diagonal, so outstretched arms stay in frame while it turns.
+const CHROME = 72;                                // px kept clear at the top and at the bottom
+function frame() {
+  const { center, size } = fit;
+  const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+  const free = Math.max(0.5, 1 - 2 * CHROME / innerHeight);    // share of the height the body may use
+  const width = Math.hypot(size.x, size.z);
+  const dist = 1.08 * Math.max(size.y / 2 / (tanV * free), width / 2 / (tanV * camera.aspect * 0.92)) + width / 2;
+  camera.near = dist / 100; camera.far = dist * 20; camera.updateProjectionMatrix();
+  camera.position.set(center.x, center.y + size.y * 0.05, center.z + dist);
+  controls.target.copy(center);
+  controls.minDistance = dist * 0.35; controls.maxDistance = dist * 2.5;
+  controls.update();
+}
+
+let mesh = null, fit = null, current = null;
+
+async function show(body) {
+  if (current === body.file) return;
+  current = body.file;
+  store.set("body:last", body.file);
+  for (const b of document.querySelectorAll(".shelf button")) b.classList.toggle("on", b.dataset.file === body.file);
+  $("empty").hidden = true; $("loading").hidden = false; $("loadingText").textContent = `Loading ${body.name}…`;
+  const res = await fetch("/files/" + body.file.split("/").map(encodeURIComponent).join("/"));
+  if (!res.ok) { $("loadingText").textContent = `Couldn't load ${body.name}.`; return; }
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (current !== body.file) return;           // another body was picked meanwhile
+  if (mesh) { holder.remove(mesh); mesh.dispose?.(); }
+  const up = upAxisFromPly(bytes);
+  holder.quaternion.copy(up ? new THREE.Quaternion().setFromUnitVectors(up, new THREE.Vector3(0, 1, 0))
+                            : new THREE.Quaternion(1, 0, 0, 0));   // COLMAP data is usually y-down
+  mesh = new SplatMesh({ fileBytes: bytes, fileName: body.file });
+  holder.add(mesh);
+  await mesh.initialized;
+  fit = measure(mesh);
+  frame();
+  controls.autoRotate = true;
+  $("loading").hidden = true;
+  window.bodyViewer = { numSplats: () => mesh.numSplats || 0, size: () => fit.size.toArray(), file: () => current };
+}
+
+// ---------------------------------------------------------------- library and runs
+let shown = "";
+async function refreshBodies() {
+  const bodies = await (await fetch("/api/bodies")).json();
+  const key = bodies.map((b) => b.file).join("|");
+  if (key !== shown) {
+    shown = key;
+    $("shelf").replaceChildren(...bodies.map((b) => {
+      const el = document.createElement("button");
+      el.textContent = b.name.replace(/_/g, " ");
+      el.dataset.file = b.file;
+      el.classList.toggle("on", b.file === current);
+      el.onclick = () => show(b);
+      return el;
+    }));
+  }
+  $("empty").hidden = bodies.length > 0 || !!mesh;
+  if (!mesh && bodies.length) show(bodies.find((b) => b.file === store.get("body:last")) || bodies[0]);
+  return bodies;
+}
+
+const STAGE = { frames: "reading the video", poses: "finding the camera", training: "building the body", cleaning: "removing the background" };
+let watching = null;
+async function refreshJobs() {
+  const jobs = await (await fetch("/api/jobs")).json();
+  const live = jobs.find((j) => j.state === "running" || j.state === "queued");
+  const last = jobs[0];
+  const pill = $("job");
+  if (live) {
+    pill.hidden = false; pill.className = "pill busy";
+    pill.textContent = `${live.name}: ${live.state === "queued" ? "waiting" : STAGE[live.stage] || "starting"}`;
+    watching = live.id;
+  } else if (last && last.id === watching) {
+    watching = null;
+    pill.hidden = false;
+    pill.className = last.state === "done" ? "pill" : "pill bad";
+    pill.textContent = last.state === "done" ? `${last.name} is ready` : `${last.name} failed: ${last.error || "see the log"}`;
+    const bodies = await refreshBodies();
+    const made = bodies.find((b) => b.file === last.body);
+    if (made) show(made);
+  }
+}
+
+async function upload(file) {
+  const pill = $("job");
+  pill.hidden = false; pill.className = "pill busy"; pill.textContent = `Uploading ${file.name}…`;
+  const r = await fetch("/api/upload?name=" + encodeURIComponent(file.name), { method: "POST", body: file });
+  if (!r.ok) { pill.className = "pill bad"; pill.textContent = (await r.json().catch(() => ({}))).error || "Upload failed"; return; }
+  refreshJobs();
+}
+
+$("pick").onchange = (e) => e.target.files[0] && upload(e.target.files[0]);
+let depth = 0;
+addEventListener("dragenter", (e) => { e.preventDefault(); depth++; $("drop").hidden = false; });
+addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; $("drop").hidden = true; } });
+addEventListener("dragover", (e) => e.preventDefault());
+addEventListener("drop", (e) => {
+  e.preventDefault(); depth = 0; $("drop").hidden = true;
+  const f = e.dataTransfer.files[0];
+  if (f) upload(f);
+});
+addEventListener("keydown", (e) => {
+  if (e.key === "r" || e.key === "R") { if (fit) frame(); }
+  if (e.key === " " && mesh) { e.preventDefault(); controls.autoRotate = !controls.autoRotate; }
+});
+
+refreshBodies(); refreshJobs();
+setInterval(refreshJobs, 2000);
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# user data (when the data folder is inside the clone)
+videos/
+frames/
+workspace/
+jobs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

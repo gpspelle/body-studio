@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "body-studio"
+dynamic = ["version"]
+description = "Turn a phone video of a person into a 3D body you can orbit, on your own Mac. Built on splat-studio."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+# The capture pipeline (ffmpeg -> COLMAP -> Brush, fog and background removal, Spark viewer
+# files) comes from splat-studio, pinned to one commit. Bump the pin on purpose, never float it.
+dependencies = [
+    "splat-studio @ git+https://github.com/gpspelle/splat-studio@c1d8fc358e1af267b3f89a654f7012174b511044",
+]
+
+[project.scripts]
+body-studio = "body_studio.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "body_studio.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+body_studio = ["static/*.html", "static/*.css", "static/*.js"]
