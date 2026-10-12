@@ -9,6 +9,8 @@
   splat-studio still accepts every flag we pass.
 - **This repo**: body defaults (`pipeline.py`), the library of bodies (`library.py`), the local
   server (`server.py`) and the single page (`static/index.html`, `static/body.css`).
+- Runs go through splat-studio's job runner (`splat_studio.server.jobs.Runner`): pty, measured
+  time left, lock files, timeline.jsonl, advice in seconds of video. Don't write a second runner.
 - three.js and Spark are served from the installed splat-studio package (`/vendor/...`), so
   there is one vendored copy.
 
@@ -20,9 +22,21 @@
   need a reason in the PR description.
 - Data stays in splat-studio's layout (`videos/`, `frames/`, `workspace/<name>/run_*/`), so
   either app can open a run.
+- Every string on the page lives in `static/i18n.js`, in English and Portuguese.
+
+## Tests
+
+- `tests/unit`: fast, no tools needed. Includes the contract tests against the pinned splat-studio.
+- `tests/integration/test_end_to_end.py`: the real splat-studio pipeline with splat-studio's own
+  stand-in COLMAP and Brush (the fake Brush rejects unknown flags). Needs ffmpeg and
+  `SPLAT_STUDIO_SRC="$(python3 scripts/splat_studio_src.py)"`.
+- `tests/browser`: the page in Chromium. Wait for page state, never a fixed delay.
 
 ## Keep the README current
 
 A change a user sees (the page, a CLI flag, a default, a file the app writes) updates
-`README.md` and adds a line to `CHANGELOG.md` in the same PR. A change to how the page looks
-regenerates `docs/images/` and you look at every image before committing it.
+`README.md` (both languages) and adds a line to `CHANGELOG.md` in the same PR. CI
+(`.github/workflows/docs.yml`) fails a PR that touches user-facing code without touching
+`README.md` or `docs/`, unless the PR description has a line `No docs needed: <reason>`.
+A change to how the page looks regenerates `docs/images/` with `python3 scripts/screenshots.py`,
+and you look at every image before committing it.

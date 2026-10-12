@@ -8,6 +8,9 @@ import unittest
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+from splat_studio.server.jobs import Runner
+from splat_studio.server.library import DataDir
+
 from body_studio import server
 from tests.fakes.bodyply import write_body
 
@@ -22,9 +25,9 @@ class Viewer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
-        d = Path(cls.tmp.name)
-        write_body(d / "workspace/Anna/run_20261012_120000/splat/standard_30000_object.ply", n=20000)
-        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(d, server.Jobs(d)))
+        data = DataDir(Path(cls.tmp.name))
+        write_body(data.workspace / "Anna/run_20261012_120000/splat/standard_30000_object.ply", n=20000)
+        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
         threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
         cls.url = f"http://127.0.0.1:{cls.httpd.server_address[1]}/"
         cls.pw = sync_playwright().start()
@@ -51,6 +54,7 @@ class Viewer(unittest.TestCase):
             sx, sy, sz = page.evaluate("bodyViewer.size()")
             self.assertGreater(sy, 1.5 * max(sx, sz), "the body should stand upright")
             self.assertEqual(page.locator(".shelf button.on").inner_text(), "Anna")
+            self.assertTrue(page.locator("#version").inner_text().startswith("v"))
             self.assertEqual(errors, [])
             page.close()
 

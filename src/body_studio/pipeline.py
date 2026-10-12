@@ -38,6 +38,13 @@ def splat_run_args(video: Path, quality: str = "standard", frames: int = DEFAULT
     return args
 
 
+def job_options(quality: str = "standard", frames: int = DEFAULT_FRAMES) -> dict:
+    """Options for a splat-studio "video" job (the web app's runs). Same defaults as the CLI."""
+    if quality not in QUALITY:
+        raise ValueError(f"unknown quality {quality!r}; use one of {', '.join(QUALITY)}")
+    return {"quality": quality, "frames": frames, "remove_background": True}
+
+
 def splat_command(args: list[str]) -> list[str]:
     return [sys.executable, "-u", "-m", "splat_studio", "run", *args]
 

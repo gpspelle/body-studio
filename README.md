@@ -1,5 +1,7 @@
 # Body Studio
 
+*English · [Português](#português)*. The app itself switches between English and Portuguese.
+
 **Turn a phone video of a person into a 3D body you can orbit, on your own Mac.**
 
 One screen: the body stands in the middle and turns slowly; drag to look around, pick another
@@ -18,6 +20,7 @@ Everything runs locally: no uploads, no accounts, no cloud GPU. The capture pipe
 | Frames → camera poses | COLMAP |
 | Poses → splat | Brush (Metal on Apple Silicon) |
 | Fog, floor and room removed | Splat Studio (always on) |
+| Runs, time left, advice | Splat Studio's job runner |
 | Body on screen | Spark + three.js |
 
 <br clear="right">
@@ -57,13 +60,61 @@ body-studio run IMG_1234.MOV --start 0:03 --end 2:10
 The finished body is `workspace/<video>/run_<date_time>/splat/<quality>_<steps>_object.ply`.
 Background removal always runs; the untouched splat and the fog-free copy are kept next to it.
 
+While a video is processed, the top bar shows the stage and the time left, measured from the
+run itself. If a run fails, it says why in terms of the video (for example, which seconds to film again).
+
 ## Development
 
 ```bash
 pip install -e .
 python -m unittest discover -s tests/unit -t .
+
+# end to end: the real splat-studio pipeline with its stand-in COLMAP and Brush (needs ffmpeg)
+export SPLAT_STUDIO_SRC="$(python3 scripts/splat_studio_src.py)"
+python -m unittest tests.integration.test_end_to_end
+
 pip install playwright && python -m playwright install chromium
 python -m unittest tests.browser.test_viewer        # the app in a real browser
+python3 scripts/screenshots.py                      # regenerates docs/images/
 ```
 
 See [AGENTS.md](AGENTS.md) for conventions and [docs/plan.md](docs/plan.md) for what comes next.
+
+---
+
+## Português
+
+**Transforme um vídeo de uma pessoa, feito no celular, em um corpo 3D que você pode girar, no seu próprio Mac.**
+
+Uma tela só: o corpo fica no centro e gira devagar. Arraste para olhar em volta, escolha outro
+corpo na fileira de baixo ou solte um vídeo novo em qualquer lugar da página. Tudo roda no seu
+computador, sem upload, sem conta e sem GPU na nuvem. O processamento é o do
+[Splat Studio](https://github.com/gpspelle/splat-studio), instalado como dependência. A remoção
+do fundo, do chão e da névoa sempre acontece.
+
+### Instalar
+
+```bash
+git clone https://github.com/gpspelle/body-studio.git
+cd body-studio
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e .
+body-studio setup        # instala ffmpeg e COLMAP e compila o Brush, uma vez (10 a 30 min)
+body-studio              # abre http://localhost:8770
+```
+
+### Filmar uma pessoa
+
+- A pessoa fica **parada** em pose A: pés afastados na largura dos ombros, braços um pouco afastados do corpo.
+- Dê **três voltas** ao redor dela: na altura do joelho, na altura do peito e com o celular acima da cabeça.
+  De 1½ a 3 minutos no total, em uma única tomada, na lente 1×.
+- **Luz suave e uniforme** e um fundo com alguma textura (não uma parede branca lisa). Trave o foco e a exposição.
+
+### Linha de comando
+
+```bash
+body-studio run IMG_1234.MOV
+body-studio run IMG_1234.MOV --quality preview
+```
+
+O corpo pronto fica em `workspace/<vídeo>/run_<data_hora>/splat/<qualidade>_<passos>_object.ply`.

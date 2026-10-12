@@ -21,8 +21,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install .          # also installs the pinned splat-studio
+      - name: Install ffmpeg
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then brew install ffmpeg; else sudo apt-get update && sudo apt-get install -y ffmpeg; fi
+      - run: pip install .          # also installs the pinned splat-studio (without OpenCV)
       - run: python -m unittest discover -s tests/unit -t . -v
+      - name: End to end (real splat-studio pipeline, its stand-in COLMAP and Brush)
+        run: |
+          export SPLAT_STUDIO_SRC="$(python3 scripts/splat_studio_src.py .splat-studio-src)"
+          python -m unittest tests.integration.test_end_to_end -v
 
   browser:
     name: app in a real browser

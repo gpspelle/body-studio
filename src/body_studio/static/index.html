@@ -6,6 +6,7 @@
 <title>Body Studio</title>
 <link rel="stylesheet" href="/static/body.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='3.5' r='2.5' fill='%23888'/%3E%3Crect x='5' y='7' width='6' height='8' rx='3' fill='%23888'/%3E%3C/svg%3E">
+<script src="/static/i18n.js"></script>
 <script type="importmap">
 {
   "imports": {
@@ -17,23 +18,31 @@
 </script>
 </head>
 <body>
-<canvas id="stage" aria-label="3D view of the body"></canvas>
+<canvas id="stage" data-i18n-aria-label="app.view"></canvas>
 
 <header class="bar">
   <span class="mark">Body Studio</span>
-  <span id="job" class="pill" hidden></span>
-  <label class="btn" for="pick">New body</label>
+  <span id="job" class="pill" role="status" hidden></span>
+  <button id="lang" class="link" data-i18n-aria-label="lang.label"></button>
+  <label class="btn" for="pick" data-i18n="app.new"></label>
   <input id="pick" type="file" accept=".mov,.mp4,.m4v,video/*" hidden>
 </header>
 
 <div id="empty" class="center" hidden>
-  <p class="big">Drop a video of a person</p>
-  <p class="quiet">They stand still in an A-pose while you walk around them, three loops: low, chest, above the head.</p>
+  <p class="big" data-i18n="empty.title"></p>
+  <p class="quiet" data-i18n="empty.how"></p>
 </div>
-<div id="loading" class="center" hidden><p class="quiet" id="loadingText">Loading…</p></div>
+<div id="loading" class="center" hidden><p class="quiet" id="loadingText"></p></div>
 
-<nav id="shelf" class="shelf" aria-label="Your bodies"></nav>
-<div id="drop" class="drop" hidden><p class="big">Drop to start</p></div>
+<div class="bottom">
+  <nav id="shelf" class="shelf" data-i18n-aria-label="app.bodies"></nav>
+  <footer class="foot">
+    <span id="version"></span> ·
+    <a href="https://github.com/gpspelle/body-studio" target="_blank" rel="noopener" data-i18n="foot.source"></a> ·
+    <a href="https://github.com/gpspelle/body-studio/blob/main/LICENSE" target="_blank" rel="noopener" data-i18n="foot.license"></a>
+  </footer>
+</div>
+<div id="drop" class="drop" hidden><p class="big" data-i18n="drop.title"></p></div>
 
 <script type="module">
 import * as THREE from "three";
@@ -41,6 +50,15 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 
 const $ = (id) => document.getElementById(id);
+const t = window.t;
+function langButton() {
+  const other = window.i18n.lang === "pt" ? "en" : "pt";
+  $("lang").textContent = window.i18n.LANGS[other];
+  $("lang").onclick = () => window.i18n.set(other);
+}
+window.i18n.apply(); langButton();
+addEventListener("langchange", () => { langButton(); lastPill && lastPill(); });
+fetch("/api/version").then((r) => r.json()).then((v) => ($("version").textContent = "v" + v.version)).catch(() => {});
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
@@ -107,7 +125,7 @@ function measure(mesh) {
 
 // Whole body in view, head to feet, centred between the top bar and the shelf. The width
 // allowed for is the body's diagonal, so outstretched arms stay in frame while it turns.
-const CHROME = 72;                                // px kept clear at the top and at the bottom
+const CHROME = 84;                                // px kept clear at the top and at the bottom
 function frame() {
   const { center, size } = fit;
   const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
@@ -128,9 +146,9 @@ async function show(body) {
   current = body.file;
   store.set("body:last", body.file);
   for (const b of document.querySelectorAll(".shelf button")) b.classList.toggle("on", b.dataset.file === body.file);
-  $("empty").hidden = true; $("loading").hidden = false; $("loadingText").textContent = `Loading ${body.name}…`;
+  $("empty").hidden = true; $("loading").hidden = false; $("loadingText").textContent = t("load.loading", { name: body.name });
   const res = await fetch("/files/" + body.file.split("/").map(encodeURIComponent).join("/"));
-  if (!res.ok) { $("loadingText").textContent = `Couldn't load ${body.name}.`; return; }
+  if (!res.ok) { $("loadingText").textContent = t("load.failed", { name: body.name }); return; }
   const bytes = new Uint8Array(await res.arrayBuffer());
   if (current !== body.file) return;           // another body was picked meanwhile
   if (mesh) { holder.remove(mesh); mesh.dispose?.(); }
@@ -168,22 +186,30 @@ async function refreshBodies() {
   return bodies;
 }
 
-const STAGE = { frames: "reading the video", poses: "finding the camera", training: "building the body", cleaning: "removing the background" };
-let watching = null;
+let watching = null, lastPill = null;
+function pill(cls, text) {
+  const el = $("job");
+  el.hidden = false; el.className = "pill" + (cls ? " " + cls : ""); el.textContent = text;
+}
 async function refreshJobs() {
   const jobs = await (await fetch("/api/jobs")).json();
-  const live = jobs.find((j) => j.state === "running" || j.state === "queued");
+  const live = jobs.find((j) => j.status === "running" || j.status === "queued");
   const last = jobs[0];
-  const pill = $("job");
   if (live) {
-    pill.hidden = false; pill.className = "pill busy";
-    pill.textContent = `${live.name}: ${live.state === "queued" ? "waiting" : STAGE[live.stage] || "starting"}`;
     watching = live.id;
+    lastPill = () => {
+      const name = live.name.replace(/_/g, " ");
+      if (live.status === "queued") return pill("busy", t("job.waiting", { name }));
+      const left = live.left ? t("job.left", { left: live.left }) : t("job.measuring");
+      pill("busy", `${t("job.stage" + (live.stage || 1), { name })} · ${left}`);
+    };
+    lastPill();
   } else if (last && last.id === watching) {
     watching = null;
-    pill.hidden = false;
-    pill.className = last.state === "done" ? "pill" : "pill bad";
-    pill.textContent = last.state === "done" ? `${last.name} is ready` : `${last.name} failed: ${last.error || "see the log"}`;
+    const name = last.name.replace(/_/g, " ");
+    lastPill = () => last.status === "done" ? pill("", t("job.ready", { name }))
+      : pill("bad", t("job.failed", { name, error: last.advice[0] || last.error || last.status }));
+    lastPill();
     const bodies = await refreshBodies();
     const made = bodies.find((b) => b.file === last.body);
     if (made) show(made);
@@ -191,10 +217,13 @@ async function refreshJobs() {
 }
 
 async function upload(file) {
-  const pill = $("job");
-  pill.hidden = false; pill.className = "pill busy"; pill.textContent = `Uploading ${file.name}…`;
+  lastPill = null;
+  pill("busy", t("job.uploading", { name: file.name }));
   const r = await fetch("/api/upload?name=" + encodeURIComponent(file.name), { method: "POST", body: file });
-  if (!r.ok) { pill.className = "pill bad"; pill.textContent = (await r.json().catch(() => ({}))).error || "Upload failed"; return; }
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    return pill("bad", t(e.code ? "err." + e.code : "err.upload"));
+  }
   refreshJobs();
 }
 
