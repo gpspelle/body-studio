@@ -16,7 +16,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
 
-SRC = Path(os.environ.get("SPLAT_STUDIO_SRC", "/nonexistent"))
+SRC = Path(os.environ.get("SPLAT_STUDIO_SRC", "/nonexistent")).resolve()   # runs use another cwd
 FAKE_BIN = SRC / "tests" / "fakes" / "bin"
 
 
@@ -28,6 +28,7 @@ class EndToEnd(unittest.TestCase):
         self.env = mock.patch.dict(os.environ, {
             "PATH": f"{FAKE_BIN}{os.pathsep}{os.environ['PATH']}",
             "SPLAT_IN_CONTAINER": "1",                 # skip the macOS installer step
+            "SPLAT_STUDIO_BRUSH": str(FAKE_BIN / "brush"),
             "SPLAT_STUDIO_TIMINGS": str(d / "timings.json"), "SPLAT_STUDIO_RATES": str(d / "rates.json"),
             "SPLAT_STUDIO_TOOLS": str(d / "tools"), "HOME": str(d / "home")})
         self.env.start()

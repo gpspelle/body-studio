@@ -25,7 +25,7 @@ def main() -> None:
         subprocess.run(["git", "init", "-q", str(dest)], check=True)
     subprocess.run(["git", "-C", str(dest), "fetch", "-q", "--depth", "1", url, sha], check=True)
     subprocess.run(["git", "-C", str(dest), "checkout", "-q", "FETCH_HEAD"], check=True)
-    print(dest)
+    print(dest.resolve())
 
 
 if __name__ == "__main__":
