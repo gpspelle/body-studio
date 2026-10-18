@@ -1,6 +1,7 @@
 """Runs tests/js/pose.test.mjs (the posing and tattoo maths the page uses) with Node against a
 rig built from the MakeHuman body. Skipped when Node isn't installed."""
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -25,7 +26,8 @@ class PoseJs(unittest.TestCase):
                                env={**os.environ, "RIG_JSON": str(rig.rig_file(ply))},
                                capture_output=True, text=True, timeout=600)
             self.assertEqual(r.returncode, 0, r.stdout[-4000:] + r.stderr[-2000:])
-            self.assertIn("# fail 0", r.stdout)
+            self.assertRegex(r.stdout, r"\bfail 0\b")          # "# fail 0" (TAP) or "ℹ fail 0" (spec reporter)
+            self.assertIsNone(re.search(r"\bpass 0\b", r.stdout))
 
 
 if __name__ == "__main__":
