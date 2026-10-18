@@ -108,6 +108,29 @@ body-studio progress Anna
 Each person is one file, `people/<name>.json` in the data folder. How the design was chosen:
 [docs/progress.md](docs/progress.md).
 
+## Tattoo & pose
+
+Click **Tattoo** to try a tattoo on the body and move the body to see how it sits. The
+panel sits at the left edge (at the bottom on a phone).
+
+![Tattoo & pose panel](docs/images/tattoo-desktop.png)
+
+- **Add an image** (PNG, JPG, WebP, SVG), then tap the body where it goes. Drag it to move it;
+  set its width in centimetres, its turn and how strong the ink is. Designs drawn on white have
+  the white removed. The tattoo wraps around the arm or across the chest and is drawn as ink, so
+  the skin shows through it.
+- **Move the body**: drag the dot on a joint (the elbow dot turns the shoulder, the wrist dot
+  the elbow…), or pick a pose: standing, arms up, flex, walking, sitting. Each joint only moves
+  the way a person's can, within its normal range. Pick a joint to set its angles with sliders.
+  The tattoo moves with the skin.
+- The first time, the app finds the body's skeleton (a few seconds). It needs the A-pose from the
+  filming guide: arms a little away from the body, feet apart. Tattoos and pose are kept in this
+  browser, per body.
+
+`body-studio rig BODY.ply` does the skeleton step in the terminal and prints the joint heights.
+It saves `BODY.rig.json` next to the body. How it works, the body models that were considered
+and their licences, and the limits: [docs/tattoo.md](docs/tattoo.md).
+
 ## Development
 
 ```bash
@@ -184,6 +207,29 @@ no celular).
 
 No terminal: `body-studio person`, `tape`, `scan` e `progress` (exemplos acima, em inglês). Cada
 pessoa é um arquivo, `people/<nome>.json` na pasta de dados.
+
+### Tatuagem e pose
+
+Clique em **Tatuagem** para testar uma tatuagem no corpo e mexer o corpo para ver como
+ela fica. O painel fica na borda esquerda (embaixo, no celular).
+
+<img src="docs/images/tattoo-phone.png" width="220" alt="Painel de tatuagem e pose no celular">
+
+- **Adicione uma imagem** (PNG, JPG, WebP, SVG) e toque no corpo onde ela vai. Arraste para mudar
+  de lugar; ajuste a largura em centímetros, o giro e a força da tinta. Desenhos sobre fundo branco
+  perdem o branco. A tatuagem contorna o braço ou atravessa o peito e é desenhada como tinta, então
+  a pele aparece através dela.
+- **Mexa o corpo**: arraste o ponto de uma articulação (o ponto do cotovelo gira o ombro, o do
+  pulso gira o cotovelo…) ou escolha uma pose: em pé, braços para cima, bíceps, andando, sentado.
+  Cada articulação só se move como a de uma pessoa, dentro da amplitude normal. Escolha uma
+  articulação para ajustar os ângulos com controles deslizantes. A tatuagem acompanha a pele.
+- Na primeira vez, o app encontra o esqueleto do corpo (alguns segundos). Precisa da pose A do guia
+  de filmagem: braços um pouco afastados do corpo, pés afastados. Tatuagens e pose ficam guardadas
+  neste navegador, para cada corpo.
+
+`body-studio rig CORPO.ply` faz o esqueleto no terminal e salva `CORPO.rig.json` ao lado do corpo.
+Como funciona, os modelos de corpo considerados e suas licenças, e os limites (em inglês):
+[docs/tattoo.md](docs/tattoo.md).
 
 ### Medidas e gordura corporal (experimental)
 

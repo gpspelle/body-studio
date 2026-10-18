@@ -24,6 +24,7 @@
   <span class="mark">Body Studio</span>
   <span id="job" class="pill" role="status" hidden></span>
   <button id="lang" class="link" data-i18n-aria-label="lang.label"></button>
+  <button id="studioBtn" class="btn" aria-controls="studio" aria-expanded="false" data-i18n="studio.btn" hidden></button>
   <button id="progressBtn" class="btn" aria-controls="progress" aria-expanded="false" data-i18n="prog.open"></button>
   <label class="btn" for="pick" data-i18n="app.new"></label>
   <input id="pick" type="file" accept=".mov,.mp4,.m4v,video/*" hidden>
@@ -90,6 +91,40 @@
         <p class="err" role="alert"></p>
       </form>
       <details id="entries"><summary></summary><ul></ul></details>
+    </section>
+  </div>
+</aside>
+<aside id="studio" class="panel left" data-i18n-aria-label="studio.open" hidden>
+  <div class="panel-head">
+    <strong data-i18n="studio.open"></strong>
+    <span class="grow"></span>
+    <button id="closeStudio" class="link" data-i18n-aria-label="studio.close">✕</button>
+  </div>
+  <p id="studioStatus" class="small" role="status"></p>
+  <div id="studioBody" hidden>
+    <section>
+      <h2 data-i18n="tat.title"></h2>
+      <div class="chips" id="tatList"></div>
+      <label class="btn" for="tatPick" data-i18n="tat.add"></label>
+      <input id="tatPick" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
+      <p id="tatHint" class="small"></p>
+      <div id="tatEdit" class="sliders" hidden>
+        <label><span data-i18n="tat.size"></span><input id="tatSize" type="range" min="1" max="60" step="0.5"><output id="tatSizeOut"></output></label>
+        <label><span data-i18n="tat.angle"></span><input id="tatAngle" type="range" min="-180" max="180" step="1"><output id="tatAngleOut"></output></label>
+        <label><span data-i18n="tat.ink"></span><input id="tatInk" type="range" min="0.2" max="1" step="0.05"><output id="tatInkOut"></output></label>
+        <button id="tatRemove" class="link" data-i18n="tat.remove"></button>
+      </div>
+      <label class="inline small"><span data-i18n="tat.height"></span><input id="tatHeight" type="number" inputmode="decimal" min="80" max="250" step="0.5"></label>
+    </section>
+    <section>
+      <h2 data-i18n="pose.title"></h2>
+      <p class="small" data-i18n="pose.hint"></p>
+      <div class="chips" id="presets"></div>
+      <div id="jointEdit" class="sliders" hidden>
+        <div class="joint-head"><strong id="jointName"></strong><button id="jointReset" class="link" data-i18n="pose.resetJoint"></button></div>
+        <div id="jointSliders"></div>
+      </div>
+      <button id="poseReset" class="btn" data-i18n="pose.reset"></button>
     </section>
   </div>
 </aside>
@@ -178,17 +213,25 @@ function measure(mesh) {
 // allowed for is the body's diagonal, so outstretched arms stay in frame while it turns.
 // With the progress panel open, the body stays centred in the space the panel leaves.
 const CHROME = 84;                                // px kept clear at the top and at the bottom
-function covered() {                              // px the panel takes on the right, or at the bottom
-  const el = $("progress");
-  if (el.hidden) return { right: 0, bottom: 0 };
-  const r = el.getBoundingClientRect();
-  return innerWidth <= 600 ? { right: 0, bottom: innerHeight - r.top } : { right: innerWidth - r.left, bottom: 0 };
+function covered() {                              // px the panels take at each side, or at the bottom
+  // and the top bar beyond one row (on a phone its buttons wrap to a second row)
+  const out = { left: 0, right: 0, bottom: 0, top: Math.max(0, document.querySelector(".bar").getBoundingClientRect().bottom - 64) };
+  for (const id of ["progress", "studio"]) {
+    const el = $(id);
+    if (el.hidden) continue;
+    const r = el.getBoundingClientRect();
+    if (innerWidth <= 600) out.bottom = Math.max(out.bottom, innerHeight - r.top);
+    else if (r.left < innerWidth / 2) out.left = r.right;
+    else out.right = innerWidth - r.left;
+  }
+  return out;
 }
 function frame() {
   const { center, size } = fit;
   const cover = covered();
-  const w = innerWidth - cover.right, h = innerHeight - cover.bottom;
-  if (cover.right || cover.bottom) camera.setViewOffset(innerWidth, innerHeight, cover.right / 2, cover.bottom / 2, innerWidth, innerHeight);
+  const w = innerWidth - cover.right - cover.left, h = innerHeight - cover.bottom - cover.top;
+  if (cover.right || cover.left || cover.bottom || cover.top)
+    camera.setViewOffset(innerWidth, innerHeight, (cover.right - cover.left) / 2, (cover.bottom - cover.top) / 2, innerWidth, innerHeight);
   else camera.clearViewOffset();
   const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
   const free = Math.max(0.3, (h - 2 * CHROME) / innerHeight);   // share of the height the body may use
@@ -225,6 +268,7 @@ async function show(body) {
   controls.autoRotate = true;
   $("loading").hidden = true;
   window.bodyViewer = { numSplats: () => mesh.numSplats || 0, size: () => fit.size.toArray(), file: () => current };
+  $("studioBtn").hidden = false;
   dispatchEvent(new Event("bodyshown"));
 }
 
@@ -311,10 +355,13 @@ window.bodyApp = {
   current: () => bodyList.find((b) => b.file === current) || null,
   show: (id) => { const b = bodyList.find((x) => x.id === id); if (b) show(b); },
   reframe: () => { if (fit) frame(); },
+  // for the tattoo and pose panel (tattoo.js)
+  viewer: { scene, holder, camera, controls, renderer, canvas, mesh: () => mesh, file: () => current },
 };
 refreshBodies(); refreshJobs();
 setInterval(refreshJobs, 2000);
 </script>
 <script type="module" src="/static/progress.js"></script>
+<script type="module" src="/static/tattoo.js"></script>
 </body>
 </html>

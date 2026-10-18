@@ -143,6 +143,45 @@ class Server(unittest.TestCase):
         self.assertEqual(self.post("/api/people/bo/scans", {"body": "../../fake.py"})[1]["code"], "no_body")
         self.assertEqual(self.post("/api/people/bo/tape", b"not json")[1]["code"], "bad_request")
 
+    def test_rig_is_found_once_in_the_background(self):
+        from tests.fakes.makehuman import write_body as write_person
+        ws = self.d / "data" / "workspace"
+        write_person(ws / "Ana" / "run_20261012_120000" / "splat" / "standard_30000_object.ply", n=40000)
+        ply = ws / "Ana" / "run_20261012_120000" / "splat" / "standard_30000_object.ply"
+        later = time.time() + 3600                          # a clock that runs ahead: built once all the same
+        os.utime(ply, (later, later))
+        body = "/api/rig?body=workspace/Ana/run_20261012_120000/splat/standard_30000_object.ply"
+        statuses = []
+        deadline = time.time() + 120
+        while time.time() < deadline:
+            try:
+                status, raw = self.get(body)
+            except urllib.error.HTTPError as e:
+                self.fail(f"{e.code}: {e.read()}")
+            statuses.append(status)
+            if status == 200:
+                break
+            time.sleep(0.2)
+        self.assertEqual(statuses[0], 202)
+        self.assertEqual(statuses[-1], 200)
+        r = json.loads(raw)
+        self.assertEqual(len(r["joints"]), 24)
+        self.assertTrue((ws / "Ana" / "run_20261012_120000" / "splat" / "standard_30000_object.rig.json").is_file())
+        self.assertEqual(self.get(body)[0], 200)          # saved: no second build
+
+    def test_rig_errors_carry_a_code(self):
+        write_body(self.d / "data" / "workspace" / "Ball" / "run_1" / "splat" / "x_object.ply", n=600)
+        self.assertEqual(self.post("/api/rig?body=../fake.py", None, method="GET")[0], 404)
+        self.assertEqual(self.post("/api/rig?body=workspace/Nobody/x.ply", None, method="GET")[1]["code"], "no_body")
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            status, d = self.post("/api/rig?body=workspace/Ball/run_1/splat/x_object.ply", None, method="GET")
+            if status != 202:
+                break
+            time.sleep(0.1)
+        self.assertEqual(status, 422)
+        self.assertEqual(d["code"], "few")
+
 
 if __name__ == "__main__":
     unittest.main()

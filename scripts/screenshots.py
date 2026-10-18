@@ -18,6 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from tests.fakes.bodyply import write_body  # noqa: E402
+from tests.fakes.makehuman import write_body as write_person  # noqa: E402
 
 from playwright.sync_api import sync_playwright  # noqa: E402
 from splat_studio.server.jobs import Runner  # noqa: E402
@@ -25,12 +26,37 @@ from splat_studio.server.library import DataDir  # noqa: E402
 
 from body_studio import history, server  # noqa: E402
 
-SHOTS = [  # name, width, height, colour scheme, language, progress panel open
-    ("desktop-light", 1280, 800, "light", "en", False),
-    ("phone-dark", 390, 844, "dark", "pt", False),
-    ("progress-desktop", 1280, 800, "light", "en", True),
-    ("progress-phone", 390, 844, "dark", "pt", True),
+SHOTS = [  # name, width, height, colour scheme, language, panel open
+    ("desktop-light", 1280, 800, "light", "en", None),
+    ("phone-dark", 390, 844, "dark", "pt", None),
+    ("progress-desktop", 1280, 800, "light", "en", "progress"),
+    ("progress-phone", 390, 844, "dark", "pt", "progress"),
+    ("tattoo-desktop", 1280, 800, "light", "en", "tattoo"),
+    ("tattoo-phone", 390, 844, "dark", "pt", "tattoo"),
 ]
+# a line-art design drawn on white, like a scanned tattoo sketch: a sun with a wave inside
+DESIGN = """(() => {
+  const c = document.createElement("canvas"); c.width = c.height = 600;
+  const g = c.getContext("2d");
+  g.fillStyle = "#fff"; g.fillRect(0, 0, 600, 600);
+  g.strokeStyle = "#111"; g.fillStyle = "#111"; g.lineCap = "round"; g.lineWidth = 14;
+  g.beginPath(); g.arc(300, 300, 150, 0, 2 * Math.PI); g.stroke();
+  for (let k = 0; k < 16; k++) {
+    const a = k * Math.PI / 8, r0 = 185, r1 = k % 2 ? 235 : 280;
+    g.beginPath(); g.moveTo(300 + r0 * Math.cos(a), 300 + r0 * Math.sin(a));
+    g.lineTo(300 + r1 * Math.cos(a), 300 + r1 * Math.sin(a)); g.stroke();
+  }
+  g.save(); g.beginPath(); g.arc(300, 300, 136, 0, 2 * Math.PI); g.clip();
+  g.lineWidth = 12;
+  for (let row = 0; row < 3; row++) {
+    g.beginPath();
+    for (let x = 150; x <= 450; x += 4) g.lineTo(x, 320 + row * 42 + 16 * Math.sin((x - 150) / 30 + row));
+    g.stroke();
+  }
+  g.beginPath(); g.arc(300, 250, 46, Math.PI, 2 * Math.PI); g.fill();
+  g.restore();
+  return c.toDataURL("image/png");
+})()"""
 # Anna's tape over ten weeks: date, weight, waist, neck, hips
 TAPE = [("2026-08-03", 68.4, 82.0, 33.0, 104.0), ("2026-08-17", 67.9, 81.2, 33.0, 103.5),
         ("2026-08-31", 67.1, 80.1, 32.8, 102.6), ("2026-09-14", 66.6, 79.4, 33.0, 102.0),
@@ -59,6 +85,10 @@ def main() -> None:
             p = write_body(data.workspace / name / run / "splat" / "standard_30000_object.ply",
                            n=200_000, seed=seed, trunk=trunk)
             os.utime(p, (mtime, mtime))
+        # the tattoo shots need a body shaped like a person: the MakeHuman base mesh
+        p = data.workspace / "Mia" / "run_20261001_120000" / "splat" / "standard_30000_object.ply"
+        write_person(p, n=300_000)
+        os.utime(p, (1_990_000_000, 1_990_000_000))
         seed_person(data)
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
@@ -69,12 +99,14 @@ def main() -> None:
             for name, w, h, scheme, lang, panel in SHOTS:
                 page = browser.new_page(viewport={"width": w, "height": h}, color_scheme=scheme)
                 page.add_init_script(f"localStorage.setItem('lang', '{lang}')")
-                if panel:
+                if panel == "progress":
                     page.add_init_script("localStorage.setItem('progress:open', '1')")
                 page.goto(url)
                 page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
-                if panel:
+                if panel == "progress":
                     page.wait_for_selector("#profileChart polyline.before", state="attached")
+                if panel == "tattoo":
+                    tattoo_scene(page, Path(tmp))
                 page.wait_for_function("document.getElementById('version').textContent.length > 0")
                 page.wait_for_timeout(1500)
                 page.screenshot(path=str(out / f"{name}.png"))
@@ -83,6 +115,38 @@ def main() -> None:
             browser.close()
         httpd.shutdown()
 
+
+def tattoo_scene(page, tmp: Path) -> None:
+    """Mia flexing, with a sun on her left forearm and the left elbow picked; closer on a laptop."""
+    import base64
+    design = tmp / "sun.png"
+    design.write_bytes(base64.b64decode(page.evaluate(DESIGN).split(",", 1)[1]))
+    page.locator(".shelf button", has_text="Mia").click()
+    page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+    page.click("#studioBtn")
+    page.wait_for_function("tattooStudio.ready", timeout=300000)
+    page.evaluate("bodyApp.viewer.controls.autoRotate = false")
+    page.locator("#presets button").nth(2).click()                 # flex
+    page.set_input_files("#tatPick", str(design))
+    page.wait_for_function("document.getElementById('tatHint').textContent.length > 0")
+    elbow, wrist = page.evaluate("[tattooStudio.joint('elbow_l'), tattooStudio.joint('wrist_l')]")
+    at = [0.5 * a + 0.5 * b for a, b in zip(elbow, wrist)]
+    page.mouse.click(*page.evaluate(f"tattooStudio.screen({at})"))
+    page.wait_for_function("tattooStudio.tattoos().length === 1")
+    page.fill("#tatSize", "8")
+    page.dispatch_event("#tatSize", "input")
+    page.mouse.click(*page.evaluate("tattooStudio.screen(tattooStudio.joint('wrist_l'))"))   # picks the elbow
+    page.wait_for_function("!document.getElementById('jointEdit').hidden")
+    if page.viewport_size["width"] > 600:              # closer: from the hips up
+        page.evaluate("""(() => {
+          const V = bodyApp.viewer, THREE_V = V.camera.position.constructor;
+          const c = tattooStudio.joint('chest');
+          const chest = V.holder.localToWorld(new THREE_V(c[0], c[1], c[2]));
+          const shift = chest.clone().sub(V.controls.target).multiplyScalar(0.8);
+          V.controls.target.add(shift); V.camera.position.add(shift);
+          V.camera.position.lerp(V.controls.target, 0.45);
+          V.controls.update();
+        })()""")
 
 if __name__ == "__main__":
     main()

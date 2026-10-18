@@ -16,4 +16,10 @@
   entry (grey when within measurement noise), and scans compared by the circumference at every
   height. `body-studio person`, `tape`, `scan` and `progress` do the same in the terminal. Each
   person is kept in `people/<name>.json` in the data folder. See `docs/progress.md`.
+- Tattoo & pose (experimental): a panel at the left edge. Add an image and tap the body to lay
+  it on the skin as ink, sized in centimetres; drag the dots on the joints or pick a pose
+  (arms up, flex, walking, sitting) and the body and the tattoo move, each joint within a
+  person's range of motion. The skeleton is found from the A-pose shape once per body and saved
+  as `<body>.rig.json`; `body-studio rig` does the same in the terminal. Pose and tattoos are
+  kept in the browser. See `docs/tattoo.md`.
 - English and Portuguese. Version, source code and license links at the bottom.

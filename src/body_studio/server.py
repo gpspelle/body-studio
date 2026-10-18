@@ -7,6 +7,8 @@
     GET  /api/jobs         runs: queued, running and finished, newest first
     POST /api/upload?name= raw video bytes; saved to videos/ and queued
     GET  /files/<path>     a body's .ply (only files inside workspace/)
+    GET  /api/rig?body=<file>  the body's skeleton, skin weights and surface map (rig.py); 202 while
+                           it is being worked out in the background, 422 if the body isn't a person
 
     GET  /api/people                    people whose progress is followed
     GET  /api/people/<id>               one person's tape measures, body fat and scans over time
@@ -33,13 +35,50 @@ from urllib.parse import parse_qs, unquote, urlparse
 from splat_studio.server.jobs import Runner, validate_options
 from splat_studio.server.library import DataDir
 
-from . import __version__, history, library
+from . import __version__, history, library, rig
 from .pipeline import job_options
 
 STATIC = Path(__file__).resolve().parent / "static"
 VIDEO_EXT = {".mov", ".mp4", ".m4v"}
 MAX_UPLOAD = 8 * 1024 ** 3
 MAX_JSON = 64 * 1024
+
+
+class Rigs:
+    """Skeletons worked out one at a time in the background, saved next to each body."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.failed: dict = {}                  # body path -> (its mtime, why)
+        self.built: dict = {}                   # body path -> its mtime when its rig was saved
+        self.busy: set = set()
+
+    def get(self, ply: Path):
+        """('ready', path to rig.json) | ('working', None) | ('failed', reason)."""
+        key, stamp = str(ply), ply.stat().st_mtime
+        # (a body dated in the future is never older than its rig: remember what was built)
+        if rig.current(ply) or (self.built.get(key) == stamp and rig.rig_file(ply).is_file()):
+            return "ready", rig.rig_file(ply)
+        with self.lock:
+            if key in self.failed and self.failed[key][0] == stamp:
+                return "failed", self.failed[key][1]
+            if key not in self.busy:
+                self.busy.add(key)
+                threading.Thread(target=self._build, args=(ply, stamp), daemon=True).start()
+        return "working", None
+
+    def _build(self, ply: Path, stamp: float) -> None:
+        try:
+            rig.build_and_save(ply)
+            with self.lock:
+                self.built[str(ply)] = stamp
+        except Exception as e:                   # noqa: BLE001 - any failure is reported to the page
+            with self.lock:
+                self.failed[str(ply)] = (stamp, (str(e), e.code) if isinstance(e, rig.RigError)
+                                         else (f"{type(e).__name__}: {e}", "shape"))
+        finally:
+            with self.lock:
+                self.busy.discard(str(ply))
 
 
 def measure_pending(root: Path, pid: str) -> threading.Thread:
@@ -80,6 +119,8 @@ def job_view(v: dict) -> dict:
 
 
 def make_handler(data: DataDir, runner: Runner):
+    rigs = Rigs()
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -132,6 +173,16 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._json({"version": __version__})
             if p.startswith("/files/"):
                 return self._file(library.safe_path(data.root, p[len("/files/"):]))
+            if p == "/api/rig":
+                ply = library.safe_path(data.root, parse_qs(urlparse(self.path).query).get("body", [""])[0])
+                if not ply or ply.suffix != ".ply":
+                    return self._json({"error": "no such body", "code": "no_body"}, 404)
+                state, out = rigs.get(ply)
+                if state == "ready":
+                    return self._file(out)
+                if state == "working":
+                    return self._json({"status": "working"}, 202)
+                return self._json({"error": out[0], "code": out[1]}, 422)
             if p == "/api/people":
                 return self._json(history.people(data.root))
             m = re.fullmatch(r"/api/people/([^/]+)", p)

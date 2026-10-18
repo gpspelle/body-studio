@@ -8,7 +8,11 @@
   then bump the pin here in its own PR. `tests/unit/test_pipeline.py` checks that the pinned
   splat-studio still accepts every flag we pass.
 - **This repo**: body defaults (`pipeline.py`), the library of bodies (`library.py`), the local
-  server (`server.py`) and the single page (`static/index.html`, `static/body.css`).
+  server (`server.py`) and the single page (`static/index.html`, `static/body.css`). Tattoo &
+  pose: skeleton and skin weights in `rig.py` (once per body, `<body>.rig.json`), posing and tattoo
+  maths in `static/pose.js` (tested by `tests/js/pose.test.mjs` through `tests/unit/test_pose_js.py`),
+  the panel in `static/tattoo.js`. Splats are moved by Spark's `SplatSkinning`; don't fit a body
+  model with a non-commercial licence (SMPL and its family). See `docs/tattoo.md`.
 - Runs go through splat-studio's job runner (`splat_studio.server.jobs.Runner`): pty, measured
   time left, lock files, timeline.jsonl, advice in seconds of video. Don't write a second runner.
 - three.js and Spark are served from the installed splat-studio package (`/vendor/...`), so
@@ -31,6 +35,8 @@
   stand-in COLMAP and Brush (the fake Brush rejects unknown flags). Needs ffmpeg and
   `SPLAT_STUDIO_SRC="$(python3 scripts/splat_studio_src.py)"`.
 - `tests/browser`: the page in Chromium. Wait for page state, never a fixed delay.
+- `tests/fakes/makehuman.py`: the MakeHuman base mesh (CC0) with artist-placed joints, as a
+  splat PLY in several shapes and poses; the realistic body for skeleton and tattoo tests.
 
 ## Keep the README current
 

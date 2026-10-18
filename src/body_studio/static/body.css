@@ -149,10 +149,27 @@ details summary { cursor: pointer; }
 details ul { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 2px; }
 details li { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 
+/* Tattoo & pose: the same panel at the left edge. */
+.panel.left { left: 16px; right: auto; }
+.with-studio .bottom { left: 372px; }
+.grow { flex: 1; }
+.sliders { display: grid; gap: 4px; margin: 8px 0; }
+.sliders label, #jointSliders label { display: grid; grid-template-columns: 64px 1fr 48px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.sliders input[type=range] { padding: 0; border: 0; accent-color: var(--accent); width: 100%; }
+.sliders output { font-variant-numeric: tabular-nums; text-align: right; color: var(--text); }
+.sliders .link { justify-self: start; padding-left: 0; }
+#jointSliders { display: grid; gap: 4px; }
+.joint-head { display: flex; align-items: center; justify-content: space-between; }
+label.inline { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+label.inline input { width: 80px; }
+label.btn { display: inline-block; font-size: 13px; }
+
 @media (max-width: 600px) {
-  .bar { padding: 12px 16px; }
+  .bar { padding: 12px 16px; flex-wrap: wrap; row-gap: 8px; gap: 8px; }
+  .bar .mark { flex: 1 0 calc(100% - 60px); }    /* the name and language on one row, the buttons below */
   .shelf { justify-content: flex-start; padding: 0 16px 8px; }
   .panel { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 56vh; }
-  .with-panel .bottom { display: none; }
+  .with-panel .bottom, .with-studio .bottom { display: none; }
+  .panel.left { left: 8px; right: 8px; }
 }
 @media (prefers-reduced-motion: reduce) { .pill.busy::before { animation: none; } }

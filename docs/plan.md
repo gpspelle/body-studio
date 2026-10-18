@@ -59,6 +59,12 @@ import path. Why not a shared library extracted from both: splat-studio already 
    real underwear captures, then an input form on the page (sex, height, weight, optional tape).
    Research in `docs/body-fat.md`.
 
+8. **Tattoo & pose: started.** Skeleton from the A-pose shape, geodesic skin weights, dual
+   quaternion skinning in Spark, tattoos laid on the skin by arc length (`docs/tattoo.md`). Next:
+   check the skeleton on real captures (hair, loose clothes, arms close to the body), export a
+   posed body or a picture, and, if a body model is wanted for better bending, fit Anny or MHR
+   (both Apache-2.0) as an optional step.
+
 ## Open questions
 
 - Pin bumps: by hand for now; a scheduled check that opens a PR when splat-studio moves could come later.

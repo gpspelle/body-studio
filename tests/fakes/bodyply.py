@@ -56,5 +56,20 @@ def write_body(path: Path, n: int = 40000, seed: int = 1, trunk: float = 1.0) ->
     return path
 
 
+def write_points(path: Path, points, colour=SKIN) -> Path:
+    """Any cloud of points (x, y, z with y up) as a splat PLY in the same layout."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    header = ("ply\nformat binary_little_endian 1.0\ncomment Exported from Brush\ncomment Vertical axis: 0 -1 0\n"
+              f"element vertex {len(points)}\n" + "".join(f"property float {p}\n" for p in PROPS) + "end_header\n")
+    row = struct.Struct("<" + "f" * len(PROPS))
+    ls = math.log(0.008)
+    with open(path, "wb") as f:
+        f.write(header.encode())
+        for x, y, z in points:
+            f.write(row.pack(x, -y, z, 0, 0, 0, *(_dc(c) for c in colour), *([0.0] * 45), 4.0, ls, ls, ls, 1, 0, 0, 0))
+    return path
+
+
 if __name__ == "__main__":
     write_body(Path(sys.argv[1]))
