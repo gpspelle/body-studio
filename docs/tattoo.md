@@ -137,16 +137,18 @@ twisted forearm into a "candy wrapper".
     widths and heights within a few per cent on the back, thigh and forearm, every point on the skin
     (`tests/js/pose.test.mjs`). The tests also lay designs of 6 to 35 cm on random spots and check,
     at rest and with the arms up, flexed, walking or sitting, that no part stretches into a line and
-    every ink splat lies on the skin (within 1 cm of it) and stays next to the skin it was put on,
+    every ink splat lies on the skin (among its outermost splats, not standing off it) and stays next to the skin it was put on,
     and that the body's splats under it take the ink.
 - **Ink is splats**: the image becomes about 40,000 small flat splats spread over its inked pixels
   (once per image; moving, turning or resizing the tattoo only moves them). Each lies on the skin,
-  among the skin's own splats, coloured like the skin under it darkened by the ink (a tattoo darkens
-  skin, it doesn't paint over it; black ink reads as deep blue-grey, like healed ink), and skinned on
-  the GPU by Spark with the skin weights of where it is. The body's own splats under the design
-  (within 1 cm in or out of the skin) are darkened by the same ink, and get their colour back when
-  the tattoo moves away: a scan's skin is a shell of splats a few millimetres thick, so either an ink
-  splat or a skin splat can be in front at any pixel, and both show the ink. So there is one
+  at the outside of the skin's own splats (two spreads of their scatter out), coloured like the skin
+  under it darkened by the ink (a tattoo darkens skin, it doesn't paint over it; black ink reads as
+  deep blue-grey, like healed ink), and skinned on the GPU by Spark with the skin weights of where it
+  is. The body's own splats under the design (within 1 cm in or out of the skin) are darkened too,
+  each by the mean ink over the patch it covers, and get their colour back when the tattoo moves
+  away: a scan's skin is a shell of splats a few millimetres thick, each a centimetre or so wide, so
+  where one of them ends up in front of the ink it shows a softened ink rather than bare skin, while
+  the small ink splats on top keep fine lines sharp. So there is one
   body: whatever hides the skin hides the ink (an arm in front, the other side of the body, clothes,
   a fold at a bent joint), and nothing else has to agree with it. An earlier version drew the ink as
   a mesh over the splats, with its own weights, a stand-in body for depth and a mask for clothes;

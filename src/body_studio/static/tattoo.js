@@ -8,7 +8,7 @@
 // the ink too, and whichever splat is in front shows it. Design and sources: docs/tattoo.md.
 import * as THREE from "three";
 import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
-import { Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, inkSamples, inkUnder, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
+import { Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, inkSamples, inkUnder, INK_OUT, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -103,8 +103,9 @@ function setup(rig, mesh, file) {
   const sk = new Skeleton(rig), weights = new SkinWeights(rig), map = new SurfaceMap(rig);
   const n = mesh.numSplats;
   const centres = new Float32Array(n * 3), bones = new Uint8Array(n * 4), w = new Uint8Array(n * 4);
-  const opaque = [], colours = new Float32Array(n * 3);
-  mesh.forEachSplat((i, c, _sc, _q, opacity, col) => {
+  const opaque = [], colours = new Float32Array(n * 3), radius = new Float32Array(n);
+  mesh.forEachSplat((i, c, sc, _q, opacity, col) => {
+    radius[i] = 1.5 * Math.max(sc.x, sc.y, sc.z);             // (most of a splat lies within 1.5 of its scales)
     centres[i * 3] = c.x; centres[i * 3 + 1] = c.y; centres[i * 3 + 2] = c.z;
     colours[i * 3] = col.r; colours[i * 3 + 1] = col.g; colours[i * 3 + 2] = col.b;
     if (opacity >= 0.3) opaque.push(i);
@@ -139,7 +140,7 @@ function setup(rig, mesh, file) {
   lines.renderOrder = 19; lines.frustumCulled = false;
   V.holder.add(lines, handles);
 
-  S = { file, rig, sk, weights, map, surface, mesh, skinning, n, centres, colours, bones, w, opaque: Uint32Array.from(opaque),
+  S = { file, rig, sk, weights, map, surface, mesh, skinning, n, centres, colours, radius, bones, w, opaque: Uint32Array.from(opaque),
         posed: null, posedOk: false, dq: null, transforms: null, skinColour: new Map(), tinted: new Map(), handles, handleJoints, lines, pairs, tattoos: [], selected: null,
         joint: null, heightCm: 170, nextId: 1 };
   handles.visible = lines.visible = !$("studio").hidden;
@@ -459,7 +460,6 @@ async function inkImage(file) {
 // moving or resizing the tattoo only moves them); a splat over no skin is see-through.
 const INK_SPLATS = 40000;
 const PIGMENT = [0.07, 0.08, 0.10];
-const INK_OUT = 0;          // how far out of the skin's scatter the ink lies, in spreads past the grid's
 const UNDER = 0.006;        // the body's splats this far in or out of the skin under a tattoo take its ink (of the height)
 
 function addTattoo(canvas, anchor, opts = {}) {
@@ -507,7 +507,7 @@ function skinColour(c) {
 
 // the ink splats where the tattoo now lies (at rest: the skinning moves them)
 function inkOnSkin(tt) {
-  tt.under = inkUnder(tt.grid, S.centres, tt.image, UNDER * S.rig.height);
+  tt.under = inkUnder(tt.grid, S.centres, tt.image, UNDER * S.rig.height, S.radius);
   tintSkin();
   if (!tt.mesh) return;
   const s = tt.samples, g = tt.grid, at = placeInk(g, s, INK_OUT), packed = tt.mesh.packedSplats;

@@ -921,6 +921,7 @@ export function inkSamples(img, count = 40000) {
 // drawn cell, blended from its four corners (position, outward normal); a sample over a cell that
 // isn't drawn (no skin there, or a tear) is left out (ok 0). `out` lifts each point this many
 // spreads of the skin's scatter further out than the grid, so the skin's own splats lie under it.
+export const INK_OUT = 2;   // the page's: ink at the outside of the skin's scatter, with the outermost skin splats
 export function placeInk(grid, samples, out = 0) {
   const { nx, ny, positions: P, normals: N, spread } = grid;
   const drawn = new Uint8Array(nx * ny);
@@ -950,10 +951,12 @@ export function placeInk(grid, samples, out = 0) {
 
 // The body's own splats under a wrapped grid, and the ink over each: those whose centre lies over a
 // drawn cell (along the skin, within a cell of a grid point) and no further than `reach` in or out
-// of it. Their place in the image comes from the nearest grid point and the offset along the grid.
-// The body is then darkened there as well as covered with ink splats, so whichever of the two is in
-// front, the skin shows the ink. Returns {index, alpha, rgb} for the splats with ink over them.
-export function inkUnder(grid, centres, img, reach) {
+// of it. Their place in the image comes from the nearest grid point and the offset along the grid,
+// and their ink is the mean over what they cover (`radius`, per splat, when given): a splat a
+// centimetre wide over a thin line takes a little of it, not all. The body is then darkened there
+// as well as covered with ink splats, so whichever of the two is in front, the skin shows the ink.
+// Returns {index, alpha, rgb} for the splats with ink over them.
+export function inkUnder(grid, centres, img, reach, radius = null) {
   const { nx, ny, positions: P, normals: N } = grid;
   const drawn = new Uint8Array(nx * ny);
   for (let t = 0; t < grid.index.length; t += 6) {
@@ -977,7 +980,9 @@ export function inkUnder(grid, centres, img, reach) {
     (cells.get(kk) || cells.set(kk, []).get(kk)).push(k);
     for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], P[k * 3 + a] - h); hi[a] = Math.max(hi[a], P[k * 3 + a] + h); }
   }
-  const W = img.width, Hh = img.height, d = img.data, box = Math.max(1, Math.round(W / (nx - 1) / 2));
+  const W = img.width, Hh = img.height, box = Math.max(1, Math.round(W / (nx - 1) / 2));
+  const sum = summedInk(img), pxPerUnit = W / ((nx - 1) * step), row = W + 1;
+  const boxSum = (x0, y0, x1, y1, c) => sum[c][y1 * row + x1] - sum[c][y0 * row + x1] - sum[c][y1 * row + x0] + sum[c][y0 * row + x0];
   const index = [], alpha = [], rgb = [];
   const n = centres.length / 3;
   for (let i = 0; i < n; i++) {
@@ -1008,15 +1013,31 @@ export function inkUnder(grid, centres, img, reach) {
     const fv = bj + (bj < ny - 1 ? along(best + nx, 1) : along(best - nx, -1));
     const u = Math.min(1, Math.max(0, fu / (nx - 1))), v = Math.min(1, Math.max(0, fv / (ny - 1)));
     const px = Math.min(W - 1, Math.floor(u * W)), py = Math.min(Hh - 1, Math.floor((1 - v) * Hh));
-    let sa = 0, sr = 0, sg = 0, sb = 0, m = 0;
-    for (let yy = Math.max(0, py - box); yy <= Math.min(Hh - 1, py + box); yy++) {
-      for (let xx = Math.max(0, px - box); xx <= Math.min(W - 1, px + box); xx++) {
-        const q = (yy * W + xx) * 4, al = d[q + 3] / 255;
-        sa += al; sr += al * d[q]; sg += al * d[q + 1]; sb += al * d[q + 2]; m++;
-      }
-    }
+    const bx = Math.max(box, radius ? Math.round(radius[i] * pxPerUnit) : 0);
+    const x0 = Math.max(0, px - bx), x1 = Math.min(W, px + bx + 1), y0 = Math.max(0, py - bx), y1 = Math.min(Hh, py + bx + 1);
+    // (past the image's edge counts as no ink)
+    const m = (2 * bx + 1) ** 2, sa = boxSum(x0, y0, x1, y1, 0);
     if (sa / m < 0.04) continue;
+    const sr = boxSum(x0, y0, x1, y1, 1), sg = boxSum(x0, y0, x1, y1, 2), sb = boxSum(x0, y0, x1, y1, 3);
     index.push(i); alpha.push(sa / m); rgb.push(sr / sa / 255, sg / sa / 255, sb / sa / 255);
   }
   return { index: Int32Array.from(index), alpha: Float32Array.from(alpha), rgb: Float32Array.from(rgb) };
+}
+
+// running sums of an image's ink (alpha, and alpha times red, green, blue), for the mean over any
+// box in four lookups; kept with the image
+function summedInk(img) {
+  if (img._sums) return img._sums;
+  const W = img.width, Hh = img.height, d = img.data, row = W + 1;
+  const sums = [0, 1, 2, 3].map(() => new Float64Array(row * (Hh + 1)));
+  for (let y = 0; y < Hh; y++) {
+    const acc = [0, 0, 0, 0];
+    for (let x = 0; x < W; x++) {
+      const q = (y * W + x) * 4, al = d[q + 3] / 255;
+      acc[0] += al; acc[1] += al * d[q]; acc[2] += al * d[q + 1]; acc[3] += al * d[q + 2];
+      for (let c = 0; c < 4; c++) sums[c][(y + 1) * row + x + 1] = sums[c][y * row + x + 1] + acc[c];
+    }
+  }
+  Object.defineProperty(img, "_sums", { value: sums });
+  return sums;
 }

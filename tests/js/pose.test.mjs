@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { Skeleton, SkinSurface, SkinWeights, dualQuats, inkSamples, inkUnder, placeInk, skinPoint, q, v3, DOF } from "../../src/body_studio/static/pose.js";
+import { Skeleton, SkinSurface, SkinWeights, dualQuats, inkSamples, inkUnder, placeInk, INK_OUT, skinPoint, q, v3, DOF } from "../../src/body_studio/static/pose.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { left: L, up: U, front: F } = rig.frame;
@@ -494,24 +494,29 @@ test("quality sweep: ink anywhere on the body, in any pose, stays on the skin an
     const i0 = body.opaque[Math.floor(rnd() * body.opaque.length)], at = Array.from(body.centres.subarray(i0 * 3, i0 * 3 + 3));
     const width = [6, 12, 20, 35][t % 4] / 170 * H, height = width * 1.4;
     const g = skin.wrap({ at, up: U, width, height, angle: (t * 53) % 360 - 180, lift: 0.001 * H }, 48, 67);
-    const ink = placeInk(g, design), where = `${(width / H * 170).toFixed(0)} cm at ${boneAt(at)}`;
-    let placed = 0, worstOff = 0, worstApart = 0;
+    const ink = placeInk(g, design, INK_OUT), where = `${(width / H * 170).toFixed(0)} cm at ${boneAt(at)}`;
+    let placed = 0, worstOut = 0, worstIn = 0, worstApart = 0;
     for (let s = 0; s < design.n; s += 7) {
       if (!ink.ok[s]) continue;
       placed++;
       const p = Array.from(ink.positions.subarray(s * 3, s * 3 + 3));
-      // on the skin: within a few millimetres of the skin's surface there (the nearest cell's, along
-      // its normal), and next to the splat of the body nearest to it
+      // on the skin: along the skin's normal there (the nearest cell's), no further out than the
+      // skin's own outermost splats around it (no ink standing off the body) and not sunk into it;
+      // and next to the splat of the body nearest to it
       const c = skin.nearest(p);
-      if (c < 0) { worstOff = Infinity; continue; }
-      worstOff = Math.max(worstOff, Math.abs(v3.dot(v3.sub(p, skin._s(c)), skin._n(c))));
-      let best = -1, bd = Infinity;
+      if (c < 0) { worstOut = Infinity; continue; }
+      const sc = skin._s(c), nc = skin._n(c);
+      let best = -1, bd = Infinity, outer = -Infinity;
       for (const cc of skin._near(p, 4 * skin.h)) {
         for (let m = skin.first[cc]; m < skin.first[cc + 1]; m++) {
-          const i = skin.members[m], d = Math.hypot(body.centres[i * 3] - p[0], body.centres[i * 3 + 1] - p[1], body.centres[i * 3 + 2] - p[2]);
+          const i = skin.members[m], q = Array.from(body.centres.subarray(i * 3, i * 3 + 3)), d = v3.len(v3.sub(q, p));
           if (d < bd) { bd = d; best = i; }
+          if (d < 2 * skin.h) outer = Math.max(outer, v3.dot(v3.sub(q, sc), nc));
         }
       }
+      const off = v3.dot(v3.sub(p, sc), nc);
+      worstOut = Math.max(worstOut, off - outer);
+      worstIn = Math.max(worstIn, -off);
       if (best < 0) continue;
       // and it moves with that splat
       const sp = Array.from(body.centres.subarray(best * 3, best * 3 + 3));
@@ -522,8 +527,11 @@ test("quality sweep: ink anywhere on the body, in any pose, stays on the skin an
       }
     }
     assert.ok(placed > 0, `${where}: some ink`);
-    // (the scan's skin is a shell a few millimetres thick: the ink lies within it)
-    assert.ok(worstOff < 0.006 * H, `${where}: ink ${(worstOff / H * 170).toFixed(1)} cm off the skin`);
+    // (the scan's skin is a shell a few millimetres thick and each splat reaches a few millimetres past
+    // its centre: the ink lies among the outermost, within 1 cm of their centres)
+    const cm = (x) => (x / H * 170).toFixed(1);
+    assert.ok(worstOut < 0.006 * H, `${where}: ink ${cm(worstOut)} cm further out than the skin's splats`);
+    assert.ok(worstIn < 0.006 * H, `${where}: ink ${cm(worstIn)} cm inside the skin`);
     assert.ok(worstApart < 0.01 * H, `${where}: ink comes ${(worstApart / H * 170).toFixed(1)} cm away from its skin when posed`);
     // a small design on the body is whole (a big one can run off a limb)
     if (width < 0.08 * H) assert.ok(placed > 0.9 * Math.ceil(design.n / 7), `${where}: only ${placed} of ${Math.ceil(design.n / 7)} on the skin`);
