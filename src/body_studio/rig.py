@@ -33,7 +33,7 @@ import sys
 from array import array
 from pathlib import Path
 
-RIG_VERSION = 2          # 2: region maps (trunk, legs) for big tattoos
+RIG_VERSION = 3          # 2: region maps (trunk, legs) for big tattoos; 3: arm weights off the back
 
 # (name, parent). Joints with children are bones: they rotate and carry skin weights. The
 # "_end" joints only mark where the last bone of a chain ends (top of the head, fingertips, toes).
@@ -65,6 +65,7 @@ CELL = 0.015            # grid that splits a slice into pieces (about 2.6 cm)
 VOXEL = 1 / 80          # voxel size for skin weights (about 2.1 cm)
 REACH = 0.30            # a bone's influence stops this far inside the body (fraction of stature)
 FALLOFF = 4             # weight ~ 1 / distance^FALLOFF
+ARM_FADE = 0.06         # the upper arm's weight fades out this far past the armpit crease
 MAP_DT = 0.006          # surface map: step along the bone (fraction of stature)
 MAP_ANGLES = 64         # surface map: steps around the bone
 MAP_EXTEND = 0.5        # surface map reaches this share of the bone's length past each end,
@@ -670,6 +671,20 @@ def bind(grid: Grid, solid: set, J: dict, H: float, smooth: int = 2, grow: int =
     for b, dist in dists.items():
         for c, d in dist.items():
             raw.setdefault(c, {})[b] = 1.0 / (d + eps) ** FALLOFF
+    # the upper arm doesn't pull the side of the chest or the shoulder blade: its weight fades out
+    # over a few centimetres past the armpit crease (the plane through the shoulder joint halfway
+    # between the arm and the side of the body), so a raised arm doesn't swing the back and the
+    # sides out into wings (the skin there follows the trunk and the clavicle instead)
+    down = _unit(_sub(J["pelvis"], J["neck"]))
+    for tag in ("l", "r"):
+        sh = J["shoulder_" + tag]
+        out = _unit(_sub(_unit(_sub(J["elbow_" + tag], sh)), down))
+        b = INDEX["shoulder_" + tag]
+        for c, d in raw.items():
+            if b in d:
+                s = _dot(_sub(grid.centre(c), sh), out) / (ARM_FADE * H)
+                if s < 0:
+                    d[b] *= max(0.0, 1.0 + s) ** 2
     for c in solid:                                          # a voxel no bone reached
         if c not in raw:
             p = grid.centre(c)

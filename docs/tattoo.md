@@ -71,6 +71,10 @@ Meshes*, SCA 2013), the method behind Maya's default skin binding:
   keeps the left thigh from pulling the right one, or an arm from pulling the waist it nearly touches.
 - Weight ∝ 1/(d + ¼ voxel)⁴, the four strongest bones per voxel, smoothed twice, then grown a few
   voxels outward so splats just off the surface have weights.
+- The upper arm's weight fades out over about 10 cm past the armpit crease (the plane through the
+  shoulder joint halfway between the arm and the side of the body), so the shoulder blade and the
+  side of the chest follow the trunk: with the arms raised, the back doesn't swing out into wings
+  (and a back piece isn't stretched with it). The skin over the shoulder itself still bunches up.
 - On the page, each splat takes the trilinear blend of the voxels around it, each voxel counted by
   how much its bones agree with the blend of all eight, so a voxel that belongs to another body part
   (across the gap between the thighs) drops out, while along the skin the weights change smoothly

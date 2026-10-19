@@ -383,3 +383,25 @@ test("the image never stretches into a line, at rest or posed", () => {
     }
   }
 });
+
+test("raising the arms leaves the back and the sides of the chest where they are", () => {
+  // the upper arm used to carry part of the shoulder blade and the side of the chest, so arms up
+  // swung the back out into wings and stretched a back piece with them
+  const sk = new Skeleton(rig), w = new SkinWeights(rig);
+  sk.setPose({ shoulder_l: { flex: 0, side: 165, twist: 0 }, shoulder_r: { flex: 0, side: 165, twist: 0 } });
+  const dq = dualQuats(sk.transforms());
+  const chest = joint("chest"), sh = joint("shoulder_l"), lat = Math.abs(v3.dot(v3.sub(sh, chest), L));
+  const b = new Uint8Array(4), x = new Uint8Array(4), o = [0, 0, 0];
+  let n = 0, moved = 0;
+  for (const i of body.opaque) {
+    const p = Array.from(body.centres.subarray(i * 3, i * 3 + 3)), below = v3.dot(v3.sub(sh, p), U);
+    // the trunk from 5 to 40 cm below the shoulders, inward of the shoulder joints
+    if (Math.abs(v3.dot(v3.sub(p, chest), L)) > lat - 0.02 * H || below < 0.03 * H || below > 0.25 * H) continue;
+    w.at(...p, b, x);
+    skinPoint(p, b, x, dq, o);
+    n++;
+    if (v3.len(v3.sub(o, p)) > 0.025 * H) moved++;
+  }
+  assert.ok(n > 1000, `${n} splats on the trunk`);
+  assert.ok(moved / n < 0.02, `${(100 * moved / n).toFixed(1)}% of the trunk moved more than 4 cm`);
+});
