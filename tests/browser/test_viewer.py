@@ -277,11 +277,11 @@ def settled(page):
 
 def ink_pixels(page, at, r=40):
     """How many pixels around point `at` (body coordinates) the selected tattoo's ink changes:
-    the page with the ink as it is, against the page with no ink."""
+    the page with the ink as it is, against the page with the faintest ink."""
     x, y = page.evaluate(f"tattooStudio.screen({at})")
     clip = {"x": max(0, x - r), "y": max(0, y - r), "width": 2 * r, "height": 2 * r}
     shots = []
-    for ink in (None, "0"):
+    for ink in (None, "0.2"):
         if ink is not None:
             before = page.input_value("#tatInk")
             page.fill("#tatInk", ink)
