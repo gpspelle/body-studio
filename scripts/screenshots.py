@@ -152,13 +152,13 @@ def tattoo_scene(page, tmp: Path) -> None:
         })()""")
 
 def wardrobe_scene(page) -> None:
-    """Mia walking in a T-shirt, jeans, sneakers and a ponytail."""
+    """Mia walking in a T-shirt, jeans, sneakers and a bob, the Clothes section in view."""
     page.locator(".shelf button", has_text="Mia").click()
     page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
     page.click("#studioBtn")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
     page.evaluate("bodyApp.viewer.controls.autoRotate = false")
-    for item in ("tee_jeans_f", "white_sneakers", "ponytail"):
+    for item in ("tee_jeans_f", "white_sneakers", "bob_dark"):
         page.click(f"#wearSlots [data-item={item}]")
         page.wait_for_function(f"wardrobe.worn().includes('{item}')", timeout=120000)
     page.locator("#presets button").nth(3).click()                 # walking
@@ -170,6 +170,7 @@ def wardrobe_scene(page) -> None:
     # on screen, then for one more sort from the new angle
     page.wait_for_function("""(() => { const s = bodyApp.viewer.spark;
       return s.display === s.current && s.display.numSplats > bodyViewer.numSplats() + 1000; })()""", timeout=300000)
+    page.evaluate("document.getElementById('studio').scrollTop = 0")
     page.wait_for_timeout(30000)
 
 
