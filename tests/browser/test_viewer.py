@@ -290,7 +290,7 @@ def ink_pixels(page, at, r=40):
     for ink in (before, 0.2):
         page.evaluate(f"tattooStudio.ink(0, {ink})")
         settled(page)
-        shots.append(png_pixels(page.screenshot(clip=clip)))
+        shots.append(png_pixels(page.screenshot(clip=clip, timeout=180000)))   # (software rendering is slow)
     page.evaluate(f"tattooStudio.ink(0, {before})")
     settled(page)
     (w, h, a), (_, _, b) = shots
