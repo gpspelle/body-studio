@@ -323,3 +323,63 @@ test("across two legs side by side, the gap between them stays bare", () => {
   // land on the right one
   for (let i = 0; i < 61; i++) if (g.valid[5 * 61 + i]) assert.ok(P(i, 5)[0] < 0.005, `point ${i} stays on the left leg`);
 });
+
+test("skin weights always add up to one and change smoothly over the skin", () => {
+  const w = new SkinWeights(rig), b = new Uint8Array(4), x = new Uint8Array(4), b2 = new Uint8Array(4), x2 = new Uint8Array(4);
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let t = 0; t < 5000; t++) {
+    const i = body.opaque[Math.floor(rnd() * body.opaque.length)], p = Array.from(body.centres.subarray(i * 3, i * 3 + 3));
+    w.at(...p, b, x);
+    // a byte can't hold more than 255: a total over 255 (or a wrapped -1) throws the splat across the room when posed
+    assert.equal(x.reduce((s, v) => s + v, 0), 255, `weights at ${p}`);
+    // a step a third of a centimetre along the skin moves at most half the weight to other bones
+    // (a jump tears the skin open when the body moves, e.g. at the armpit)
+    w.at(...v3.add(p, v3.scale(v3.unit([rnd() - 0.5, rnd() - 0.5, rnd() - 0.5]), 0.002 * H)), b2, x2);
+    const diff = new Map();
+    for (let k = 0; k < 4; k++) { diff.set(b[k], (diff.get(b[k]) ?? 0) + x[k]); diff.set(b2[k], (diff.get(b2[k]) ?? 0) - x2[k]); }
+    const moved = [...diff.values()].reduce((s, v) => s + Math.abs(v), 0) / 2;
+    assert.ok(moved <= 64, `weights jump by ${moved}/255 near ${p}`);
+  }
+});
+
+test("the image never stretches into a line, at rest or posed", () => {
+  // the dragon's tail used to grow a thin line near the armpit: points of the grid landed on the
+  // arm and on the chest, and the triangle between them was drawn across the gap
+  const sk = new Skeleton(rig), w = new SkinWeights(rig);
+  const both = (j, a) => ({ [j + "_l"]: a, [j + "_r"]: a });
+  const poses = [
+    { ...both("shoulder", { flex: 0, side: 165, twist: 0 }), ...both("elbow", { flex: 8, twist: 0 }) },
+    { ...both("shoulder", { flex: 0, side: 90, twist: -90 }), ...both("elbow", { flex: 115, twist: 0 }) },
+    { ...both("hip", { flex: 88, side: 6, twist: 0 }), ...both("knee", { flex: 88 }), spine: { flex: 8 } },
+  ].map((p) => { sk.reset(); sk.setPose(p); return dualQuats(sk.transforms()); });
+  let seed = 3;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const NX = 32, NY = 45, b = new Uint8Array(NX * NY * 4), x = new Uint8Array(NX * NY * 4), o = [0, 0, 0];
+  for (let t = 0; t < 40; t++) {
+    const i = body.opaque[Math.floor(rnd() * body.opaque.length)], at = Array.from(body.centres.subarray(i * 3, i * 3 + 3));
+    const width = [8, 15, 25, 35][t % 4] / 170 * H, height = width * 1.41;
+    const g = skin.wrap({ at, up: U, width, height, angle: (t * 37) % 360 - 180, lift: 0 }, NX, NY);
+    for (let k = 0; k < NX * NY; k++) if (g.valid[k]) w.at(g.positions[k * 3], g.positions[k * 3 + 1], g.positions[k * 3 + 2], b, x, k);
+    const dx = width / (NX - 1), dy = height / (NY - 1);
+    // how much longer than in the image the longest edge of a drawn triangle is, in cells of the skin
+    const stretch = (P) => {
+      let worst = 0;
+      for (let q = 0; q < g.index.length; q += 3) {
+        for (const [a, c] of [[g.index[q], g.index[q + 1]], [g.index[q + 1], g.index[q + 2]], [g.index[q + 2], g.index[q]]]) {
+          const want = Math.hypot((a % NX - c % NX) * dx, (((a / NX) | 0) - ((c / NX) | 0)) * dy);
+          worst = Math.max(worst, (Math.hypot(P[a * 3] - P[c * 3], P[a * 3 + 1] - P[c * 3 + 1], P[a * 3 + 2] - P[c * 3 + 2]) - want) / skin.h);
+        }
+      }
+      return worst;
+    };
+    const where = `${(width / H * 170).toFixed(0)} cm at ${boneAt(at)}`;
+    assert.ok(stretch(g.positions) < 3, `${where}: an edge ${stretch(g.positions).toFixed(1)} cells too long at rest`);
+    for (const dq of poses) {
+      const P = new Float32Array(NX * NY * 3);
+      for (let k = 0; k < NX * NY; k++) if (g.valid[k]) { skinPoint(Array.from(g.positions.subarray(k * 3, k * 3 + 3)), b, x, dq, o, k); P.set(o, k * 3); }
+      // posing stretches skin (arms up pulls the chest), but never by a whole tear
+      assert.ok(stretch(P) < 8, `${where}: an edge ${stretch(P).toFixed(1)} cells too long when posed`);
+    }
+  }
+});

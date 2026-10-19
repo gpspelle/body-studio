@@ -761,6 +761,7 @@ window.tattooStudio = {
   setPose: (p) => { S.sk.setPose(p); applyPose(); },
   preset: (name) => { S.sk.setPose(PRESETS[name]); applyPose(); },
   joint: (name) => S.sk.P[S.sk.index(name)].slice(),
+  frame: () => S.rig.frame,
   // where splat i is drawn now (the same blend as Spark's shader)
   splat: (i) => skinPoint([S.centres[i * 3], S.centres[i * 3 + 1], S.centres[i * 3 + 2]], S.bones, S.w, S.dq, [0, 0, 0], i),
   splatNear: (name) => {                   // the opaque splat nearest a joint (at rest)

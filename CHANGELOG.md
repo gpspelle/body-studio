@@ -30,6 +30,10 @@
   the arm, or around the side of the body. Parts of a design with no skin under them (between
   the legs) are left out, and its outline stops there too. Tattoos saved before come back in
   the same place.
+- Tattoos no longer grow a thin line out of the design in some spots and poses (near the armpit,
+  the tail of a design on the chest): the design stays on one surface where the arm meets the
+  chest, the skin no longer tears at the armpit when the arm moves, and splats no longer fly off
+  when posed because of a rounding error in their weights.
 - OpenCV (drops blurry frames) is installed with the app by `pip install`, so nothing needs
   installing afterwards, also inside a virtualenv.
 - English and Portuguese. Version, source code and license links at the bottom.

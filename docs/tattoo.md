@@ -71,8 +71,12 @@ Meshes*, SCA 2013), the method behind Maya's default skin binding:
   keeps the left thigh from pulling the right one, or an arm from pulling the waist it nearly touches.
 - Weight ∝ 1/(d + ¼ voxel)⁴, the four strongest bones per voxel, smoothed twice, then grown a few
   voxels outward so splats just off the surface have weights.
-- On the page, each splat takes the trilinear blend of the voxels around it, but only from voxels
-  that belong to the same body part (no blending across the gap between the thighs).
+- On the page, each splat takes the trilinear blend of the voxels around it, each voxel counted by
+  how much its bones agree with the blend of all eight, so a voxel that belongs to another body part
+  (across the gap between the thighs) drops out, while along the skin the weights change smoothly
+  (a hard switch from one bone to the next tears the skin open at the armpit when the arm moves).
+  The four weights are rounded down to bytes and the remainder goes to the strongest bone, so they
+  always add up to exactly one.
 
 ## Joints that move like a person's
 
@@ -116,13 +120,19 @@ twisted forearm into a "candy wrapper".
   - The walk doesn't step to skin that faces the other way (from an arm to the flank beside it, from
     one thigh to the other), so a design doesn't jump a gap; parts of the image with no skin under
     them are left out, and the outline stops there too.
+  - The grid is filled outward from the tapped point: each point takes, among the skin with its
+    coordinates, the spot nearest to its neighbour, so where the map overlaps itself (the arm beside
+    the chest at the armpit) a design doesn't hop between the two. A triangle whose edges come out
+    much longer than in the image (it would cross a gap) isn't drawn, which leaves a small gap
+    instead of a thin line.
   - Its top points along the bone it was put on (the trunk's or a leg's axis), toward the head; the
     carried frame is drawn back toward that axis over about 9 cm so the image stays upright over the
     buttocks or from a crease, at the cost of a few per cent of stretch where the body tapers. It is
     never mirrored.
   - Checked on a cylinder (every point within 2 mm of its arc length) and on the MakeHuman body:
     widths and heights within a few per cent on the back, thigh and forearm, every point on the skin
-    (`tests/js/pose.test.mjs`).
+    (`tests/js/pose.test.mjs`). The tests also lay designs of 8 to 35 cm on random spots and check
+    no drawn triangle stretches into a line, at rest or with the arms up, flexed or sitting.
 - **Skinning**: every point of the grid gets skin weights from the same voxels as the splats and is
   moved by the same dual quaternion blend (computed on the CPU, matched to Spark's shader), so the
   tattoo stays glued to the skin when a joint moves.

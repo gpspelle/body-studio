@@ -293,7 +293,7 @@ export class SkinWeights {
     this.lut = new Int32Array(g.n[0] * g.n[1] * g.n[2]).fill(-1);
     cells.forEach((c, i) => { this.lut[c] = i; });
     this.o = fr.origin; this.L = fr.left; this.U = fr.up; this.F = fr.front;
-    this.acc = new Float32Array(256); this.touched = [];
+    this.acc = new Float32Array(256); this.mean = new Float32Array(256); this.touched = [];
     this.corner = new Int32Array(8); this.frac = new Float32Array(8);
     this.parents = rig.joints.map((j) => j.parent);
     // for splats outside the grid: the nearest bone segment
@@ -311,46 +311,65 @@ export class SkinWeights {
     const fz = (px * F[0] + py * F[1] + pz * F[2] - this.lo[2]) / v - 0.5;
     const i0 = Math.floor(fx), j0 = Math.floor(fy), k0 = Math.floor(fz);
     const tx = fx - i0, ty = fy - j0, tz = fz - k0;
-    // the 8 voxels around the point; only those on the same part of the body as the nearest one
-    // count, so a splat on the inside of one thigh doesn't pick up the other thigh
+    // the 8 voxels around the point, each counted by how much its bones agree with the blend of all
+    // eight: a splat on the inside of one thigh doesn't pick up the other thigh's voxels, and the
+    // weights change smoothly from point to point (a voxel is never all in or all out, which would
+    // tear the skin at the armpit when the arm moves)
     const corner = this.corner, frac = this.frac;
-    let ref = -1;
+    let any = false;
     for (let c = 0; c < 8; c++) {
       const i = i0 + (c & 1), j = j0 + ((c >> 1) & 1), k = k0 + ((c >> 2) & 1);
       corner[c] = -1;
       if (i < 0 || j < 0 || k < 0 || i >= n[0] || j >= n[1] || k >= n[2]) continue;
       corner[c] = this.lut[(i * n[1] + j) * n[2] + k];
       frac[c] = (c & 1 ? tx : 1 - tx) * ((c >> 1) & 1 ? ty : 1 - ty) * ((c >> 2) & 1 ? tz : 1 - tz);
-      if (corner[c] >= 0 && (ref < 0 || frac[c] > frac[ref])) ref = c;
+      if (corner[c] >= 0 && frac[c] > 0) any = true;
     }
-    const acc = this.acc, touched = this.touched;
+    const acc = this.acc, mean = this.mean, touched = this.touched;
     touched.length = 0;
-    const dom = ref < 0 ? -1 : this.bones[corner[ref] * 4], par = this.parents;
-    for (let c = 0; c < 8; c++) {
-      const cell = corner[c];
-      if (cell < 0 || frac[c] <= 0) continue;
-      const b0 = this.bones[cell * 4];
-      if (b0 !== dom && par[b0] !== dom && par[dom] !== b0) continue;
-      for (let m = 0; m < 4; m++) {
-        const w = this.weights[cell * 4 + m];
-        if (!w) continue;
-        const b = this.bones[cell * 4 + m];
-        if (acc[b] === 0) touched.push(b);
-        acc[b] += frac[c] * w;
+    if (any) {
+      let fs = 0;
+      for (let c = 0; c < 8; c++) {
+        const cell = corner[c];
+        if (cell < 0 || frac[c] <= 0) continue;
+        fs += frac[c];
+        for (let m = 0; m < 4; m++) mean[this.bones[cell * 4 + m]] += frac[c] * this.weights[cell * 4 + m];
+      }
+      for (let c = 0; c < 8; c++) {
+        const cell = corner[c];
+        if (cell < 0 || frac[c] <= 0) continue;
+        let agree = 0;
+        for (let m = 0; m < 4; m++) agree += Math.min(this.weights[cell * 4 + m], mean[this.bones[cell * 4 + m]] / fs);
+        agree /= 255;
+        const f = frac[c] * agree * agree;
+        for (let m = 0; m < 4; m++) {
+          const w = this.weights[cell * 4 + m];
+          if (!w || f <= 0) continue;
+          const b = this.bones[cell * 4 + m];
+          if (acc[b] === 0) touched.push(b);
+          acc[b] += f * w;
+        }
+      }
+      for (let c = 0; c < 8; c++) {
+        const cell = corner[c];
+        if (cell >= 0) for (let m = 0; m < 4; m++) mean[this.bones[cell * 4 + m]] = 0;
       }
     }
     if (!touched.length) return this.nearestBone(x, y, z, bones, weights, o);
     touched.sort((a, b) => acc[b] - acc[a]);
     const top = touched.slice(0, 4);
     const sum = top.reduce((s, b) => s + acc[b], 0);
+    // rounded down, and what that leaves goes to the heaviest bone: never more than 255 in all
+    // (rounding to nearest could leave -1 for the last bone, which a byte stores as 255)
     let left = 255;
     for (let m = 0; m < 4; m++) {
       const b = top[m];
-      const w = b === undefined ? 0 : (m === top.length - 1 ? left : Math.round(acc[b] / sum * 255));
+      const w = b === undefined ? 0 : Math.floor(acc[b] / sum * 255);
       bones[o * 4 + m] = b === undefined ? 0 : b;
       weights[o * 4 + m] = w;
       left -= w;
     }
+    weights[o * 4] += left;
     for (const b of touched) acc[b] = 0;
     return bones;
   }
@@ -742,63 +761,81 @@ export class SkinSurface {
     for (let k = 0; k < total; k++) order[put[binOf(suv[k * 2], suv[k * 2 + 1])]++] = k;
     // each grid point: the splats whose coordinates are close to its own, blended. A point with no
     // splat near has no skin under it (past the edge of a limb, over the gap between the legs).
+    // Coordinates can repeat on skin far apart (the walk reaching the inside of a thigh by way of
+    // the crotch, or the far side of an arm both ways round), so the points are placed outward from
+    // the middle of the image, each next to the neighbour it was reached from: of the splats with
+    // the right coordinates, those on the skin nearest that neighbour.
     const ca = Math.cos(tattoo.angle * RAD - lean), sa = Math.sin(tattoo.angle * RAD - lean);
     const R2 = 4 * h * h, s2 = 2 * h * h, same = 9 * h * h, lift = tattoo.lift || 0;
+    const dx = tattoo.width / (nx - 1), dy = tattoo.height / (ny - 1);
     let near = new Int32Array(256), nd2 = new Float32Array(256);
-    for (let j = 0; j < ny; j++) {
-      for (let i = 0; i < nx; i++) {
-        const k = j * nx + i;
-        const u0 = (i / (nx - 1) - 0.5) * tattoo.width, v0 = (j / (ny - 1) - 0.5) * tattoo.height;
-        const su = cu + u0 * ca - v0 * sa, sv = cv + u0 * sa + v0 * ca;
-        let m = 0, best = -1, bd = h * h;
-        const bu = Math.floor(su / h) - b0, bv = Math.floor(sv / h) - b0;
-        for (let a = Math.max(0, bu - 2); a <= Math.min(nb - 1, bu + 2); a++) {
-          for (let b = Math.max(0, bv - 2); b <= Math.min(nb - 1, bv + 2); b++) {
-            for (let o = start[a * nb + b]; o < start[a * nb + b + 1]; o++) {
-              const x = order[o], du = suv[x * 2] - su, dv = suv[x * 2 + 1] - sv, d2 = du * du + dv * dv;
-              if (d2 > R2) continue;
-              if (m === near.length) {
-                const n2 = new Int32Array(m * 2), d2s = new Float32Array(m * 2);
-                n2.set(near); d2s.set(nd2); near = n2; nd2 = d2s;
-              }
-              near[m] = x; nd2[m++] = d2;
-              if (d2 <= bd) { bd = d2; best = x; }
+    const place = (i, j, ref, apart) => {
+      const k = j * nx + i;
+      const u0 = (i / (nx - 1) - 0.5) * tattoo.width, v0 = (j / (ny - 1) - 0.5) * tattoo.height;
+      const su = cu + u0 * ca - v0 * sa, sv = cv + u0 * sa + v0 * ca;
+      let m = 0, best = -1, bd = Infinity;
+      const bu = Math.floor(su / h) - b0, bv = Math.floor(sv / h) - b0;
+      for (let a = Math.max(0, bu - 2); a <= Math.min(nb - 1, bu + 2); a++) {
+        for (let b = Math.max(0, bv - 2); b <= Math.min(nb - 1, bv + 2); b++) {
+          for (let o = start[a * nb + b]; o < start[a * nb + b + 1]; o++) {
+            const x = order[o], du = suv[x * 2] - su, dv = suv[x * 2 + 1] - sv, d2 = du * du + dv * dv;
+            if (d2 > R2) continue;
+            if (m === near.length) {
+              const n2 = new Int32Array(m * 2), d2s = new Float32Array(m * 2);
+              n2.set(near); d2s.set(nd2); near = n2; nd2 = d2s;
             }
+            near[m] = x; nd2[m++] = d2;
+            if (d2 > h * h) continue;               // the anchor splat must be close in coordinates too
+            const r2 = (sp[x * 3] - ref[0]) ** 2 + (sp[x * 3 + 1] - ref[1]) ** 2 + (sp[x * 3 + 2] - ref[2]) ** 2;
+            if (r2 < bd) { bd = r2; best = x; }
           }
         }
-        if (best < 0) continue;
-        // only splats on the same piece of skin as the closest (an image wrapped right around a
-        // limb meets itself; the two edges are different skin)
-        const bx = sp[best * 3], by = sp[best * 3 + 1], bz = sp[best * 3 + 2];
-        let sw = 0, px = 0, py = 0, pz = 0, qx = 0, qy = 0, qz = 0;
-        for (let t = 0; t < m; t++) {
-          const x = near[t];
-          if ((sp[x * 3] - bx) ** 2 + (sp[x * 3 + 1] - by) ** 2 + (sp[x * 3 + 2] - bz) ** 2 > same) { near[t] = -1; continue; }
-          const wt = Math.exp(-nd2[t] / s2), c = sn[x];
-          sw += wt;
-          px += wt * sp[x * 3]; py += wt * sp[x * 3 + 1]; pz += wt * sp[x * 3 + 2];
-          qx += wt * Nc[c * 3]; qy += wt * Nc[c * 3 + 1]; qz += wt * Nc[c * 3 + 2];
-        }
-        px /= sw; py /= sw; pz /= sw;
-        const ql = Math.sqrt(qx * qx + qy * qy + qz * qz) || 1;
-        qx /= ql; qy /= ql; qz /= ql;
-        // on the outside of the skin: splats lie a little above and below it, so go out to where
-        // about three quarters of them are under the point (mean + 0.67 standard deviations)
-        let vr = 0;
-        for (let t = 0; t < m; t++) {
-          const x = near[t];
-          if (x < 0) continue;
-          const o = (sp[x * 3] - px) * qx + (sp[x * 3 + 1] - py) * qy + (sp[x * 3 + 2] - pz) * qz;
-          vr += Math.exp(-nd2[t] / s2) * o * o;
-        }
-        const out = 0.67 * Math.sqrt(vr / sw) + lift;
-        pos[k * 3] = px + qx * out; pos[k * 3 + 1] = py + qy * out; pos[k * 3 + 2] = pz + qz * out;
-        ok[k] = 1;
+      }
+      // no skin here, or only skin that isn't next to the neighbour (the walk came round to it)
+      if (best < 0 || bd > (1.5 * apart + 1.5 * h) ** 2) return false;
+      const bx = sp[best * 3], by = sp[best * 3 + 1], bz = sp[best * 3 + 2];
+      let sw = 0, px = 0, py = 0, pz = 0, qx = 0, qy = 0, qz = 0;
+      for (let t = 0; t < m; t++) {
+        const x = near[t];
+        if ((sp[x * 3] - bx) ** 2 + (sp[x * 3 + 1] - by) ** 2 + (sp[x * 3 + 2] - bz) ** 2 > same) { near[t] = -1; continue; }
+        const wt = Math.exp(-nd2[t] / s2), c = sn[x];
+        sw += wt;
+        px += wt * sp[x * 3]; py += wt * sp[x * 3 + 1]; pz += wt * sp[x * 3 + 2];
+        qx += wt * Nc[c * 3]; qy += wt * Nc[c * 3 + 1]; qz += wt * Nc[c * 3 + 2];
+      }
+      px /= sw; py /= sw; pz /= sw;
+      const ql = Math.sqrt(qx * qx + qy * qy + qz * qz) || 1;
+      qx /= ql; qy /= ql; qz /= ql;
+      // on the outside of the skin: splats lie a little above and below it, so go out to where
+      // about three quarters of them are under the point (mean + 0.67 standard deviations)
+      let vr = 0;
+      for (let t = 0; t < m; t++) {
+        const x = near[t];
+        if (x < 0) continue;
+        const o = (sp[x * 3] - px) * qx + (sp[x * 3 + 1] - py) * qy + (sp[x * 3 + 2] - pz) * qz;
+        vr += Math.exp(-nd2[t] / s2) * o * o;
+      }
+      const out = 0.67 * Math.sqrt(vr / sw) + lift;
+      pos[k * 3] = px + qx * out; pos[k * 3 + 1] = py + qy * out; pos[k * 3 + 2] = pz + qz * out;
+      ok[k] = 1;
+      return true;
+    };
+    const seen = new Uint8Array(count), queue = [];
+    const i0 = (nx - 1) >> 1, j0 = (ny - 1) >> 1;
+    seen[j0 * nx + i0] = 1;
+    if (place(i0, j0, tattoo.at, 0)) queue.push(j0 * nx + i0);
+    for (let qi = 0; qi < queue.length; qi++) {
+      const k = queue[qi], i = k % nx, j = (k - i) / nx, ref = pos.subarray(k * 3, k * 3 + 3);
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const a = i + di, b = j + dj, kk = b * nx + a;
+        if (a < 0 || b < 0 || a >= nx || b >= ny || seen[kk]) continue;
+        seen[kk] = 1;
+        if (place(a, b, ref, di ? dx : dy)) queue.push(kk);
       }
     }
     // single missing points inside the image (cells are a little uneven): halfway between the
     // points either side
-    const fill = [], dx = tattoo.width / (nx - 1), dy = tattoo.height / (ny - 1);
+    const fill = [];
     for (let j = 0; j < ny; j++) {
       for (let i = 0; i < nx; i++) {
         const k = j * nx + i;
@@ -815,11 +852,19 @@ export class SkinSurface {
       for (let x = 0; x < 3; x++) pos[k * 3 + x] = 0.5 * (pos[a * 3 + x] + pos[b * 3 + x]);
       ok[k] = 1;
     }
+    // cells whose corners are all on the skin and next to each other: where two parts of the image
+    // that reached the skin separately meet (one over the shoulder onto the arm, one down the side
+    // of the chest) there is a tear, not a long thin triangle across it
+    const close = (p, q, want) => (pos[p * 3] - pos[q * 3]) ** 2 + (pos[p * 3 + 1] - pos[q * 3 + 1]) ** 2 +
+                                  (pos[p * 3 + 2] - pos[q * 3 + 2]) ** 2 <= (1.5 * want + 1.5 * h) ** 2;
     const tris = [];
     for (let j = 0; j < ny - 1; j++) {
       for (let i = 0; i < nx - 1; i++) {
         const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
-        if (ok[a] && ok[b] && ok[c] && ok[d]) tris.push(a, b, d, a, d, c);
+        if (!(ok[a] && ok[b] && ok[c] && ok[d])) continue;
+        if (close(a, b, dx) && close(c, d, dx) && close(a, c, dy) && close(b, d, dy) && close(a, d, Math.hypot(dx, dy))) {
+          tris.push(a, b, d, a, d, c);
+        }
       }
     }
     return done(tris);
