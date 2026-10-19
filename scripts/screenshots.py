@@ -112,7 +112,7 @@ def main() -> None:
                     wardrobe_scene(page)
                 page.wait_for_function("document.getElementById('version').textContent.length > 0")
                 page.wait_for_timeout(1500)
-                page.screenshot(path=str(out / f"{name}.png"))
+                page.screenshot(path=str(out / f"{name}.png"), timeout=180000)
                 print(out / f"{name}.png")
                 page.close()
             browser.close()
