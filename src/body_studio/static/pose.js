@@ -702,9 +702,10 @@ export class SkinSurface {
   wrap(tattoo, nx = 48, ny = 48) {
     const count = nx * ny, h = this.h;
     const pos = new Float32Array(count * 3), uvs = new Float32Array(count * 2), ok = new Uint8Array(count);
+    const nrm = new Float32Array(count * 3), spread = new Float32Array(count);
     for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { uvs[(j * nx + i) * 2] = i / (nx - 1); uvs[(j * nx + i) * 2 + 1] = j / (ny - 1); }
     const seed = this.nearest(tattoo.at);
-    const done = (tris) => ({ positions: pos, uvs, index: new Uint32Array(tris), valid: ok, nx, ny });
+    const done = (tris) => ({ positions: pos, uvs, index: new Uint32Array(tris), valid: ok, normals: nrm, spread, nx, ny });
     if (seed < 0) return done([]);
     this._prep(seed);
     const n = this._n(seed);
@@ -815,8 +816,10 @@ export class SkinSurface {
         const o = (sp[x * 3] - px) * qx + (sp[x * 3 + 1] - py) * qy + (sp[x * 3 + 2] - pz) * qz;
         vr += Math.exp(-nd2[t] / s2) * o * o;
       }
-      const out = 0.67 * Math.sqrt(vr / sw) + lift;
+      spread[k] = Math.sqrt(vr / sw);
+      const out = 0.67 * spread[k] + lift;
       pos[k * 3] = px + qx * out; pos[k * 3 + 1] = py + qy * out; pos[k * 3 + 2] = pz + qz * out;
+      nrm[k * 3] = qx; nrm[k * 3 + 1] = qy; nrm[k * 3 + 2] = qz;
       ok[k] = 1;
       return true;
     };
@@ -849,7 +852,11 @@ export class SkinSurface {
       }
     }
     for (const [k, a, b] of fill) {
-      for (let x = 0; x < 3; x++) pos[k * 3 + x] = 0.5 * (pos[a * 3 + x] + pos[b * 3 + x]);
+      for (let x = 0; x < 3; x++) {
+        pos[k * 3 + x] = 0.5 * (pos[a * 3 + x] + pos[b * 3 + x]);
+        nrm[k * 3 + x] = 0.5 * (nrm[a * 3 + x] + nrm[b * 3 + x]);
+      }
+      spread[k] = 0.5 * (spread[a] + spread[b]);
       ok[k] = 1;
     }
     // cells whose corners are all on the skin and next to each other: where two parts of the image
@@ -869,4 +876,147 @@ export class SkinSurface {
     }
     return done(tris);
   }
+}
+
+// ---------------------------------------------------------------- ink as splats
+// A tattoo is drawn as splats of its own lying on the skin, skinned with the skin's weights, so
+// the renderer moves, sorts and hides them with the body's splats: ink behind an arm, under
+// clothes or in a fold behaves like the skin it is on, with no stand-in for depth.
+
+// Points spread evenly over the image where it has ink: about `count` of them (fewer for small
+// images), each with its place in the image (u right, v up, 0..1), its coverage and its colour
+// (each averaged over the patch of pixels around it). img: {width, height, data: RGBA bytes}.
+export function inkSamples(img, count = 40000) {
+  const W = img.width, Hh = img.height, d = img.data;
+  let inked = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 12) inked++;
+  const step = Math.max(1, Math.sqrt(Math.max(1, inked) / count));   // pixels between samples
+  const nu = Math.max(2, Math.round(W / step)), nv = Math.max(2, Math.round(Hh / step));
+  const u = [], v = [], a = [], rgb = [];
+  for (let j = 0; j < nv; j++) {
+    for (let i = 0; i < nu; i++) {
+      // each a little off its place on the lattice: a regular lattice of splats smaller than a
+      // pixel beats with the pixels into stripes
+      const h1 = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453, h2 = Math.sin(i * 39.3468 + j * 11.135) * 24634.6345;
+      const cu = (i + 0.5 + 0.7 * (h1 - Math.floor(h1) - 0.5)) / nu, cv = (j + 0.5 + 0.7 * (h2 - Math.floor(h2) - 0.5)) / nv;
+      const x0 = Math.floor((cu - 0.5 / nu) * W), x1 = Math.ceil((cu + 0.5 / nu) * W);
+      const y0 = Math.floor((1 - cv - 0.5 / nv) * Hh), y1 = Math.ceil((1 - cv + 0.5 / nv) * Hh);
+      let sa = 0, sr = 0, sg = 0, sb = 0, n = 0;
+      for (let y = Math.max(0, y0); y < Math.min(Hh, y1); y++) {
+        for (let x = Math.max(0, x0); x < Math.min(W, x1); x++) {
+          const k = (y * W + x) * 4, al = d[k + 3] / 255;
+          sa += al; sr += al * d[k]; sg += al * d[k + 1]; sb += al * d[k + 2]; n++;
+        }
+      }
+      if (!n || sa / n < 0.04) continue;
+      u.push(cu); v.push(cv); a.push(sa / n);
+      rgb.push(sr / sa / 255, sg / sa / 255, sb / sa / 255);
+    }
+  }
+  return { n: a.length, u: Float32Array.from(u), v: Float32Array.from(v), alpha: Float32Array.from(a),
+           rgb: Float32Array.from(rgb), spacing: [1 / nu, 1 / nv] };
+}
+
+// Where each ink sample lies on the skin at rest, from a wrapped grid (SkinSurface.wrap): inside a
+// drawn cell, blended from its four corners (position, outward normal); a sample over a cell that
+// isn't drawn (no skin there, or a tear) is left out (ok 0). `out` lifts each point this many
+// spreads of the skin's scatter further out than the grid, so the skin's own splats lie under it.
+export function placeInk(grid, samples, out = 0) {
+  const { nx, ny, positions: P, normals: N, spread } = grid;
+  const drawn = new Uint8Array(nx * ny);
+  for (let t = 0; t < grid.index.length; t += 6) drawn[grid.index[t]] = 1;       // a cell's corner a
+  const n = samples.n, pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), ok = new Uint8Array(n);
+  for (let s = 0; s < n; s++) {
+    const fu = samples.u[s] * (nx - 1), fv = samples.v[s] * (ny - 1);
+    const i = Math.min(nx - 2, Math.floor(fu)), j = Math.min(ny - 2, Math.floor(fv)), a = j * nx + i;
+    if (!drawn[a]) continue;
+    const x = fu - i, y = fv - j;
+    const w = [(1 - x) * (1 - y), x * (1 - y), (1 - x) * y, x * y], k = [a, a + 1, a + nx, a + nx + 1];
+    let px = 0, py = 0, pz = 0, qx = 0, qy = 0, qz = 0, sp = 0;
+    for (let c = 0; c < 4; c++) {
+      const kk = k[c], wc = w[c];
+      px += wc * P[kk * 3]; py += wc * P[kk * 3 + 1]; pz += wc * P[kk * 3 + 2];
+      qx += wc * N[kk * 3]; qy += wc * N[kk * 3 + 1]; qz += wc * N[kk * 3 + 2];
+      sp += wc * spread[kk];
+    }
+    const ql = Math.hypot(qx, qy, qz) || 1;
+    qx /= ql; qy /= ql; qz /= ql;
+    pos[s * 3] = px + qx * out * sp; pos[s * 3 + 1] = py + qy * out * sp; pos[s * 3 + 2] = pz + qz * out * sp;
+    nrm[s * 3] = qx; nrm[s * 3 + 1] = qy; nrm[s * 3 + 2] = qz;
+    ok[s] = 1;
+  }
+  return { positions: pos, normals: nrm, ok };
+}
+
+// The body's own splats under a wrapped grid, and the ink over each: those whose centre lies over a
+// drawn cell (along the skin, within a cell of a grid point) and no further than `reach` in or out
+// of it. Their place in the image comes from the nearest grid point and the offset along the grid.
+// The body is then darkened there as well as covered with ink splats, so whichever of the two is in
+// front, the skin shows the ink. Returns {index, alpha, rgb} for the splats with ink over them.
+export function inkUnder(grid, centres, img, reach) {
+  const { nx, ny, positions: P, normals: N } = grid;
+  const drawn = new Uint8Array(nx * ny);
+  for (let t = 0; t < grid.index.length; t += 6) {
+    const a = grid.index[t];
+    drawn[a] = drawn[a + 1] = drawn[a + nx] = drawn[a + nx + 1] = 1;
+  }
+  // the grid's step along the skin, and a hash of its drawn points
+  let step = 0, ns = 0;
+  for (let k = 0; k < nx * ny; k++) {
+    if (!drawn[k] || k % nx === nx - 1 || !drawn[k + 1]) continue;
+    step += Math.hypot(P[k * 3 + 3] - P[k * 3], P[k * 3 + 4] - P[k * 3 + 1], P[k * 3 + 5] - P[k * 3 + 2]); ns++;
+  }
+  const out = { index: new Int32Array(0), alpha: new Float32Array(0), rgb: new Float32Array(0) };
+  if (!ns) return out;
+  step /= ns;
+  const h = Math.max(2 * step, reach), key = (x, y, z) => `${Math.floor(x / h)},${Math.floor(y / h)},${Math.floor(z / h)}`;
+  const cells = new Map(), lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let k = 0; k < nx * ny; k++) {
+    if (!drawn[k]) continue;
+    const kk = key(P[k * 3], P[k * 3 + 1], P[k * 3 + 2]);
+    (cells.get(kk) || cells.set(kk, []).get(kk)).push(k);
+    for (let a = 0; a < 3; a++) { lo[a] = Math.min(lo[a], P[k * 3 + a] - h); hi[a] = Math.max(hi[a], P[k * 3 + a] + h); }
+  }
+  const W = img.width, Hh = img.height, d = img.data, box = Math.max(1, Math.round(W / (nx - 1) / 2));
+  const index = [], alpha = [], rgb = [];
+  const n = centres.length / 3;
+  for (let i = 0; i < n; i++) {
+    const x = centres[i * 3], y = centres[i * 3 + 1], z = centres[i * 3 + 2];
+    if (x < lo[0] || x > hi[0] || y < lo[1] || y > hi[1] || z < lo[2] || z > hi[2]) continue;
+    const cx = Math.floor(x / h), cy = Math.floor(y / h), cz = Math.floor(z / h);
+    let best = -1, bd = Infinity;
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) {
+      for (const k of cells.get(`${cx + a},${cy + b},${cz + c}`) || []) {
+        const dd = (P[k * 3] - x) ** 2 + (P[k * 3 + 1] - y) ** 2 + (P[k * 3 + 2] - z) ** 2;
+        if (dd < bd) { bd = dd; best = k; }
+      }
+    }
+    if (best < 0) continue;
+    const ox = x - P[best * 3], oy = y - P[best * 3 + 1], oz = z - P[best * 3 + 2];
+    const on = ox * N[best * 3] + oy * N[best * 3 + 1] + oz * N[best * 3 + 2];
+    const tx = ox - on * N[best * 3], ty = oy - on * N[best * 3 + 1], tz = oz - on * N[best * 3 + 2];
+    if (Math.abs(on) > reach || Math.hypot(tx, ty, tz) > step) continue;
+    // where along the grid: the offset over the grid's own steps at that point
+    const bi = best % nx, bj = (best - bi) / nx;
+    const along = (k2, sign) => {
+      if (k2 < 0 || k2 >= nx * ny || !drawn[k2]) return 0;
+      const ax = sign * (P[k2 * 3] - P[best * 3]), ay = sign * (P[k2 * 3 + 1] - P[best * 3 + 1]), az = sign * (P[k2 * 3 + 2] - P[best * 3 + 2]);
+      const l2 = ax * ax + ay * ay + az * az;
+      return l2 ? (tx * ax + ty * ay + tz * az) / l2 : 0;
+    };
+    const fu = bi + (bi < nx - 1 ? along(best + 1, 1) : along(best - 1, -1));
+    const fv = bj + (bj < ny - 1 ? along(best + nx, 1) : along(best - nx, -1));
+    const u = Math.min(1, Math.max(0, fu / (nx - 1))), v = Math.min(1, Math.max(0, fv / (ny - 1)));
+    const px = Math.min(W - 1, Math.floor(u * W)), py = Math.min(Hh - 1, Math.floor((1 - v) * Hh));
+    let sa = 0, sr = 0, sg = 0, sb = 0, m = 0;
+    for (let yy = Math.max(0, py - box); yy <= Math.min(Hh - 1, py + box); yy++) {
+      for (let xx = Math.max(0, px - box); xx <= Math.min(W - 1, px + box); xx++) {
+        const q = (yy * W + xx) * 4, al = d[q + 3] / 255;
+        sa += al; sr += al * d[q]; sg += al * d[q + 1]; sb += al * d[q + 2]; m++;
+      }
+    }
+    if (sa / m < 0.04) continue;
+    index.push(i); alpha.push(sa / m); rgb.push(sr / sa / 255, sg / sa / 255, sb / sa / 255);
+  }
+  return { index: Int32Array.from(index), alpha: Float32Array.from(alpha), rgb: Float32Array.from(rgb) };
 }

@@ -143,7 +143,6 @@ export class SkinCover {
   constructor(skin, centres, reach) {
     const nv = skin.length / 3, key = (x, y, z) => (x * 73856093) ^ (y * 19349663) ^ (z * 83492791);
     const grid = new Map();
-    this.skin = skin; this.grid = grid; this.key = key; this.reach = reach;
     for (let i = 0; i < nv; i++) {
       const k = key(Math.floor(skin[i * 3] / reach), Math.floor(skin[i * 3 + 1] / reach), Math.floor(skin[i * 3 + 2] / reach));
       (grid.get(k) || grid.set(k, []).get(k)).push(i);
@@ -165,38 +164,11 @@ export class SkinCover {
       this.nearest[s] = best;
     }
     this.nv = nv;
-    this.mask = new Uint8Array(nv);
-  }
-
-  // the skin vertex nearest a point (-1 when none is within reach)
-  nearestSkin(x, y, z) {
-    const r = this.reach, skin = this.skin;
-    const cx = Math.floor(x / r), cy = Math.floor(y / r), cz = Math.floor(z / r);
-    let best = -1, bd = r * r;
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
-      const list = this.grid.get(this.key(cx + dx, cy + dy, cz + dz));
-      if (!list) continue;
-      for (const i of list) {
-        const d = (skin[i * 3] - x) ** 2 + (skin[i * 3 + 1] - y) ** 2 + (skin[i * 3 + 2] - z) ** 2;
-        if (d < bd) { bd = d; best = i; }
-      }
-    }
-    return best;
-  }
-
-  // whether each point (on the skin, at rest) is under what was last passed to covered()
-  under(points) {
-    const n = points.length / 3, out = new Uint8Array(n);
-    for (let k = 0; k < n; k++) {
-      const v = this.nearestSkin(points[k * 3], points[k * 3 + 1], points[k * 3 + 2]);
-      out[k] = v >= 0 && this.mask[v] ? 1 : 0;
-    }
-    return out;
   }
 
   // the body's splats under the worn items (each item's list of skin vertices it covers)
   covered(deleteLists) {
-    const mask = this.mask = new Uint8Array(this.nv);
+    const mask = new Uint8Array(this.nv);
     for (const list of deleteLists) for (const i of list) if (i < this.nv) mask[i] = 1;
     const out = [];
     this.nearest.forEach((v, s) => { if (v >= 0 && mask[v]) out.push(s); });

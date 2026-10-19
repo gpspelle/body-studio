@@ -150,6 +150,12 @@ def tattoo_scene(page, tmp: Path) -> None:
           V.camera.position.lerp(V.controls.target, 0.45);
           V.controls.update();
         })()""")
+    # the ink is splats: wait until they are made and sorted with the body's from this angle
+    page.wait_for_function("tattooStudio.tattoos().every((t) => t.inked)", timeout=120000)
+    page.evaluate("new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))")
+    page.wait_for_function("""(() => { const s = bodyApp.viewer.spark;
+      return s.display === s.current && s.display.numSplats > bodyViewer.numSplats() + 1000; })()""", timeout=300000)
+
 
 def wardrobe_scene(page) -> None:
     """Mia walking in a T-shirt, jeans, sneakers and a bob, the Clothes section in view."""

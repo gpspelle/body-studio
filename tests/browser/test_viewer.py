@@ -244,17 +244,17 @@ class Viewer(unittest.TestCase):
         at = [0.45 * a + 0.55 * b for a, b in zip(elbow, wrist)]
         page.mouse.click(*page.evaluate(f"tattooStudio.screen({at})"))
         page.wait_for_function("tattooStudio.tattoos().length === 1")
-        tat = page.evaluate("tattooStudio.tattoos()[0]")
-        self.assertEqual(tat["clothed"], 0)
+        page.wait_for_function("tattooStudio.tattoos()[0].inked")
+        page.evaluate("bodyApp.viewer.controls.autoRotate = false")
+        self.assertGreater(ink_pixels(page, at), 30)       # the ink shows on the bare arm
         page.click("#wearSlots [data-item=longsleeve_jeans]")
         page.wait_for_function("wardrobe.worn().includes('longsleeve_jeans')", timeout=60000)
-        tat = page.evaluate("tattooStudio.tattoos()[0]")
-        self.assertGreater(tat["clothed"], 0.8 * tat["points"])
+        self.assertLess(ink_pixels(page, at), 5)            # the sleeve's splats hide it, like the skin
         page.click("#wearSlots [data-item=suit]")        # one outfit at a time
         page.wait_for_function("wardrobe.worn().join() === 'suit,white_sneakers'", timeout=60000)
         page.click("#wearSlots [data-item=suit]")        # tapped again: taken off
         page.wait_for_function("wardrobe.worn().join() === 'white_sneakers'")
-        self.assertEqual(page.evaluate("tattooStudio.tattoos()[0].clothed"), 0)
+        self.assertGreater(ink_pixels(page, at), 30)
         page.evaluate("tattooStudio.preset('walk')")    # moves with the body, no errors
         page.reload()                                   # remembered for this body
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
@@ -265,6 +265,65 @@ class Viewer(unittest.TestCase):
         self.assertEqual(page.evaluate("tattooStudio.tattoos().length"), 1)
         self.assertEqual(errors, [])
         page.close()
+
+
+def settled(page):
+    """Wait until the splats on screen are the latest ones, sorted from where the camera is."""
+    page.wait_for_function("tattooStudio.tattoos().every((t) => t.inked)", timeout=60000)
+    page.evaluate("new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))")
+    page.wait_for_function("(() => { const s = bodyApp.viewer.spark; return s.display === s.current; })()", timeout=300000)
+    page.evaluate("new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))")
+
+
+def ink_pixels(page, at, r=40):
+    """How many pixels around point `at` (body coordinates) the selected tattoo's ink changes:
+    the page with the ink as it is, against the page with no ink."""
+    x, y = page.evaluate(f"tattooStudio.screen({at})")
+    clip = {"x": max(0, x - r), "y": max(0, y - r), "width": 2 * r, "height": 2 * r}
+    shots = []
+    for ink in (None, "0"):
+        if ink is not None:
+            before = page.input_value("#tatInk")
+            page.fill("#tatInk", ink)
+            page.dispatch_event("#tatInk", "input")
+        settled(page)
+        shots.append(png_pixels(page.screenshot(clip=clip)))
+    page.fill("#tatInk", before)
+    page.dispatch_event("#tatInk", "input")
+    settled(page)
+    (w, h, a), (_, _, b) = shots
+    return sum(1 for i in range(0, w * h * 4, 4) if sum(abs(a[i + k] - b[i + k]) for k in range(3)) > 60)
+
+
+def png_pixels(data: bytes):
+    """(width, height, RGBA bytes) of an 8-bit RGB or RGBA PNG (what screenshots are)."""
+    pos, idat, w, h, ch = 8, b"", 0, 0, 4
+    while pos < len(data):
+        n, kind = struct.unpack(">I4s", data[pos:pos + 8])
+        body = data[pos + 8:pos + 8 + n]
+        if kind == b"IHDR":
+            w, h, depth, colour = struct.unpack(">IIBB", body[:10])
+            assert depth == 8 and colour in (2, 6)
+            ch = 4 if colour == 6 else 3
+        elif kind == b"IDAT":
+            idat += body
+        pos += 12 + n
+    raw, out, prev, stride = zlib.decompress(idat), bytearray(), bytearray(w * ch), w * ch
+    for row in range(h):
+        f, line = raw[row * (stride + 1)], bytearray(raw[row * (stride + 1) + 1:(row + 1) * (stride + 1)])
+        for i in range(stride):
+            a = line[i - ch] if i >= ch else 0
+            b, c = prev[i], prev[i - ch] if i >= ch else 0
+            if f == 1: line[i] = (line[i] + a) & 255
+            elif f == 2: line[i] = (line[i] + b) & 255
+            elif f == 3: line[i] = (line[i] + (a + b) // 2) & 255
+            elif f == 4:
+                pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
+                line[i] = (line[i] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+        prev = line
+        for i in range(w):
+            out += line[i * ch:i * ch + 3] + (line[i * ch + 3:i * ch + 4] if ch == 4 else b"\xff")
+    return w, h, out
 
 
 def dist(a, b):

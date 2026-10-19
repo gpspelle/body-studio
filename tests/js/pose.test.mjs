@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { Skeleton, SkinSurface, SkinWeights, dualQuats, skinPoint, q, v3, DOF } from "../../src/body_studio/static/pose.js";
+import { Skeleton, SkinSurface, SkinWeights, dualQuats, inkSamples, inkUnder, placeInk, skinPoint, q, v3, DOF } from "../../src/body_studio/static/pose.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { left: L, up: U, front: F } = rig.frame;
@@ -404,4 +404,135 @@ test("raising the arms leaves the back and the sides of the chest where they are
   }
   assert.ok(n > 1000, `${n} splats on the trunk`);
   assert.ok(moved / n < 0.02, `${(100 * moved / n).toFixed(1)}% of the trunk moved more than 4 cm`);
+});
+
+// an image W x H: ink (black, opaque) where inked(x, y) is true, clear elsewhere
+function image(W, Hh, inked) {
+  const data = new Uint8ClampedArray(W * Hh * 4);
+  for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) if (inked(x, y)) data[(y * W + x) * 4 + 3] = 255;
+  return { width: W, height: Hh, data };
+}
+
+test("ink splats cover the inked part of the image, evenly", () => {
+  // the top half inked (image rows go down, v goes up)
+  const s = inkSamples(image(200, 100, (x, y) => y < 50), 2000);
+  near(s.n, 2000, 300, "about as many splats as asked");
+  for (let i = 0; i < s.n; i++) assert.ok(s.v[i] > 0.45, `splat ${i} in the inked half (v ${s.v[i]})`);
+  const inside = [...s.alpha].filter((a, i) => s.v[i] > 0.55);
+  assert.ok(inside.every((a) => a > 0.99), "fully inked inside");
+  assert.equal(inkSamples(image(50, 50, () => false), 100).n, 0, "nothing for an empty image");
+});
+
+test("ink splats lie on the skin, and only where the grid has skin", () => {
+  const r = 0.05, { surface } = cylinders([[0, r]]);
+  const g = surface.wrap({ at: [0, 0, r], up: [0, 1, 0], width: 0.2, height: 0.12, angle: 0, lift: 0 }, 21, 13);
+  const s = inkSamples(image(100, 60, () => true), 3000), at = placeInk(g, s);
+  assert.ok(at.ok.reduce((t, v) => t + v, 0) > 0.95 * s.n, "the whole image is on the cylinder");
+  for (let i = 0; i < s.n; i++) {
+    if (!at.ok[i]) continue;
+    const p = at.positions.subarray(i * 3, i * 3 + 3);
+    near(Math.hypot(p[0], p[2]), r, 0.002, `splat ${i} on the surface`);
+    near(Math.atan2(p[0], p[2]) * r, (s.u[i] - 0.5) * 0.2, 0.005, `splat ${i} at its arc length`);
+    near(p[1], (s.v[i] - 0.5) * 0.12, 0.005, `splat ${i} at its height`);
+  }
+  // past the edge of a limb (two legs, the image wider than the left one can hold): no ink in the air
+  const two = cylinders([[-0.09, 0.07], [0.09, 0.07]]).surface;
+  const g2 = two.wrap({ at: [-0.09, 0, 0.07], up: [0, 1, 0], width: 0.5, height: 0.1, angle: 0, lift: 0 }, 61, 11);
+  const at2 = placeInk(g2, s);
+  assert.ok(at2.ok.reduce((t, v) => t + v, 0) < s.n, "some of it has no skin under it");
+  for (let i = 0; i < s.n; i++) {
+    if (!at2.ok[i]) continue;
+    const p = at2.positions.subarray(i * 3, i * 3 + 3);
+    near(Math.min(Math.hypot(p[0] + 0.09, p[2]), Math.hypot(p[0] - 0.09, p[2])), 0.07, 0.004, `splat ${i} on a leg`);
+  }
+});
+
+test("the body's splats under the ink take it, and only those", () => {
+  // splats on a cylinder of radius 5 cm, a few mm in and out; the image's left half inked
+  const r = 0.05, { surface } = cylinders([[0, r]]);
+  const g = surface.wrap({ at: [0, 0, r], up: [0, 1, 0], width: 0.2, height: 0.12, angle: 0, lift: 0 }, 41, 25);
+  const pts = [];
+  for (let a = -Math.PI; a < Math.PI; a += 0.02) for (let y = -0.1; y <= 0.1; y += 0.004) {
+    const rr = r + 0.003 * Math.sin(a * 37 + y * 900);
+    pts.push(rr * Math.sin(a), y, rr * Math.cos(a));
+  }
+  pts.push(0, 0, r + 0.03);                                                    // a splat in the air
+  const centres = Float32Array.from(pts), u = inkUnder(g, centres, image(100, 60, (x) => x < 50), 0.006);
+  assert.ok(u.index.length > 100, `${u.index.length} splats under the ink`);
+  const got = new Set(u.index);
+  for (let i = 0; i < centres.length / 3; i++) {
+    const [x, y, z] = centres.subarray(i * 3, i * 3 + 3), arc = Math.atan2(x, z) * r;
+    if (z > 0.06) { assert.ok(!got.has(i), "not the splat in the air"); continue; }
+    // well inside the inked part (the left half: arc -0.1 .. 0), and well outside it
+    if (arc > -0.09 && arc < -0.01 && Math.abs(y) < 0.05) assert.ok(got.has(i), `splat at arc ${arc.toFixed(3)} y ${y.toFixed(3)} is inked`);
+    if (arc > 0.01 || arc < -0.11 || Math.abs(y) > 0.07) assert.ok(!got.has(i), `splat at arc ${arc.toFixed(3)} y ${y.toFixed(3)} is bare`);
+  }
+  for (let j = 0; j < u.index.length; j++) assert.ok(u.alpha[j] > 0.04 && u.rgb[j * 3] < 0.01, "black ink");
+});
+
+test("quality sweep: ink anywhere on the body, in any pose, stays on the skin and in one piece", () => {
+  // designs of 6 to 35 cm on random spots of the body, each in the standing pose and four others:
+  // every ink splat lies on the skin, stays next to the skin it was put on when the body moves,
+  // and the image isn't torn or stretched into lines
+  const sk = new Skeleton(rig), w = new SkinWeights(rig);
+  const both = (j, a) => ({ [j + "_l"]: a, [j + "_r"]: a });
+  const poses = [
+    { ...both("shoulder", { flex: 0, side: 165, twist: 0 }), ...both("elbow", { flex: 8, twist: 0 }) },
+    { ...both("shoulder", { flex: 0, side: 90, twist: -90 }), ...both("elbow", { flex: 115, twist: 0 }), ...both("wrist", { flex: 20, side: 0 }) },
+    { shoulder_l: { flex: -22, side: 8 }, shoulder_r: { flex: 24, side: 8 }, elbow_r: { flex: 35 }, hip_l: { flex: 24, side: 2 },
+      hip_r: { flex: -12, side: 2 }, knee_r: { flex: 28 }, chest: { flex: 0, side: 0, twist: -6 } },
+    { ...both("hip", { flex: 88, side: 6, twist: 0 }), ...both("knee", { flex: 88 }), spine: { flex: 8 } },
+  ].map((p) => { sk.reset(); sk.setPose(p); return dualQuats(sk.transforms()); });
+  // a dragon-like design: a blob with thin wings and a tail
+  const designImage = image(150, 210, (x, y) => (x - 75) ** 2 + (y - 80) ** 2 < 900 ||
+                                                      Math.abs(y - 60 - 0.4 * Math.abs(x - 75)) < 4 || (Math.abs(x - 75 - 20 * Math.sin(y / 20)) < 5 && y > 100));
+  const design = inkSamples(designImage, 6000);
+  let seed = 11;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const b = new Uint8Array(4), x = new Uint8Array(4), o = [0, 0, 0], o2 = [0, 0, 0], bs = new Uint8Array(4), xs = new Uint8Array(4);
+  for (let t = 0; t < 24; t++) {
+    const i0 = body.opaque[Math.floor(rnd() * body.opaque.length)], at = Array.from(body.centres.subarray(i0 * 3, i0 * 3 + 3));
+    const width = [6, 12, 20, 35][t % 4] / 170 * H, height = width * 1.4;
+    const g = skin.wrap({ at, up: U, width, height, angle: (t * 53) % 360 - 180, lift: 0.001 * H }, 48, 67);
+    const ink = placeInk(g, design), where = `${(width / H * 170).toFixed(0)} cm at ${boneAt(at)}`;
+    let placed = 0, worstOff = 0, worstApart = 0;
+    for (let s = 0; s < design.n; s += 7) {
+      if (!ink.ok[s]) continue;
+      placed++;
+      const p = Array.from(ink.positions.subarray(s * 3, s * 3 + 3));
+      // on the skin: within a few millimetres of the skin's surface there (the nearest cell's, along
+      // its normal), and next to the splat of the body nearest to it
+      const c = skin.nearest(p);
+      if (c < 0) { worstOff = Infinity; continue; }
+      worstOff = Math.max(worstOff, Math.abs(v3.dot(v3.sub(p, skin._s(c)), skin._n(c))));
+      let best = -1, bd = Infinity;
+      for (const cc of skin._near(p, 4 * skin.h)) {
+        for (let m = skin.first[cc]; m < skin.first[cc + 1]; m++) {
+          const i = skin.members[m], d = Math.hypot(body.centres[i * 3] - p[0], body.centres[i * 3 + 1] - p[1], body.centres[i * 3 + 2] - p[2]);
+          if (d < bd) { bd = d; best = i; }
+        }
+      }
+      if (best < 0) continue;
+      // and it moves with that splat
+      const sp = Array.from(body.centres.subarray(best * 3, best * 3 + 3));
+      w.at(...p, b, x); w.at(...sp, bs, xs);
+      for (const dq of poses) {
+        skinPoint(p, b, x, dq, o); skinPoint(sp, bs, xs, dq, o2);
+        worstApart = Math.max(worstApart, v3.len(v3.sub(o, o2)) - bd);
+      }
+    }
+    assert.ok(placed > 0, `${where}: some ink`);
+    // (the scan's skin is a shell a few millimetres thick: the ink lies within it)
+    assert.ok(worstOff < 0.006 * H, `${where}: ink ${(worstOff / H * 170).toFixed(1)} cm off the skin`);
+    assert.ok(worstApart < 0.01 * H, `${where}: ink comes ${(worstApart / H * 170).toFixed(1)} cm away from its skin when posed`);
+    // a small design on the body is whole (a big one can run off a limb)
+    if (width < 0.08 * H) assert.ok(placed > 0.9 * Math.ceil(design.n / 7), `${where}: only ${placed} of ${Math.ceil(design.n / 7)} on the skin`);
+    // and the body's own splats under it take the ink: about as much skin as the ink covers
+    const under = inkUnder(g, body.centres, designImage, 0.006 * H);
+    assert.ok(under.index.length > 0, `${where}: no skin under the ink`);
+    for (const i of under.index) {
+      const c = skin.nearest(Array.from(body.centres.subarray(i * 3, i * 3 + 3)));
+      assert.ok(c >= 0, `${where}: splat ${i} under the ink is on the skin`);
+    }
+  }
 });

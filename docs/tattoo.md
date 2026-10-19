@@ -14,8 +14,8 @@ and why it was built this way.
    rotation and translation per bone; Spark's `SplatSkinning` moves every splat with dual quaternion
    skinning on the GPU.
 4. **The tattoo** is a grid laid on the skin itself (walked out over the splats from the point
-   tapped), carried by the same weights and the same blend as the splats, and drawn as ink (it
-   multiplies the skin colour under it).
+   tapped) and drawn as splats of ink on the skin, skinned with the body's own weights, so the
+   renderer moves, sorts and hides them with the body's splats.
 
 Pose, tattoos (with their images) and the person's height are kept per body in the browser
 (IndexedDB). Nothing is uploaded anywhere; the image never leaves the computer.
@@ -135,19 +135,25 @@ twisted forearm into a "candy wrapper".
     never mirrored.
   - Checked on a cylinder (every point within 2 mm of its arc length) and on the MakeHuman body:
     widths and heights within a few per cent on the back, thigh and forearm, every point on the skin
-    (`tests/js/pose.test.mjs`). The tests also lay designs of 8 to 35 cm on random spots and check
-    no drawn triangle stretches into a line, at rest or with the arms up, flexed or sitting.
-- **Skinning**: every point of the grid gets skin weights from the same voxels as the splats and is
-  moved by the same dual quaternion blend (computed on the CPU, matched to Spark's shader), so the
-  tattoo stays glued to the skin when a joint moves.
-- **Ink**: drawn after the splats with multiply blending (a tattoo darkens skin, it doesn't paint
-  over it); black ink reads as deep blue-grey, like healed ink. Designs drawn on white (most JPGs)
-  have the white removed and are cropped.
-- **Hidden behind the body**: the splats don't write depth (a moved splat is sorted late, so writing
-  depth would punch holes at its soft edges). Instead a stand-in, a dot per opaque splat skinned on
-  the GPU with the same blend, writes depth only, just before the ink. Each dot is pushed back about
-  2 cm, so where the skin turns away (the flanks, under the arms) the dots don't cover ink lying on
-  the skin; ink still hides behind an arm or the other side of the body.
+    (`tests/js/pose.test.mjs`). The tests also lay designs of 6 to 35 cm on random spots and check,
+    at rest and with the arms up, flexed, walking or sitting, that no part stretches into a line and
+    every ink splat lies on the skin (within 1 cm of it) and stays next to the skin it was put on,
+    and that the body's splats under it take the ink.
+- **Ink is splats**: the image becomes about 40,000 small flat splats spread over its inked pixels
+  (once per image; moving, turning or resizing the tattoo only moves them). Each lies on the skin,
+  among the skin's own splats, coloured like the skin under it darkened by the ink (a tattoo darkens
+  skin, it doesn't paint over it; black ink reads as deep blue-grey, like healed ink), and skinned on
+  the GPU by Spark with the skin weights of where it is. The body's own splats under the design
+  (within 1 cm in or out of the skin) are darkened by the same ink, and get their colour back when
+  the tattoo moves away: a scan's skin is a shell of splats a few millimetres thick, so either an ink
+  splat or a skin splat can be in front at any pixel, and both show the ink. So there is one
+  body: whatever hides the skin hides the ink (an arm in front, the other side of the body, clothes,
+  a fold at a bent joint), and nothing else has to agree with it. An earlier version drew the ink as
+  a mesh over the splats, with its own weights, a stand-in body for depth and a mask for clothes;
+  each disagreement between those showed as a bug (stray lines, a design missing its head).
+  Designs drawn on white (most JPGs) have the white removed and are cropped.
+- **Skinning**: the outline shown while editing is the border of the grid, moved on the CPU by the
+  same dual quaternion blend as Spark's shader.
 
 ## Limits
 

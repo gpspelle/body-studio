@@ -158,14 +158,12 @@ function undressAll() {
   dressSkin();
 }
 
-// after something was put on or taken off: hide the skin under what is worn, remember it, tell
-// the tattoo panel (ink under clothes is hidden)
+// after something was put on or taken off: hide the skin under what is worn, remember it
 function changed() {
   if (!W) return;
   dressSkin();
   store.set("wear:" + W.file, SLOTS.map((s) => W.worn.get(s)?.id).filter(Boolean));
   ui();
-  dispatchEvent(new Event("wearchange"));
 }
 
 // The body's splats under what is worn are hidden, and those under hair take its colour. The
@@ -176,7 +174,6 @@ function dressSkin() {
   const worn = [...w.worn.values()];
   const tint = new Map();
   for (const e of worn) if (e.tint) for (const i of w.cover.covered([e.tint])) tint.set(i, e.colour);
-  // (this also leaves the mask that tattoos are checked against)
   const now = new Set(w.cover.covered(worn.filter((e) => e.covers).map((e) => e.covers)));
   for (const i of now) tint.delete(i);
   const packed = w.mesh.packedSplats;
@@ -272,6 +269,4 @@ window.wardrobe = {
   splats: (id) => [...(W ? W.worn.values() : [])].find((e) => e.id === id)?.n || 0,
   hidden: () => (W ? W.hidden.size : 0),
   tinted: () => (W ? W.tinted.size : 0),
-  // for each point of the skin (at rest, PLY coordinates, xyz after xyz): 1 where something worn covers it
-  under: (points) => (W && W.cover && W.worn.size ? W.cover.under(points) : new Uint8Array(points.length / 3)),
 };

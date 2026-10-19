@@ -34,6 +34,12 @@
   the tail of a design on the chest): the design stays on one surface where the arm meets the
   chest, the skin no longer tears at the armpit when the arm moves, and splats no longer fly off
   when posed because of a rounding error in their weights.
+- Tattoos are drawn as splats on the skin, and the body's own splats under them take the ink, all
+  skinned with the body's own weights: whatever hides the skin hides the ink (an arm, the other
+  side of the body, clothes, a fold), so a design no longer loses parts (a dragon's head) when moved
+  near a joint or posed. The stand-in body for depth and
+  the separate check for ink under clothes are gone. A quality sweep in the tests lays designs all
+  over the body in every pose.
 - Raising the arms no longer swings the back and the sides of the chest out into wings: the
   upper arm no longer carries the shoulder blade. Rigs are rebuilt once (`<body>.rig.json`
   version 3).

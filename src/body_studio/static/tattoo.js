@@ -1,15 +1,14 @@
 // Tattoo & pose: a panel at the left edge (a sheet at the bottom on a phone).
 // The body gets a skeleton once (rig.py, GET /api/rig); its splats are skinned with Spark's dual
 // quaternion skinning. Dots on the joints can be dragged, within each joint's range of motion.
-// A tattoo image is laid on the skin itself (pose.js SkinSurface), skinned with the same
-// weights and blend as the splats, and drawn after them as ink: it darkens the skin under it,
-// and whatever is in front of it hides it. Splats don't write depth (moved splats are sorted
-// late, so their soft edges would punch holes), so the skin's depth comes from a stand-in: a
-// dot per opaque splat, skinned on the GPU with the same blend, drawn only into the depth
-// buffer. Design and sources: docs/tattoo.md.
+// A tattoo image is laid on the skin itself (pose.js SkinSurface) and drawn as splats of its
+// own on the skin, the colour of the skin under them darkened by the ink, skinned with the same
+// weights; the body's own splats there are darkened the same way. The renderer moves, sorts and
+// hides both with the rest of the body, so whatever hides the skin (an arm, clothes, a fold) hides
+// the ink too, and whichever splat is in front shows it. Design and sources: docs/tattoo.md.
 import * as THREE from "three";
-import { SplatSkinning } from "@sparkjsdev/spark";
-import { Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, skinPoint, v3 } from "/static/pose.js";
+import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
+import { Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, inkSamples, inkUnder, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -104,10 +103,10 @@ function setup(rig, mesh, file) {
   const sk = new Skeleton(rig), weights = new SkinWeights(rig), map = new SurfaceMap(rig);
   const n = mesh.numSplats;
   const centres = new Float32Array(n * 3), bones = new Uint8Array(n * 4), w = new Uint8Array(n * 4);
-  const opaque = [], radius = new Float32Array(n);
-  mesh.forEachSplat((i, c, sc, _q, opacity) => {
+  const opaque = [], colours = new Float32Array(n * 3);
+  mesh.forEachSplat((i, c, _sc, _q, opacity, col) => {
     centres[i * 3] = c.x; centres[i * 3 + 1] = c.y; centres[i * 3 + 2] = c.z;
-    radius[i] = Math.cbrt(sc.x * sc.y * sc.z);
+    colours[i * 3] = col.r; colours[i * 3 + 1] = col.g; colours[i * 3 + 2] = col.b;
     if (opacity >= 0.3) opaque.push(i);
     weights.at(c.x, c.y, c.z, bones, w, i);
   });
@@ -138,11 +137,10 @@ function setup(rig, mesh, file) {
   lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(pairs.length * 6), 3));
   const lines = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55, depthTest: false }));
   lines.renderOrder = 19; lines.frustumCulled = false;
-  const skin = skinDepth(Uint32Array.from(opaque), centres, radius, bones, w, rig.height, rig.joints.length);
-  V.holder.add(lines, handles, skin);
+  V.holder.add(lines, handles);
 
-  S = { file, rig, sk, weights, map, surface, mesh, skinning, n, centres, bones, w, opaque: Uint32Array.from(opaque),
-        posed: null, posedOk: false, dq: null, skin, handles, handleJoints, lines, pairs, tattoos: [], selected: null,
+  S = { file, rig, sk, weights, map, surface, mesh, skinning, n, centres, colours, bones, w, opaque: Uint32Array.from(opaque),
+        posed: null, posedOk: false, dq: null, transforms: null, skinColour: new Map(), tinted: new Map(), handles, handleJoints, lines, pairs, tattoos: [], selected: null,
         joint: null, heightCm: 170, nextId: 1 };
   handles.visible = lines.visible = !$("studio").hidden;
   presetsUI();
@@ -155,8 +153,10 @@ function setup(rig, mesh, file) {
 function teardown() {
   if (!S) return;
   for (const tt of S.tattoos) disposeTattoo(tt);
-  V.holder.remove(S.handles, S.lines, S.skin);
-  S.handles.geometry.dispose(); S.lines.geometry.dispose(); S.skin.geometry.dispose(); S.skin.material.dispose();
+  S.tattoos = [];
+  tintSkin();
+  V.holder.remove(S.handles, S.lines);
+  S.handles.geometry.dispose(); S.lines.geometry.dispose();
   if (S.mesh && S.mesh.skinning === S.skinning) { S.mesh.skinning = null; S.mesh.updateGenerator(); }
   S = null; pending = null; drag = null;
   window.tattooStudio.ready = false;
@@ -180,69 +180,6 @@ function dotTexture() {
   return tex;
 }
 
-// The skin's depth, for hiding ink behind the body: a round dot per opaque splat, its size the
-// splat's, moved by the same dual quaternion blend as Spark's (pose.js skinPoint).
-const SKIN_VERTEX = `
-uniform vec4 dq[2 * BONES];
-uniform float pixels;
-uniform float push;
-attribute vec4 skinBones;
-attribute vec4 skinWeights;
-attribute float size;
-void main() {
-  vec4 r = vec4(0.0), d = vec4(0.0);
-  for (int i = 0; i < 4; i++) {
-    float w = skinWeights[i];
-    if (w <= 0.0) continue;
-    int b = int(skinBones[i] + 0.5);
-    vec4 rb = dq[2 * b], db = dq[2 * b + 1];
-    if (i > 0 && dot(r, rb) < 0.0) w = -w;
-    r += w * rb; d += w * db;
-  }
-  float n = length(r);
-  r /= n; d /= n;
-  vec3 t = 2.0 * (r.w * d.xyz - d.w * r.xyz + cross(r.xyz, d.xyz));
-  vec3 p = position + 2.0 * cross(r.xyz, cross(r.xyz, position) + r.w * position) + t;
-  vec4 mv = modelViewMatrix * vec4(p, 1.0);
-  // a dot is a flat disc facing the eye at its splat's depth: where the skin turns away (the flanks,
-  // under the arms) its near edge would stand in front of ink lying on the skin. Pushed back a
-  // little, it hides only what something else (an arm, the other side of the body) covers.
-  vec4 back = vec4(mv.xyz * (1.0 + push / length(mv.xyz)), 1.0);
-  gl_Position = projectionMatrix * back;
-  gl_PointSize = max(1.0, size * projectionMatrix[1][1] * pixels / -mv.z);
-}`;
-const SKIN_FRAGMENT = `
-void main() {
-  if (length(gl_PointCoord - 0.5) > 0.5) discard;
-  gl_FragColor = vec4(0.0);
-}`;
-function skinDepth(opaque, centres, radius, bones, w, height, numBones) {
-  const n = opaque.length;
-  const pos = new Float32Array(n * 3), b = new Float32Array(n * 4), wt = new Float32Array(n * 4), size = new Float32Array(n);
-  for (let k = 0; k < n; k++) {
-    const i = opaque[k];
-    pos.set(centres.subarray(i * 3, i * 3 + 3), k * 3);
-    for (let m = 0; m < 4; m++) { b[k * 4 + m] = bones[i * 4 + m]; wt[k * 4 + m] = w[i * 4 + m] / 255; }
-    size[k] = Math.min(0.012 * height, Math.max(0.004 * height, 3 * radius[i]));   // a diameter
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute("skinBones", new THREE.BufferAttribute(b, 4));
-  geo.setAttribute("skinWeights", new THREE.BufferAttribute(wt, 4));
-  geo.setAttribute("size", new THREE.BufferAttribute(size, 1));
-  const mat = new THREE.ShaderMaterial({
-    uniforms: { dq: { value: Array.from({ length: 2 * numBones }, () => new THREE.Vector4(0, 0, 0, 1)) }, pixels: { value: 400 }, push: { value: 0.012 * height } },
-    defines: { BONES: numBones }, vertexShader: SKIN_VERTEX, fragmentShader: SKIN_FRAGMENT,
-    colorWrite: false, depthWrite: true, depthTest: true, transparent: true,
-  });
-  const pts = new THREE.Points(geo, mat);
-  pts.renderOrder = 4;                       // after the splats, before the ink
-  pts.frustumCulled = false;
-  pts.visible = false;                       // only while there is ink to hide
-  pts.onBeforeRender = (renderer) => { mat.uniforms.pixels.value = renderer.getDrawingBufferSize(new THREE.Vector2()).y / 2; };
-  return pts;
-}
-
 // ---------------------------------------------------------------- pose
 const ACCENT = new THREE.Color(0x2f5bd3), WHITE = new THREE.Color(0xffffff);
 function applyPose() {
@@ -254,9 +191,8 @@ function applyPose() {
   skinning.updateBones();
   dispatchEvent(new CustomEvent("posed", { detail: tr }));
   S.dq = dualQuats(tr);
+  S.transforms = tr;
   S.posedOk = false;
-  S.skin.material.uniforms.dq.value.forEach((v, k) => v.fromArray(S.dq, k * 4));
-  S.skin.visible = S.tattoos.length > 0;
   const hp = S.handles.geometry.attributes.position, hc = S.handles.geometry.attributes.color;
   S.handleJoints.forEach((h, i) => {
     hp.setXYZ(i, ...sk.P[sk.index(h)]);
@@ -267,7 +203,7 @@ function applyPose() {
   const lp = S.lines.geometry.attributes.position;
   S.pairs.forEach(([p, j], i) => { lp.setXYZ(2 * i, ...sk.P[p]); lp.setXYZ(2 * i + 1, ...sk.P[j]); });
   lp.needsUpdate = true;
-  for (const tt of S.tattoos) skinTattoo(tt);
+  for (const tt of S.tattoos) { poseInk(tt); skinTattoo(tt); }
   save();
 }
 
@@ -475,18 +411,6 @@ addEventListener("pointerup", onUp, { capture: true });
 addEventListener("pointercancel", onUp, { capture: true });
 
 // ---------------------------------------------------------------- tattoos
-// ink on skin that clothes cover isn't drawn, point by point (the clothes are splats, which don't
-// hide it)
-function underClothes() {
-  if (S) S.tattoos.forEach(clothe);
-}
-function clothe(tt) {
-  const a = tt.mesh.geometry.attributes.clothed;
-  a.array.set(window.wardrobe ? window.wardrobe.under(tt.restPos) : new Uint8Array(a.count));
-  a.needsUpdate = true;
-}
-addEventListener("wearchange", underClothes);
-
 const unitsPerCm = () => S.rig.height / S.heightCm;
 
 // An image as ink: pictures drawn on white (most tattoo designs) turn their white transparent,
@@ -529,59 +453,125 @@ async function inkImage(file) {
   }
 }
 
-const INK_VERTEX = `
-uniform float bias;
-attribute float clothed;
-varying vec2 vUv;
-varying float vClothed;
-void main() {
-  vUv = uv;
-  vClothed = clothed;
-  vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  mv.xyz *= max(0.0, 1.0 - bias / length(mv.xyz));      // a little toward the eye: wins against the skin's own splats
-  gl_Position = projectionMatrix * mv;
-}`;
-const INK_FRAGMENT = `
-uniform sampler2D map;
-uniform float ink;
-varying vec2 vUv;
-varying float vClothed;
-void main() {
-  if (vClothed > 0.5) discard;              // under clothes (the clothes are splats: they don't hide it)
-  vec4 c = texture2D(map, vUv);
-  float a = c.a * ink;
-  if (a < 0.02) discard;
-  // ink sits under the skin: it multiplies what is there, and black ink reads as a deep blue-grey
-  vec3 pigment = vec3(0.07, 0.08, 0.10) + 0.88 * c.rgb;
-  gl_FragColor = vec4(mix(vec3(1.0), pigment, a), 1.0);
-}`;
+// Ink: splats lying on the skin, about one every millimetre or two of the design, each the
+// colour of the skin under it darkened by the ink (ink sits under the skin: black reads as a deep
+// blue-grey), skinned with the body's weights. The set of splats comes from the image once (so
+// moving or resizing the tattoo only moves them); a splat over no skin is see-through.
+const INK_SPLATS = 40000;
+const PIGMENT = [0.07, 0.08, 0.10];
+const INK_OUT = 0;          // how far out of the skin's scatter the ink lies, in spreads past the grid's
+const UNDER = 0.006;        // the body's splats this far in or out of the skin under a tattoo take its ink (of the height)
 
 function addTattoo(canvas, anchor, opts = {}) {
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.NoColorSpace;
-  tex.anisotropy = 4;
-  const mat = new THREE.ShaderMaterial({
-    uniforms: { map: { value: tex }, ink: { value: opts.ink ?? 0.9 }, bias: { value: 0.006 * S.rig.height } },
-    vertexShader: INK_VERTEX, fragmentShader: INK_FRAGMENT,
-    transparent: true, depthTest: true, depthWrite: false, side: THREE.DoubleSide,
-    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
-    blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor,
-  });
-  const geo = new THREE.BufferGeometry();
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.renderOrder = 5; mesh.frustumCulled = false;
   const outline = new THREE.LineSegments(new THREE.BufferGeometry(),
     new THREE.LineBasicMaterial({ color: 0x2f5bd3, transparent: true, opacity: 0.7, depthTest: false }));
   outline.renderOrder = 18; outline.frustumCulled = false; outline.visible = false;
-  V.holder.add(mesh, outline);
-  const tt = { id: S.nextId++, canvas, tex, mesh, outline, ...anchor,
+  V.holder.add(outline);
+  const g = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
+  const tt = { id: S.nextId++, canvas, outline, image: g, samples: inkSamples(g, INK_SPLATS), mesh: null, inked: false, ...anchor,
                widthCm: opts.widthCm ?? 10, angle: opts.angle ?? 0, ink: opts.ink ?? 0.9 };
   S.tattoos.push(tt);
-  S.skin.visible = true;
   wrapTattoo(tt);
+  inkMesh(tt);
   tattooList();
   save();
   return tt;
+}
+
+async function inkMesh(tt) {
+  const s = tt.samples, S0 = S, zero = new THREE.Vector3(), one = new THREE.Vector3(1e-4, 1e-4, 1e-4);
+  const qi = new THREE.Quaternion(), col = new THREE.Color();
+  const mesh = new SplatMesh({ constructSplats: (splats) => { for (let i = 0; i < s.n; i++) splats.pushSplat(zero, one, qi, 0, col); } });
+  await mesh.initialized;
+  if (S !== S0 || !S.tattoos.includes(tt)) { mesh.dispose?.(); return; }
+  const nb = S.rig.joints.length;
+  tt.skinning = new SplatSkinning({ mesh, numSplats: s.n, numBones: nb });
+  for (let b = 0; b < nb; b++) tt.skinning.setRestQuatPos(b, qi, zero);
+  mesh.skinning = tt.skinning;
+  tt.mesh = mesh;
+  V.holder.add(mesh);
+  inkOnSkin(tt);
+  poseInk(tt);
+}
+
+// the skin's colour around a cell of the skin surface (the mean of its splats)
+function skinColour(c) {
+  let col = S.skinColour.get(c);
+  if (col) return col;
+  const f = S.surface.first, m = S.surface.members, C = S.colours;
+  col = [0, 0, 0];
+  for (let k = f[c]; k < f[c + 1]; k++) for (let x = 0; x < 3; x++) col[x] += C[m[k] * 3 + x] / (f[c + 1] - f[c]);
+  S.skinColour.set(c, col);
+  return col;
+}
+
+// the ink splats where the tattoo now lies (at rest: the skinning moves them)
+function inkOnSkin(tt) {
+  tt.under = inkUnder(tt.grid, S.centres, tt.image, UNDER * S.rig.height);
+  tintSkin();
+  if (!tt.mesh) return;
+  const s = tt.samples, g = tt.grid, at = placeInk(g, s, INK_OUT), packed = tt.mesh.packedSplats;
+  const width = tt.widthCm * unitsPerCm(), height = width * tt.canvas.height / tt.canvas.width;
+  const r = 0.8 * Math.max(s.spacing[0] * width, s.spacing[1] * height);
+  const sc = new THREE.Vector3(r, r, 0.15 * r), c = new THREE.Vector3(), qq = new THREE.Quaternion(), col = new THREE.Color();
+  const vb = new THREE.Vector4(), vw = new THREE.Vector4(), b = new Uint8Array(4), w = new Uint8Array(4);
+  // the skin's colour at each point of the grid
+  const skinAt = new Float32Array(g.nx * g.ny * 3);
+  for (let k = 0; k < g.nx * g.ny; k++) {
+    if (!g.valid[k]) continue;
+    const cell = S.surface.nearest(g.positions.subarray(k * 3, k * 3 + 3));
+    if (cell >= 0) skinAt.set(skinColour(cell), k * 3);
+  }
+  for (let i = 0; i < s.n; i++) {
+    if (!at.ok[i]) { packed.setSplat(i, c.set(0, 0, 0), sc, qq.identity(), 0, col.setRGB(0, 0, 0)); continue; }
+    const p = at.positions.subarray(i * 3, i * 3 + 3), n = at.normals.subarray(i * 3, i * 3 + 3);
+    const k = Math.round(s.v[i] * (g.ny - 1)) * g.nx + Math.round(s.u[i] * (g.nx - 1));
+    const ink = tt.ink, pig = (x) => 1 - ink + ink * (PIGMENT[x] + 0.88 * s.rgb[i * 3 + x]);
+    col.setRGB(skinAt[k * 3] * pig(0), skinAt[k * 3 + 1] * pig(1), skinAt[k * 3 + 2] * pig(2));
+    qq.fromArray(quat.between([0, 0, 1], Array.from(n)));
+    packed.setSplat(i, c.set(p[0], p[1], p[2]), sc, qq, s.alpha[i], col);
+    S.weights.at(p[0], p[1], p[2], b, w);
+    tt.skinning.setSplatBones(i, vb.set(b[0], b[1], b[2], b[3]), vw.set(w[0] / 255, w[1] / 255, w[2] / 255, w[3] / 255));
+  }
+  packed.needsUpdate = true;
+  tt.skinning.skinTexture.needsUpdate = true;
+  tt.mesh.updateGenerator();
+  tt.inked = true;
+}
+
+// The body's own splats under the tattoos, darkened by their ink. The colours they had are kept,
+// so they come back when a tattoo moves away or is removed.
+function tintSkin() {
+  const packed = S.mesh.packedSplats;
+  if (!packed) return;
+  const want = new Map();
+  for (const tt of S.tattoos) {
+    const u = tt.under;
+    if (!u) continue;
+    for (let j = 0; j < u.index.length; j++) {
+      const i = u.index[j], a = u.alpha[j] * tt.ink, f = want.get(i) || [1, 1, 1];
+      for (let x = 0; x < 3; x++) f[x] *= 1 - a + a * (PIGMENT[x] + 0.88 * u.rgb[j * 3 + x]);
+      want.set(i, f);
+    }
+  }
+  if (!want.size && !S.tinted.size) return;
+  const col = new THREE.Color();
+  const put = (i, c) => { const p = packed.getSplat(i); packed.setSplat(i, p.center, p.scales, p.quaternion, p.opacity, c); };
+  for (const [i, c] of S.tinted) if (!want.has(i)) { put(i, c); S.tinted.delete(i); }
+  for (const [i, f] of want) {
+    let c = S.tinted.get(i);
+    if (!c) { c = packed.getSplat(i).color.clone(); S.tinted.set(i, c); }
+    put(i, col.setRGB(c.r * f[0], c.g * f[1], c.b * f[2]));
+  }
+  packed.needsUpdate = true;
+  S.mesh.updateGenerator();
+}
+
+function poseInk(tt) {
+  if (!tt.mesh || !S.transforms) return;
+  const qv = new THREE.Quaternion(), tv = new THREE.Vector3();
+  S.transforms.forEach(({ q, t: x }, b) => tt.skinning.setBoneQuatPos(b, qv.set(q[0], q[1], q[2], q[3]), tv.set(x[0], x[1], x[2])));
+  tt.skinning.updateBones();
 }
 
 const NX = 48;
@@ -594,15 +584,11 @@ function wrapTattoo(tt) {
   const count = NX * ny;
   tt.grid = g;
   tt.restPos = g.positions;
+  tt.posedPos = new Float32Array(count * 3);
   tt.skinB = new Uint8Array(count * 4); tt.skinW = new Uint8Array(count * 4);
   for (let k = 0; k < count; k++) {
     if (g.valid[k]) S.weights.at(g.positions[k * 3], g.positions[k * 3 + 1], g.positions[k * 3 + 2], tt.skinB, tt.skinW, k);
   }
-  const geo = tt.mesh.geometry;
-  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-  geo.setAttribute("uv", new THREE.BufferAttribute(g.uvs, 2));
-  geo.setAttribute("clothed", new THREE.BufferAttribute(new Float32Array(count), 1));
-  geo.setIndex(new THREE.BufferAttribute(g.index, 1));
   // the outline: the border of the grid, where it is on the body (no line across a gap)
   const ring = [];
   for (let i = 0; i < NX; i++) ring.push(i);
@@ -612,22 +598,21 @@ function wrapTattoo(tt) {
   tt.ring = [];
   for (let i = 0; i + 1 < ring.length; i++) if (g.valid[ring[i]] && g.valid[ring[i + 1]]) tt.ring.push(ring[i], ring[i + 1]);
   tt.outline.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(tt.ring.length * 3), 3));
-  clothe(tt);
+  inkOnSkin(tt);
   skinTattoo(tt);
 }
 
+// the grid where the body is posed now (the same blend as Spark's): for the outline
 function skinTattoo(tt) {
-  const g = tt.grid, pos = tt.mesh.geometry.attributes.position, out = [0, 0, 0], p = [0, 0, 0];
+  const g = tt.grid, pos = tt.posedPos, out = [0, 0, 0], p = [0, 0, 0];
   for (let k = 0; k < g.valid.length; k++) {
     if (!g.valid[k]) continue;
     p[0] = tt.restPos[k * 3]; p[1] = tt.restPos[k * 3 + 1]; p[2] = tt.restPos[k * 3 + 2];
     skinPoint(p, tt.skinB, tt.skinW, S.dq, out, k);
-    pos.setXYZ(k, out[0], out[1], out[2]);
+    pos[k * 3] = out[0]; pos[k * 3 + 1] = out[1]; pos[k * 3 + 2] = out[2];
   }
-  pos.needsUpdate = true;
-  tt.mesh.geometry.computeBoundingSphere();
   const op = tt.outline.geometry.attributes.position;
-  tt.ring.forEach((k, i) => op.setXYZ(i, pos.getX(k), pos.getY(k), pos.getZ(k)));
+  tt.ring.forEach((k, i) => op.setXYZ(i, pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]));
   op.needsUpdate = true;
 }
 
@@ -649,8 +634,9 @@ function select(tt) {
 }
 
 function disposeTattoo(tt) {
-  V.holder.remove(tt.mesh, tt.outline);
-  tt.mesh.geometry.dispose(); tt.mesh.material.dispose(); tt.tex.dispose(); tt.outline.geometry.dispose();
+  V.holder.remove(tt.outline);
+  tt.outline.geometry.dispose();
+  if (tt.mesh) { V.holder.remove(tt.mesh); tt.mesh.dispose?.(); tt.mesh = null; }
 }
 
 function tattooList() {
@@ -685,12 +671,12 @@ $("tatPick").onchange = async (e) => {
 };
 $("tatSize").oninput = () => { const tt = S.selected; tt.widthCm = +$("tatSize").value; wrapTattoo(tt); tattooList(); save(); };
 $("tatAngle").oninput = () => { const tt = S.selected; tt.angle = +$("tatAngle").value; wrapTattoo(tt); tattooList(); save(); };
-$("tatInk").oninput = () => { const tt = S.selected; tt.ink = +$("tatInk").value; tt.mesh.material.uniforms.ink.value = tt.ink; tattooList(); save(); };
+$("tatInk").oninput = () => { const tt = S.selected; tt.ink = +$("tatInk").value; inkOnSkin(tt); tattooList(); save(); };
 $("tatRemove").onclick = () => {
   const tt = S.selected;
   S.tattoos.splice(S.tattoos.indexOf(tt), 1);
-  S.skin.visible = S.tattoos.length > 0;
   disposeTattoo(tt);
+  tintSkin();
   S.selected = null;
   tattooList(); save();
 };
@@ -800,8 +786,10 @@ window.tattooStudio = {
   },
   tattoos: () => S.tattoos.map((tt) => ({ bone: tt.bone, widthCm: tt.widthCm, angle: tt.angle,
                                           points: tt.grid.valid.reduce((s, v) => s + v, 0),
-                                          clothed: tt.grid.valid.reduce((s, v, k) => s + (v && tt.mesh.geometry.attributes.clothed.array[k] ? 1 : 0), 0),
-                                          centre: Array.from(tt.mesh.geometry.attributes.position.array.slice(
+                                          inked: tt.inked,
+                                          // ink splats lying on the skin
+                                          splats: tt.inked ? placeInk(tt.grid, tt.samples).ok.reduce((s, v) => s + v, 0) : 0,
+                                          centre: Array.from(tt.posedPos.slice(
                                             ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3, ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3 + 3)) })),
   heightCm: () => S.heightCm,
   screen: (p) => {                          // a point in the body's coordinates, in page pixels

@@ -76,10 +76,3 @@ test("the skin an item hangs over, and only that", () => {
   assert.deepEqual([...skinUnder(tight, skin, normals, 0.05)], [0, 1]);
 });
 
-test("points of the skin under what is worn", () => {
-  const skin = new Float32Array([0, 0, 0, 1, 0, 0]);
-  const c = new SkinCover(skin, new Float32Array([0, 0, 0]), 0.1);
-  assert.deepEqual([...c.under(new Float32Array([0.01, 0, 0, 0.99, 0, 0, 3, 3, 3]))], [0, 0, 0]);
-  c.covered([new Int32Array([1])]);
-  assert.deepEqual([...c.under(new Float32Array([0.01, 0, 0, 0.99, 0, 0, 3, 3, 3]))], [0, 1, 0]);
-});
