@@ -95,6 +95,25 @@ class Skeleton(unittest.TestCase):
             self.assertTrue(lo * H < mid < hi * H, (bone, mid / H))
             self.assertEqual(len(base64.b64decode(m["colour"])), 3 * m["nt"] * m["na"])
 
+    def test_trunk_and_legs_are_one_surface_each(self):
+        """A back piece isn't cut where one bone's map ends: the trunk map runs from below the
+        pelvis to past the neck, with few holes."""
+        for p, truth, r, _ in self.cases:
+            H, scale = r["height"], r["radius_scale"]
+            self.assertEqual(r["regions"]["spine"], "trunk")
+            self.assertEqual(r["regions"]["hip_r"], "leg_r")
+            self.assertNotIn("elbow_l", r["regions"])
+            for name, length in (("trunk", 0.25), ("leg_l", 0.4), ("leg_r", 0.4)):
+                m = r["maps"][name]
+                self.assertGreater(m["length"], length * H, (p.name, name))
+                radius = b64(m["radius"], "H")
+                self.assertGreater(sum(1 for v in radius if v), 0.95 * len(radius), (p.name, name))
+            trunk = r["maps"]["trunk"]
+            spine = r["maps"]["spine"]
+            self.assertGreater(trunk["nt"] * trunk["dt"], spine["nt"] * spine["dt"], "longer than one bone's map")
+            mid = sorted(v * scale for v in b64(trunk["radius"], "H") if v)
+            self.assertTrue(0.04 * H < mid[len(mid) // 2] < 0.2 * H, (p.name, mid[len(mid) // 2] / H))
+
     def test_not_a_person(self):
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "ball.ply"

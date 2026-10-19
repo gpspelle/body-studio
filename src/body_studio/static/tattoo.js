@@ -181,6 +181,7 @@ function dotTexture() {
 const SKIN_VERTEX = `
 uniform vec4 dq[2 * BONES];
 uniform float pixels;
+uniform float push;
 attribute vec4 skinBones;
 attribute vec4 skinWeights;
 attribute float size;
@@ -199,7 +200,11 @@ void main() {
   vec3 t = 2.0 * (r.w * d.xyz - d.w * r.xyz + cross(r.xyz, d.xyz));
   vec3 p = position + 2.0 * cross(r.xyz, cross(r.xyz, position) + r.w * position) + t;
   vec4 mv = modelViewMatrix * vec4(p, 1.0);
-  gl_Position = projectionMatrix * mv;
+  // a dot is a flat disc facing the eye at its splat's depth: where the skin turns away (the flanks,
+  // under the arms) its near edge would stand in front of ink lying on the skin. Pushed back a
+  // little, it hides only what something else (an arm, the other side of the body) covers.
+  vec4 back = vec4(mv.xyz * (1.0 + push / length(mv.xyz)), 1.0);
+  gl_Position = projectionMatrix * back;
   gl_PointSize = max(1.0, size * projectionMatrix[1][1] * pixels / -mv.z);
 }`;
 const SKIN_FRAGMENT = `
@@ -222,7 +227,7 @@ function skinDepth(opaque, centres, radius, bones, w, height, numBones) {
   geo.setAttribute("skinWeights", new THREE.BufferAttribute(wt, 4));
   geo.setAttribute("size", new THREE.BufferAttribute(size, 1));
   const mat = new THREE.ShaderMaterial({
-    uniforms: { dq: { value: Array.from({ length: 2 * numBones }, () => new THREE.Vector4(0, 0, 0, 1)) }, pixels: { value: 400 } },
+    uniforms: { dq: { value: Array.from({ length: 2 * numBones }, () => new THREE.Vector4(0, 0, 0, 1)) }, pixels: { value: 400 }, push: { value: 0.012 * height } },
     defines: { BONES: numBones }, vertexShader: SKIN_VERTEX, fragmentShader: SKIN_FRAGMENT,
     colorWrite: false, depthWrite: true, depthTest: true, transparent: true,
   });
@@ -373,11 +378,14 @@ function hitBody(e) {
            posed: [P[best * 3], P[best * 3 + 1], P[best * 3 + 2]] };
 }
 
-// where on the surface map a point of the body (at rest) is: the bone that carries it most
+// where on the surface map a point of the body (at rest) is: the region (the trunk, a leg) of
+// the bone that carries it most, so a big tattoo spans the whole region; else that bone's own map
 function anchorAt(rest) {
   const b = new Uint8Array(4), w = new Uint8Array(4);
   S.weights.at(rest[0], rest[1], rest[2], b, w);
   let bone = S.sk.names[b[0]];
+  const region = (S.rig.regions || {})[bone];
+  if (region && S.map.maps[region]) bone = region;
   if (!S.map.maps[bone]) bone = Object.keys(S.map.maps).find((k) => S.map.maps[k]) ;
   return { bone, ...S.map.locate(bone, rest) };
 }

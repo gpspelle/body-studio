@@ -102,10 +102,12 @@ twisted forearm into a "candy wrapper".
 
 - **Size**: real centimetres, from the person's height (the panel asks; it uses the height of the
   person whose Progress history holds this body, or 170 cm).
-- **Placement**: each bone has a surface map, the radius of the body around it at every length and
-  angle, from the splats. The image is laid along that surface by arc length, so it wraps around a
-  forearm or across the chest without stretching; its top points toward the head and it is never
-  mirrored.
+- **Placement**: a surface map gives the radius of the body around an axis at every length and
+  angle, from the splats. The trunk has one map from below the pelvis to the neck, and each leg one
+  from the buttock to the ankle, so a back piece or a thigh piece is laid on one surface; arms (bent
+  at the elbow even in an A-pose) use each bone's own map, which reaches well past both ends. The
+  image is laid along that surface by arc length, so it wraps around a forearm or across the back
+  without stretching; its top points toward the head and it is never mirrored.
 - **Skinning**: every point of the grid gets skin weights from the same voxels as the splats and is
   moved by the same dual quaternion blend (computed on the CPU, matched to Spark's shader), so the
   tattoo stays glued to the skin when a joint moves.
@@ -114,7 +116,9 @@ twisted forearm into a "candy wrapper".
   have the white removed and are cropped.
 - **Hidden behind the body**: the splats don't write depth (a moved splat is sorted late, so writing
   depth would punch holes at its soft edges). Instead a stand-in, a dot per opaque splat skinned on
-  the GPU with the same blend, writes depth only, just before the ink.
+  the GPU with the same blend, writes depth only, just before the ink. Each dot is pushed back about
+  2 cm, so where the skin turns away (the flanks, under the arms) the dots don't cover ink lying on
+  the skin; ink still hides behind an arm or the other side of the body.
 
 ## Limits
 
@@ -126,6 +130,7 @@ twisted forearm into a "candy wrapper".
 - **Hands and feet are one piece each.** No fingers or toes.
 - **Lighting is baked in.** The tattoo picks up the skin colour under it, including baked-in shadows,
   but a moved arm keeps the light it had in the scan.
-- **Very large designs are cut.** A tattoo follows the surface of the bone it is centred on, which
-  reaches a little past that bone (half its length, or 10 % of the height); a full back piece or a
-  sleeve from shoulder to wrist is cut at that edge. Use two tattoos.
+- **Very large designs are cut at the map's edge.** A back piece can run from the buttocks to the
+  neck, but not onto the arms or the head; a sleeve from shoulder to wrist is cut about halfway down
+  the forearm. Use two tattoos. Where a design wraps around the side of the body, its far part is
+  out of sight from behind, as on a real body.

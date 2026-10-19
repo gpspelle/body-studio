@@ -22,6 +22,9 @@
   person's range of motion. The skeleton is found from the A-pose shape once per body and saved
   as `<body>.rig.json`; `body-studio rig` does the same in the terminal. Pose and tattoos are
   kept in the browser. See `docs/tattoo.md`.
+- Tattoos: a big design on the back (or a thigh) is no longer cut where one bone's surface ends;
+  the trunk and each leg are one surface. Less of a tattoo is hidden where the skin turns away at
+  the flanks. Rigs are rebuilt once (`<body>.rig.json` version 2).
 - OpenCV (drops blurry frames) is installed with the app by `pip install`, so nothing needs
   installing afterwards, also inside a virtualenv.
 - English and Portuguese. Version, source code and license links at the bottom.

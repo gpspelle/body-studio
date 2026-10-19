@@ -17,7 +17,8 @@ the voxels around it; the page skins splats with Spark's dual quaternion skinnin
 
 The surface map is, for every bone, the body's radius around the bone axis at each height and
 angle (and the skin colour there): a tattoo is laid on it with its real size, without being
-stretched around a limb. Research and sources: docs/tattoo.md.
+stretched around a limb. The trunk and each leg also get one map across their bones, so a
+big tattoo isn't cut where one bone's map ends. Research and sources: docs/tattoo.md.
 
 All positions in the rig are in the PLY's own coordinates, so the page uses them as they are.
 """
@@ -32,7 +33,7 @@ import sys
 from array import array
 from pathlib import Path
 
-RIG_VERSION = 1
+RIG_VERSION = 2          # 2: region maps (trunk, legs) for big tattoos
 
 # (name, parent). Joints with children are bones: they rotate and carry skin weights. The
 # "_end" joints only mark where the last bone of a chain ends (top of the head, fingertips, toes).
@@ -717,62 +718,89 @@ def dominant_bone(grid: Grid, weights: dict, p) -> int:
 
 # ---------------------------------------------------------------- surface map
 
+# Regions: one surface map across several bones, so a big tattoo (a back piece, a thigh piece)
+# isn't cut where one bone's map ends. Each runs along a straight axis between two joints, past
+# them by the given share of stature, and is built from the splats of its bones; a tattoo is laid
+# on the region of the bone under it. Arms have none: elbows are bent even in an A-pose, so a
+# straight axis from shoulder to wrist misses the elbow; each arm bone's own map reaches well past
+# its ends instead.
+REGIONS = {
+    "trunk": ("pelvis", "neck", 0.12, 0.03, ("pelvis", "spine", "chest", "neck", "clavicle_l", "clavicle_r")),
+    "leg_l": ("hip_l", "ankle_l", 0.08, 0.0, ("hip_l", "knee_l")),
+    "leg_r": ("hip_r", "ankle_r", 0.08, 0.0, ("hip_r", "knee_r")),
+}
+REGION_OF = {b: r for r, (_, _, _, _, bones) in REGIONS.items() for b in bones}
+
+
+def _axis(o, e, F, U) -> dict:
+    a = _unit(_sub(e, o))
+    ref = F if abs(_dot(a, F)) < 0.8 else U
+    e0 = _unit(_sub(ref, _mul(a, _dot(ref, a))))
+    return {"o": o, "a": a, "len": math.dist(o, e), "e0": e0, "e1": _cross(a, e0)}
+
+
 def bone_axes(J: dict, F, U) -> dict:
     """For each bone: origin, unit axis, length and the two directions across it (body coordinates).
     Angle 0 looks to the front (or up, for a bone that points forward like the foot)."""
     names = [n for n, _ in JOINTS]
-    out = {}
-    for b in BONES:
-        o, e = J[names[b]], J[names[PRIMARY[b]]]
-        a = _unit(_sub(e, o))
-        ref = F if abs(_dot(a, F)) < 0.8 else U
-        e0 = _unit(_sub(ref, _mul(a, _dot(ref, a))))
-        out[b] = {"o": o, "a": a, "len": math.dist(o, e), "e0": e0, "e1": _cross(a, e0)}
-    return out
+    return {b: _axis(J[names[b]], J[names[PRIMARY[b]]], F, U) for b in BONES}
+
+
+def _radius_map(ax, before, after, idx, X, Y, Z, rgb, H) -> dict:
+    """Radius (70th percentile of the splats) and colour around an axis, from `before` below its
+    origin to `after` past its end, in steps of MAP_DT along and MAP_ANGLES around."""
+    dt = MAP_DT * H
+    t0 = -before
+    nt = int(math.ceil((ax["len"] + before + after) / dt)) + 1
+    bins = [[] for _ in range(nt * MAP_ANGLES)]
+    o, a, e0, e1 = ax["o"], ax["a"], ax["e0"], ax["e1"]
+    for i in idx:
+        d = (X[i] - o[0], Y[i] - o[1], Z[i] - o[2])
+        t = _dot(d, a)
+        ti = int(round((t - t0) / dt))
+        if not 0 <= ti < nt:
+            continue
+        u, w = _dot(d, e0), _dot(d, e1)
+        th = math.atan2(w, u) % (2 * math.pi)
+        ai = int(th / (2 * math.pi) * MAP_ANGLES) % MAP_ANGLES
+        bins[ti * MAP_ANGLES + ai].append((math.hypot(u, w), i))
+    radius = [0.0] * len(bins)
+    colour = [(0.0, 0.0, 0.0)] * len(bins)
+    for c, rows in enumerate(bins):
+        if len(rows) < 2:
+            continue
+        rows.sort()
+        radius[c] = _quantile(rows, 0.7)[0]
+        outer = rows[len(rows) // 2:]
+        if rgb:
+            colour[c] = tuple(sum(rgb[k][i] for _, i in outer) / len(outer) for k in range(3))
+    radius, colour = _fill(radius, colour, nt, MAP_ANGLES)
+    return {"t0": t0, "dt": dt, "nt": nt, "na": MAP_ANGLES, "radius": radius, "colour": colour}
 
 
 def surface_maps(X, Y, Z, rgb, opaque, grid, weights, J, H) -> dict:
-    """Radius of the body around each bone axis, at every step along and around it, plus colour."""
-    axes = bone_axes(J, (0.0, 0.0, 1.0), (0.0, 1.0, 0.0))
+    """Radius of the body around each bone axis and each region's axis, at every step along and
+    around it, plus colour. Keyed by bone or region name."""
+    F, U = (0.0, 0.0, 1.0), (0.0, 1.0, 0.0)
+    names = [n for n, _ in JOINTS]
+    bone_ax = bone_axes(J, F, U)
     by_bone: dict = {}
     for i in opaque:
         b = dominant_bone(grid, weights, (X[i], Y[i], Z[i]))
         if b >= 0:
             by_bone.setdefault(b, []).append(i)
-    maps = {}
-    dt = MAP_DT * H
+    axes, maps = {}, {}
     for b in BONES:
-        ax = axes[b]
-        near = {b, PARENT[b], *CHILDREN[b]}
-        idx = [i for nb in near if nb in by_bone for i in by_bone[nb]]
-        L = ax["len"]
-        ext = max(MAP_EXTEND * L, MAP_REACH * H)
-        t0 = -ext
-        nt = int(math.ceil((L + 2 * ext) / dt)) + 1
-        bins = [[] for _ in range(nt * MAP_ANGLES)]
-        o, a, e0, e1 = ax["o"], ax["a"], ax["e0"], ax["e1"]
-        for i in idx:
-            d = (X[i] - o[0], Y[i] - o[1], Z[i] - o[2])
-            t = _dot(d, a)
-            ti = int(round((t - t0) / dt))
-            if not 0 <= ti < nt:
-                continue
-            u, w = _dot(d, e0), _dot(d, e1)
-            th = math.atan2(w, u) % (2 * math.pi)
-            ai = int(th / (2 * math.pi) * MAP_ANGLES) % MAP_ANGLES
-            bins[ti * MAP_ANGLES + ai].append((math.hypot(u, w), i))
-        radius = [0.0] * len(bins)
-        colour = [(0.0, 0.0, 0.0)] * len(bins)
-        for c, rows in enumerate(bins):
-            if len(rows) < 2:
-                continue
-            rows.sort()
-            radius[c] = _quantile(rows, 0.7)[0]
-            outer = rows[len(rows) // 2:]
-            if rgb:
-                colour[c] = tuple(sum(rgb[k][i] for _, i in outer) / len(outer) for k in range(3))
-        radius, colour = _fill(radius, colour, nt, MAP_ANGLES)
-        maps[b] = {"t0": t0, "dt": dt, "nt": nt, "na": MAP_ANGLES, "radius": radius, "colour": colour}
+        ax = bone_ax[b]
+        idx = [i for nb in {b, PARENT[b], *CHILDREN[b]} if nb in by_bone for i in by_bone[nb]]
+        ext = max(MAP_EXTEND * ax["len"], MAP_REACH * H)
+        axes[names[b]] = ax
+        maps[names[b]] = _radius_map(ax, ext, ext, idx, X, Y, Z, rgb, H)
+    for name, (start, end, before, after, bones) in REGIONS.items():
+        ax = _axis(J[start], J[end], F, U)
+        idx = [i for nb in bones if INDEX[nb] in by_bone for i in by_bone[INDEX[nb]]]
+        axes[name] = ax
+        maps[name] = _radius_map(ax, before * H, after * H, idx, X, Y, Z, rgb, H)
     return {"axes": axes, "maps": maps}
 
 
@@ -861,11 +889,11 @@ def encode(fr, J, grid, weights, surf, n_splats) -> dict:
         for x in q:
             ws.append(x)
     maps = {}
-    for b, m in surf["maps"].items():
+    for name, m in surf["maps"].items():
         r = array("H", (min(65535, int(round(v / H * 100000))) for v in m["radius"]))
         col = array("B", (min(255, int(round(c * 255))) for rgb in m["colour"] for c in rgb))
-        ax = surf["axes"][b]
-        maps[names[b]] = {"origin": to_model(fr, ax["o"]), "axis": _dir(fr, ax["a"]), "e0": _dir(fr, ax["e0"]),
+        ax = surf["axes"][name]
+        maps[name] = {"origin": to_model(fr, ax["o"]), "axis": _dir(fr, ax["a"]), "e0": _dir(fr, ax["e0"]),
                           "e1": _dir(fr, ax["e1"]), "length": ax["len"], "t0": m["t0"], "dt": m["dt"],
                           "nt": m["nt"], "na": m["na"], "radius": _b64(r), "colour": _b64(col)}
     return {
@@ -878,6 +906,7 @@ def encode(fr, J, grid, weights, surf, n_splats) -> dict:
         "grid": {"lo": grid.lo, "size": grid.size, "n": grid.n, "cells": _b64(ids), "bones": _b64(bones),
                  "weights": _b64(ws)},
         "maps": maps,
+        "regions": REGION_OF,                       # bone -> the region map a tattoo on it uses
         "radius_scale": H / 100000,
     }
 

@@ -171,3 +171,29 @@ test("a tattoo on the chest faces forward", () => {
   const c = Array.from(g.positions.subarray(40 * 3, 40 * 3 + 3));
   assert.ok(v3.dot(v3.sub(c, m.origin), F) > 0.03 * H, "on the front of the chest");
 });
+
+test("a back piece stays whole on the trunk map (one bone's map would cut it)", () => {
+  const map = new SurfaceMap(rig), m = map.maps.trunk;
+  assert.ok(m, "the rig has a trunk map");
+  assert.equal(rig.regions.spine, "trunk");
+  assert.equal(rig.regions.knee_l, "leg_l");
+  assert.equal(rig.regions.elbow_l, undefined, "arms keep their bones' maps");
+  // 25 x 50 cm on a 1.75 m body, on the back (theta = pi), centred between the pelvis and the neck
+  const tat = { t: 0.5 * m.length, theta: Math.PI, width: 0.14 * H, height: 0.28 * H, angle: 0, lift: 0 };
+  const whole = map.wrap({ ...tat, bone: "trunk" }, 24, 48);
+  const valid = whole.valid.reduce((s, v) => s + v, 0);
+  assert.ok(valid >= 0.97 * whole.valid.length, `trunk map: ${valid} of ${whole.valid.length} points`);
+  const top = Array.from(whole.positions.subarray(((47 * 24) + 12) * 3, ((47 * 24) + 12) * 3 + 3));
+  const bottom = Array.from(whole.positions.subarray(12 * 3, 12 * 3 + 3));
+  assert.ok(v3.dot(v3.sub(top, bottom), U) > 0.25 * H, "top of the image toward the head, full height");
+  assert.ok(v3.dot(v3.sub(top, m.origin), F) < 0, "on the back");
+  const spine = map.maps.spine;
+  const cut = map.wrap({ ...tat, bone: "spine", t: v3.dot(v3.sub(v3.add(m.origin, v3.scale(m.axis, tat.t)), spine.origin), spine.axis) }, 24, 48);
+  assert.ok(cut.valid.reduce((s, v) => s + v, 0) < valid, "the spine's own map is shorter");
+});
+
+test("a tattoo from the hip past the knee stays whole on the leg map", () => {
+  const map = new SurfaceMap(rig), m = map.maps.leg_l;
+  const g = map.wrap({ bone: "leg_l", t: 0.5 * m.length, theta: 0, width: 0.06 * H, height: 0.8 * m.length, angle: 0, lift: 0 }, 9, 40);
+  assert.ok(g.valid.reduce((s, v) => s + v, 0) >= 0.97 * g.valid.length);
+});
