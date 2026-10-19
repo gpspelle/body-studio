@@ -252,7 +252,9 @@ class Viewer(unittest.TestCase):
         self.assertGreater(ink_pixels(page, at), 30)       # the ink shows on the bare arm
         page.click("#wearSlots [data-item=longsleeve_jeans]")
         page.wait_for_function("wardrobe.worn().includes('longsleeve_jeans')", timeout=60000)
-        self.assertLess(ink_pixels(page, at), 5)            # the sleeve's splats hide it, like the skin
+        # the skin under the sleeve is hidden, and the ink in it with it
+        page.wait_for_function("tattooStudio.tattoos()[0].shown < 0.02 * tattooStudio.tattoos()[0].splats")
+        self.assertLess(ink_pixels(page, at), 5)            # nothing of it on screen
         page.click("#wearSlots [data-item=suit]")        # one outfit at a time
         page.wait_for_function("wardrobe.worn().join() === 'suit,white_sneakers'", timeout=60000)
         page.click("#wearSlots [data-item=suit]")        # tapped again: taken off
@@ -271,11 +273,20 @@ class Viewer(unittest.TestCase):
 
 
 def settled(page):
-    """Wait until the splats on screen are the latest ones, sorted from where the camera is."""
+    """Wait until the splats on screen are the latest ones, sorted from where the camera is: the
+    ones sorted are the ones made, and have stayed the same for ten frames (a change of colour
+    reaches the renderer a frame or two after it is made)."""
     page.wait_for_function("tattooStudio.tattoos().every((t) => t.inked)", timeout=60000)
-    page.evaluate("new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))")
-    page.wait_for_function("(() => { const s = bodyApp.viewer.spark; return s.display === s.current; })()", timeout=300000)
-    page.evaluate("new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))")
+    page.evaluate("""new Promise((ok) => {
+      let last = null, n = 0;
+      const frame = () => {
+        const s = bodyApp.viewer.spark;
+        n = s.display === s.current && s.display === last ? n + 1 : 0;
+        last = s.display;
+        if (n >= 10) ok(); else requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    })""")
 
 
 def ink_pixels(page, at, r=40):

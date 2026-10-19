@@ -524,6 +524,7 @@ function inkOnSkin(tt) {
   }
   const f = S.surface.first, m = S.surface.members, C = S.centres;
   tt.skinOf ??= new Int32Array(s.n);
+  let shown = 0;
   for (let i = 0; i < s.n; i++) {
     tt.skinOf[i] = -1;
     if (!at.ok[i]) { packed.setSplat(i, c.set(0, 0, 0), sc, qq.identity(), 0, col.setRGB(0, 0, 0)); continue; }
@@ -540,7 +541,9 @@ function inkOnSkin(tt) {
       if (d < nd) { nd = d; near = j; }
     }
     tt.skinOf[i] = near;
-    packed.setSplat(i, c.set(p[0], p[1], p[2]), sc, qq, S.hiddenSkin.has(near) ? 0 : s.alpha[i], col);
+    const hidden = S.hiddenSkin.has(near);
+    if (!hidden) shown++;
+    packed.setSplat(i, c.set(p[0], p[1], p[2]), sc, qq, hidden ? 0 : s.alpha[i], col);
     S.weights.at(p[0], p[1], p[2], b, w);
     tt.skinning.setSplatBones(i, vb.set(b[0], b[1], b[2], b[3]), vw.set(w[0] / 255, w[1] / 255, w[2] / 255, w[3] / 255));
   }
@@ -548,6 +551,7 @@ function inkOnSkin(tt) {
   tt.skinning.skinTexture.needsUpdate = true;
   tt.mesh.updateGenerator();
   tt.inked = true;
+  tt.shown = shown;
 }
 
 // The body's own splats under the tattoos, darkened by their ink. The colours they had are kept,
@@ -802,7 +806,7 @@ window.tattooStudio = {
   },
   tattoos: () => S.tattoos.map((tt) => ({ bone: tt.bone, widthCm: tt.widthCm, angle: tt.angle,
                                           points: tt.grid.valid.reduce((s, v) => s + v, 0),
-                                          inked: tt.inked,
+                                          inked: tt.inked, shown: tt.shown || 0,     // ink splats not hidden under clothes
                                           // ink splats lying on the skin
                                           splats: tt.inked ? placeInk(tt.grid, tt.samples).ok.reduce((s, v) => s + v, 0) : 0,
                                           centre: Array.from(tt.posedPos.slice(
