@@ -141,7 +141,7 @@ function setup(rig, mesh, file) {
   V.holder.add(lines, handles);
 
   S = { file, rig, sk, weights, map, surface, mesh, skinning, n, centres, colours, radius, bones, w, opaque: Uint32Array.from(opaque),
-        posed: null, posedOk: false, dq: null, transforms: null, skinColour: new Map(), tinted: new Map(), handles, handleJoints, lines, pairs, tattoos: [], selected: null,
+        posed: null, posedOk: false, dq: null, transforms: null, skinColour: new Map(), tinted: new Map(), hiddenSkin: new Set(), handles, handleJoints, lines, pairs, tattoos: [], selected: null,
         joint: null, heightCm: 170, nextId: 1 };
   handles.visible = lines.visible = !$("studio").hidden;
   presetsUI();
@@ -522,14 +522,25 @@ function inkOnSkin(tt) {
     const cell = S.surface.nearest(g.positions.subarray(k * 3, k * 3 + 3));
     if (cell >= 0) skinAt.set(skinColour(cell), k * 3);
   }
+  const f = S.surface.first, m = S.surface.members, C = S.centres;
+  tt.skinOf ??= new Int32Array(s.n);
   for (let i = 0; i < s.n; i++) {
+    tt.skinOf[i] = -1;
     if (!at.ok[i]) { packed.setSplat(i, c.set(0, 0, 0), sc, qq.identity(), 0, col.setRGB(0, 0, 0)); continue; }
     const p = at.positions.subarray(i * 3, i * 3 + 3), n = at.normals.subarray(i * 3, i * 3 + 3);
     const k = Math.round(s.v[i] * (g.ny - 1)) * g.nx + Math.round(s.u[i] * (g.nx - 1));
     const ink = tt.ink, pig = (x) => 1 - ink + ink * (PIGMENT[x] + 0.88 * s.rgb[i * 3 + x]);
     col.setRGB(skinAt[k * 3] * pig(0), skinAt[k * 3 + 1] * pig(1), skinAt[k * 3 + 2] * pig(2));
     qq.fromArray(quat.between([0, 0, 1], Array.from(n)));
-    packed.setSplat(i, c.set(p[0], p[1], p[2]), sc, qq, s.alpha[i], col);
+    // the body's splat nearest it: where clothes hide that skin, they hide the ink in it
+    const cell = S.surface.nearest(p);
+    let near = -1, nd = Infinity;
+    if (cell >= 0) for (let k2 = f[cell]; k2 < f[cell + 1]; k2++) {
+      const j = m[k2], d = (C[j * 3] - p[0]) ** 2 + (C[j * 3 + 1] - p[1]) ** 2 + (C[j * 3 + 2] - p[2]) ** 2;
+      if (d < nd) { nd = d; near = j; }
+    }
+    tt.skinOf[i] = near;
+    packed.setSplat(i, c.set(p[0], p[1], p[2]), sc, qq, S.hiddenSkin.has(near) ? 0 : s.alpha[i], col);
     S.weights.at(p[0], p[1], p[2], b, w);
     tt.skinning.setSplatBones(i, vb.set(b[0], b[1], b[2], b[3]), vw.set(w[0] / 255, w[1] / 255, w[2] / 255, w[3] / 255));
   }
@@ -687,6 +698,11 @@ $("tatHeight").onchange = () => {
   for (const tt of S.tattoos) wrapTattoo(tt);
   tattooList(); save();
 };
+addEventListener("skinhidden", (e) => {
+  if (!S) return;
+  S.hiddenSkin = e.detail;
+  for (const tt of S.tattoos) inkOnSkin(tt);
+});
 addEventListener("langchange", () => { if (S) { presetsUI(); jointUI(); tattooList(); } });
 
 // ---------------------------------------------------------------- kept in this browser

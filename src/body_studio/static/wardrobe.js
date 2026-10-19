@@ -194,6 +194,8 @@ function dressSkin() {
   }
   // the packed splats are read again only when the mesh rebuilds its generator
   if (touched) { packed.needsUpdate = true; w.mesh.updateGenerator(); }
+  // a tattoo is ink in the skin: where the skin is hidden, so is its ink (tattoo.js)
+  if (touched) dispatchEvent(new CustomEvent("skinhidden", { detail: new Set(w.hidden.keys()) }));
 }
 
 function meanColour(s) {

@@ -55,8 +55,9 @@ So once the base mesh is laid on a scan, the same rule puts every garment on tha
    under it would leave holes, and the scan's skin between the strands made the head look bald
    with the hair floating off it. The splats of the skin within 2 cm under the hair take the
    hair's average colour instead (keeping their light and shade).
-7. **Tattoos stay under clothes** with nothing to do: ink is splats on the skin, sorted with the
-   clothes' splats, so a sleeve over it hides it the way it hides the skin.
+7. **Tattoos stay under clothes**: ink is splats in the skin, sorted with the clothes' splats, and
+   where the body's skin is hidden under an item, the ink in that skin is hidden with it (each ink
+   splat follows the body splat nearest it), so a tight sleeve hides it the way it hides the skin.
 
 Why splats and not a mesh: the body is splats, and Spark sorts and blends everything it draws
 together. A mesh in the same scene would cut through the splats wrongly at every edge.

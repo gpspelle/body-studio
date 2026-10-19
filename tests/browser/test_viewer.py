@@ -68,6 +68,7 @@ class Viewer(unittest.TestCase):
 
     def test_progress_panel_follows_a_person(self):
         page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        self.addCleanup(page.close)              # (a failed test leaves no page rendering behind)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: m.type == "error" and errors.append(m.text))
@@ -108,6 +109,7 @@ class Viewer(unittest.TestCase):
 
     def test_tattoo_follows_the_body_as_it_moves(self):
         page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        self.addCleanup(page.close)              # (a failed test leaves no page rendering behind)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: m.type == "error" and errors.append(m.text))
@@ -209,6 +211,7 @@ class Viewer(unittest.TestCase):
 
     def test_clothes_go_on_and_come_off(self):
         page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        self.addCleanup(page.close)              # (a failed test leaves no page rendering behind)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: m.type == "error" and errors.append(m.text))
