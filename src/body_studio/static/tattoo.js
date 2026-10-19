@@ -718,7 +718,7 @@ function idb() {
 }
 let saveTimer = null;
 function save() {
-  if (!S) return;
+  if (!S || !S.restored) return;            // (setting up poses the body before what was kept is back)
   const file = S.file;
   const record = { heightCm: S.heightCm, pose: S.sk.pose(),
                    tattoos: S.tattoos.map((tt) => ({ image: tt.canvas.toDataURL("image/png"), bone: tt.bone, at: tt.at,
@@ -757,8 +757,10 @@ async function restore() {
     S.sk.setPose(rec.pose || {});
   } else {
     const person = await personHeight();
+    if (!S) return;
     if (person) S.heightCm = person;
   }
+  S.restored = true;
   applyPose();
   tattooList();
 }

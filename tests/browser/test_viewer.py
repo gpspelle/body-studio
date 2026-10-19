@@ -182,6 +182,7 @@ class Viewer(unittest.TestCase):
         self.assertEqual(page.evaluate("tattooStudio.pose()"), pose)
         self.assertEqual(page.evaluate("tattooStudio.tattoos()[0].widthCm"), 6)
         centre = page.evaluate("tattooStudio.tattoos()[0].centre")
+        page.wait_for_function("!tattooStudio.saving")
 
         # a tattoo saved by an earlier version (a place on its bone's surface map, no point on the
         # body) comes back in the same place
