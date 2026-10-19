@@ -281,20 +281,17 @@ def settled(page):
 
 
 def ink_pixels(page, at, r=40):
-    """How many pixels around point `at` (body coordinates) the selected tattoo's ink changes:
-    the page with the ink as it is, against the page with the faintest ink."""
+    """How many pixels around point `at` (body coordinates) the first tattoo's ink changes: the
+    page with the ink as it is, against the page with the faintest ink."""
     x, y = page.evaluate(f"tattooStudio.screen({at})")
     clip = {"x": max(0, x - r), "y": max(0, y - r), "width": 2 * r, "height": 2 * r}
+    before = page.evaluate("tattooStudio.ink(0)")
     shots = []
-    for ink in (None, "0.2"):
-        if ink is not None:
-            before = page.input_value("#tatInk")
-            page.fill("#tatInk", ink)
-            page.dispatch_event("#tatInk", "input")
+    for ink in (before, 0.2):
+        page.evaluate(f"tattooStudio.ink(0, {ink})")
         settled(page)
         shots.append(png_pixels(page.screenshot(clip=clip)))
-    page.fill("#tatInk", before)
-    page.dispatch_event("#tatInk", "input")
+    page.evaluate(f"tattooStudio.ink(0, {before})")
     settled(page)
     (w, h, a), (_, _, b) = shots
     return sum(1 for i in range(0, w * h * 4, 4) if sum(abs(a[i + k] - b[i + k]) for k in range(3)) > 60)
