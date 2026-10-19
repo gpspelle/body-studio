@@ -13,8 +13,9 @@ and why it was built this way.
 3. **Posing on the page** (`static/pose.js`, `static/tattoo.js`): joint angles are turned into one
    rotation and translation per bone; Spark's `SplatSkinning` moves every splat with dual quaternion
    skinning on the GPU.
-4. **The tattoo** is a grid laid on the skin by arc length, carried by the same weights and the
-   same blend as the splats, and drawn as ink (it multiplies the skin colour under it).
+4. **The tattoo** is a grid laid on the skin itself (walked out over the splats from the point
+   tapped), carried by the same weights and the same blend as the splats, and drawn as ink (it
+   multiplies the skin colour under it).
 
 Pose, tattoos (with their images) and the person's height are kept per body in the browser
 (IndexedDB). Nothing is uploaded anywhere; the image never leaves the computer.
@@ -102,12 +103,26 @@ twisted forearm into a "candy wrapper".
 
 - **Size**: real centimetres, from the person's height (the panel asks; it uses the height of the
   person whose Progress history holds this body, or 170 cm).
-- **Placement**: a surface map gives the radius of the body around an axis at every length and
-  angle, from the splats. The trunk has one map from below the pelvis to the neck, and each leg one
-  from the buttock to the ankle, so a back piece or a thigh piece is laid on one surface; arms (bent
-  at the elbow even in an A-pose) use each bone's own map, which reaches well past both ends. The
-  image is laid along that surface by arc length, so it wraps around a forearm or across the back
-  without stretching; its top points toward the head and it is never mirrored.
+- **Placement**: a *discrete exponential map* (Schmidt, Grimm & Wyvill, *Interactive Decal
+  Compositing with Discrete Exponential Maps*, SIGGRAPH 2006), the way decals are laid on meshes and
+  point clouds. The opaque splats are averaged into cells of about 7 mm (each with a normal, set on
+  the outside of the splats' few-millimetre scatter). From the point tapped, a shortest-path walk
+  over the cells gives each one 2D coordinates on the skin, carrying a frame along; a cell takes the
+  average of what its already placed neighbours say, leaving out a neighbour that disagrees (where
+  the walk meets itself behind a limb). Each point of the image then sits where the splats with its
+  coordinates are. Nothing depends on which bone or part of the body is under it, so a design runs
+  across the crotch onto both thighs, over a shoulder onto the arm, or around the side of the body,
+  keeping its size like a transfer pressed onto the skin.
+  - The walk doesn't step to skin that faces the other way (from an arm to the flank beside it, from
+    one thigh to the other), so a design doesn't jump a gap; parts of the image with no skin under
+    them are left out, and the outline stops there too.
+  - Its top points along the bone it was put on (the trunk's or a leg's axis), toward the head; the
+    carried frame is drawn back toward that axis over about 9 cm so the image stays upright over the
+    buttocks or from a crease, at the cost of a few per cent of stretch where the body tapers. It is
+    never mirrored.
+  - Checked on a cylinder (every point within 2 mm of its arc length) and on the MakeHuman body:
+    widths and heights within a few per cent on the back, thigh and forearm, every point on the skin
+    (`tests/js/pose.test.mjs`).
 - **Skinning**: every point of the grid gets skin weights from the same voxels as the splats and is
   moved by the same dual quaternion blend (computed on the CPU, matched to Spark's shader), so the
   tattoo stays glued to the skin when a joint moves.
@@ -130,7 +145,7 @@ twisted forearm into a "candy wrapper".
 - **Hands and feet are one piece each.** No fingers or toes.
 - **Lighting is baked in.** The tattoo picks up the skin colour under it, including baked-in shadows,
   but a moved arm keeps the light it had in the scan.
-- **Very large designs are cut at the map's edge.** A back piece can run from the buttocks to the
-  neck, but not onto the arms or the head; a sleeve from shoulder to wrist is cut about halfway down
-  the forearm. Use two tattoos. Where a design wraps around the side of the body, its far part is
-  out of sight from behind, as on a real body.
+- **A design is laid like a transfer, from the point you tap.** On strongly curved skin (a thin
+  forearm, the buttocks) a large design bends the way a sticker would; where it wraps around the
+  side of the body, its far part is out of sight from behind, as on a real body. A design centred in
+  the gap between the legs wraps into the crotch rather than across the air.

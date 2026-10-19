@@ -117,8 +117,9 @@ panel sits at the left edge (at the bottom on a phone).
 
 - **Add an image** (PNG, JPG, WebP, SVG), then tap the body where it goes. Drag it to move it;
   set its width in centimetres, its turn and how strong the ink is. Designs drawn on white have
-  the white removed. The tattoo wraps around the arm or across the chest and is drawn as ink, so
-  the skin shows through it.
+  the white removed. The tattoo follows the skin wherever you put it: around an arm, across the
+  back, over a shoulder, from the lower back onto both thighs. It is drawn as ink, so the skin
+  shows through it.
 - **Move the body**: drag the dot on a joint (the elbow dot turns the shoulder, the wrist dot
   the elbow…), or pick a pose: standing, arms up, flex, walking, sitting. Each joint only moves
   the way a person's can, within its normal range. Pick a joint to set its angles with sliders.
@@ -219,8 +220,9 @@ ela fica. O painel fica na borda esquerda (embaixo, no celular).
 
 - **Adicione uma imagem** (PNG, JPG, WebP, SVG) e toque no corpo onde ela vai. Arraste para mudar
   de lugar; ajuste a largura em centímetros, o giro e a força da tinta. Desenhos sobre fundo branco
-  perdem o branco. A tatuagem contorna o braço ou atravessa o peito e é desenhada como tinta, então
-  a pele aparece através dela.
+  perdem o branco. A tatuagem acompanha a pele onde você a colocar: em volta do braço, nas costas,
+  por cima do ombro, da lombar até as duas coxas. Ela é desenhada como tinta, então a pele aparece
+  através dela.
 - **Mexa o corpo**: arraste o ponto de uma articulação (o ponto do cotovelo gira o ombro, o do
   pulso gira o cotovelo…) ou escolha uma pose: em pé, braços para cima, bíceps, andando, sentado.
   Cada articulação só se move como a de uma pessoa, dentro da amplitude normal. Escolha uma

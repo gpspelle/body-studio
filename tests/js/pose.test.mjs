@@ -1,10 +1,10 @@
 // Posing and tattoo maths (src/body_studio/static/pose.js) against a real rig. Run by
 // tests/unit/test_pose_js.py, which builds the rig from the MakeHuman test body:
-//   RIG_JSON=/path/to/body.rig.json node --test tests/js/pose.test.mjs
+//   RIG_JSON=/path/to/body.rig.json BODY_PLY=/path/to/body.ply node --test tests/js/pose.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { Skeleton, SkinWeights, SurfaceMap, dualQuats, skinPoint, q, v3, DOF } from "../../src/body_studio/static/pose.js";
+import { Skeleton, SkinSurface, SkinWeights, dualQuats, skinPoint, q, v3, DOF } from "../../src/body_studio/static/pose.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { left: L, up: U, front: F } = rig.frame;
@@ -143,57 +143,183 @@ test("skin weights follow the body", () => {
   for (let i = 0; i < 4; i++) if (x[i]) assert.ok(!sk.names[b[i]].endsWith("_r"), sk.names[b[i]]);
 });
 
+// the splats of the body the rig was built from (BODY_PLY), as the page has them
+function readPly(path) {
+  const buf = readFileSync(path);
+  const end = buf.indexOf("end_header\n") + 11;
+  const head = buf.subarray(0, end).toString();
+  const props = [...head.matchAll(/property float (\w+)/g)].map((m) => m[1]);
+  const n = +head.match(/element vertex (\d+)/)[1], P = props.length;
+  const f = new Float32Array(buf.buffer.slice(buf.byteOffset + end, buf.byteOffset + end + n * P * 4));
+  const ix = props.indexOf("x"), io = props.indexOf("opacity");
+  const centres = new Float32Array(n * 3), opaque = [];
+  for (let i = 0; i < n; i++) {
+    centres.set(f.subarray(i * P + ix, i * P + ix + 3), i * 3);
+    if (1 / (1 + Math.exp(-f[i * P + io])) >= 0.3) opaque.push(i);     // tattoo.js: opacity >= 0.3
+  }
+  return { centres, opaque };
+}
+const body = readPly(process.env.BODY_PLY);
+const skin = new SkinSurface(rig, body.centres, body.opaque);
+const joint = (name) => rig.joints.find((j) => j.name === name).pos;
+const between = (...names) => v3.scale(names.map(joint).reduce(v3.add), 1 / names.length);
+// the outermost skin seen from `from` looking along `dir` (a tap on the body)
+function tap(from, dir) {
+  for (let d = 0.4 * H; d > 0; d -= 0.002 * H) {
+    const x = v3.add(from, v3.scale(dir, d)), c = skin.nearest(x);
+    if (c >= 0 && v3.len(v3.sub(skin._p(c), x)) < skin.h) return skin._p(c);
+  }
+  assert.fail("no skin there");
+}
+const grid = (g) => (i, j) => Array.from(g.positions.subarray((j * g.nx + i) * 3, (j * g.nx + i) * 3 + 3));
+const count = (g) => g.valid.reduce((s, v) => s + v, 0);
+// length of a row or column of grid points, in PLY units
+const pathLength = (pts) => pts.slice(1).reduce((s, p, i) => s + v3.len(v3.sub(p, pts[i])), 0);
+// distance from p to the nearest opaque splat
+function offSkin(p) {
+  let best = Infinity;
+  for (const c of skin._near(p, 4 * skin.h)) {
+    for (let m = skin.first[c]; m < skin.first[c + 1]; m++) {
+      const i = skin.members[m];
+      best = Math.min(best, Math.hypot(body.centres[i * 3] - p[0], body.centres[i * 3 + 1] - p[1], body.centres[i * 3 + 2] - p[2]));
+    }
+  }
+  return best;
+}
+// the bone that carries a point most
+function boneAt(p) {
+  const w = new SkinWeights(rig), b = new Uint8Array(4), x = new Uint8Array(4);
+  w.at(p[0], p[1], p[2], b, x);
+  return rig.joints[b[0]].name;
+}
+
 test("a tattoo wraps around the forearm with its real size", () => {
-  const sk = new Skeleton(rig), map = new SurfaceMap(rig);
-  const m = map.maps.elbow_l;
-  const tat = { bone: "elbow_l", t: 0.5 * m.length, theta: 0, width: 0.06 * H, height: 0.08 * H, angle: 0, lift: 0 };
-  const g = map.wrap(tat, 25, 33);
+  const axis = v3.unit(v3.sub(joint("elbow_l"), joint("wrist_l")));
+  const at = tap(between("elbow_l", "wrist_l"), F);
+  const tat = { at, up: axis, width: 0.06 * H, height: 0.08 * H, angle: 0, lift: 0 };
+  const g = skin.wrap(tat, 25, 33), P = grid(g);
   assert.ok(g.valid.every((v) => v === 1), "every point is on the arm");
-  const P = (i, j) => Array.from(g.positions.subarray((j * 25 + i) * 3, (j * 25 + i) * 3 + 3));
-  let across = 0, along = 0;
-  for (let i = 0; i < 24; i++) across += v3.len(v3.sub(P(i + 1, 16), P(i, 16)));
-  for (let j = 0; j < 32; j++) along += v3.len(v3.sub(P(12, j + 1), P(12, j)));
-  near(across, tat.width, 0.1 * tat.width, "width kept around the arm");
-  near(along, tat.height, 0.1 * tat.height, "height kept along the arm");
+  const across = pathLength(Array.from({ length: 25 }, (_, i) => P(i, 16)));
+  const along = pathLength(Array.from({ length: 33 }, (_, j) => P(12, j)));
+  near(across, tat.width, 0.12 * tat.width, "width kept around the arm");
+  near(along, tat.height, 0.08 * tat.height, "height kept along the arm");
   // not mirrored, seen from outside: right x up points out of the skin; up points to the shoulder
   const right = v3.sub(P(24, 16), P(0, 16)), upv = v3.sub(P(12, 32), P(12, 0));
-  const out = v3.sub(P(12, 16), v3.add(m.origin, v3.scale(m.axis, tat.t)));
+  const centre = P(12, 16), wrist = joint("wrist_l");
+  const out = v3.sub(v3.sub(centre, wrist), v3.scale(axis, v3.dot(v3.sub(centre, wrist), axis)));
   assert.ok(v3.dot(v3.cross(right, upv), out) > 0, "not mirrored");
-  assert.ok(v3.dot(upv, U) > 0, "image up points up the arm");
-  // the centre sits on the skin: as far from the bone as the arm's splats are
-  const r = v3.len(v3.sub(out, v3.scale(m.axis, v3.dot(out, m.axis))));
-  assert.ok(r > 0.005 * H && r < 0.04 * H, `forearm radius ${r / H}`);
+  assert.ok(v3.dot(upv, axis) > 0.9 * v3.len(upv), "image up points up the arm");
+  assert.ok(v3.len(out) > 0.005 * H && v3.len(out) < 0.04 * H, `on the forearm's skin (${v3.len(out) / H})`);
+  for (let k = 0; k < 25 * 33; k += 7) assert.ok(offSkin(P(k % 25, Math.floor(k / 25))) < 0.008 * H, "on the skin");
 });
 
-test("a tattoo on the chest faces forward", () => {
-  const map = new SurfaceMap(rig), m = map.maps.chest;
-  const g = map.wrap({ bone: "chest", t: 0.5 * m.length, theta: 0, width: 0.08 * H, height: 0.08 * H, angle: 30, lift: 0 }, 9, 9);
-  const c = Array.from(g.positions.subarray(40 * 3, 40 * 3 + 3));
-  assert.ok(v3.dot(v3.sub(c, m.origin), F) > 0.03 * H, "on the front of the chest");
+test("a tattoo on the chest faces forward and turns as asked", () => {
+  const at = tap(between("spine", "chest", "neck"), F);
+  const g = skin.wrap({ at, up: U, width: 0.08 * H, height: 0.08 * H, angle: 30, lift: 0 }, 9, 9), P = grid(g);
+  assert.equal(count(g), 81);
+  assert.ok(v3.dot(v3.sub(P(4, 4), joint("chest")), F) > 0.03 * H, "on the front of the chest");
+  // turned 30 degrees counterclockwise as seen from the front: the top leans to the viewer's left,
+  // the person's right
+  const top = v3.sub(P(4, 8), P(4, 0));
+  const lean = Math.atan2(v3.dot(top, L), v3.dot(top, U)) / (Math.PI / 180);
+  near(lean, -30, 6, "turned");
 });
 
-test("a back piece stays whole on the trunk map (one bone's map would cut it)", () => {
-  const map = new SurfaceMap(rig), m = map.maps.trunk;
-  assert.ok(m, "the rig has a trunk map");
-  assert.equal(rig.regions.spine, "trunk");
-  assert.equal(rig.regions.knee_l, "leg_l");
-  assert.equal(rig.regions.elbow_l, undefined, "arms keep their bones' maps");
-  // 25 x 50 cm on a 1.75 m body, on the back (theta = pi), centred between the pelvis and the neck
-  const tat = { t: 0.5 * m.length, theta: Math.PI, width: 0.14 * H, height: 0.28 * H, angle: 0, lift: 0 };
-  const whole = map.wrap({ ...tat, bone: "trunk" }, 24, 48);
-  const valid = whole.valid.reduce((s, v) => s + v, 0);
-  assert.ok(valid >= 0.97 * whole.valid.length, `trunk map: ${valid} of ${whole.valid.length} points`);
-  const top = Array.from(whole.positions.subarray(((47 * 24) + 12) * 3, ((47 * 24) + 12) * 3 + 3));
-  const bottom = Array.from(whole.positions.subarray(12 * 3, 12 * 3 + 3));
-  assert.ok(v3.dot(v3.sub(top, bottom), U) > 0.25 * H, "top of the image toward the head, full height");
-  assert.ok(v3.dot(v3.sub(top, m.origin), F) < 0, "on the back");
-  const spine = map.maps.spine;
-  const cut = map.wrap({ ...tat, bone: "spine", t: v3.dot(v3.sub(v3.add(m.origin, v3.scale(m.axis, tat.t)), spine.origin), spine.axis) }, 24, 48);
-  assert.ok(cut.valid.reduce((s, v) => s + v, 0) < valid, "the spine's own map is shorter");
+test("a back piece stays whole and upright from the buttocks to the shoulder blades", () => {
+  // 30 x 60 cm on a 1.75 m body
+  const at = tap(between("spine", "chest"), v3.scale(F, -1));
+  const tat = { at, up: U, width: 0.17 * H, height: 0.34 * H, angle: 0, lift: 0 };
+  const g = skin.wrap(tat, 24, 48), P = grid(g);
+  assert.ok(count(g) >= 0.98 * 24 * 48, `${count(g)} of ${24 * 48} points`);
+  const col = Array.from({ length: 48 }, (_, j) => P(12, j));
+  near(pathLength(col), tat.height, 0.06 * tat.height, "full height");
+  assert.ok(v3.dot(v3.sub(P(12, 47), P(12, 0)), U) > 0.3 * H, "top toward the head");
+  for (const j of [8, 24, 40]) {
+    const step = v3.sub(P(12, j + 4), P(12, j - 4));
+    const lean = Math.abs(Math.atan2(v3.dot(step, L), v3.dot(step, U))) / (Math.PI / 180);
+    assert.ok(lean < 8, `upright at row ${j} (${lean.toFixed(1)} degrees)`);
+    assert.ok(v3.dot(v3.sub(P(12, j), joint("spine")), F) < 0, "on the back");
+  }
 });
 
-test("a tattoo from the hip past the knee stays whole on the leg map", () => {
-  const map = new SurfaceMap(rig), m = map.maps.leg_l;
-  const g = map.wrap({ bone: "leg_l", t: 0.5 * m.length, theta: 0, width: 0.06 * H, height: 0.8 * m.length, angle: 0, lift: 0 }, 9, 40);
-  assert.ok(g.valid.reduce((s, v) => s + v, 0) >= 0.97 * g.valid.length);
+test("a tattoo from the lower back runs onto both thighs, every point on the skin", () => {
+  // centred between the hips, at the back: 36 x 36 cm reaches well down both thighs
+  const at = tap(between("pelvis", "hip_l", "hip_r"), v3.scale(F, -1));
+  const g = skin.wrap({ at, up: U, width: 0.2 * H, height: 0.2 * H, angle: 0, lift: 0 }, 31, 31), P = grid(g);
+  let left = 0, right = 0;
+  for (let j = 0; j < 31; j++) {
+    for (let i = 0; i < 31; i++) {
+      if (!g.valid[j * 31 + i]) continue;
+      const p = P(i, j);
+      assert.ok(offSkin(p) < 0.008 * H, `point ${i},${j} lies on the skin (${(offSkin(p) / H).toFixed(4)})`);
+      if (v3.dot(v3.sub(p, joint("hip_l")), U) < -0.05 * H) {
+        const bone = boneAt(p);
+        if (bone.endsWith("_l")) left++;
+        if (bone.endsWith("_r")) right++;
+      }
+    }
+  }
+  assert.ok(left > 40 && right > 40, `on both thighs below the buttocks (${left} left, ${right} right)`);
+  assert.ok(count(g) > 0.95 * 31 * 31, `all of it is on the body (${count(g)})`);
+});
+
+test("a long tattoo runs from the hip past the knee", () => {
+  const at = tap(between("hip_l", "knee_l", "knee_l"), F);
+  const len = v3.len(v3.sub(joint("hip_l"), joint("ankle_l")));
+  const g = skin.wrap({ at, up: U, width: 0.06 * H, height: 0.8 * len, angle: 0, lift: 0 }, 9, 40), P = grid(g);
+  assert.ok(count(g) >= 0.97 * 9 * 40);
+  const ends = [boneAt(P(4, 2)), boneAt(P(4, 37))];
+  assert.equal(ends[0], "knee_l", "the bottom is on the shin");
+  assert.equal(ends[1], "hip_l", "the top is on the thigh");
+});
+
+test("a tattoo over the shoulder runs from the back onto the arm", () => {
+  const at = tap(joint("shoulder_l"), U);
+  const g = skin.wrap({ at, up: F, width: 0.09 * H, height: 0.14 * H, angle: 0, lift: 0 }, 24, 36);
+  assert.ok(count(g) >= 0.97 * 24 * 36, `${count(g)} of ${24 * 36}`);
+  const P = grid(g), bones = new Set();
+  for (let k = 0; k < 24 * 36; k++) if (g.valid[k]) bones.add(boneAt(P(k % 24, Math.floor(k / 24))));
+  assert.ok(bones.has("shoulder_l"), [...bones].join(" "));
+  assert.ok(["chest", "clavicle_l", "neck", "spine"].some((b) => bones.has(b)), [...bones].join(" "));
+});
+
+// a made-up body part, to check the maths exactly: a cylinder (an arm), and two side by side (legs)
+function cylinders(list, n = 200000) {
+  const centres = new Float32Array(n * 3), opaque = [];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < n; i++) {
+    const [x0, r] = list[i % list.length], th = rnd() * 2 * Math.PI, y = (rnd() - 0.5) * 0.6;
+    centres.set([x0 + r * Math.cos(th), y, r * Math.sin(th)], i * 3);
+    opaque.push(i);
+  }
+  const joints = [];
+  list.forEach(([x0]) => joints.push({ pos: [x0, -0.3, 0], parent: -1 }, { pos: [x0, 0.3, 0], parent: joints.length }));
+  return { surface: new SkinSurface({ height: 1.75, joints }, centres, opaque), centres };
+}
+
+test("on a cylinder the image keeps its size exactly", () => {
+  const r = 0.05, { surface } = cylinders([[0, r]]);
+  const g = surface.wrap({ at: [0, 0, r], up: [0, 1, 0], width: 0.2, height: 0.12, angle: 0, lift: 0 }, 21, 13), P = grid(g);
+  assert.equal(count(g), 21 * 13);
+  for (let i = 0; i < 21; i++) {
+    const p = P(i, 6), arc = Math.atan2(p[0], p[2]) * r;
+    near(arc, (i / 20 - 0.5) * 0.2, 0.004, `column ${i} at its arc length`);
+    near(Math.hypot(p[0], p[2]), r, 0.002, "on the surface");
+  }
+  for (let j = 0; j < 13; j++) near(P(10, j)[1], (j / 12 - 0.5) * 0.12, 0.003, `row ${j} at its height`);
+});
+
+test("across two legs side by side, the gap between them stays bare", () => {
+  const r = 0.07, { surface } = cylinders([[-0.09, r], [0.09, r]]);
+  // centred on the left leg, wide enough to reach the right one across a 4 cm gap
+  const g = surface.wrap({ at: [-0.09, 0, r], up: [0, 1, 0], width: 0.3, height: 0.1, angle: 0, lift: 0 }, 61, 11), P = grid(g);
+  for (let i = 0; i < 61; i++) {
+    if (!g.valid[5 * 61 + i]) continue;
+    const p = P(i, 5), d = Math.min(Math.hypot(p[0] + 0.09, p[2]), Math.hypot(p[0] - 0.09, p[2]));
+    near(d, r, 0.003, `point ${i} is on a leg`);
+  }
+  // the walk can't jump the gap: the image wraps around the left leg (like a sticker) and does not
+  // land on the right one
+  for (let i = 0; i < 61; i++) if (g.valid[5 * 61 + i]) assert.ok(P(i, 5)[0] < 0.005, `point ${i} stays on the left leg`);
 });

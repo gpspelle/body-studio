@@ -181,6 +181,27 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("tattooStudio.ready && tattooStudio.tattoos().length === 1", timeout=60000)
         self.assertEqual(page.evaluate("tattooStudio.pose()"), pose)
         self.assertEqual(page.evaluate("tattooStudio.tattoos()[0].widthCm"), 6)
+        centre = page.evaluate("tattooStudio.tattoos()[0].centre")
+
+        # a tattoo saved by an earlier version (a place on its bone's surface map, no point on the
+        # body) comes back in the same place
+        page.evaluate("""async () => {
+          const { SurfaceMap } = await import('/static/pose.js');
+          const file = bodyViewer.file();
+          const map = new SurfaceMap(await (await fetch('/api/rig?body=' + encodeURIComponent(file))).json());
+          const db = await new Promise((ok) => { const r = indexedDB.open('body-studio-tattoo', 1); r.onsuccess = () => ok(r.result); });
+          const store = () => db.transaction('bodies', 'readwrite').objectStore('bodies');
+          const rec = await new Promise((ok) => { const r = store().get(file); r.onsuccess = () => ok(r.result); });
+          for (const t of rec.tattoos) { Object.assign(t, map.locate(t.bone, t.at)); delete t.at; }
+          await new Promise((ok) => { const r = store().put(rec, file); r.onsuccess = ok; });
+        }""")
+        page.reload()
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia')")
+        page.click("#studioBtn")
+        page.wait_for_function("tattooStudio.ready && tattooStudio.tattoos().length === 1", timeout=60000)
+        self.assertLess(dist(page.evaluate("tattooStudio.tattoos()[0].centre"), centre), 0.02)
         self.assertEqual(errors, [])
         page.close()
 

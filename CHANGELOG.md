@@ -25,6 +25,11 @@
 - Tattoos: a big design on the back (or a thigh) is no longer cut where one bone's surface ends;
   the trunk and each leg are one surface. Less of a tattoo is hidden where the skin turns away at
   the flanks. Rigs are rebuilt once (`<body>.rig.json` version 2).
+- Tattoos are laid on the skin itself, wherever they go: a design no longer stops where one
+  part of the body ends, so it runs from the lower back onto both thighs, over a shoulder onto
+  the arm, or around the side of the body. Parts of a design with no skin under them (between
+  the legs) are left out, and its outline stops there too. Tattoos saved before come back in
+  the same place.
 - OpenCV (drops blurry frames) is installed with the app by `pip install`, so nothing needs
   installing afterwards, also inside a virtualenv.
 - English and Portuguese. Version, source code and license links at the bottom.

@@ -369,10 +369,10 @@ export class SkinWeights {
   }
 }
 
-// ---------------------------------------------------------------- surface map and tattoos
-// Around each bone: the body's radius at each step along the bone (t) and angle (theta), and the
-// skin colour there. A tattoo is a grid laid on that surface by arc length, so it keeps its size
-// as it wraps around an arm or a leg.
+// ---------------------------------------------------------------- surface map
+// Around each bone, and around the trunk and each leg: the body's radius at each step along the
+// axis (t) and angle (theta). The page uses the axis to point a tattoo's top toward the head, and
+// (t, theta) to read tattoos saved before SkinSurface.
 export class SurfaceMap {
   constructor(rig) {
     this.maps = {};
@@ -414,14 +414,6 @@ export class SurfaceMap {
     return ws > 0.25 ? s / ws : NaN;
   }
 
-  colour(bone, t, theta) {
-    const m = this.maps[bone];
-    const { ft, fa } = this._cell(m, t, theta);
-    const ti = Math.min(Math.max(Math.round(ft), 0), m.nt - 1), ai = Math.round(fa) % m.na;
-    const c = (ti * m.na + ai) * 3;
-    return [m.rgb[c] / 255, m.rgb[c + 1] / 255, m.rgb[c + 2] / 255];
-  }
-
   point(bone, t, theta, lift = 0) {
     const m = this.maps[bone];
     const r = this.radius(bone, t, theta);
@@ -429,48 +421,399 @@ export class SurfaceMap {
     const out = v3.add(v3.scale(m.e0, Math.cos(theta)), v3.scale(m.e1, Math.sin(theta)));
     return v3.add(v3.add(m.origin, v3.scale(m.axis, t)), v3.scale(out, r + lift));
   }
+}
 
-  // the angle reached by walking arc length s (signed) around the bone from theta0 at height t
-  thetaForArc(bone, t, theta0, s) {
-    const m = this.maps[bone];
-    const dir = s < 0 ? -1 : 1, goal = Math.abs(s), step = (2 * Math.PI) / m.na / 4;
-    let th = theta0, acc = 0, r0 = this.radius(bone, t, th);
-    if (Number.isNaN(r0)) return NaN;
-    for (let i = 0; i < m.na * 4; i++) {
-      const th1 = th + dir * step, r1 = this.radius(bone, t, th1);
-      if (Number.isNaN(r1)) return NaN;
-      const ds = Math.hypot(0.5 * (r0 + r1) * step, r1 - r0);
-      if (acc + ds >= goal) return th + dir * step * (goal - acc) / (ds || 1);
-      acc += ds; th = th1; r0 = r1;
+// ---------------------------------------------------------------- the skin, for tattoos
+// The opaque splats' centres averaged into small cells: points on the skin, each with a normal
+// pointing out of the body. A tattoo is laid on them with a discrete exponential map (Schmidt,
+// Grimm & Wyvill, "Interactive decal compositing with discrete exponential maps", SIGGRAPH 2006):
+// from the point tapped, each cell gets 2D coordinates by walking the surface, carrying a frame
+// along. The image follows the skin wherever it goes (across the crotch, from the back onto a leg,
+// over a shoulder) and keeps its size as it wraps around a limb. The walk doesn't jump a gap (an
+// arm to the flank beside it, one leg to the other): parts of the image it can't reach on the
+// skin are left out.
+export class SkinSurface {
+  // centres: x, y, z per splat (PLY coordinates, rest pose); opaque: the indices of opaque splats
+  constructor(rig, centres, opaque) {
+    const H = this.H = rig.height, n = opaque.length;
+    // about three splats per cell (a body's skin is about 0.6 H^2), never finer than 0.4 % of the height
+    const h = this.h = Math.max(0.004 * H, Math.sqrt(3 * 0.6 * H * H / Math.max(n, 1)));
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (const i of opaque) {
+      for (let a = 0; a < 3; a++) {
+        const v = centres[i * 3 + a];
+        if (v < lo[a]) lo[a] = v;
+        if (v > hi[a]) hi[a] = v;
+      }
     }
-    return NaN;                                 // more than once around
+    this.lo = lo;
+    this.dims = lo.map((l, a) => Math.max(1, Math.floor((hi[a] - l) / h) + 1));
+    this.cells = new Map();
+    const sum = [], cnt = [];
+    for (const i of opaque) {
+      const x = centres[i * 3], y = centres[i * 3 + 1], z = centres[i * 3 + 2];
+      const key = this._key(x, y, z);
+      let c = this.cells.get(key);
+      if (c === undefined) { c = cnt.length; this.cells.set(key, c); sum.push(0, 0, 0); cnt.push(0); }
+      sum[c * 3] += x; sum[c * 3 + 1] += y; sum[c * 3 + 2] += z; cnt[c]++;
+    }
+    const m = this.count = cnt.length;
+    this.pos = new Float32Array(m * 3);
+    for (let c = 0; c < m; c++) for (let a = 0; a < 3; a++) this.pos[c * 3 + a] = sum[c * 3 + a] / cnt[c];
+    // the splats of cell c: members[first[c] .. first[c + 1]]
+    this.centres = centres;
+    this.first = new Int32Array(m + 1);
+    for (let c = 0; c < m; c++) this.first[c + 1] = this.first[c] + cnt[c];
+    this.members = new Int32Array(opaque.length);
+    const fill = this.first.slice(0, m);
+    for (const i of opaque) this.members[fill[this.cells.get(this._key(centres[i * 3], centres[i * 3 + 1], centres[i * 3 + 2]))]++] = i;
+    this.segments = [];
+    rig.joints.forEach((j) => { if (j.parent >= 0) this.segments.push([rig.joints[j.parent].pos, j.pos]); });
+    // worked out when a tattoo first needs them: neighbours and normal
+    this.adj = new Array(m).fill(null);
+    this.nrm = new Float32Array(m * 3); this.surf = new Float32Array(m * 3);
+    // the walk's state, reused from one tattoo to the next (seen/done hold the walk's number)
+    this.dist = new Float64Array(m); this.par = new Int32Array(m);
+    this.uv = new Float32Array(m * 2); this.frame = new Float32Array(m * 6);
+    this.seen = new Uint32Array(m); this.done = new Uint32Array(m); this.walks = 0;
   }
 
-  // A tattoo as a grid of points on the body (rest pose). tattoo: {bone, t, theta, width, height
-  // (PLY units), angle (degrees, turns the image as seen from outside), lift}. Returns positions,
-  // texture coordinates, skin colours and triangles (cells with a point off the map are left out).
+  _ijk(x, y, z) {
+    const h = this.h, lo = this.lo;
+    return [Math.floor((x - lo[0]) / h), Math.floor((y - lo[1]) / h), Math.floor((z - lo[2]) / h)];
+  }
+
+  _key(x, y, z) {
+    const [i, j, k] = this._ijk(x, y, z);
+    return (i * this.dims[1] + j) * this.dims[2] + k;
+  }
+
+  // cells within r of point p, from the cubes of cells around it
+  _near(p, r, out = []) {
+    const [i0, j0, k0] = this._ijk(p[0], p[1], p[2]), s = Math.ceil(r / this.h), d = this.dims, r2 = r * r;
+    for (let i = Math.max(0, i0 - s); i <= Math.min(d[0] - 1, i0 + s); i++) {
+      for (let j = Math.max(0, j0 - s); j <= Math.min(d[1] - 1, j0 + s); j++) {
+        for (let k = Math.max(0, k0 - s); k <= Math.min(d[2] - 1, k0 + s); k++) {
+          const c = this.cells.get((i * d[1] + j) * d[2] + k);
+          if (c === undefined) continue;
+          const x = this.pos[c * 3] - p[0], y = this.pos[c * 3 + 1] - p[1], z = this.pos[c * 3 + 2] - p[2];
+          if (x * x + y * y + z * z <= r2) out.push(c);
+        }
+      }
+    }
+    return out;
+  }
+
+  _p(c) { return [this.pos[c * 3], this.pos[c * 3 + 1], this.pos[c * 3 + 2]]; }
+  _n(c) { return [this.nrm[c * 3], this.nrm[c * 3 + 1], this.nrm[c * 3 + 2]]; }
+  _s(c) { return [this.surf[c * 3], this.surf[c * 3 + 1], this.surf[c * 3 + 2]]; }
+
+  // away from the nearest bone
+  _outward(p) {
+    let best = null, bd = Infinity;
+    for (const [a, e] of this.segments) {
+      const ab = v3.sub(e, a), ap = v3.sub(p, a);
+      const t = Math.max(0, Math.min(1, v3.dot(ap, ab) / (v3.dot(ab, ab) || 1)));
+      const d = v3.sub(ap, v3.scale(ab, t)), l = v3.len(d);
+      if (l < bd) { bd = l; best = d; }
+    }
+    return v3.unit(best || [0, 1, 0]);
+  }
+
+  // neighbours, normal (the flattest direction of the cells around, turned away from the bone) and
+  // where the skin is
+  _prep(c) {
+    if (this.adj[c]) return;
+    const h = this.h, p = this._p(c);
+    const adj = this.adj[c] = this._near(p, 2 * h).filter((d) => d !== c);
+    const o = this._outward(p);
+    let nv = o;
+    if (adj.length >= 4) {
+      const mean = [...p];
+      for (const d of adj) for (let a = 0; a < 3; a++) mean[a] += this.pos[d * 3 + a];
+      for (let a = 0; a < 3; a++) mean[a] /= adj.length + 1;
+      const C = [0, 0, 0, 0, 0, 0];             // xx yy zz xy xz yz
+      for (const d of [c, ...adj]) {
+        const x = this.pos[d * 3] - mean[0], y = this.pos[d * 3 + 1] - mean[1], z = this.pos[d * 3 + 2] - mean[2];
+        C[0] += x * x; C[1] += y * y; C[2] += z * z; C[3] += x * y; C[4] += x * z; C[5] += y * z;
+      }
+      // the smallest eigenvector of C is the largest of (trace - C), by power iteration from `o`
+      const tr = C[0] + C[1] + C[2];
+      let v = o;
+      for (let it = 0; it < 30; it++) {
+        v = v3.unit([(tr - C[0]) * v[0] - C[3] * v[1] - C[4] * v[2],
+                     -C[3] * v[0] + (tr - C[1]) * v[1] - C[5] * v[2],
+                     -C[4] * v[0] - C[5] * v[1] + (tr - C[2]) * v[2]]);
+      }
+      nv = v3.dot(v, o) < 0 ? v3.scale(v, -1) : v;
+      // the skin here: splats scatter a few millimetres above and below it, in layers a cell
+      // apart, and a walk along the inner layers would come up short. So the cell is moved onto
+      // the outside of the scatter (about three quarters of it below), keeping its place along the skin.
+      let vr = 0;
+      for (const d of [c, ...adj]) vr += v3.dot(v3.sub(this._p(d), mean), nv) ** 2;
+      const off = 0.67 * Math.sqrt(vr / (adj.length + 1)) - v3.dot(v3.sub(p, mean), nv);
+      this.surf.set(v3.add(p, v3.scale(nv, off)), c * 3);
+    } else {
+      this.surf.set(p, c * 3);
+    }
+    this.nrm.set(nv, c * 3);
+  }
+
+  // the cell nearest a point, or -1
+  nearest(p) {
+    let best = -1, bd = Infinity;
+    for (let r = 2 * this.h; r <= 8 * this.h && best < 0; r *= 2) {
+      for (const c of this._near(p, r)) {
+        const d = v3.len(v3.sub(this._p(c), p));
+        if (d < bd) { bd = d; best = c; }
+      }
+    }
+    return best;
+  }
+
+  // Walks out from cell `seed` (frame: right, up) to geodesic distance `reach`, giving every cell
+  // reached its 2D coordinates (right, up on the skin). Returns the cells reached.
+  _walk(seed, right, up, reach, axis, relax) {
+    const w = ++this.walks, h = this.h, reached = [];
+    const P = this.surf, N = this.nrm, UV = this.uv, Fr = this.frame, dist = this.dist, done = this.done;
+    const hd = [], hc = [];                     // a binary heap of cells by distance
+    const push = (d, c) => {
+      let i = hd.length;
+      hd.push(d); hc.push(c);
+      while (i > 0) {
+        const p = (i - 1) >> 1;
+        if (hd[p] <= d) break;
+        hd[i] = hd[p]; hc[i] = hc[p]; i = p;
+      }
+      hd[i] = d; hc[i] = c;
+    };
+    const pop = () => {
+      const c = hc[0], d = hd.pop(), e = hc.pop(), n = hd.length;
+      if (n) {
+        let i = 0;
+        for (;;) {
+          const l = 2 * i + 1, r = l + 1;
+          let m = l < n && hd[l] < d ? l : -1;
+          if (r < n && hd[r] < (m < 0 ? d : hd[l])) m = r;
+          if (m < 0) break;
+          hd[i] = hd[m]; hc[i] = hc[m]; i = m;
+        }
+        hd[i] = d; hc[i] = e;
+      }
+      return c;
+    };
+    // skin that faces the other way (across the gap from an arm to the flank, or between the
+    // thighs) or lies straight out from a cell is not the next step along the skin from it
+    const along = (c, e) => {
+      const x = P[e * 3] - P[c * 3], y = P[e * 3 + 1] - P[c * 3 + 1], z = P[e * 3 + 2] - P[c * 3 + 2];
+      const len = Math.sqrt(x * x + y * y + z * z);
+      if (N[c * 3] * N[e * 3] + N[c * 3 + 1] * N[e * 3 + 1] + N[c * 3 + 2] * N[e * 3 + 2] < 0.3) return -1;
+      if (Math.abs(x * N[c * 3] + y * N[c * 3 + 1] + z * N[c * 3 + 2]) > 0.7 * len) return -1;
+      return len;
+    };
+    // where neighbour e puts cell c: e's coordinates plus the step from e, laid in the plane
+    // halfway between their tangent planes (the splats' scatter across the skin adds no length)
+    const est = [0, 0];
+    const estimate = (e, c) => {
+      const x = P[c * 3] - P[e * 3], y = P[c * 3 + 1] - P[e * 3 + 1], z = P[c * 3 + 2] - P[e * 3 + 2];
+      let mx = N[c * 3] + N[e * 3], my = N[c * 3 + 1] + N[e * 3 + 1], mz = N[c * 3 + 2] + N[e * 3 + 2];
+      const ml = Math.sqrt(mx * mx + my * my + mz * mz) || 1;
+      mx /= ml; my /= ml; mz /= ml;
+      const k = x * mx + y * my + z * mz, fx = x - k * mx, fy = y - k * my, fz = z - k * mz;
+      est[0] = UV[e * 2] + fx * Fr[e * 6] + fy * Fr[e * 6 + 1] + fz * Fr[e * 6 + 2];
+      est[1] = UV[e * 2 + 1] + fx * Fr[e * 6 + 3] + fy * Fr[e * 6 + 4] + fz * Fr[e * 6 + 5];
+    };
+    this.seen[seed] = w; dist[seed] = 0; this.par[seed] = -1;
+    push(0, seed);
+    while (hd.length) {
+      const d = hd[0], c = pop();
+      if (done[c] === w || d > dist[c]) continue;
+      done[c] = w;
+      reached.push(c);
+      const nx = N[c * 3], ny = N[c * 3 + 1], nz = N[c * 3 + 2];
+      if (c === seed) {
+        UV[c * 2] = 0; UV[c * 2 + 1] = 0;
+        Fr.set(right, c * 6); Fr.set(up, c * 6 + 3);
+      } else {
+        // the frame, carried from the cell it was reached from by the smallest turn
+        const f = this.par[c];
+        let u = q.rot(q.between(this._n(f), [nx, ny, nz]), [Fr[f * 6 + 3], Fr[f * 6 + 4], Fr[f * 6 + 5]]);
+        const k = axis[0] * nx + axis[1] * ny + axis[2] * nz;
+        const ax = [axis[0] - k * nx, axis[1] - k * ny, axis[2] - k * nz], al = v3.len(ax);
+        const a = Math.min(1, Math.max(0, (al - 0.3) / 0.3)) * Math.min(1, (d - dist[f]) / relax);
+        if (a > 0 && v3.dot(u, ax) > 0) u = v3.add(v3.scale(u, 1 - a), v3.scale(ax, a / al));
+        const ku = u[0] * nx + u[1] * ny + u[2] * nz;
+        u = v3.unit([u[0] - ku * nx, u[1] - ku * ny, u[2] - ku * nz]);
+        Fr.set(v3.cross(u, [nx, ny, nz]), c * 6); Fr.set(u, c * 6 + 3);
+        // coordinates: the estimates of the neighbours already placed, averaged ("upwind
+        // averaging" in the paper), but only those that agree with the one from the cell it was
+        // reached from: where the walk meets itself behind a limb, the two sides are far apart
+        estimate(f, c);
+        const ru = est[0], rv = est[1];
+        let su = 0, sv = 0, sw = 0;
+        for (const e of this.adj[c]) {
+          if (done[e] !== w) continue;
+          const len = along(e, c);
+          if (len < 0) continue;
+          estimate(e, c);
+          if ((est[0] - ru) ** 2 + (est[1] - rv) ** 2 > 4 * h * h) continue;
+          const wt = 1 / (len + 0.25 * h);
+          su += wt * est[0]; sv += wt * est[1]; sw += wt;
+        }
+        UV[c * 2] = sw ? su / sw : ru; UV[c * 2 + 1] = sw ? sv / sw : rv;
+      }
+      for (const e of this.adj[c]) {
+        if (done[e] === w) continue;
+        this._prep(e);
+        const len = along(c, e);
+        if (len < 0) continue;
+        const nd = d + len;
+        if (nd > reach || (this.seen[e] === w && nd >= dist[e])) continue;
+        this.seen[e] = w; dist[e] = nd; this.par[e] = c;
+        push(nd, e);
+      }
+    }
+    return reached;
+  }
+
+  // A tattoo as a grid of points on the skin (rest pose). tattoo: {at (the point tapped), up (the
+  // image's top points this way, e.g. toward the head), width, height (PLY units), angle
+  // (degrees, turns the image as seen from outside), lift (off the skin)}. Returns positions,
+  // texture coordinates and triangles; points with no skin under them are left out (valid 0).
   wrap(tattoo, nx = 48, ny = 48) {
-    const m = this.maps[tattoo.bone];
-    const up = v3.dot(m.axis, this.upHint || [0, 1, 0]) >= 0 ? 1 : -1;   // image up: toward the head
-    const ca = Math.cos(tattoo.angle * RAD), sa = Math.sin(tattoo.angle * RAD);
-    const count = nx * ny;
-    const pos = new Float32Array(count * 3), uv = new Float32Array(count * 2), rgb = new Float32Array(count * 3);
-    const ok = new Uint8Array(count);
+    const count = nx * ny, h = this.h;
+    const pos = new Float32Array(count * 3), uvs = new Float32Array(count * 2), ok = new Uint8Array(count);
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) { uvs[(j * nx + i) * 2] = i / (nx - 1); uvs[(j * nx + i) * 2 + 1] = j / (ny - 1); }
+    const seed = this.nearest(tattoo.at);
+    const done = (tris) => ({ positions: pos, uvs, index: new Uint32Array(tris), valid: ok, nx, ny });
+    if (seed < 0) return done([]);
+    this._prep(seed);
+    const n = this._n(seed);
+    let up = v3.sub(tattoo.up, v3.scale(n, v3.dot(tattoo.up, n)));
+    if (v3.len(up) < 0.2 * v3.len(tattoo.up)) up = v3.cross(n, Math.abs(n[0]) < 0.9 ? [1, 0, 0] : [0, 0, 1]);
+    up = v3.unit(up);
+    const right = v3.cross(up, n);              // seen from outside, x right of y up
+    const reach = 1.2 * 0.5 * Math.hypot(tattoo.width, tattoo.height) + 3 * h;
+    // carried frames turn on curved, scattered skin (over the buttocks, or from a crease); they
+    // are drawn back toward `up` laid on the skin over about 5 % of the height, so the image stays
+    // upright, at the cost of a little stretch where the body tapers
+    const reached = this._walk(seed, right, up, reach, v3.unit(tattoo.up), 0.05 * this.H);
+    // and what lean is left (mostly from the seed's own frame) goes: the image is turned so that
+    // on average, over its middle, its top points along `up` laid on the skin
+    let tu = 0, tv = 0;
+    const inner = 0.5 * Math.min(tattoo.width, tattoo.height), ua = v3.unit(tattoo.up);
+    for (const c of reached) {
+      if (this.dist[c] > inner) continue;
+      const nc = this._n(c), k = v3.dot(ua, nc), ax = v3.sub(ua, v3.scale(nc, k));
+      if (v3.len(ax) < 0.5) continue;
+      const f = this.frame.subarray(c * 6, c * 6 + 6);
+      tu += ax[0] * f[0] + ax[1] * f[1] + ax[2] * f[2];
+      tv += ax[0] * f[3] + ax[1] * f[4] + ax[2] * f[5];
+    }
+    const lean = tu || tv ? Math.atan2(tu, tv) : 0;
+    // centred on the point tapped, not on its cell's middle
+    const off = v3.sub(tattoo.at, this._s(seed)), cu = v3.dot(off, right), cv = v3.dot(off, up);
+    // the splats of the cells reached, with 2D coordinates from their cell's, sorted into bins
+    // of size h by those coordinates
+    const C = this.centres, Pc = this.surf, UV = this.uv, Nc = this.nrm;
+    // (at most 8 a cell: plenty to find the skin, and a dense capture stays quick)
+    const per = (c) => Math.min(8, this.first[c + 1] - this.first[c]);
+    let total = 0;
+    for (const c of reached) total += per(c);
+    const sp = new Float32Array(total * 3), suv = new Float32Array(total * 2), sn = new Int32Array(total);
+    let e = 0, lo = Infinity, hi = -Infinity;
+    for (const c of reached) {
+      const f = this.frame.subarray(c * 6, c * 6 + 6);
+      for (let m = this.first[c]; m < this.first[c] + per(c); m++, e++) {
+        const i = this.members[m];
+        const x = C[i * 3] - Pc[c * 3], y = C[i * 3 + 1] - Pc[c * 3 + 1], z = C[i * 3 + 2] - Pc[c * 3 + 2];
+        const u = UV[c * 2] + x * f[0] + y * f[1] + z * f[2], v = UV[c * 2 + 1] + x * f[3] + y * f[4] + z * f[5];
+        sp[e * 3] = C[i * 3]; sp[e * 3 + 1] = C[i * 3 + 1]; sp[e * 3 + 2] = C[i * 3 + 2];
+        suv[e * 2] = u; suv[e * 2 + 1] = v; sn[e] = c;
+        lo = Math.min(lo, u, v); hi = Math.max(hi, u, v);
+      }
+    }
+    const nb = Math.max(1, Math.ceil((hi - lo) / h) + 1), b0 = Math.floor(lo / h);
+    const binOf = (u, v) => (Math.floor(u / h) - b0) * nb + Math.floor(v / h) - b0;
+    const start = new Int32Array(nb * nb + 1), order = new Int32Array(total);
+    for (let k = 0; k < total; k++) start[binOf(suv[k * 2], suv[k * 2 + 1]) + 1]++;
+    for (let k = 0; k < nb * nb; k++) start[k + 1] += start[k];
+    const put = start.slice(0, nb * nb);
+    for (let k = 0; k < total; k++) order[put[binOf(suv[k * 2], suv[k * 2 + 1])]++] = k;
+    // each grid point: the splats whose coordinates are close to its own, blended. A point with no
+    // splat near has no skin under it (past the edge of a limb, over the gap between the legs).
+    const ca = Math.cos(tattoo.angle * RAD - lean), sa = Math.sin(tattoo.angle * RAD - lean);
+    const R2 = 4 * h * h, s2 = 2 * h * h, same = 9 * h * h, lift = tattoo.lift || 0;
+    let near = new Int32Array(256), nd2 = new Float32Array(256);
     for (let j = 0; j < ny; j++) {
       for (let i = 0; i < nx; i++) {
         const k = j * nx + i;
-        const u = (i / (nx - 1) - 0.5) * tattoo.width, v = (j / (ny - 1) - 0.5) * tattoo.height;
-        const s = u * ca - v * sa, w = u * sa + v * ca;          // right, up on the skin
-        const t = tattoo.t + up * w;
-        const th = this.thetaForArc(tattoo.bone, t, tattoo.theta, up * s);
-        uv[k * 2] = i / (nx - 1); uv[k * 2 + 1] = j / (ny - 1);
-        if (Number.isNaN(th)) continue;
-        const p = this.point(tattoo.bone, t, th, tattoo.lift || 0);
-        if (!p) continue;
-        pos.set(p, k * 3);
-        rgb.set(this.colour(tattoo.bone, t, th), k * 3);
+        const u0 = (i / (nx - 1) - 0.5) * tattoo.width, v0 = (j / (ny - 1) - 0.5) * tattoo.height;
+        const su = cu + u0 * ca - v0 * sa, sv = cv + u0 * sa + v0 * ca;
+        let m = 0, best = -1, bd = h * h;
+        const bu = Math.floor(su / h) - b0, bv = Math.floor(sv / h) - b0;
+        for (let a = Math.max(0, bu - 2); a <= Math.min(nb - 1, bu + 2); a++) {
+          for (let b = Math.max(0, bv - 2); b <= Math.min(nb - 1, bv + 2); b++) {
+            for (let o = start[a * nb + b]; o < start[a * nb + b + 1]; o++) {
+              const x = order[o], du = suv[x * 2] - su, dv = suv[x * 2 + 1] - sv, d2 = du * du + dv * dv;
+              if (d2 > R2) continue;
+              if (m === near.length) {
+                const n2 = new Int32Array(m * 2), d2s = new Float32Array(m * 2);
+                n2.set(near); d2s.set(nd2); near = n2; nd2 = d2s;
+              }
+              near[m] = x; nd2[m++] = d2;
+              if (d2 <= bd) { bd = d2; best = x; }
+            }
+          }
+        }
+        if (best < 0) continue;
+        // only splats on the same piece of skin as the closest (an image wrapped right around a
+        // limb meets itself; the two edges are different skin)
+        const bx = sp[best * 3], by = sp[best * 3 + 1], bz = sp[best * 3 + 2];
+        let sw = 0, px = 0, py = 0, pz = 0, qx = 0, qy = 0, qz = 0;
+        for (let t = 0; t < m; t++) {
+          const x = near[t];
+          if ((sp[x * 3] - bx) ** 2 + (sp[x * 3 + 1] - by) ** 2 + (sp[x * 3 + 2] - bz) ** 2 > same) { near[t] = -1; continue; }
+          const wt = Math.exp(-nd2[t] / s2), c = sn[x];
+          sw += wt;
+          px += wt * sp[x * 3]; py += wt * sp[x * 3 + 1]; pz += wt * sp[x * 3 + 2];
+          qx += wt * Nc[c * 3]; qy += wt * Nc[c * 3 + 1]; qz += wt * Nc[c * 3 + 2];
+        }
+        px /= sw; py /= sw; pz /= sw;
+        const ql = Math.sqrt(qx * qx + qy * qy + qz * qz) || 1;
+        qx /= ql; qy /= ql; qz /= ql;
+        // on the outside of the skin: splats lie a little above and below it, so go out to where
+        // about three quarters of them are under the point (mean + 0.67 standard deviations)
+        let vr = 0;
+        for (let t = 0; t < m; t++) {
+          const x = near[t];
+          if (x < 0) continue;
+          const o = (sp[x * 3] - px) * qx + (sp[x * 3 + 1] - py) * qy + (sp[x * 3 + 2] - pz) * qz;
+          vr += Math.exp(-nd2[t] / s2) * o * o;
+        }
+        const out = 0.67 * Math.sqrt(vr / sw) + lift;
+        pos[k * 3] = px + qx * out; pos[k * 3 + 1] = py + qy * out; pos[k * 3 + 2] = pz + qz * out;
         ok[k] = 1;
       }
+    }
+    // single missing points inside the image (cells are a little uneven): halfway between the
+    // points either side
+    const fill = [], dx = tattoo.width / (nx - 1), dy = tattoo.height / (ny - 1);
+    for (let j = 0; j < ny; j++) {
+      for (let i = 0; i < nx; i++) {
+        const k = j * nx + i;
+        if (ok[k]) continue;
+        for (const [a, b, apart] of [[i > 0 && i < nx - 1 ? k - 1 : -1, k + 1, 2 * dx], [j > 0 && j < ny - 1 ? k - nx : -1, k + nx, 2 * dy]]) {
+          if (a >= 0 && ok[a] && ok[b] && v3.len(v3.sub(pos.subarray(a * 3, a * 3 + 3), pos.subarray(b * 3, b * 3 + 3))) < 1.5 * apart + h) {
+            fill.push([k, a, b]);
+            break;
+          }
+        }
+      }
+    }
+    for (const [k, a, b] of fill) {
+      for (let x = 0; x < 3; x++) pos[k * 3 + x] = 0.5 * (pos[a * 3 + x] + pos[b * 3 + x]);
+      ok[k] = 1;
     }
     const tris = [];
     for (let j = 0; j < ny - 1; j++) {
@@ -479,6 +822,6 @@ export class SurfaceMap {
         if (ok[a] && ok[b] && ok[c] && ok[d]) tris.push(a, b, d, a, d, c);
       }
     }
-    return { positions: pos, uvs: uv, colours: rgb, index: new Uint32Array(tris), valid: ok, nx, ny };
+    return done(tris);
   }
 }

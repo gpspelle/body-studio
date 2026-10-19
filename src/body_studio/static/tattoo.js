@@ -1,7 +1,7 @@
 // Tattoo & pose: a panel at the left edge (a sheet at the bottom on a phone).
 // The body gets a skeleton once (rig.py, GET /api/rig); its splats are skinned with Spark's dual
 // quaternion skinning. Dots on the joints can be dragged, within each joint's range of motion.
-// A tattoo image is laid on the skin by arc length (pose.js SurfaceMap), skinned with the same
+// A tattoo image is laid on the skin itself (pose.js SkinSurface), skinned with the same
 // weights and blend as the splats, and drawn after them as ink: it darkens the skin under it,
 // and whatever is in front of it hides it. Splats don't write depth (moved splats are sorted
 // late, so their soft edges would punch holes), so the skin's depth comes from a stand-in: a
@@ -9,7 +9,7 @@
 // buffer. Design and sources: docs/tattoo.md.
 import * as THREE from "three";
 import { SplatSkinning } from "@sparkjsdev/spark";
-import { Skeleton, SkinWeights, SurfaceMap, dualQuats, skinPoint, v3 } from "/static/pose.js";
+import { Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, skinPoint, v3 } from "/static/pose.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -111,6 +111,7 @@ function setup(rig, mesh, file) {
     if (opacity >= 0.3) opaque.push(i);
     weights.at(c.x, c.y, c.z, bones, w, i);
   });
+  const surface = new SkinSurface(rig, centres, opaque);
   const skinning = new SplatSkinning({ mesh, numSplats: n, numBones: rig.joints.length });
   const vb = new THREE.Vector4(), vw = new THREE.Vector4();
   for (let i = 0; i < n; i++) {
@@ -140,7 +141,7 @@ function setup(rig, mesh, file) {
   const skin = skinDepth(Uint32Array.from(opaque), centres, radius, bones, w, rig.height, rig.joints.length);
   V.holder.add(lines, handles, skin);
 
-  S = { file, rig, sk, weights, map, mesh, skinning, n, centres, bones, w, opaque: Uint32Array.from(opaque),
+  S = { file, rig, sk, weights, map, surface, mesh, skinning, n, centres, bones, w, opaque: Uint32Array.from(opaque),
         posed: null, posedOk: false, dq: null, skin, handles, handleJoints, lines, pairs, tattoos: [], selected: null,
         joint: null, heightCm: 170, nextId: 1 };
   handles.visible = lines.visible = !$("studio").hidden;
@@ -378,16 +379,23 @@ function hitBody(e) {
            posed: [P[best * 3], P[best * 3 + 1], P[best * 3 + 2]] };
 }
 
-// where on the surface map a point of the body (at rest) is: the region (the trunk, a leg) of
-// the bone that carries it most, so a big tattoo spans the whole region; else that bone's own map
+// a tattoo's place: the point of the body (at rest) it is centred on, and the bone whose axis its
+// top follows (the trunk's or a leg's when the bone is part of one, so it doesn't tilt from one
+// vertebra to the next)
 function anchorAt(rest) {
   const b = new Uint8Array(4), w = new Uint8Array(4);
   S.weights.at(rest[0], rest[1], rest[2], b, w);
   let bone = S.sk.names[b[0]];
   const region = (S.rig.regions || {})[bone];
   if (region && S.map.maps[region]) bone = region;
-  if (!S.map.maps[bone]) bone = Object.keys(S.map.maps).find((k) => S.map.maps[k]) ;
-  return { bone, ...S.map.locate(bone, rest) };
+  if (!S.map.maps[bone]) bone = Object.keys(S.map.maps).find((k) => S.map.maps[k]);
+  return { bone, at: [rest[0], rest[1], rest[2]] };
+}
+
+// the way the image's top points: along the bone, toward the head
+function upOf(bone) {
+  const m = S.map.maps[bone];
+  return v3.scale(m.axis, v3.dot(m.axis, S.rig.frame.up) >= 0 ? 1 : -1);
 }
 
 function onDown(e) {
@@ -436,9 +444,19 @@ function onMove(e) {
   } else {
     const hit = hitBody(e);
     if (!hit) return;
-    Object.assign(drag.tattoo, anchorAt(hit.rest));
-    wrapTattoo(drag.tattoo);
-    save();
+    // laid again once a frame at most, wherever the pointer is by then
+    const first = !drag.to;
+    drag.to = hit.rest;
+    if (first) {
+      const d = drag;
+      requestAnimationFrame(() => {
+        if (!S || !S.tattoos.includes(d.tattoo)) return;
+        Object.assign(d.tattoo, anchorAt(d.to));
+        d.to = null;
+        wrapTattoo(d.tattoo);
+        save();
+      });
+    }
   }
 }
 
@@ -531,7 +549,7 @@ function addTattoo(canvas, anchor, opts = {}) {
   const geo = new THREE.BufferGeometry();
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = 5; mesh.frustumCulled = false;
-  const outline = new THREE.LineLoop(new THREE.BufferGeometry(),
+  const outline = new THREE.LineSegments(new THREE.BufferGeometry(),
     new THREE.LineBasicMaterial({ color: 0x2f5bd3, transparent: true, opacity: 0.7, depthTest: false }));
   outline.renderOrder = 18; outline.frustumCulled = false; outline.visible = false;
   V.holder.add(mesh, outline);
@@ -550,8 +568,8 @@ function wrapTattoo(tt) {
   const width = tt.widthCm * unitsPerCm();
   const aspect = tt.canvas.height / tt.canvas.width;
   const ny = Math.max(8, Math.min(96, Math.round(NX * aspect)));
-  const g = S.map.wrap({ bone: tt.bone, t: tt.t, theta: tt.theta, width, height: width * aspect, angle: tt.angle,
-                         lift: 0.001 * S.rig.height }, NX, ny);
+  const g = S.surface.wrap({ at: tt.at, up: upOf(tt.bone), width, height: width * aspect, angle: tt.angle,
+                             lift: 0.001 * S.rig.height }, NX, ny);
   const count = NX * ny;
   tt.grid = g;
   tt.restPos = g.positions;
@@ -563,13 +581,14 @@ function wrapTattoo(tt) {
   geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
   geo.setAttribute("uv", new THREE.BufferAttribute(g.uvs, 2));
   geo.setIndex(new THREE.BufferAttribute(g.index, 1));
-  // the outline: the border of the grid, where it is on the body
+  // the outline: the border of the grid, where it is on the body (no line across a gap)
   const ring = [];
   for (let i = 0; i < NX; i++) ring.push(i);
   for (let j = 1; j < ny; j++) ring.push(j * NX + NX - 1);
   for (let i = NX - 2; i >= 0; i--) ring.push((ny - 1) * NX + i);
-  for (let j = ny - 2; j > 0; j--) ring.push(j * NX);
-  tt.ring = ring.filter((k) => g.valid[k]);
+  for (let j = ny - 2; j >= 0; j--) ring.push(j * NX);
+  tt.ring = [];
+  for (let i = 0; i + 1 < ring.length; i++) if (g.valid[ring[i]] && g.valid[ring[i + 1]]) tt.ring.push(ring[i], ring[i + 1]);
   tt.outline.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(tt.ring.length * 3), 3));
   skinTattoo(tt);
 }
@@ -592,9 +611,7 @@ function skinTattoo(tt) {
 function tattooAt(rest) {
   let best = null, bd = Infinity;
   for (const tt of S.tattoos) {
-    const c = S.map.point(tt.bone, tt.t, tt.theta);
-    if (!c) continue;
-    const d = v3.len(v3.sub(c, rest));
+    const d = v3.len(v3.sub(tt.at, rest));
     const reach = 0.6 * tt.widthCm * unitsPerCm() * Math.max(1, tt.canvas.height / tt.canvas.width);
     if (d < reach && d < bd) { bd = d; best = tt; }
   }
@@ -681,8 +698,8 @@ function save() {
   if (!S) return;
   const file = S.file;
   const record = { heightCm: S.heightCm, pose: S.sk.pose(),
-                   tattoos: S.tattoos.map((tt) => ({ image: tt.canvas.toDataURL("image/png"), bone: tt.bone, t: tt.t,
-                                                     theta: tt.theta, widthCm: tt.widthCm, angle: tt.angle, ink: tt.ink })) };
+                   tattoos: S.tattoos.map((tt) => ({ image: tt.canvas.toDataURL("image/png"), bone: tt.bone, at: tt.at,
+                                                     widthCm: tt.widthCm, angle: tt.angle, ink: tt.ink })) };
   clearTimeout(saveTimer);
   window.tattooStudio.saving = true;
   saveTimer = setTimeout(async () => {
@@ -709,7 +726,10 @@ async function restore() {
     S.heightCm = rec.heightCm || S.heightCm;
     for (const d of rec.tattoos || []) {
       if (!S.map.maps[d.bone]) continue;
-      try { addTattoo(await inkImage(d.image), { bone: d.bone, t: d.t, theta: d.theta }, d); } catch {}
+      // saved before tattoos were laid on the skin itself: a place on the bone's surface map
+      const at = d.at || (d.t !== undefined && S.map.point(d.bone, d.t, d.theta));
+      if (!at) continue;
+      try { addTattoo(await inkImage(d.image), { bone: d.bone, at }, d); } catch {}
     }
     S.sk.setPose(rec.pose || {});
   } else {

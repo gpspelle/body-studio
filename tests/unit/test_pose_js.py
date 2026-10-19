@@ -1,5 +1,5 @@
-"""Runs tests/js/pose.test.mjs (the posing and tattoo maths the page uses) with Node against a
-rig built from the MakeHuman body. Skipped when Node isn't installed."""
+"""Runs tests/js/pose.test.mjs (the posing and tattoo maths the page uses) with Node against the
+MakeHuman body and the rig built from it. Skipped when Node isn't installed."""
 import os
 import re
 import shutil
@@ -23,7 +23,7 @@ class PoseJs(unittest.TestCase):
             write_body(ply, n=80000)
             rig.build_and_save(ply)
             r = subprocess.run([NODE, "--test", str(ROOT / "tests" / "js" / "pose.test.mjs")],
-                               env={**os.environ, "RIG_JSON": str(rig.rig_file(ply))},
+                               env={**os.environ, "RIG_JSON": str(rig.rig_file(ply)), "BODY_PLY": str(ply)},
                                capture_output=True, text=True, timeout=600)
             self.assertEqual(r.returncode, 0, r.stdout[-4000:] + r.stderr[-2000:])
             self.assertRegex(r.stdout, r"\bfail 0\b")          # "# fail 0" (TAP) or "ℹ fail 0" (spec reporter)
