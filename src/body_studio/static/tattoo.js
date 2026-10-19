@@ -148,6 +148,8 @@ function setup(rig, mesh, file) {
   presetsUI();
   applyPose();
   window.tattooStudio.ready = true;
+  // the Clothes section (wardrobe.js) dresses this body with the same weights and pose
+  dispatchEvent(new CustomEvent("studioready", { detail: { file, rig, weights, mesh, centres, transforms: sk.transforms() } }));
 }
 
 function teardown() {
@@ -158,6 +160,7 @@ function teardown() {
   if (S.mesh && S.mesh.skinning === S.skinning) { S.mesh.skinning = null; S.mesh.updateGenerator(); }
   S = null; pending = null; drag = null;
   window.tattooStudio.ready = false;
+  dispatchEvent(new Event("studiogone"));
 }
 
 addEventListener("bodyshown", () => {
@@ -249,6 +252,7 @@ function applyPose() {
   const qv = new THREE.Quaternion(), tv = new THREE.Vector3();
   tr.forEach(({ q, t: tt }, b) => skinning.setBoneQuatPos(b, qv.set(q[0], q[1], q[2], q[3]), tv.set(tt[0], tt[1], tt[2])));
   skinning.updateBones();
+  dispatchEvent(new CustomEvent("posed", { detail: tr }));
   S.dq = dualQuats(tr);
   S.posedOk = false;
   S.skin.material.uniforms.dq.value.forEach((v, k) => v.fromArray(S.dq, k * 4));
@@ -462,6 +466,7 @@ function onMove(e) {
 
 function onUp() {
   if (!drag) return;
+  if (drag.kind === "tattoo") underClothes();
   drag = null;
   V.controls.enabled = true;
 }
@@ -471,6 +476,13 @@ addEventListener("pointerup", onUp, { capture: true });
 addEventListener("pointercancel", onUp, { capture: true });
 
 // ---------------------------------------------------------------- tattoos
+// ink on skin that clothes cover isn't drawn (the clothes are splats, which don't hide it)
+function underClothes() {
+  if (!S) return;
+  for (const tt of S.tattoos) tt.mesh.visible = !window.wardrobe?.covers(tt.at);
+}
+addEventListener("wearchange", underClothes);
+
 const unitsPerCm = () => S.rig.height / S.heightCm;
 
 // An image as ink: pictures drawn on white (most tattoo designs) turn their white transparent,
@@ -558,6 +570,7 @@ function addTattoo(canvas, anchor, opts = {}) {
   S.tattoos.push(tt);
   S.skin.visible = true;
   wrapTattoo(tt);
+  underClothes();
   tattooList();
   save();
   return tt;

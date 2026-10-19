@@ -40,3 +40,10 @@
 - OpenCV (drops blurry frames) is installed with the app by `pip install`, so nothing needs
   installing afterwards, also inside a virtualenv.
 - English and Portuguese. Version, source code and license links at the bottom.
+- Clothes (experimental): the Tattoo panel is now **Try on**, with a Clothes section on top. Pick
+  one of 12 outfits (Women's, Men's, Unisex), 6 pairs of shoes, 10 hairstyles and a hat; each is
+  fitted to the person's shape, moves with the pose and hides the skin under it, and tattoos under
+  clothes are hidden. MakeHuman's base mesh is fitted to the body once and saved as
+  `<body>.fit.json`; `body-studio fit` does the same in the terminal. All items are MakeHuman's
+  own CC0 assets, listed in `CREDITS.md` (linked from the page's footer). The filming guide now
+  asks for long hair tied back. See `docs/wardrobe.md`.

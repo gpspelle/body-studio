@@ -206,6 +206,45 @@ class Viewer(unittest.TestCase):
         page.close()
 
 
+    def test_clothes_go_on_and_come_off(self):
+        page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+        page.goto(self.url)
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+        page.click("#studioBtn")
+        page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=240000)
+        page.get_by_role("button", name="Men's", exact=True).click()
+        self.assertEqual(page.locator("#wearSlots [data-item=tee_shorts]").count(), 0)     # a women's outfit
+        self.assertEqual(page.locator("#wearSlots [data-item=suit]").count(), 1)
+        page.get_by_role("button", name="All", exact=True).click()
+        page.click("#wearSlots [data-item=tee_jeans]")
+        page.wait_for_function("wardrobe.worn().includes('tee_jeans')", timeout=60000)
+        self.assertGreater(page.evaluate("wardrobe.splats('tee_jeans')"), 5000)
+        under = page.evaluate("wardrobe.hidden()")
+        self.assertGreater(under, 5000)                  # the skin under it is hidden
+        self.assertEqual(page.get_attribute("#wearSlots [data-item=tee_jeans]", "aria-pressed"), "true")
+        page.click("#wearSlots [data-item=white_sneakers]")
+        page.wait_for_function("wardrobe.worn().length === 2", timeout=60000)
+        self.assertGreater(page.evaluate("wardrobe.hidden()"), under)
+        page.click("#wearSlots [data-item=suit]")        # one outfit at a time
+        page.wait_for_function("wardrobe.worn().join() === 'suit,white_sneakers'", timeout=60000)
+        page.click("#wearSlots [data-item=suit]")        # tapped again: taken off
+        page.wait_for_function("wardrobe.worn().join() === 'white_sneakers'")
+        page.evaluate("tattooStudio.preset('walk')")    # moves with the body, no errors
+        page.reload()                                   # remembered for this body
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia')")
+        page.click("#studioBtn")
+        page.wait_for_function("wardrobe.ready && wardrobe.worn().join() === 'white_sneakers'", timeout=120000)
+        self.assertEqual(errors, [])
+        page.close()
+
+
 def dist(a, b):
     return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
 

@@ -13,6 +13,11 @@
   maths in `static/pose.js` (tested by `tests/js/pose.test.mjs` through `tests/unit/test_pose_js.py`),
   the panel in `static/tattoo.js`. Splats are moved by Spark's `SplatSkinning`; don't fit a body
   model with a non-commercial licence (SMPL and its family). See `docs/tattoo.md`.
+  Clothes: MakeHuman's base mesh fitted to the body in `fit.py` (once per body, `<body>.fit.json`),
+  the catalogue and each item's fit in `wardrobe.py` (data packed by `scripts/wardrobe_pack.py` into
+  `wardrobe/` and `static/wardrobe/`), items as splats in `static/dress.js` (tested by
+  `tests/js/dress.test.mjs`), the Clothes section in `static/wardrobe.js`. Only CC0 or CC-BY items,
+  each listed in `CREDITS.md`. See `docs/wardrobe.md`.
 - Runs go through splat-studio's job runner (`splat_studio.server.jobs.Runner`): pty, measured
   time left, lock files, timeline.jsonl, advice in seconds of video. Don't write a second runner.
 - three.js and Spark are served from the installed splat-studio package (`/vendor/...`), so

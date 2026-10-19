@@ -64,6 +64,11 @@ import path. Why not a shared library extracted from both: splat-studio already 
    check the skeleton on real captures (hair, loose clothes, arms close to the body), export a
    posed body or a picture, and, if a body model is wanted for better bending, fit Anny or MHR
    (both Apache-2.0) as an optional step.
+9. **Wardrobe: started.** MakeHuman's base mesh fitted to the scan, 29 CC0 items (outfits, shoes,
+   hair, a hat) drawn as splats, skinned with the body and hiding the skin under them
+   (`docs/wardrobe.md`). Next: CC-BY packs from the MakeHuman community with credits, layering
+   (a jacket over a tee), hair that hides captured hair, then generated garments (GarmentCode,
+   TRELLIS.2). Roadmap: `roadmap-wardrobe.md` in the project files.
 
 ## Open questions
 

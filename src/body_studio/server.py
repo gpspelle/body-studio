@@ -9,6 +9,9 @@
     GET  /files/<path>     a body's .ply (only files inside workspace/)
     GET  /api/rig?body=<file>  the body's skeleton, skin weights and surface map (rig.py); 202 while
                            it is being worked out in the background, 422 if the body isn't a person
+    GET  /api/fit?body=<file>  MakeHuman's base mesh fitted to the body (fit.py); 202 and 422 the same
+    GET  /api/wardrobe         the clothes, shoes, hair and hats (wardrobe.py)
+    GET  /api/wardrobe/<id>?body=<file>  one item fitted to the body; 202 while the body is fitted
 
     GET  /api/people                    people whose progress is followed
     GET  /api/people/<id>               one person's tape measures, body fat and scans over time
@@ -35,7 +38,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from splat_studio.server.jobs import Runner, validate_options
 from splat_studio.server.library import DataDir
 
-from . import __version__, history, library, rig
+from . import __version__, fit, history, library, rig, wardrobe
 from .pipeline import job_options
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -44,21 +47,23 @@ MAX_UPLOAD = 8 * 1024 ** 3
 MAX_JSON = 64 * 1024
 
 
-class Rigs:
-    """Skeletons worked out one at a time in the background, saved next to each body."""
+class Builder:
+    """Files worked out one at a time per body in the background and saved next to it: the
+    skeleton (rig.py) and the fitted base mesh (fit.py)."""
 
-    def __init__(self):
+    def __init__(self, module, file, errors):
+        self.module, self.file, self.errors = module, file, errors   # module: build_and_save, current
         self.lock = threading.Lock()
         self.failed: dict = {}                  # body path -> (its mtime, why)
-        self.built: dict = {}                   # body path -> its mtime when its rig was saved
+        self.built: dict = {}                   # body path -> its mtime when its file was saved
         self.busy: set = set()
 
     def get(self, ply: Path):
-        """('ready', path to rig.json) | ('working', None) | ('failed', reason)."""
+        """('ready', path to the file) | ('working', None) | ('failed', (reason, code))."""
         key, stamp = str(ply), ply.stat().st_mtime
-        # (a body dated in the future is never older than its rig: remember what was built)
-        if rig.current(ply) or (self.built.get(key) == stamp and rig.rig_file(ply).is_file()):
-            return "ready", rig.rig_file(ply)
+        # (a body dated in the future is never older than its file: remember what was built)
+        if self.module.current(ply) or (self.built.get(key) == stamp and self.file(ply).is_file()):
+            return "ready", self.file(ply)
         with self.lock:
             if key in self.failed and self.failed[key][0] == stamp:
                 return "failed", self.failed[key][1]
@@ -69,12 +74,12 @@ class Rigs:
 
     def _build(self, ply: Path, stamp: float) -> None:
         try:
-            rig.build_and_save(ply)
+            self.module.build_and_save(ply)
             with self.lock:
                 self.built[str(ply)] = stamp
         except Exception as e:                   # noqa: BLE001 - any failure is reported to the page
             with self.lock:
-                self.failed[str(ply)] = (stamp, (str(e), e.code) if isinstance(e, rig.RigError)
+                self.failed[str(ply)] = (stamp, (str(e), e.code) if isinstance(e, self.errors)
                                          else (f"{type(e).__name__}: {e}", "shape"))
         finally:
             with self.lock:
@@ -119,7 +124,9 @@ def job_view(v: dict) -> dict:
 
 
 def make_handler(data: DataDir, runner: Runner):
-    rigs = Rigs()
+    rigs = Builder(rig, rig.rig_file, rig.RigError)
+    fits = Builder(fit, fit.fit_file, (rig.RigError, fit.FitError))
+    fitted = {}                                # (fit file, its mtime) -> decoded fit, the latest only
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -173,22 +180,42 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._json({"version": __version__})
             if p.startswith("/files/"):
                 return self._file(library.safe_path(data.root, p[len("/files/"):]))
-            if p == "/api/rig":
-                ply = library.safe_path(data.root, parse_qs(urlparse(self.path).query).get("body", [""])[0])
-                if not ply or ply.suffix != ".ply":
-                    return self._json({"error": "no such body", "code": "no_body"}, 404)
-                state, out = rigs.get(ply)
-                if state == "ready":
-                    return self._file(out)
-                if state == "working":
-                    return self._json({"status": "working"}, 202)
-                return self._json({"error": out[0], "code": out[1]}, 422)
+            if p in ("/api/rig", "/api/fit"):
+                state, out = self._built(rigs if p == "/api/rig" else fits)
+                return self._file(out) if state == "ready" else None
+            if p == "/api/wardrobe":
+                return self._json(wardrobe.catalog())
+            m = re.fullmatch(r"/api/wardrobe/([a-z0-9_]+)", p)
+            if m:
+                if m.group(1) not in wardrobe.BY_ID:
+                    return self._json({"error": "no such item", "code": "no_item"}, 404)
+                state, out = self._built(fits)
+                if state != "ready":
+                    return None
+                key = (str(out), out.stat().st_mtime)
+                if key not in fitted:
+                    fitted.clear()
+                    fitted[key] = fit.decode(json.loads(out.read_text()))
+                return self._json(wardrobe.fitted(m.group(1), fitted[key]))
             if p == "/api/people":
                 return self._json(history.people(data.root))
             m = re.fullmatch(r"/api/people/([^/]+)", p)
             if m:
                 return self._history(lambda: history.progress(history.load(data.root, m.group(1))))
             self.send_error(404)
+
+        def _built(self, builder):
+            """The body's rig or fit: ('ready', path), or the reply (202 working, 404, 422) already sent."""
+            ply = library.safe_path(data.root, parse_qs(urlparse(self.path).query).get("body", [""])[0])
+            if not ply or ply.suffix != ".ply":
+                self._json({"error": "no such body", "code": "no_body"}, 404)
+                return "sent", None
+            state, out = builder.get(ply)
+            if state == "working":
+                self._json({"status": "working"}, 202)
+            elif state == "failed":
+                self._json({"error": out[0], "code": out[1]}, 422)
+            return state, out
 
         def _history(self, fn, code: int = 200):
             try:

@@ -33,6 +33,7 @@ SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("progress-phone", 390, 844, "dark", "pt", "progress"),
     ("tattoo-desktop", 1280, 800, "light", "en", "tattoo"),
     ("tattoo-phone", 390, 844, "dark", "pt", "tattoo"),
+    ("wardrobe-desktop", 1280, 800, "light", "en", "wardrobe"),
 ]
 # a line-art design drawn on white, like a scanned tattoo sketch: a sun with a wave inside
 DESIGN = """(() => {
@@ -107,6 +108,8 @@ def main() -> None:
                     page.wait_for_selector("#profileChart polyline.before", state="attached")
                 if panel == "tattoo":
                     tattoo_scene(page, Path(tmp))
+                if panel == "wardrobe":
+                    wardrobe_scene(page)
                 page.wait_for_function("document.getElementById('version').textContent.length > 0")
                 page.wait_for_timeout(1500)
                 page.screenshot(path=str(out / f"{name}.png"))
@@ -147,6 +150,28 @@ def tattoo_scene(page, tmp: Path) -> None:
           V.camera.position.lerp(V.controls.target, 0.45);
           V.controls.update();
         })()""")
+
+def wardrobe_scene(page) -> None:
+    """Mia walking in a T-shirt, jeans, sneakers and a ponytail."""
+    page.locator(".shelf button", has_text="Mia").click()
+    page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+    page.click("#studioBtn")
+    page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
+    page.evaluate("bodyApp.viewer.controls.autoRotate = false")
+    for item in ("tee_jeans_f", "white_sneakers", "ponytail"):
+        page.click(f"#wearSlots [data-item={item}]")
+        page.wait_for_function(f"wardrobe.worn().includes('{item}')", timeout=120000)
+    page.locator("#presets button").nth(3).click()                 # walking
+    page.evaluate("""(() => {                                       // a little from the side
+      const V = bodyApp.viewer, t = V.controls.target, p = V.camera.position, d = p.distanceTo(t);
+      p.set(t.x + d * Math.sin(0.5), p.y, t.z + d * Math.cos(0.5)); V.controls.update();
+    })()""")
+    # in software rendering a sort of this many splats takes a while: wait until the clothes are
+    # on screen, then for one more sort from the new angle
+    page.wait_for_function("""(() => { const s = bodyApp.viewer.spark;
+      return s.display === s.current && s.display.numSplats > bodyViewer.numSplats() + 1000; })()""", timeout=300000)
+    page.wait_for_timeout(30000)
+
 
 if __name__ == "__main__":
     main()

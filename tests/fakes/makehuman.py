@@ -120,6 +120,29 @@ def _raise_arms(V, J, degrees):
             v[0], v[1] = sh[0] + c * dx - s * dy, sh[1] + s * dx + c * dy
 
 
+def _placement(V, height, yaw):
+    """Where write_body puts a MakeHuman point in the PLY, and the scale (PLY units per decimetre)."""
+    ys = [v[1] for v in V]
+    lo, hi = min(ys), max(ys)
+    k = height / (hi - lo)
+    cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+
+    def xf(p):          # metres, feet at 0, turned, then y-down like COLMAP with an offset
+        x, y, z = p[0] * k, (p[1] - lo) * k, p[2] * k
+        x, z = cy * x + sy * z, -sy * x + cy * z
+        return (x + 0.3, -y + 0.1, z - 0.2)
+    return xf, k
+
+
+def surface(shape: str | None = None, arms: float = 0.0, height: float = 1.75, yaw: float = 0.0) -> list:
+    """The skin vertices (in the base mesh's order) where write_body puts them in the PLY."""
+    V, _, J = load(shape)
+    if arms:
+        _raise_arms(V, J, arms)
+    xf, _ = _placement(V, height, yaw)
+    return [xf(v) for v in V]
+
+
 def write_body(path: Path, n: int = 120000, seed: int = 1, yaw: float = 0.0, shape: str | None = None,
                arms: float = 0.0, height: float = 1.75) -> dict:
     """Write the body as a splat PLY (Brush's layout: y-down, 'Vertical axis' comment) turned by
@@ -131,15 +154,7 @@ def write_body(path: Path, n: int = 120000, seed: int = 1, yaw: float = 0.0, sha
     if arms:
         _raise_arms(V, J, arms)
     tris = [t for f in Q for t in ((f[0], f[1], f[2]), (f[0], f[2], f[3])) if len(set(t)) == 3]
-    ys = [v[1] for v in V]
-    lo, hi = min(ys), max(ys)
-    k = height / (hi - lo)
-    cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
-
-    def xf(p):          # metres, feet at 0, turned, then y-down like COLMAP with an offset
-        x, y, z = p[0] * k, (p[1] - lo) * k, p[2] * k
-        x, z = cy * x + sy * z, -sy * x + cy * z
-        return (x + 0.3, -y + 0.1, z - 0.2)
+    xf, k = _placement(V, height, yaw)
 
     def area_normal(t):
         a, b, c = (V[i] for i in t)

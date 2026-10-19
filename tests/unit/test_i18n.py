@@ -44,6 +44,16 @@ class I18n(unittest.TestCase):
         self.assertGreaterEqual(len(codes), 4)
         self.assertLessEqual({"rig.err." + c for c in codes}, en)
 
+    def test_wardrobe_names_are_translated(self):
+        from body_studio import wardrobe
+        en, pt = table("en"), table("pt")
+        keys = {"wear.item." + i["id"] for i in wardrobe.CATALOG} | {"wear.slot." + s for s in wardrobe.SLOTS}
+        keys |= {"wear.cut." + i["cut"] for i in wardrobe.CATALOG} | {"wear.cut.all"}
+        self.assertLessEqual(keys, en)
+        self.assertLessEqual(keys, pt)
+        fit = (STATIC.parent / "fit.py").read_text()      # fit errors reuse the rig's advice
+        self.assertLessEqual({"rig.err." + c for c in re.findall(r'FitError\(.*, "(\w+)"\)', fit)}, en)
+
     def test_every_upload_error_is_translated(self):
         codes = set(re.findall(r'"code": "(\w+)"', (STATIC.parent / "server.py").read_text()))
         self.assertTrue(codes)

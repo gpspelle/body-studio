@@ -183,5 +183,34 @@ class Server(unittest.TestCase):
         self.assertEqual(d["code"], "few")
 
 
+    def test_clothes_are_fitted_to_the_body(self):
+        from tests.fakes.makehuman import write_body as write_person
+        ply = self.d / "data" / "workspace" / "Ana" / "run_20261012_120000" / "splat" / "standard_30000_object.ply"
+        write_person(ply, n=60000)
+        status, cat = self.post("/api/wardrobe", None, method="GET")
+        self.assertEqual(status, 200)
+        self.assertEqual({c["slot"] for c in cat}, {"outfit", "shoes", "hair", "hat"})
+        body = "?body=workspace/Ana/run_20261012_120000/splat/standard_30000_object.ply"
+        self.assertEqual(self.post("/api/wardrobe/no_such_thing" + body, None, method="GET"),
+                         (404, {"error": "no such item", "code": "no_item"}))
+        self.assertEqual(self.post("/api/wardrobe/tee_jeans?body=workspace/Nobody/x.ply", None, method="GET")[1]["code"],
+                         "no_body")
+        statuses = []
+        deadline = time.time() + 240
+        while time.time() < deadline:
+            status, d = self.post("/api/wardrobe/tee_jeans" + body, None, method="GET")
+            statuses.append(status)
+            if status != 202:
+                break
+            time.sleep(0.2)
+        self.assertEqual((statuses[0], statuses[-1]), (202, 200))
+        self.assertEqual((d["id"], d["slot"], d["texture"]), ("tee_jeans", "outfit", "tee_jeans.jpg"))
+        self.assertTrue(d["verts"] and d["tris"] and d["delete"])
+        self.assertTrue(ply.with_name("standard_30000_object.fit.json").is_file())
+        status, f = self.post("/api/fit" + body, None, method="GET")
+        self.assertEqual(status, 200)
+        self.assertGreater(f["surface_found"], 0.8)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -41,7 +41,8 @@
   <footer class="foot">
     <span id="version"></span> ·
     <a href="https://github.com/gpspelle/body-studio" target="_blank" rel="noopener" data-i18n="foot.source"></a> ·
-    <a href="https://github.com/gpspelle/body-studio/blob/main/LICENSE" target="_blank" rel="noopener" data-i18n="foot.license"></a>
+    <a href="https://github.com/gpspelle/body-studio/blob/main/LICENSE" target="_blank" rel="noopener" data-i18n="foot.license"></a> ·
+    <a href="https://github.com/gpspelle/body-studio/blob/main/CREDITS.md" target="_blank" rel="noopener" data-i18n="foot.credits"></a>
   </footer>
 </div>
 <aside id="progress" class="panel" data-i18n-aria-label="prog.open" hidden>
@@ -102,6 +103,12 @@
   </div>
   <p id="studioStatus" class="small" role="status"></p>
   <div id="studioBody" hidden>
+    <section id="wear">
+      <h2 data-i18n="wear.title"></h2>
+      <p id="wearStatus" class="small" role="status"></p>
+      <div class="chips" id="wearCut"></div>
+      <div id="wearSlots"></div>
+    </section>
     <section>
       <h2 data-i18n="tat.title"></h2>
       <div class="chips" id="tatList"></div>
@@ -157,7 +164,8 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.01, 1000);
-scene.add(new SparkRenderer({ renderer }));
+const spark = new SparkRenderer({ renderer });
+scene.add(spark);
 const holder = new THREE.Group();            // orientation lives here; the splat stays untouched
 scene.add(holder);
 const controls = new OrbitControls(camera, canvas);
@@ -356,12 +364,13 @@ window.bodyApp = {
   show: (id) => { const b = bodyList.find((x) => x.id === id); if (b) show(b); },
   reframe: () => { if (fit) frame(); },
   // for the tattoo and pose panel (tattoo.js)
-  viewer: { scene, holder, camera, controls, renderer, canvas, mesh: () => mesh, file: () => current },
+  viewer: { scene, spark, holder, camera, controls, renderer, canvas, mesh: () => mesh, file: () => current },
 };
 refreshBodies(); refreshJobs();
 setInterval(refreshJobs, 2000);
 </script>
 <script type="module" src="/static/progress.js"></script>
+<script type="module" src="/static/wardrobe.js"></script>
 <script type="module" src="/static/tattoo.js"></script>
 </body>
 </html>

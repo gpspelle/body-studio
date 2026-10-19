@@ -48,6 +48,8 @@ body-studio              # opens http://localhost:8770
 - Walk around them **three times**: at knee height, at chest height, and holding the phone above their head.
   1½–3 minutes in total, one continuous take, on the 1× lens.
 - **Soft, even light** and a background with some texture (not a plain white wall). Lock focus and exposure.
+- **Long hair tied back** (a bun or a ponytail), so the head and neck keep their shape. Hair tried on in the
+  app is drawn over the head, and it can't hide hair that was filmed loose over the shoulders.
 
 ## Command line
 
@@ -108,12 +110,21 @@ body-studio progress Anna
 Each person is one file, `people/<name>.json` in the data folder. How the design was chosen:
 [docs/progress.md](docs/progress.md).
 
-## Tattoo & pose
+## Clothes, tattoo & pose
 
-Click **Tattoo** to try a tattoo on the body and move the body to see how it sits. The
+Click **Try on** to dress the body, try a tattoo on it and move it to see how it all sits. The
 panel sits at the left edge (at the bottom on a phone).
 
-![Tattoo & pose panel](docs/images/tattoo-desktop.png)
+![Trying on clothes](docs/images/wardrobe-desktop.png)
+
+![Clothes, tattoo & pose panel](docs/images/tattoo-desktop.png)
+
+- **Clothes**: pick an outfit, shoes, hair and a hat. There are 12 outfits (filter by Women's,
+  Men's or Unisex), 6 pairs of shoes, 10 hairstyles and a fedora. Each is fitted to this person's
+  shape, moves with the pose, and hides the skin under it. Tap it again to take it off. What is
+  worn is kept in this browser, per body. The first time, the app fits a model body to the scan
+  (a few seconds).
+  All of them are MakeHuman's own assets, free to use (CC0): see [CREDITS.md](CREDITS.md).
 
 - **Add an image** (PNG, JPG, WebP, SVG), then tap the body where it goes. Drag it to move it;
   set its width in centimetres, its turn and how strong the ink is. Designs drawn on white have
@@ -131,6 +142,10 @@ panel sits at the left edge (at the bottom on a phone).
 `body-studio rig BODY.ply` does the skeleton step in the terminal and prints the joint heights.
 It saves `BODY.rig.json` next to the body. How it works, the body models that were considered
 and their licences, and the limits: [docs/tattoo.md](docs/tattoo.md).
+
+`body-studio fit BODY.ply` does the clothes fitting step in the terminal and saves `BODY.fit.json`
+next to the body. How the clothes are fitted and drawn, where they come from, and the limits:
+[docs/wardrobe.md](docs/wardrobe.md).
 
 ## Development
 
@@ -180,6 +195,8 @@ body-studio              # abre http://localhost:8770
 - Dê **três voltas** ao redor dela: na altura do joelho, na altura do peito e com o celular acima da cabeça.
   De 1½ a 3 minutos no total, em uma única tomada, na lente 1×.
 - **Luz suave e uniforme** e um fundo com alguma textura (não uma parede branca lisa). Trave o foco e a exposição.
+- **Cabelo comprido preso** (coque ou rabo de cavalo), para a cabeça e o pescoço manterem a forma. O cabelo
+  que você prova no app é desenhado sobre a cabeça e não esconde um cabelo filmado solto sobre os ombros.
 
 ### Linha de comando
 
@@ -211,12 +228,19 @@ no celular).
 No terminal: `body-studio person`, `tape`, `scan` e `progress` (exemplos acima, em inglês). Cada
 pessoa é um arquivo, `people/<nome>.json` na pasta de dados.
 
-### Tatuagem e pose
+### Roupas, tatuagem e pose
 
-Clique em **Tatuagem** para testar uma tatuagem no corpo e mexer o corpo para ver como
-ela fica. O painel fica na borda esquerda (embaixo, no celular).
+Clique em **Provar** para vestir o corpo, testar uma tatuagem e mexer o corpo para ver como tudo
+fica. O painel fica na borda esquerda (embaixo, no celular).
 
-<img src="docs/images/tattoo-phone.png" width="220" alt="Painel de tatuagem e pose no celular">
+<img src="docs/images/tattoo-phone.png" width="220" alt="Painel de roupas, tatuagem e pose no celular">
+
+- **Roupas**: escolha um look, sapatos, cabelo e um chapéu. São 12 looks (filtre por Femininas,
+  Masculinas ou Unissex), 6 pares de sapatos, 10 cortes de cabelo e um chapéu fedora. Cada peça se
+  ajusta ao corpo da pessoa, acompanha a pose e esconde a pele embaixo dela. Toque de novo para
+  tirar. O que está vestido fica guardado neste navegador, para cada corpo. Na primeira vez, o app
+  ajusta um corpo modelo ao escaneado (alguns segundos). Todas são peças do próprio MakeHuman, de
+  uso livre (CC0): veja [CREDITS.md](CREDITS.md).
 
 - **Adicione uma imagem** (PNG, JPG, WebP, SVG) e toque no corpo onde ela vai. Arraste para mudar
   de lugar; ajuste a largura em centímetros, o giro e a força da tinta. Desenhos sobre fundo branco
@@ -234,6 +258,10 @@ ela fica. O painel fica na borda esquerda (embaixo, no celular).
 `body-studio rig CORPO.ply` faz o esqueleto no terminal e salva `CORPO.rig.json` ao lado do corpo.
 Como funciona, os modelos de corpo considerados e suas licenças, e os limites (em inglês):
 [docs/tattoo.md](docs/tattoo.md).
+
+`body-studio fit CORPO.ply` faz o ajuste das roupas no terminal e salva `CORPO.fit.json` ao lado do
+corpo. Como as roupas são ajustadas e desenhadas, de onde vêm e os limites (em inglês):
+[docs/wardrobe.md](docs/wardrobe.md).
 
 ### Medidas e gordura corporal (experimental)
 

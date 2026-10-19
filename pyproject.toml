@@ -28,4 +28,5 @@ version = { attr = "body_studio.__version__" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-body_studio = ["static/*.html", "static/*.css", "static/*.js"]
+body_studio = ["static/*.html", "static/*.css", "static/*.js", "static/wardrobe/*", "wardrobe/*.gz",
+               "wardrobe/items/*.gz"]
