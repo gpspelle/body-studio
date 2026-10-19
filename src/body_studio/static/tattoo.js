@@ -466,7 +466,6 @@ function onMove(e) {
 
 function onUp() {
   if (!drag) return;
-  if (drag.kind === "tattoo") underClothes();
   drag = null;
   V.controls.enabled = true;
 }
@@ -476,10 +475,15 @@ addEventListener("pointerup", onUp, { capture: true });
 addEventListener("pointercancel", onUp, { capture: true });
 
 // ---------------------------------------------------------------- tattoos
-// ink on skin that clothes cover isn't drawn (the clothes are splats, which don't hide it)
+// ink on skin that clothes cover isn't drawn, point by point (the clothes are splats, which don't
+// hide it)
 function underClothes() {
-  if (!S) return;
-  for (const tt of S.tattoos) tt.mesh.visible = !window.wardrobe?.covers(tt.at);
+  if (S) S.tattoos.forEach(clothe);
+}
+function clothe(tt) {
+  const a = tt.mesh.geometry.attributes.clothed;
+  a.array.set(window.wardrobe ? window.wardrobe.under(tt.restPos) : new Uint8Array(a.count));
+  a.needsUpdate = true;
 }
 addEventListener("wearchange", underClothes);
 
@@ -527,9 +531,12 @@ async function inkImage(file) {
 
 const INK_VERTEX = `
 uniform float bias;
+attribute float clothed;
 varying vec2 vUv;
+varying float vClothed;
 void main() {
   vUv = uv;
+  vClothed = clothed;
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   mv.xyz *= max(0.0, 1.0 - bias / length(mv.xyz));      // a little toward the eye: wins against the skin's own splats
   gl_Position = projectionMatrix * mv;
@@ -538,7 +545,9 @@ const INK_FRAGMENT = `
 uniform sampler2D map;
 uniform float ink;
 varying vec2 vUv;
+varying float vClothed;
 void main() {
+  if (vClothed > 0.5) discard;              // under clothes (the clothes are splats: they don't hide it)
   vec4 c = texture2D(map, vUv);
   float a = c.a * ink;
   if (a < 0.02) discard;
@@ -570,7 +579,6 @@ function addTattoo(canvas, anchor, opts = {}) {
   S.tattoos.push(tt);
   S.skin.visible = true;
   wrapTattoo(tt);
-  underClothes();
   tattooList();
   save();
   return tt;
@@ -593,6 +601,7 @@ function wrapTattoo(tt) {
   const geo = tt.mesh.geometry;
   geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
   geo.setAttribute("uv", new THREE.BufferAttribute(g.uvs, 2));
+  geo.setAttribute("clothed", new THREE.BufferAttribute(new Float32Array(count), 1));
   geo.setIndex(new THREE.BufferAttribute(g.index, 1));
   // the outline: the border of the grid, where it is on the body (no line across a gap)
   const ring = [];
@@ -603,6 +612,7 @@ function wrapTattoo(tt) {
   tt.ring = [];
   for (let i = 0; i + 1 < ring.length; i++) if (g.valid[ring[i]] && g.valid[ring[i + 1]]) tt.ring.push(ring[i], ring[i + 1]);
   tt.outline.geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(tt.ring.length * 3), 3));
+  clothe(tt);
   skinTattoo(tt);
 }
 
@@ -788,6 +798,7 @@ window.tattooStudio = {
   },
   tattoos: () => S.tattoos.map((tt) => ({ bone: tt.bone, widthCm: tt.widthCm, angle: tt.angle,
                                           points: tt.grid.valid.reduce((s, v) => s + v, 0),
+                                          clothed: tt.grid.valid.reduce((s, v, k) => s + (v && tt.mesh.geometry.attributes.clothed.array[k] ? 1 : 0), 0),
                                           centre: Array.from(tt.mesh.geometry.attributes.position.array.slice(
                                             ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3, ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3 + 3)) })),
   heightCm: () => S.heightCm,

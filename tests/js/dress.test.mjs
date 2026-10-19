@@ -2,7 +2,7 @@
 // Run by tests/unit/test_dress_js.py:  node --test tests/js/dress.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SkinCover, itemSplats, fitSkin } from "../../src/body_studio/static/dress.js";
+import { SkinCover, itemSplats, fitSkin, fitNormals, skinUnder } from "../../src/body_studio/static/dress.js";
 
 const frame = { origin: [0, 0, 0], left: [1, 0, 0], up: [0, 1, 0], front: [0, 0, 1] };
 const b64 = (a) => Buffer.from(a.buffer).toString("base64");
@@ -58,6 +58,28 @@ test("the body's splats under an item", () => {
 
 test("the fitted skin in the PLY's coordinates", () => {
   const fit = { n_body: 2, verts: b64(new Float32Array([1, 2, 3, 0, 0, 0, 9, 9, 9])),
+    normals: b64(new Float32Array([0, 0, 1, 1, 0, 0])),
     frame: { origin: [10, 20, 30], left: [0, 1, 0], up: [0, 0, -1], front: [1, 0, 0] } };
   assert.deepEqual([...fitSkin(fit)], [13, 21, 28, 10, 20, 30]);
+  assert.deepEqual([...fitNormals(fit)], [1, 0, 0, 0, 1, 0]);       // turned, not moved
+});
+
+test("the skin an item hangs over, and only that", () => {
+  // skin: a row of points along x at z = 0, facing +z; a skirt: a square from x 0 to 0.1, 3 cm out
+  const skin = new Float32Array([0.02, 0.05, 0, 0.08, 0.05, 0, 0.15, 0.05, 0, 0.05, 0.05, 0.2]);
+  const normals = new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]);
+  const skirt = { ...square(), verts: new Float32Array([0, 0, 0.03, 0.1, 0, 0.03, 0.1, 0.1, 0.03, 0, 0.1, 0.03]) };
+  assert.deepEqual([...skinUnder(skirt, skin, normals, 0.05)], [0, 1]);   // not past its edge, nor outside it
+  assert.deepEqual([...skinUnder(skirt, skin, normals, 0.02)], []);       // too far out to cover
+  // tight: the item just under the scan's skin still covers it
+  const tight = { ...square(), verts: new Float32Array([0, 0, -0.005, 0.1, 0, -0.005, 0.1, 0.1, -0.005, 0, 0.1, -0.005]) };
+  assert.deepEqual([...skinUnder(tight, skin, normals, 0.05)], [0, 1]);
+});
+
+test("points of the skin under what is worn", () => {
+  const skin = new Float32Array([0, 0, 0, 1, 0, 0]);
+  const c = new SkinCover(skin, new Float32Array([0, 0, 0]), 0.1);
+  assert.deepEqual([...c.under(new Float32Array([0.01, 0, 0, 0.99, 0, 0, 3, 3, 3]))], [0, 0, 0]);
+  c.covered([new Int32Array([1])]);
+  assert.deepEqual([...c.under(new Float32Array([0.01, 0, 0, 0.99, 0, 0, 3, 3, 3]))], [0, 1, 0]);
 });

@@ -33,7 +33,7 @@ from pathlib import Path
 
 from . import rig, wardrobe
 
-FIT_VERSION = 1
+FIT_VERSION = 2         # 2: the skin's normals, for finding the skin under clothes
 SAMPLES = 100000        # points on the base mesh for its skeleton and weights
 PASSES = (0.06, 0.025)  # how far (fraction of stature) a vertex looks along its normal, per pass
 LATERAL = 0.006         # splats this close to the normal's line count (fraction of stature)
@@ -324,7 +324,7 @@ def fit_splats(rig_json: dict, xs, ys, zs, opacity) -> dict:
                 move[k] += f * (skin[j][k] - lbs[j][k])
         out.append(rig._add(lbs[i], move))
     return {"verts": out, "rot": Q, "axes": base["axes"], "frame": fr, "height": Hs, "n_body": nb,
-            "surface_found": round(hit, 3)}
+            "normals": _normals(skin, base["tris"], nb), "surface_found": round(hit, 3)}
 
 
 def build(ply: Path) -> dict:
@@ -344,7 +344,8 @@ def encode(f: dict) -> dict:
     return {"version": FIT_VERSION, "height": f["height"], "n_body": f["n_body"], "frame": f["frame"],
             "axes": f["axes"], "surface_found": f["surface_found"],
             "verts": _b64(array("f", (c for p in f["verts"] for c in p))),
-            "rot": _b64(array("f", (c for q in f["rot"] for c in q)))}
+            "rot": _b64(array("f", (c for q in f["rot"] for c in q))),
+            "normals": _b64(array("f", (c for n in f["normals"] for c in n)))}
 
 
 def decode(d: dict) -> dict:

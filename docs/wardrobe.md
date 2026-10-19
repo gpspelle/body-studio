@@ -41,13 +41,23 @@ So once the base mesh is laid on a scan, the same rule puts every garment on tha
    vertices, and turned with the limb they sit on.
 3. **Draw it as splats** (`static/dress.js`). About one flat disc per 6 mm on its surface, coloured
    from its texture (with MakeHuman's ambient occlusion baked in, so folds read as folds) and
-   lit a little from above and in front. See-through parts of hair cards get no splats.
+   lit a little from above and in front. Hair is drawn denser, and see-through parts of its
+   cards get no splats.
 4. **Move it with the body.** Its splats take the body's skin weights where they are, so the
    pose moves the clothes exactly as it moves the skin under them.
-5. **Hide the skin under it.** Each MakeHuman garment lists the base mesh vertices it covers.
+5. **Hide the skin under it.** A skin vertex of the fitted mesh is covered when MakeHuman's list
+   for the garment has it, or when the line out from the skin along its normal meets the garment
+   within 4% of the person's height (7 cm). MakeHuman's list alone leaves out skin that a loose
+   garment hangs over, like the thighs under a skirt, and the scan's skin there showed through.
    Every splat of the body is matched to its nearest fitted skin vertex once; the body's splats
    on covered vertices are hidden while the item is worn, and shown again when it comes off.
-   Tattoos under clothes are hidden too.
+6. **Colour the scalp under hair.** Hair is cards with see-through strands, so hiding the skin
+   under it would leave holes, and the scan's skin between the strands made the head look bald
+   with the hair floating off it. The splats of the skin within 2 cm under the hair take the
+   hair's average colour instead (keeping their light and shade).
+7. **Keep tattoos under clothes.** Ink is drawn over the splats, and splats don't hide what is
+   drawn after them, so each point of a tattoo is checked against the covered skin and left out
+   where something is worn over it: a tattoo half under a sleeve stops at the cuff.
 
 Why splats and not a mesh: the body is splats, and Spark sorts and blends everything it draws
 together. A mesh in the same scene would cut through the splats wrongly at every edge.
@@ -55,8 +65,7 @@ together. A mesh in the same scene would cut through the splats wrongly at every
 ## Limits
 
 - **Hair is drawn over the head.** It can't remove hair that was filmed loose over the shoulders,
-  so the filming guide asks for long hair tied back. The scalp isn't hidden under hair: hair cards
-  are partly see-through, and hiding the skin would leave holes.
+  so the filming guide asks for long hair tied back.
 - **One layer.** A jacket can't go over a tee; each outfit is one piece.
 - **Loose clothes on the scan** confuse the fit (it finds the clothes' surface, not the skin).
   Film in tight clothes or underwear.

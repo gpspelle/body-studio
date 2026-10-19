@@ -47,3 +47,8 @@
   `<body>.fit.json`; `body-studio fit` does the same in the terminal. All items are MakeHuman's
   own CC0 assets, listed in `CREDITS.md` (linked from the page's footer). The filming guide now
   asks for long hair tied back. See `docs/wardrobe.md`.
+- Clothes: a tattoo under a sleeve or a shirt no longer shows through it (it stops where the
+  clothes start). Hair sits on the head: the scalp under it takes the hair's colour, so the head
+  no longer looks bald under see-through strands, and hair is drawn denser. Skin no longer shows
+  through loose clothes like a skirt. The fitted body is rebuilt once (`<body>.fit.json`
+  version 2).

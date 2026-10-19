@@ -91,6 +91,25 @@ class Fit(unittest.TestCase):
                 self.assertLess(pct(back, 0.99), 0.04)
                 self.assertGreater(r["surface_found"], 0.8)
 
+    def test_skin_normals_point_out(self):
+        for shape, (ply, r) in self.bodies.items():
+            with self.subTest(shape):
+                f = fit.decode(r)
+                N = arr("f", r["normals"])
+                self.assertEqual(len(N), 3 * f["n_body"])
+                # body coordinates: x left, y up, z front. On the trunk (between the hips and the
+                # armpits, arms left out), out is away from the vertical through the body's middle.
+                skin = f["verts"][:f["n_body"]]
+                ys = sorted(v[1] for v in skin)
+                lo, hi = ys[int(0.5 * len(ys))], ys[int(0.7 * len(ys))]
+                out = total = 0
+                for i, v in enumerate(skin):
+                    if abs(v[0]) > 0.1 * r["height"] or not lo < v[1] < hi:
+                        continue
+                    total += 1
+                    out += v[0] * N[3 * i] + v[2] * N[3 * i + 2] > 0
+                self.assertGreater(out / total, 0.9)       # (inward normals would give about 0)
+
     def test_saved_and_found_again(self):
         ply, r = self.bodies[None]
         self.assertTrue(fit.current(ply))

@@ -14,14 +14,77 @@ export function decodeItem(d) {
 }
 
 // The fitted base mesh's skin vertices in the PLY's coordinates (fit.py keeps them in body
-// coordinates, with the body's frame).
+// coordinates, with the body's frame), and their outward normals.
 export function fitSkin(fit) {
-  const v = f32(fit.verts), n = fit.n_body, fr = fit.frame, out = new Float32Array(n * 3);
+  return toModel(f32(fit.verts), fit.n_body, fit.frame, fit.frame.origin);
+}
+export function fitNormals(fit) {
+  return toModel(f32(fit.normals), fit.n_body, fit.frame, [0, 0, 0]);
+}
+function toModel(v, n, fr, origin) {
+  const out = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
     for (let k = 0; k < 3; k++)
-      out[i * 3 + k] = fr.origin[k] + fr.left[k] * v[i * 3] + fr.up[k] * v[i * 3 + 1] + fr.front[k] * v[i * 3 + 2];
+      out[i * 3 + k] = origin[k] + fr.left[k] * v[i * 3] + fr.up[k] * v[i * 3 + 1] + fr.front[k] * v[i * 3 + 2];
   }
   return out;
+}
+
+// The skin vertices an item covers: those whose outward normal meets one of the item's triangles
+// within `reach` (or just behind the skin, where the item is tight). MakeHuman's own list (the
+// item's "delete" vertices) leaves out skin a loose item hangs over, like the thighs under a skirt,
+// and the scan's skin there would show through it.
+export function skinUnder(item, skin, normals, reach) {
+  const V = item.verts, T = item.tris, cell = reach, grid = new Map();
+  const key = (x, y, z) => (x * 73856093) ^ (y * 19349663) ^ (z * 83492791);
+  for (let t = 0; t < T.length / 3; t++) {
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    for (let m = 0; m < 3; m++) for (let k = 0; k < 3; k++) {
+      const c = V[T[t * 3 + m] * 3 + k];
+      lo[k] = Math.min(lo[k], c); hi[k] = Math.max(hi[k], c);
+    }
+    for (let x = Math.floor(lo[0] / cell); x <= Math.floor(hi[0] / cell); x++)
+      for (let y = Math.floor(lo[1] / cell); y <= Math.floor(hi[1] / cell); y++)
+        for (let z = Math.floor(lo[2] / cell); z <= Math.floor(hi[2] / cell); z++) {
+          const k = key(x, y, z);
+          (grid.get(k) || grid.set(k, []).get(k)).push(t);
+        }
+  }
+  const out = [], seen = new Set();
+  for (let i = 0; i < skin.length / 3; i++) {
+    const o = [skin[i * 3], skin[i * 3 + 1], skin[i * 3 + 2]], d = [normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]];
+    seen.clear();
+    let hit = false;
+    // the cells along the ray, from a little behind the skin to `reach` out
+    for (let s = -0.25; s <= 1 && !hit; s += 0.25) {
+      const p = v3.add(o, v3.scale(d, s * reach));
+      for (let dx = -1; dx <= 1 && !hit; dx++) for (let dy = -1; dy <= 1 && !hit; dy++) for (let dz = -1; dz <= 1 && !hit; dz++) {
+        const list = grid.get(key(Math.floor(p[0] / cell) + dx, Math.floor(p[1] / cell) + dy, Math.floor(p[2] / cell) + dz));
+        if (!list) continue;
+        for (const t of list) {
+          if (seen.has(t)) continue;
+          seen.add(t);
+          const r = rayTriangle(o, d, V, T[t * 3], T[t * 3 + 1], T[t * 3 + 2]);
+          if (r !== null && r >= -0.25 * reach && r <= reach) { hit = true; break; }
+        }
+      }
+    }
+    if (hit) out.push(i);
+  }
+  return Int32Array.from(out);
+}
+
+// where the line o + r·d meets the triangle (r, or null) (Möller–Trumbore)
+function rayTriangle(o, d, V, a, b, c) {
+  const pa = [V[a * 3], V[a * 3 + 1], V[a * 3 + 2]];
+  const e1 = v3.sub([V[b * 3], V[b * 3 + 1], V[b * 3 + 2]], pa), e2 = v3.sub([V[c * 3], V[c * 3 + 1], V[c * 3 + 2]], pa);
+  const p = v3.cross(d, e2), det = v3.dot(e1, p);
+  if (Math.abs(det) < 1e-12) return null;
+  const tv = v3.sub(o, pa), u = v3.dot(tv, p) / det;
+  if (u < 0 || u > 1) return null;
+  const q = v3.cross(tv, e1), w = v3.dot(d, q) / det;
+  if (w < 0 || u + w > 1) return null;
+  return v3.dot(e2, q) / det;
 }
 
 const R2 = [0.7548776662466927, 0.5698402909980532];     // a low-discrepancy sequence (Roberts' R2)
@@ -62,11 +125,11 @@ export function itemSplats(item, tex, spacing, frame) {
       const py = Math.min(tex.height - 1, Math.max(0, Math.floor((1 - (w - Math.floor(w))) * tex.height)));
       const k = (py * tex.width + px) * 4;
       const alpha = tex.data[k + 3] / 255;
-      if (item.alpha && alpha < 0.5) continue;
+      if (item.alpha && alpha < 0.2) continue;
       centres.push(pa[0] + r1 * e1[0] + r2 * e2[0], pa[1] + r1 * e1[1] + r2 * e2[1], pa[2] + r1 * e1[2] + r2 * e2[2]);
       quats.push(...rot);
       colours.push(Math.min(1, tex.data[k] / 255 * shade), Math.min(1, tex.data[k + 1] / 255 * shade), Math.min(1, tex.data[k + 2] / 255 * shade));
-      opacity.push(item.alpha ? 0.85 * alpha : 1);
+      opacity.push(item.alpha ? 0.95 * alpha : 1);
     }
   }
   return { n: opacity.length, centres: Float32Array.from(centres), quats: Float32Array.from(quats),
@@ -80,6 +143,7 @@ export class SkinCover {
   constructor(skin, centres, reach) {
     const nv = skin.length / 3, key = (x, y, z) => (x * 73856093) ^ (y * 19349663) ^ (z * 83492791);
     const grid = new Map();
+    this.skin = skin; this.grid = grid; this.key = key; this.reach = reach;
     for (let i = 0; i < nv; i++) {
       const k = key(Math.floor(skin[i * 3] / reach), Math.floor(skin[i * 3 + 1] / reach), Math.floor(skin[i * 3 + 2] / reach));
       (grid.get(k) || grid.set(k, []).get(k)).push(i);
@@ -101,11 +165,38 @@ export class SkinCover {
       this.nearest[s] = best;
     }
     this.nv = nv;
+    this.mask = new Uint8Array(nv);
+  }
+
+  // the skin vertex nearest a point (-1 when none is within reach)
+  nearestSkin(x, y, z) {
+    const r = this.reach, skin = this.skin;
+    const cx = Math.floor(x / r), cy = Math.floor(y / r), cz = Math.floor(z / r);
+    let best = -1, bd = r * r;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const list = this.grid.get(this.key(cx + dx, cy + dy, cz + dz));
+      if (!list) continue;
+      for (const i of list) {
+        const d = (skin[i * 3] - x) ** 2 + (skin[i * 3 + 1] - y) ** 2 + (skin[i * 3 + 2] - z) ** 2;
+        if (d < bd) { bd = d; best = i; }
+      }
+    }
+    return best;
+  }
+
+  // whether each point (on the skin, at rest) is under what was last passed to covered()
+  under(points) {
+    const n = points.length / 3, out = new Uint8Array(n);
+    for (let k = 0; k < n; k++) {
+      const v = this.nearestSkin(points[k * 3], points[k * 3 + 1], points[k * 3 + 2]);
+      out[k] = v >= 0 && this.mask[v] ? 1 : 0;
+    }
+    return out;
   }
 
   // the body's splats under the worn items (each item's list of skin vertices it covers)
   covered(deleteLists) {
-    const mask = new Uint8Array(this.nv);
+    const mask = this.mask = new Uint8Array(this.nv);
     for (const list of deleteLists) for (const i of list) if (i < this.nv) mask[i] = 1;
     const out = [];
     this.nearest.forEach((v, s) => { if (v >= 0 && mask[v]) out.push(s); });

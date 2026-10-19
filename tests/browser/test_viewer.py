@@ -230,10 +230,30 @@ class Viewer(unittest.TestCase):
         page.click("#wearSlots [data-item=white_sneakers]")
         page.wait_for_function("wardrobe.worn().length === 2", timeout=60000)
         self.assertGreater(page.evaluate("wardrobe.hidden()"), under)
+        # hair colours the scalp under it rather than hiding it
+        page.click("#wearSlots [data-item=ponytail]")
+        page.wait_for_function("wardrobe.worn().includes('ponytail')", timeout=60000)
+        self.assertGreater(page.evaluate("wardrobe.tinted()"), 500)
+        page.click("#wearSlots [data-item=ponytail]")
+        page.wait_for_function("!wardrobe.worn().includes('ponytail') && wardrobe.tinted() === 0")
+        # a tattoo on the forearm: under a long sleeve, not under a short one
+        page.set_input_files("#tatPick", str(self.design))
+        page.wait_for_function("document.getElementById('tatHint').textContent.length > 0")
+        elbow, wrist = page.evaluate("[tattooStudio.joint('elbow_l'), tattooStudio.joint('wrist_l')]")
+        at = [0.45 * a + 0.55 * b for a, b in zip(elbow, wrist)]
+        page.mouse.click(*page.evaluate(f"tattooStudio.screen({at})"))
+        page.wait_for_function("tattooStudio.tattoos().length === 1")
+        tat = page.evaluate("tattooStudio.tattoos()[0]")
+        self.assertEqual(tat["clothed"], 0)
+        page.click("#wearSlots [data-item=longsleeve_jeans]")
+        page.wait_for_function("wardrobe.worn().includes('longsleeve_jeans')", timeout=60000)
+        tat = page.evaluate("tattooStudio.tattoos()[0]")
+        self.assertGreater(tat["clothed"], 0.8 * tat["points"])
         page.click("#wearSlots [data-item=suit]")        # one outfit at a time
         page.wait_for_function("wardrobe.worn().join() === 'suit,white_sneakers'", timeout=60000)
         page.click("#wearSlots [data-item=suit]")        # tapped again: taken off
         page.wait_for_function("wardrobe.worn().join() === 'white_sneakers'")
+        self.assertEqual(page.evaluate("tattooStudio.tattoos()[0].clothed"), 0)
         page.evaluate("tattooStudio.preset('walk')")    # moves with the body, no errors
         page.reload()                                   # remembered for this body
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
@@ -241,6 +261,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("bodyViewer.file().includes('Mia')")
         page.click("#studioBtn")
         page.wait_for_function("wardrobe.ready && wardrobe.worn().join() === 'white_sneakers'", timeout=120000)
+        self.assertEqual(page.evaluate("tattooStudio.tattoos().length"), 1)
         self.assertEqual(errors, [])
         page.close()
 

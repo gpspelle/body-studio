@@ -5,7 +5,7 @@
 // One item per slot (clothes, shoes, hair, hat). Design and sources: docs/wardrobe.md.
 import * as THREE from "three";
 import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
-import { SkinCover, decodeItem, fitSkin, itemSplats } from "/static/dress.js";
+import { SkinCover, decodeItem, fitNormals, fitSkin, itemSplats, skinUnder } from "/static/dress.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -14,6 +14,9 @@ const SLOTS = ["outfit", "shoes", "hair", "hat"];
 const CUTS = ["all", "women", "men", "unisex"];
 const SPACING = 0.0032;          // splat spacing on an item, fraction of the person's height (about 6 mm)
 const REACH = 0.03;              // a body splat is under an item if its nearest skin vertex is (within this)
+const HANG = 0.04;               // how far out from the skin an item still covers it (a skirt over the thighs)
+const SCALP = 0.012;             // hair this close over the skin colours it (the scalp under the hair)
+const HAIR_SPACING = 0.7;        // hair cards are partly see-through: twice as many splats
 
 let W = null;                    // the body being dressed: rig, weights, its mesh, what is worn…
 let catalog = null;
@@ -26,7 +29,8 @@ const store = {
 addEventListener("studioready", async (e) => {
   undressAll();
   const { file, rig, weights, mesh, centres, transforms } = e.detail;
-  W = { file, rig, weights, mesh, centres, transforms, worn: new Map(), fit: null, cover: null, hidden: new Map(), busy: 0 };
+  W = { file, rig, weights, mesh, centres, transforms, worn: new Map(), fit: null, cover: null, hidden: new Map(),
+        tinted: new Map(), busy: 0 };
   window.wardrobe.ready = false;
   if (!catalog) catalog = await (await fetch("/api/wardrobe")).json();
   ui();
@@ -53,7 +57,9 @@ async function loadFit(w) {
     const d = await r.json();
     if (!r.ok) { status(t("wear.failed", { advice: t("rig.err." + (d.code || "shape")) })); return false; }
     w.fit = d;
-    w.cover = new SkinCover(fitSkin(d), w.centres, REACH * w.rig.height);
+    w.skin = fitSkin(d);
+    w.normals = fitNormals(d);
+    w.cover = new SkinCover(w.skin, w.centres, REACH * w.rig.height);
     status("");
     ui();
     return true;
@@ -114,12 +120,20 @@ async function wear(id, restoring = false) {
     }
     const tex = await texture("/static/wardrobe/" + d.texture);
     if (W !== w) return;
-    const s = itemSplats(d, tex, SPACING * w.rig.height, w.rig.frame);
+    const H = w.rig.height, hair = it.slot === "hair";
+    const s = itemSplats(d, tex, SPACING * H * (hair ? HAIR_SPACING : 1), w.rig.frame);
     const mesh = await splatMesh(s);
     if (W !== w) { mesh.dispose?.(); return; }
     const skinning = skin(mesh, s, w);
     takeOff(it.slot);
-    const entry = { id, slot: it.slot, mesh, skinning, delete: d.delete, n: s.n };
+    const entry = { id, slot: it.slot, mesh, skinning, n: s.n };
+    if (hair) {
+      // hair cards let the scalp show between them: the scalp takes the hair's colour instead
+      entry.tint = skinUnder(d, w.skin, w.normals, SCALP * H);
+      entry.colour = meanColour(s);
+    } else {
+      entry.covers = Int32Array.from(new Set([...d.delete, ...skinUnder(d, w.skin, w.normals, HANG * H)]));
+    }
     w.worn.set(it.slot, entry);
     V.holder.add(mesh);
     pose(entry);
@@ -141,42 +155,59 @@ function takeOff(slot) {
 function undressAll() {
   if (!W) return;
   for (const slot of [...W.worn.keys()]) takeOff(slot);
-  hideSkin([]);
+  dressSkin();
 }
 
 // after something was put on or taken off: hide the skin under what is worn, remember it, tell
 // the tattoo panel (ink under clothes is hidden)
 function changed() {
   if (!W) return;
-  hideSkin([...W.worn.values()].map((e) => e.delete));
+  dressSkin();
   store.set("wear:" + W.file, SLOTS.map((s) => W.worn.get(s)?.id).filter(Boolean));
   ui();
   dispatchEvent(new Event("wearchange"));
 }
 
-function hideSkin(lists) {
+// The body's splats under what is worn are hidden, and those under hair take its colour. The
+// originals are kept, so they come back when the item comes off.
+function dressSkin() {
   const w = W;
   if (!w || !w.cover) return;
-  const now = new Set(w.cover.covered(lists));
+  const worn = [...w.worn.values()];
+  const tint = new Map();
+  for (const e of worn) if (e.tint) for (const i of w.cover.covered([e.tint])) tint.set(i, e.colour);
+  // (this also leaves the mask that tattoos are checked against)
+  const now = new Set(w.cover.covered(worn.filter((e) => e.covers).map((e) => e.covers)));
+  for (const i of now) tint.delete(i);
   const packed = w.mesh.packedSplats;
   if (!packed) return;
   let touched = false;
-  for (const [i, op] of w.hidden) {
-    if (now.has(i)) continue;
-    const s = packed.getSplat(i);
-    packed.setSplat(i, s.center, s.scales, s.quaternion, op, s.color);
-    w.hidden.delete(i);
-    touched = true;
-  }
-  for (const i of now) {
-    if (w.hidden.has(i)) continue;
-    const s = packed.getSplat(i);
-    w.hidden.set(i, s.opacity);
-    packed.setSplat(i, s.center, s.scales, s.quaternion, 0, s.color);
-    touched = true;
+  const put = (i, f) => { const s = packed.getSplat(i); f(s); packed.setSplat(i, s.center, s.scales, s.quaternion, s.opacity, s.color); touched = true; };
+  for (const [i, op] of w.hidden) if (!now.has(i)) { put(i, (s) => { s.opacity = op; }); w.hidden.delete(i); }
+  for (const [i, c] of w.tinted) if (tint.get(i) !== c.by) { put(i, (s) => s.color.copy(c.color)); w.tinted.delete(i); }
+  for (const i of now) if (!w.hidden.has(i)) put(i, (s) => { w.hidden.set(i, s.opacity); s.opacity = 0; });
+  for (const [i, col] of tint) {
+    if (w.tinted.has(i)) continue;
+    put(i, (s) => {
+      w.tinted.set(i, { color: s.color.clone(), by: col });
+      // the hair's colour, with a little of the skin's light and shade
+      const l = (s.color.r + s.color.g + s.color.b) / 3;
+      s.color.setRGB(col[0] * (0.6 + 0.6 * l), col[1] * (0.6 + 0.6 * l), col[2] * (0.6 + 0.6 * l));
+    });
   }
   // the packed splats are read again only when the mesh rebuilds its generator
   if (touched) { packed.needsUpdate = true; w.mesh.updateGenerator(); }
+}
+
+function meanColour(s) {
+  const c = [0, 0, 0];
+  let n = 0;
+  for (let i = 0; i < s.n; i++) {
+    const a = s.opacity[i];
+    for (let k = 0; k < 3; k++) c[k] += a * s.colours[i * 3 + k];
+    n += a;
+  }
+  return c.map((v) => (n ? 0.85 * v / n : 0));
 }
 
 async function texture(url) {
@@ -240,15 +271,7 @@ window.wardrobe = {
   worn: () => (W ? SLOTS.map((s) => W.worn.get(s)?.id).filter(Boolean) : []),
   splats: (id) => [...(W ? W.worn.values() : [])].find((e) => e.id === id)?.n || 0,
   hidden: () => (W ? W.hidden.size : 0),
-  // whether a point of the body (at rest, PLY coordinates) is under something worn
-  covers(p) {
-    if (!W || !W.cover || !W.worn.size) return false;
-    const c = W.centres;
-    let best = -1, bd = Infinity;
-    for (let i = 0; i < c.length / 3; i += 1) {
-      const d = (c[i * 3] - p[0]) ** 2 + (c[i * 3 + 1] - p[1]) ** 2 + (c[i * 3 + 2] - p[2]) ** 2;
-      if (d < bd) { bd = d; best = i; }
-    }
-    return best >= 0 && W.hidden.has(best);
-  },
+  tinted: () => (W ? W.tinted.size : 0),
+  // for each point of the skin (at rest, PLY coordinates, xyz after xyz): 1 where something worn covers it
+  under: (points) => (W && W.cover && W.worn.size ? W.cover.under(points) : new Uint8Array(points.length / 3)),
 };
