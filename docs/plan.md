@@ -27,7 +27,7 @@ import path. Why not a shared library extracted from both: splat-studio already 
 | Every dialog's default checked | No dialogs; Standard quality, 300 frames |
 | Unique run folders, lock files, summary.txt | Inherited |
 | Fake tools rejecting unknown flags | End-to-end test uses splat-studio's fakes at the pinned commit |
-| CI with and without optional deps | CI runs without OpenCV; with it is covered in splat-studio |
+| CI with and without optional deps | OpenCV is installed with the app (blurry frames always dropped), so CI runs with it; without it is covered in splat-studio |
 | Plain copy, all languages | English and Portuguese, key parity tested |
 | Header, footer, logo, GitHub link | Minimal: name top left, version, source and license at the bottom |
 | In-progress, recent and history for long lists | Not yet: the row of bodies grows. Step 5 below |

@@ -38,7 +38,7 @@ body-studio setup        # installs ffmpeg, COLMAP and builds Brush, once (10–
 body-studio              # opens http://localhost:8770
 ```
 
-`body-studio check` shows what's installed. Videos and bodies are kept in `~/BodyStudio`
+`pip install -e .` also installs OpenCV, which drops blurry frames. `body-studio check` shows what's installed. Videos and bodies are kept in `~/BodyStudio`
 (change it with `--data-dir`), in the same layout Splat Studio uses.
 
 ## Filming a person
@@ -170,6 +170,8 @@ pip install -e .
 body-studio setup        # instala ffmpeg e COLMAP e compila o Brush, uma vez (10 a 30 min)
 body-studio              # abre http://localhost:8770
 ```
+
+`pip install -e .` também instala o OpenCV, que descarta os quadros borrados.
 
 ### Filmar uma pessoa
 
