@@ -273,20 +273,11 @@ class Viewer(unittest.TestCase):
 
 
 def settled(page):
-    """Wait until the splats on screen are the latest ones, sorted from where the camera is: the
-    ones sorted are the ones made, and have stayed the same for ten frames (a change of colour
-    reaches the renderer a frame or two after it is made)."""
+    """Wait until the splats on screen are the latest ones: Spark makes them again every frame
+    from the meshes, so a change shows once a few more have been made."""
     page.wait_for_function("tattooStudio.tattoos().every((t) => t.inked)", timeout=60000)
-    page.evaluate("""new Promise((ok) => {
-      let last = null, n = 0;
-      const frame = () => {
-        const s = bodyApp.viewer.spark;
-        n = s.display === s.current && s.display === last ? n + 1 : 0;
-        last = s.display;
-        if (n >= 10) ok(); else requestAnimationFrame(frame);
-      };
-      requestAnimationFrame(frame);
-    })""")
+    v = page.evaluate("bodyApp.viewer.spark.current.version")
+    page.wait_for_function(f"bodyApp.viewer.spark.current.version >= {v + 3}", timeout=300000)
 
 
 def ink_pixels(page, at, r=40):
