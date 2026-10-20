@@ -8,7 +8,7 @@
 // the ink too, and whichever splat is in front shows it. Design and sources: docs/tattoo.md.
 import * as THREE from "three";
 import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
-import { Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, inkSamples, inkUnder, INK_OUT, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
+import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, INK_OUT, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -27,14 +27,14 @@ for (const s of ["l", "r"]) {
 const both = (j, a) => ({ [j + "_l"]: a, [j + "_r"]: a });
 const PRESETS = {
   rest: {},
-  armsUp: { ...both("shoulder", { flex: 0, side: 165, twist: 0 }), ...both("elbow", { flex: 8, twist: 0 }) },
-  flex: { ...both("shoulder", { flex: 0, side: 90, twist: -90 }), ...both("elbow", { flex: 115, twist: 0 }),
-          ...both("wrist", { flex: 20, side: 0 }) },
+  armsUp: { ...both("shoulder", { flex: 0, side: 165, twist: 0 }), ...both("elbow", { flex: 8 }) },
+  flex: { ...both("shoulder", { flex: 0, side: 90, twist: -90 }), ...both("elbow", { flex: 115 }),
+          ...both("wrist", { flex: 20, side: 0, twist: -80 }) },
   walk: { shoulder_l: { flex: -22, side: 8 }, shoulder_r: { flex: 24, side: 8 }, elbow_l: { flex: 12 }, elbow_r: { flex: 35 },
           hip_l: { flex: 24, side: 2 }, knee_l: { flex: 8 }, hip_r: { flex: -12, side: 2 }, knee_r: { flex: 28 },
           ankle_r: { flex: -12 }, chest: { flex: 0, side: 0, twist: -6 } },
   sit: { ...both("hip", { flex: 88, side: 6, twist: 0 }), ...both("knee", { flex: 88 }), ...both("ankle", { flex: 0 }),
-         ...both("shoulder", { flex: 22, side: 10, twist: 0 }), ...both("elbow", { flex: 75, twist: 40 }), spine: { flex: 8 } },
+         ...both("shoulder", { flex: 22, side: 10, twist: 0 }), ...both("elbow", { flex: 75 }), ...both("wrist", { twist: 60 }), spine: { flex: 8 } },
 };
 const HIT_PX = matchMedia("(pointer: coarse)").matches ? 26 : 16;
 
@@ -100,7 +100,7 @@ async function load() {
 
 function setup(rig, mesh, file) {
   teardown();
-  const sk = new Skeleton(rig), weights = new SkinWeights(rig), map = new SurfaceMap(rig);
+  const weights = new SkinWeights(rig), map = new SurfaceMap(rig);
   const n = mesh.numSplats;
   const centres = new Float32Array(n * 3), bones = new Uint8Array(n * 4), w = new Uint8Array(n * 4);
   const opaque = [], colours = new Float32Array(n * 3), radius = new Float32Array(n);
@@ -112,6 +112,7 @@ function setup(rig, mesh, file) {
     weights.at(c.x, c.y, c.z, bones, w, i);
   });
   const surface = new SkinSurface(rig, centres, opaque, weights);
+  const sk = new Skeleton(rig, { palms: palmNormals(rig, centres, bones, opaque), body: new BodyVolume(rig, map) });
   const skinning = new SplatSkinning({ mesh, numSplats: n, numBones: rig.joints.length });
   const vb = new THREE.Vector4(), vw = new THREE.Vector4();
   for (let i = 0; i < n; i++) {
@@ -469,7 +470,7 @@ function addTattoo(canvas, anchor, opts = {}) {
   V.holder.add(outline);
   const g = canvas.getContext("2d").getImageData(0, 0, canvas.width, canvas.height);
   const tt = { id: S.nextId++, canvas, outline, image: g, samples: inkSamples(g, INK_SPLATS), mesh: null, inked: false, ...anchor,
-               widthCm: opts.widthCm ?? 10, angle: opts.angle ?? 0, ink: opts.ink ?? 0.9 };
+               widthCm: opts.widthCm ?? 10, angle: opts.angle ?? 0, ink: opts.ink ?? 0.9, name: opts.name || "" };
   S.tattoos.push(tt);
   wrapTattoo(tt);
   inkMesh(tt);
@@ -657,7 +658,7 @@ function disposeTattoo(tt) {
 function tattooList() {
   $("tatList").replaceChildren(...S.tattoos.map((tt, i) => {
     const b = document.createElement("button");
-    b.textContent = t("tat.name", { n: i + 1 });
+    b.textContent = tt.name || t("tat.name", { n: i + 1 });
     b.classList.toggle("on", tt === S.selected);
     b.onclick = () => select(tt);
     return b;
@@ -666,6 +667,9 @@ function tattooList() {
   $("tatEdit").hidden = !tt;
   $("tatHint").textContent = pending ? t("tat.place") : tt ? t("tat.drag") : "";
   if (tt) {
+    const i = S.tattoos.indexOf(tt);
+    if (document.activeElement !== $("tatName")) $("tatName").value = tt.name;
+    $("tatName").placeholder = t("tat.name", { n: i + 1 });
     $("tatSize").value = tt.widthCm; $("tatSizeOut").textContent = tt.widthCm.toLocaleString(window.i18n.lang) + " cm";
     $("tatAngle").value = tt.angle; $("tatAngleOut").textContent = Math.round(tt.angle) + "°";
     $("tatInk").value = tt.ink; $("tatInkOut").textContent = Math.round(tt.ink * 100) + "%";
@@ -684,6 +688,8 @@ $("tatPick").onchange = async (e) => {
     $("tatHint").textContent = t("tat.badImage");
   }
 };
+// a name to tell the tattoos apart when there are many (shown on its button)
+$("tatName").oninput = () => { const tt = S.selected; tt.name = $("tatName").value.trim().slice(0, 40); tattooList(); save(); };
 $("tatSize").oninput = () => { const tt = S.selected; tt.widthCm = +$("tatSize").value; wrapTattoo(tt); tattooList(); save(); };
 $("tatAngle").oninput = () => { const tt = S.selected; tt.angle = +$("tatAngle").value; wrapTattoo(tt); tattooList(); save(); };
 $("tatInk").oninput = () => { const tt = S.selected; tt.ink = +$("tatInk").value; inkOnSkin(tt); tattooList(); save(); };
@@ -728,7 +734,7 @@ function save() {
   const file = S.file;
   const record = { heightCm: S.heightCm, pose: S.sk.pose(),
                    tattoos: S.tattoos.map((tt) => ({ image: tt.canvas.toDataURL("image/png"), bone: tt.bone, at: tt.at,
-                                                     widthCm: tt.widthCm, angle: tt.angle, ink: tt.ink })) };
+                                                     widthCm: tt.widthCm, angle: tt.angle, ink: tt.ink, name: tt.name })) };
   clearTimeout(saveTimer);
   window.tattooStudio.saving = true;
   saveTimer = setTimeout(async () => {
@@ -792,6 +798,7 @@ window.tattooStudio = {
   setPose: (p) => { S.sk.setPose(p); applyPose(); },
   preset: (name) => { S.sk.setPose(PRESETS[name]); applyPose(); },
   joint: (name) => S.sk.P[S.sk.index(name)].slice(),
+  armDepth: () => S.sk.body.depth(S.sk) / S.rig.height,     // how far the arms are in the trunk and the head
   frame: () => S.rig.frame,
   // a tattoo's ink strength, read or set (as the Ink slider does, without having to select it)
   ink: (i, v) => {
@@ -811,7 +818,7 @@ window.tattooStudio = {
     }
     return best;
   },
-  tattoos: () => S.tattoos.map((tt) => ({ bone: tt.bone, widthCm: tt.widthCm, angle: tt.angle,
+  tattoos: () => S.tattoos.map((tt) => ({ name: tt.name, bone: tt.bone, widthCm: tt.widthCm, angle: tt.angle,
                                           points: tt.grid.valid.reduce((s, v) => s + v, 0),
                                           inked: tt.inked, shown: tt.shown || 0,     // ink splats not hidden under clothes
                                           // ink splats lying on the skin

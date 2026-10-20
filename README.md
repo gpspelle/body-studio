@@ -127,14 +127,17 @@ panel sits at the left edge (at the bottom on a phone).
   All of them are MakeHuman's own assets, free to use (CC0): see [CREDITS.md](CREDITS.md).
 
 - **Add an image** (PNG, JPG, WebP, SVG), then tap the body where it goes. Drag it to move it;
-  set its width in centimetres, its turn and how strong the ink is. Designs drawn on white have
+  set its width in centimetres, its turn and how strong the ink is, and give it a name to tell
+  it apart from the others. Designs drawn on white have
   the white removed. The tattoo follows the skin wherever you put it: around an arm, across the
   back, over a shoulder, from the lower back onto both thighs. It is drawn into the skin as
   ink, so the skin shows through it, and whatever covers the skin (an arm, clothes) covers it.
 - **Move the body**: drag the dot on a joint (the elbow dot turns the shoulder, the wrist dot
   the elbow…), or pick a pose: standing, arms up, flex, walking, sitting. Each joint only moves
   the way a person's can, within its normal range: an arm reaches across the chest or back behind,
-  a bent knee turns the shin. Pick a joint to set its angles with sliders.
+  a bent knee turns the shin, the wrist bends toward the palm and to the sides and the forearm turns
+  the hand. An arm stops at the body instead of going into it. Pick a joint to set its angles with
+  sliders.
   The tattoo moves with the skin.
 - The first time, the app finds the body's skeleton (a few seconds). It needs the A-pose from the
   filming guide: arms a little away from the body, feet apart. Tattoos and pose are kept in this
@@ -244,14 +247,16 @@ fica. O painel fica na borda esquerda (embaixo, no celular).
   uso livre (CC0): veja [CREDITS.md](CREDITS.md).
 
 - **Adicione uma imagem** (PNG, JPG, WebP, SVG) e toque no corpo onde ela vai. Arraste para mudar
-  de lugar; ajuste a largura em centímetros, o giro e a força da tinta. Desenhos sobre fundo branco
+  de lugar; ajuste a largura em centímetros, o giro e a força da tinta, e dê um nome para
+  diferenciá-la das outras. Desenhos sobre fundo branco
   perdem o branco. A tatuagem acompanha a pele onde você a colocar: em volta do braço, nas costas,
   por cima do ombro, da lombar até as duas coxas. Ela é desenhada na pele como tinta,
   então a pele aparece através dela, e o que cobre a pele (um braço, a roupa) cobre a tatuagem.
 - **Mexa o corpo**: arraste o ponto de uma articulação (o ponto do cotovelo gira o ombro, o do
   pulso gira o cotovelo…) ou escolha uma pose: em pé, braços para cima, bíceps, andando, sentado.
   Cada articulação só se move como a de uma pessoa, dentro da amplitude normal: o braço cruza
-  na frente do peito ou vai para trás, o joelho dobrado gira a canela. Escolha uma
+  na frente do peito ou vai para trás, o joelho dobrado gira a canela, o pulso dobra para a palma
+  e para os lados e o antebraço gira a mão. O braço para no corpo em vez de entrar nele. Escolha uma
   articulação para ajustar os ângulos com controles deslizantes. A tatuagem acompanha a pele.
 - Na primeira vez, o app encontra o esqueleto do corpo (alguns segundos). Precisa da pose A do guia
   de filmagem: braços um pouco afastados do corpo, pés afastados. Tatuagens e pose ficam guardadas

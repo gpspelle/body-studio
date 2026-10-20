@@ -80,8 +80,15 @@ export const DOF = {
   // adduction 135 from out to the side (45 past straight forward), horizontal abduction 40 behind
   shoulder_l: { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [-60, 180], side: [-110, 180], twist: [-90, 70], labels: ["forward", "out", "twist"],
                 cone: [[-180, 50], [-135, 50], [-90, 60], [-60, 80], [-40, 95], [-20, 160], [0, 180], [90, 180], [120, 160], [135, 110], [155, 70], [180, 50]] },
-  elbow_l:    { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [0, 145], side: [0, 0],    twist: [-80, 80], labels: ["bend", null, "twist"] },
-  wrist_l:    { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [-70, 80], side: [-30, 20], twist: [0, 0],    labels: ["bend", "side"] },
+  // elbow: bends 145; the forearm's turn is the wrist's twist (below)
+  elbow_l:    { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [0, 145], side: [0, 0],    twist: [0, 0],    labels: ["bend"] },
+  // wrist: bends 80 toward the palm and 70 back, 20 toward the thumb and 30 away; the forearm turns
+  // the hand 80 each way from thumb-forward (pronation, supination). Its axes are the hand's: at
+  // twist 0 the palm faces the body (palm, the way it faces) and the thumb points forward. The
+  // forearm turns the hand before it bends (pronation happens above the wrist), so the bend's axes
+  // turn with the palm.
+  wrist_l:    { n: D, a1: F, a2: L, k: [-1, -1, 1], flex: [-70, 80], side: [-30, 20], twist: [-80, 80], labels: ["bend", "side", "twist"],
+                palm: [-1, 0, 0], pronation: true },
   // hip: flexion 125, extension 30, abduction 45, adduction 25, further across with the hip bent
   // (crossing the legs)
   hip_l:      { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [-30, 125], side: [-60, 45], twist: [-45, 40], labels: ["forward", "out", "twist"],
@@ -109,7 +116,7 @@ function defFor(name) {
   // mirror: n is reflected across the midline; a rotation about an axis that the reflection keeps
   // turns the other way, about an axis it reverses (the left axis) the same way
   const keeps = (a) => Math.abs(a[0]) < 0.9;
-  return { ...d, n: [-d.n[0], d.n[1], d.n[2]],
+  return { ...d, n: [-d.n[0], d.n[1], d.n[2]], ...(d.palm && { palm: [-d.palm[0], d.palm[1], d.palm[2]] }),
            k: [keeps(d.a1) ? -d.k[0] : d.k[0], keeps(d.a2) ? -d.k[1] : d.k[1], -d.k[2]] };
 }
 
@@ -123,7 +130,11 @@ function primaryChild(names, parents, j) {
 }
 
 export class Skeleton {
-  constructor(rig) {
+  // opts.palms: {wrist_l: [x, y, z], …}, the way each palm faces in the scan (palmNormals);
+  // without one a hand rests turned thumb-forward. opts.body (BodyVolume): keeps the arms out of
+  // the trunk and the head.
+  constructor(rig, opts = {}) {
+    this.body = opts.body || null;
     this.names = rig.joints.map((j) => j.name);
     this.parents = rig.joints.map((j) => j.parent);
     this.rest = rig.joints.map((j) => j.pos.slice());
@@ -136,6 +147,7 @@ export class Skeleton {
       const d = defFor(name);
       if (!d) return null;
       return { ...d, n: toMesh(d.n), a1: toMesh(d.a1), a2: toMesh(d.a2), hinge: d.side[1] - d.side[0] < 1,
+               palm: d.palm && toMesh(d.palm),
                flex: d.flex.slice(), side: d.side.slice(), twist: d.twist.slice() };
     });
     // rest frames: C[j] carries the anatomical frame of joint j to where it is in the scan
@@ -149,10 +161,9 @@ export class Skeleton {
       if (!d || this.primary[j] < 0) { this.restA[j] = q.id(); this.restAngles[j] = null; continue; }
       const dir = v3.unit(v3.sub(this.rest[this.primary[j]], this.rest[j]));
       const local = q.rot(q.conj(this.C[j]), dir);
-      const rv = q.toRotvec(q.between(d.n, local));
-      const a = { flex: d.k[0] ? v3.dot(rv, d.a1) / RAD / d.k[0] : 0,
-                  side: d.k[1] ? v3.dot(rv, d.a2) / RAD / d.k[1] : 0, twist: 0 };
-      for (const key of ["flex", "side"]) {      // the scan's own pose is always allowed
+      const palm = d.palm && opts.palms && opts.palms[this.names[j]];
+      const a = palm ? this._handAngles(d, local, v3.unit(q.rot(q.conj(this.C[j]), palm))) : { ...this._swing(d, local), twist: 0 };
+      for (const key of ["flex", "side", "twist"]) {   // the scan's own pose is always allowed
         d[key][0] = Math.min(d[key][0], a[key]); d[key][1] = Math.max(d[key][1], a[key]);
       }
       this.restAngles[j] = a;
@@ -164,11 +175,36 @@ export class Skeleton {
 
   index(name) { return this.names.indexOf(name); }
 
+  // flex and side of the swing taking the bone from n to `local` (in the joint's frame)
+  _swing(d, local) {
+    const rv = q.toRotvec(q.between(d.n, local));
+    return { flex: d.k[0] ? v3.dot(rv, d.a1) / RAD / d.k[0] : 0, side: d.k[1] ? v3.dot(rv, d.a2) / RAD / d.k[1] : 0 };
+  }
+
+  // a hand's angles at rest from where it points (local) and the way its palm faces (palm), both
+  // in the wrist's frame: the rotation taking (n, d.palm) there, split into a turn about n after
+  // a swing. A palm's normal can't tell palm from back: the turn nearer thumb-forward is taken.
+  _handAngles(d, local, palm, flipped = false) {
+    const r1 = q.between(d.n, local);
+    const p1 = q.rot(r1, d.palm), pp = v3.unit(v3.sub(palm, v3.scale(local, v3.dot(palm, local))));
+    const r = q.mul(q.axisAngle(local, Math.atan2(v3.dot(v3.cross(p1, pp), local), v3.dot(p1, pp))), r1);
+    // r = T S; its inverse = S' T' (a swing after a turn about n), so T = T'^-1 and S = S'^-1
+    const inv = q.conj(r), c = v3.dot(inv, d.n);
+    const tw = q.norm([d.n[0] * c, d.n[1] * c, d.n[2] * c, inv[3]]);
+    const swing = q.conj(q.mul(inv, q.conj(tw))), turn = q.conj(tw);
+    const rv = q.toRotvec(swing);
+    let twist = 2 * Math.atan2(v3.dot(turn, d.n), turn[3]) / RAD / d.k[2];
+    twist = ((twist + 540) % 360) - 180;
+    if (Math.abs(twist) > 90 && !flipped) return this._handAngles(d, local, v3.scale(palm, -1), true);
+    return { flex: v3.dot(rv, d.a1) / RAD / d.k[0], side: v3.dot(rv, d.a2) / RAD / d.k[1], twist };
+  }
+
   // the anatomical rotation of joint j for angles {flex, side, twist}, in its own frame
   rotation(j, a) {
     const d = this.defs[j];
     const swing = q.fromRotvec(v3.add(v3.scale(d.a1, d.k[0] * a.flex * RAD), v3.scale(d.a2, d.k[1] * a.side * RAD)));
-    return q.norm(q.mul(swing, q.axisAngle(d.n, d.k[2] * a.twist * RAD)));
+    const turn = q.axisAngle(d.n, d.k[2] * a.twist * RAD);
+    return q.norm(d.pronation ? q.mul(turn, swing) : q.mul(swing, turn));
   }
 
   // keep angles inside the joint's range: sideways and forward together stay inside the joint's
@@ -206,10 +242,34 @@ export class Skeleton {
     return { flex, side, twist };
   }
 
+  // move joint j toward angles a, within its range; with a body, only as far as the arms stay out
+  // of the trunk and the head (or no further in than they were), sliding along it where the way
+  // straight there is blocked
   set(j, a) {
     if (typeof j === "string") j = this.index(j);
     if (!this.defs[j] || !this.angles[j]) return false;
-    this.angles[j] = this.clamp(j, { ...this.angles[j], ...a });
+    const to = this.clamp(j, { ...this.angles[j], ...a });
+    if (!this.body) { this.angles[j] = to; return true; }
+    const limit = Math.max(this.body.depth(this.solve()), this.body.tol);
+    const free = (b) => { this.angles[j] = b; return this.body.depth(this.solve()) <= limit; };
+    const keys = ["flex", "side", "twist"];
+    const lerp = (f, g, t) => this.clamp(j, Object.fromEntries(keys.map((k) => [k, f[k] + (g[k] - f[k]) * t])));
+    const walk = (from, goal) => {             // as far from `from` toward `goal` as is free, in steps of 2°
+      const n = Math.max(1, Math.ceil(Math.max(...keys.map((k) => Math.abs(goal[k] - from[k]))) / 2));
+      let ok = from;
+      for (let i = 1; i <= n; i++) {
+        const c = lerp(from, goal, i / n);
+        if (free(c)) { ok = c; continue; }
+        let lo = 0, hi = 1;
+        for (let k = 0; k < 6; k++) { const m = (lo + hi) / 2; if (free(lerp(ok, c, m))) lo = m; else hi = m; }
+        return lerp(ok, c, lo);
+      }
+      return ok;
+    };
+    let at = walk(this.angles[j], to);
+    for (const k of keys) at = walk(at, { ...at, [k]: to[k] });
+    this.angles[j] = at;
+    this.solve();
     return true;
   }
 
@@ -238,15 +298,14 @@ export class Skeleton {
     const p = this.parents[j];
     const frame = q.mul(p < 0 ? q.id() : this.W[p], this.C[j]);
     let local = v3.unit(q.rot(q.conj(frame), v3.unit(dir)));
+    if (d.pronation) local = q.rot(q.axisAngle(d.n, -d.k[2] * this.angles[j].twist * RAD), local);
     let flex, side;
     if (d.hinge) {                               // a hinge: the angle about its one axis
       local = v3.unit(v3.sub(local, v3.scale(d.a1, v3.dot(local, d.a1))));
       const ang = Math.atan2(v3.dot(v3.cross(d.n, local), d.a1), v3.dot(d.n, local));
       flex = ang / RAD / d.k[0]; side = this.angles[j].side;
     } else {
-      const rv = q.toRotvec(q.between(d.n, local));
-      flex = d.k[0] ? v3.dot(rv, d.a1) / RAD / d.k[0] : 0;
-      side = d.k[1] ? v3.dot(rv, d.a2) / RAD / d.k[1] : 0;
+      ({ flex, side } = this._swing(d, local));
     }
     this.set(j, { flex, side });
     this.solve();
@@ -260,7 +319,7 @@ export class Skeleton {
     const out = {};
     this.angles.forEach((a, j) => {
       const r = this.restAngles[j];
-      if (a && (Math.abs(a.flex - r.flex) > 0.01 || Math.abs(a.side - r.side) > 0.01 || Math.abs(a.twist) > 0.01))
+      if (a && (Math.abs(a.flex - r.flex) > 0.01 || Math.abs(a.side - r.side) > 0.01 || Math.abs(a.twist - r.twist) > 0.01))
         out[this.names[j]] = { flex: +a.flex.toFixed(2), side: +a.side.toFixed(2), twist: +a.twist.toFixed(2) };
     });
     return out;
@@ -280,6 +339,102 @@ export class Skeleton {
   transforms() {
     return this.W.map((w, j) => ({ q: w, t: v3.sub(this.P[j], q.rot(w, this.rest[j])) }));
   }
+}
+
+// ---------------------------------------------------------------- the body in the way
+// The trunk and the head as the surface map measures them (the body's radius around their axis at
+// each height and angle, at rest), so an arm can't be moved through them. Points along the upper
+// arm (past its first 40%, which starts inside the shoulder), the forearm and the hand are taken
+// back to rest by the trunk bone nearest each; an arm may touch the body but not sink in by more
+// than SINK of its own thickness.
+const SINK = 0.4;
+export class BodyVolume {
+  constructor(rig, map) {
+    const names = rig.joints.map((j) => j.name), idx = (n) => names.indexOf(n);
+    this.map = map;
+    this.tol = 0.001 * rig.height;
+    this.parts = [
+      { region: "trunk", bones: ["pelvis", "spine", "chest", "neck"].map(idx).filter((b) => b >= 0) },
+      { region: "head", bones: [idx("head")].filter((b) => b >= 0) },
+    ].filter((o) => map.maps[o.region] && o.bones.length);
+    this.limbs = [];
+    for (const s of ["l", "r"]) {
+      for (const [bone, child, from] of [["shoulder", "elbow", 0.4], ["elbow", "wrist", 0], ["wrist", "hand_end", 0]]) {
+        const b = idx(bone + "_" + s), c = idx(child + "_" + s);
+        if (b < 0 || c < 0 || !map.maps[names[b]]) continue;
+        this.limbs.push({ b, c, from, r: this._thickness(names[b], map.maps[names[b]].length) });
+      }
+    }
+  }
+
+  // a limb's typical radius: the median of its map along the bone
+  _thickness(name, len) {
+    const rs = [];
+    for (let t = 0.2; t <= 0.8; t += 0.1) for (let a = 0; a < 16; a++) {
+      const r = this.map.radius(name, t * len, a / 16 * 2 * Math.PI);
+      if (!Number.isNaN(r)) rs.push(r);
+    }
+    rs.sort((x, y) => x - y);
+    return rs.length ? rs[rs.length >> 1] : 0;
+  }
+
+  // how far a posed point x (with room r around it) is inside a part, given the skeleton sk
+  _inside(sk, part, x, r) {
+    let best = -1, bd = Infinity;
+    for (const b of part.bones) {             // the part's bone whose posed segment is nearest
+      const a = sk.P[b], e = sk.P[sk.primary[b]] || a, ab = v3.sub(e, a), ap = v3.sub(x, a);
+      const t = Math.max(0, Math.min(1, v3.dot(ap, ab) / (v3.dot(ab, ab) || 1)));
+      const dd = v3.len(v3.sub(ap, v3.scale(ab, t)));
+      if (dd < bd) { bd = dd; best = b; }
+    }
+    const p = v3.add(sk.rest[best], q.rot(q.conj(sk.W[best]), v3.sub(x, sk.P[best])));
+    const m = this.map.maps[part.region], d = v3.sub(p, m.origin), t = v3.dot(d, m.axis);
+    const u = v3.dot(d, m.e0), w = v3.dot(d, m.e1);
+    const R = this.map.radius(part.region, t, Math.atan2(w, u));
+    return Number.isNaN(R) ? 0 : Math.max(0, R + r - Math.hypot(u, w));
+  }
+
+  // how deep the arms are in the trunk and the head, added up over points along them
+  depth(sk) {
+    let sum = 0;
+    for (const l of this.limbs) {
+      const a = sk.P[l.b], e = sk.P[l.c];
+      for (let i = 0; i <= 6; i++) {
+        const x = v3.add(a, v3.scale(v3.sub(e, a), l.from + (1 - l.from) * i / 6));
+        for (const part of this.parts) sum += this._inside(sk, part, x, (1 - SINK) * l.r);
+      }
+    }
+    return sum;
+  }
+}
+
+// The way each palm faces in the scan: the hand's splats (those the wrist carries most) are flat,
+// and the palm's normal is the direction across the hand they spread least in. null where the
+// hand isn't clearly flat (a blurred or fisted hand).
+export function palmNormals(rig, centres, bones, opaque) {
+  const names = rig.joints.map((j) => j.name), out = {};
+  for (const s of ["l", "r"]) {
+    const w = names.indexOf("wrist_" + s), e = names.indexOf("hand_end_" + s);
+    out["wrist_" + s] = null;
+    if (w < 0 || e < 0) continue;
+    const axis = v3.unit(v3.sub(rig.joints[e].pos, rig.joints[w].pos));
+    const e0 = v3.unit(v3.cross(axis, Math.abs(axis[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), e1 = v3.cross(axis, e0);
+    let n = 0, su = 0, sv = 0, suu = 0, svv = 0, suv = 0;
+    for (const i of opaque) {
+      if (bones[i * 4] !== w) continue;
+      const p = [centres[i * 3], centres[i * 3 + 1], centres[i * 3 + 2]];
+      const u = v3.dot(p, e0), v = v3.dot(p, e1);
+      n++; su += u; sv += v; suu += u * u; svv += v * v; suv += u * v;
+    }
+    if (n < 50) continue;
+    const cuu = suu / n - (su / n) ** 2, cvv = svv / n - (sv / n) ** 2, cuv = suv / n - (su / n) * (sv / n);
+    const mid = (cuu + cvv) / 2, dev = Math.hypot((cuu - cvv) / 2, cuv);
+    const big = mid + dev, small = mid - dev;
+    if (small <= 0 || big / small < 2.5) continue;
+    const ang = 0.5 * Math.atan2(2 * cuv, cuu - cvv) + Math.PI / 2;   // the direction of least spread
+    out["wrist_" + s] = v3.add(v3.scale(e0, Math.cos(ang)), v3.scale(e1, Math.sin(ang)));
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- dual quaternion skinning

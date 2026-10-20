@@ -2,7 +2,8 @@
 """Regenerate the README screenshots in docs/images/ from synthetic bodies.
 
     pip install playwright && python -m playwright install chromium
-    python3 scripts/screenshots.py
+    python3 scripts/screenshots.py                    # all of them
+    python3 scripts/screenshots.py tattoo-desktop     # only the ones named
 
 Look at every image before committing it. BODY_STUDIO_CHROMIUM picks a Chromium that's
 already installed. Waits for the page's own state, never a fixed delay, except one short
@@ -98,6 +99,8 @@ def main() -> None:
             browser = pw.chromium.launch(executable_path=os.environ.get("BODY_STUDIO_CHROMIUM") or None,
                                          args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
             for name, w, h, scheme, lang, panel in SHOTS:
+                if sys.argv[1:] and name not in sys.argv[1:]:
+                    continue
                 page = browser.new_page(viewport={"width": w, "height": h}, color_scheme=scheme)
                 page.add_init_script(f"localStorage.setItem('lang', '{lang}')")
                 if panel == "progress":
@@ -138,6 +141,7 @@ def tattoo_scene(page, tmp: Path) -> None:
     page.wait_for_function("tattooStudio.tattoos().length === 1")
     page.fill("#tatSize", "8")
     page.dispatch_event("#tatSize", "input")
+    page.fill("#tatName", "Sun" if page.evaluate("window.i18n.lang") == "en" else "Sol")
     page.mouse.click(*page.evaluate("tattooStudio.screen(tattooStudio.joint('wrist_l'))"))   # picks the elbow
     page.wait_for_function("!document.getElementById('jointEdit').hidden")
     if page.viewport_size["width"] > 600:              # closer: from the hips up

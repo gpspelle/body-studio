@@ -146,6 +146,21 @@ class Viewer(unittest.TestCase):
         self.assertEqual(page.locator("#jointName").inner_text(), "Left shoulder")
         self.assertEqual(page.locator("#jointSliders input").count(), 3)
         page.click("#poseReset")
+        # the elbow only bends; the wrist bends both ways and the forearm turns the hand
+        for dot, name, sliders in (("wrist_l", "Left elbow", 1), ("hand_end_l", "Left wrist", 3)):
+            page.mouse.click(*page.evaluate(f"tattooStudio.screen(tattooStudio.joint('{dot}'))"))
+            self.assertEqual(page.locator("#jointName").inner_text(), name)
+            self.assertEqual(page.locator("#jointSliders input").count(), sliders)
+        # dragging the elbow toward the middle of the chest stops the arm at the body
+        (ex, ey), (sx, sy) = page.evaluate("['elbow_l', 'spine'].map((j) => tattooStudio.screen(tattooStudio.joint(j)))")
+        page.mouse.move(ex, ey)
+        page.mouse.down()
+        for k in range(1, 11):
+            page.mouse.move(ex + (sx - ex) * k / 10, ey + (sy - ey) * k / 10)
+        page.mouse.up()
+        self.assertIn("shoulder_l", page.evaluate("tattooStudio.pose()"))
+        self.assertLess(page.evaluate("tattooStudio.armDepth()"), 0.005)
+        page.click("#poseReset")
 
         # a tattoo on the forearm: pick the image, tap the arm
         page.set_input_files("#tatPick", str(self.design))
@@ -161,6 +176,8 @@ class Viewer(unittest.TestCase):
         page.fill("#tatSize", "6")
         page.dispatch_event("#tatSize", "input")
         self.assertEqual(page.evaluate("tattooStudio.tattoos()[0].widthCm"), 6)
+        page.fill("#tatName", "Sun")                    # a name for its button
+        self.assertEqual(page.locator("#tatList button").inner_text(), "Sun")
 
         # bend the arm: the tattoo stays where it was on the forearm
         def along(t):
@@ -183,6 +200,8 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("tattooStudio.ready && tattooStudio.tattoos().length === 1", timeout=60000)
         self.assertEqual(page.evaluate("tattooStudio.pose()"), pose)
         self.assertEqual(page.evaluate("tattooStudio.tattoos()[0].widthCm"), 6)
+        self.assertEqual(page.evaluate("tattooStudio.tattoos()[0].name"), "Sun")
+        self.assertEqual(page.locator("#tatList button").inner_text(), "Sun")
         centre = page.evaluate("tattooStudio.tattoos()[0].centre")
         page.wait_for_function("!tattooStudio.saving")
 

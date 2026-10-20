@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { Skeleton, SkinSurface, SkinWeights, dualQuats, inkSamples, inkUnder, placeInk, INK_OUT, skinPoint, q, v3, DOF } from "../../src/body_studio/static/pose.js";
+import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, placeInk, INK_OUT, skinPoint, q, v3, DOF } from "../../src/body_studio/static/pose.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { left: L, up: U, front: F } = rig.frame;
@@ -105,8 +105,8 @@ test("every joint moves as far as a person's does, and no further", () => {
   };
   const ranges = {
     shoulder: { flex: [-60, 180], side: [-50, 180], twist: [-90, 70] },
-    elbow: { flex: [0, 145], twist: [-80, 80] },
-    wrist: { flex: [-70, 80], side: [-30, 20] },
+    elbow: { flex: [0, 145], twist: [0, 0] },
+    wrist: { flex: [-70, 80], side: [-30, 20], twist: [-80, 80] },
     hip: { flex: [-30, 125], side: [-25, 45], twist: [-45, 40] },
     ankle: { flex: [-50, 20] },
   };
@@ -532,6 +532,106 @@ function image(W, Hh, inked) {
   for (let y = 0; y < Hh; y++) for (let x = 0; x < W; x++) if (inked(x, y)) data[(y * W + x) * 4 + 3] = 255;
   return { width: W, height: Hh, data };
 }
+
+// the dominant bone of every opaque splat, as tattoo.js has them
+const domBones = (() => {
+  const w = new SkinWeights(rig), n = body.centres.length / 3, bones = new Uint8Array(n * 4), ws = new Uint8Array(n * 4);
+  for (const i of body.opaque) w.at(body.centres[i * 3], body.centres[i * 3 + 1], body.centres[i * 3 + 2], bones, ws, i);
+  return bones;
+})();
+const palms = palmNormals(rig, body.centres, domBones, body.opaque);
+const volume = new BodyVolume(rig, new SurfaceMap(rig));
+const posed = () => new Skeleton(rig, { palms, body: volume });
+
+test("the arms can touch the body but not go into it", () => {
+  const sk = posed(), tol = volume.tol;
+  assert.ok(volume.limbs.length === 6 && volume.parts.length === 2);
+  near(volume.depth(sk), 0, tol, "at rest");
+  const both = (j, a) => ({ [j + "_l"]: a, [j + "_r"]: a });
+  // the page's presets and the arms folded across the chest are all outside
+  for (const p of [{ ...both("shoulder", { flex: 0, side: 165, twist: 0 }), ...both("elbow", { flex: 8 }) },
+                   { ...both("shoulder", { flex: 0, side: 90, twist: -90 }), ...both("elbow", { flex: 115 }), ...both("wrist", { flex: 20, side: 0 }) },
+                   { ...both("shoulder", { flex: 22, side: 10, twist: 0 }), ...both("elbow", { flex: 75 }), ...both("wrist", { twist: 60 }), spine: { flex: 8 } },
+                   { ...both("shoulder", { flex: 80, side: -60, twist: 20 }), ...both("elbow", { flex: 120 }) }])
+    assert.ok(volume.depth(sk.setPose(p)) <= tol, JSON.stringify(p));
+  for (const s of ["l", "r"]) {
+    const o = s === "l" ? "r" : "l";
+    // the elbow dragged toward the middle of the trunk (the arm used to go straight in)
+    sk.reset();
+    const sternum = v3.scale(v3.add(sk.P[sk.index("chest")], sk.P[sk.index("spine")]), 0.5);
+    sk.aim("shoulder_" + s, v3.sub(sternum, sk.P[sk.index("shoulder_" + s)]));
+    assert.ok(volume.depth(sk) <= tol, `${s} arm stops at the chest`);
+    // straight through to the other side: a body without a volume lets it
+    const free = new Skeleton(rig, { palms });
+    free.aim("shoulder_" + s, v3.sub(free.P[free.index("shoulder_" + o)], free.P[free.index("shoulder_" + s)]));
+    assert.ok(volume.depth(free) > 10 * tol, "(without the volume the arm goes through)");
+    sk.reset();
+    sk.aim("shoulder_" + s, v3.sub(sk.P[sk.index("shoulder_" + o)], sk.P[sk.index("shoulder_" + s)]));
+    assert.ok(volume.depth(sk) <= tol, `${s} arm doesn't pass through the chest`);
+    // down by the side, touching it
+    sk.reset(); sk.set("shoulder_" + s, { flex: 0, side: -50 });
+    const side = sk.angles[sk.index("shoulder_" + s)].side;
+    assert.ok(side < 10 && side > -10, `${s} arm comes down to the side (${side})`);
+    // turned in, the forearm stops at the belly; out to the side it bends all the way
+    sk.reset(); sk.set("shoulder_" + s, { flex: 0, side: 10, twist: 70 }); sk.set("elbow_" + s, { flex: 145 });
+    const bent = sk.angles[sk.index("elbow_" + s)].flex;
+    assert.ok(bent < 100 && bent > 20, `${s} forearm stops at the belly (${bent})`);
+    sk.reset(); sk.set("shoulder_" + s, { flex: 0, side: 90 }); sk.set("elbow_" + s, { flex: 145 });
+    near(sk.angles[sk.index("elbow_" + s)].flex, 145, 1e-6, `${s} elbow bends fully out to the side`);
+    // sliding: forward, then across the front, then the elbow bent: arms folded
+    sk.reset(); sk.set("shoulder_" + s, { flex: 85, side: 0 }); sk.set("shoulder_" + s, { flex: 85, side: -60 });
+    sk.set("elbow_" + s, { flex: 120 });
+    assert.ok(sk.angles[sk.index("shoulder_" + s)].side < -40 && sk.angles[sk.index("elbow_" + s)].flex > 90, `${s} arm folds across the chest`);
+  }
+  // anything asked of the arms, one joint after another, never ends inside
+  let seed = 11;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const lo = (a, b) => a + (b - a) * rnd();
+  sk.reset();
+  for (let k = 0; k < 400; k++) {
+    const s = rnd() < 0.5 ? "l" : "r", j = ["shoulder", "elbow", "wrist", "clavicle", "chest", "spine", "neck", "head"][k % 8];
+    const name = ["shoulder", "elbow", "wrist", "clavicle"].includes(j) ? j + "_" + s : j;
+    sk.set(name, { flex: lo(-90, 180), side: lo(-120, 180), twist: lo(-90, 90) });
+    assert.ok(volume.depth(sk) <= tol * 1.001, `step ${k}: ${name} ${JSON.stringify(sk.angles[sk.index(name)])}`);
+  }
+});
+
+test("the hand bends toward its palm, and the forearm turns it", () => {
+  const sk = posed();
+  for (const s of ["l", "r"]) {
+    const j = sk.index("wrist_" + s), p = sk.parents[j], tip = sk.index("hand_end_" + s);
+    assert.ok(palms["wrist_" + s], `${s} palm found`);
+    const palmNow = () => q.rot(q.mul(q.mul(sk.W[p], sk.C[j]), sk.rotation(j, sk.angles[j])), sk.defs[j].palm);
+    const hand = () => v3.unit(v3.sub(sk.P[tip], sk.P[j]));
+    sk.reset();
+    // at rest the hand's axes are the scan's: its palm faces the way the hand's splats are flat
+    assert.ok(Math.abs(v3.dot(palmNow(), palms["wrist_" + s])) > 0.95, `${s} palm as scanned`);
+    const rest = sk.restAngles[j];
+    assert.ok(Math.abs(rest.twist) <= 90, `${s} rest turn ${rest.twist}`);
+    // bending moves the fingers toward the palm, 80 of it
+    const palm0 = palmNow(), h0 = hand();
+    sk.set(j, { flex: 80, side: 0 }); sk.solve();
+    assert.ok(v3.dot(hand(), palm0) > 0.8, `${s} bent toward the palm`);
+    // sideways it moves across the palm (toward the thumb or away), not toward it
+    sk.reset(); sk.set(j, { flex: 0, side: 20 }); sk.solve();
+    const across = v3.sub(hand(), h0);
+    assert.ok(Math.abs(v3.dot(v3.unit(across), palm0)) < 0.5, `${s} side bend is across the palm`);
+    // turning: the palm goes round the forearm, the hand keeps pointing the same way
+    sk.reset(); sk.set(j, { flex: 0, side: 0, twist: 0 }); sk.solve();
+    const h1 = hand(), p1 = palmNow();
+    sk.set(j, { twist: 70 }); sk.solve();
+    assert.ok(v3.dot(hand(), h1) > 0.999, `${s} turning keeps the hand's direction`);
+    near(Math.acos(Math.max(-1, Math.min(1, v3.dot(palmNow(), p1)))) / RAD, 70, 1, `${s} the palm turns 70`);
+    // and a bend after the turn goes toward the turned palm
+    const p2 = palmNow();
+    sk.set(j, { flex: 60 }); sk.solve();
+    assert.ok(v3.dot(hand(), p2) > 0.7, `${s} turned hand bends toward its palm`);
+    // dragging the fingertips keeps the turn
+    sk.aim(j, v3.add(h1, v3.scale(p2, 0.5)));
+    near(sk.angles[j].twist, 70, 1e-6, `${s} aiming keeps the turn`);
+    assert.ok(v3.dot(hand(), v3.unit(v3.add(h1, v3.scale(p2, 0.5)))) > 0.99, `${s} aim reaches`);
+  }
+});
 
 test("ink splats cover the inked part of the image, evenly", () => {
   // the top half inked (image rows go down, v goes up)

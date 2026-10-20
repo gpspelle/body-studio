@@ -37,6 +37,12 @@
 - Joints move as far as a person's, checked against published ranges of motion: an arm reaches
   across the chest at shoulder height and back behind, a bent hip crosses the legs, a bent knee
   turns the shin, and the head tilts back and sideways further.
+- An arm can no longer be moved into the body: dragging the elbow toward the chest stops the arm
+  at the skin, and a forearm turned in stops at the belly. The trunk and head are measured from the
+  scan.
+- The wrist bends toward the palm and to the sides of the hand, and the forearm turns the hand
+  (the elbow now only bends). The hand's axes come from the scan: the way its palm faces.
+- Tattoos can be named; the name shows on its button and is kept with it.
 - A tattoo near the armpit no longer loses parts or sinks into the body: the skin there was taken
   to face inward (its nearest bone was the upper arm, not the bones that carry it).
 - Tattoos are drawn as splats on the skin, and the body's own splats under them take the ink, all

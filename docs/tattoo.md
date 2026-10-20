@@ -91,8 +91,8 @@ Norkin & White, *Measurement of Joint Motion*). The right side mirrors the left.
 | Joint | Motions (degrees from the anatomical position) |
 |---|---|
 | Shoulder | forward −60…180, out −50…180, twist −90…70; at shoulder height, across the chest to 45° past straight forward and back to 40° behind out to the side |
-| Elbow | bend 0…145, twist −80…80 (a hinge: no sideways) |
-| Wrist | bend −70…80, side −30…20 |
+| Elbow | bend 0…145 (a hinge: no sideways, no twist) |
+| Wrist | bend −70…80 (toward the palm), side −30…20 (toward the thumb), twist −80…80 (the forearm turning the hand: pronation, supination) |
 | Hip | forward −30…125, out −25…45, twist −45…40; further across with the hip bent (crossed legs) |
 | Knee | bend 0…145 (a hinge); the shin turns in 30 and out 40 once the knee is bent 90 (none when straight) |
 | Ankle | foot −50…20, side ±10, tilt −15…30 |
@@ -107,6 +107,25 @@ each plane, because they reach much further in some than in others (an arm goes 
 across the chest at shoulder height, but only 60° straight back); the other joints keep within the
 ellipse between their two swing ranges. The tests check each range against the table above. Dragging a dot aims the bone at
 the pointer and keeps its twist; the angle is then clamped to the joint's range.
+
+**The hand's axes come from the scan.** The wrist's motions are measured from the thumb-forward
+position (palm toward the body), the zero of forearm rotation in the clinical tables, but a scan's
+hands may face down, in or back. The splats the wrist carries are flat, so the direction across the
+hand they spread least in is the palm's normal (`palmNormals`); the hand's rest turn is read from it
+(of the two ways it could face, the one nearer thumb-forward). The forearm turns the hand before the
+wrist bends it, so "bend" always goes toward the palm, however the hand is turned. A hand that isn't
+clearly flat in the scan rests thumb-forward.
+
+**The arms stay out of the body.** A joint's range doesn't know where the trunk is: an arm swung
+across the front at hip height, or a forearm bent with the arm turned in, would go into it. The rig's
+surface maps already measure the trunk and the head (the body's radius around their axis at each
+height and angle, at rest). `BodyVolume` takes points along each upper arm (past its first 40 %,
+which starts inside the shoulder), forearm and hand back to rest through the trunk bone nearest each,
+and adds up how far they are inside, allowing an arm to sink 40 % of its own thickness (flesh gives).
+A move goes in steps of 2° and stops where that depth would grow (or, for a pose that was already
+inside, where it would grow past what it was); then each angle is tried on its own, so a drag slides
+along the body instead of sticking to it. Presets are checked to be outside. Legs aren't checked
+against each other: their cones already keep them apart.
 
 The splats are moved by **dual quaternion skinning** (Kavan et al., 2007), which Spark implements
 for splats (`SplatSkinning`). Unlike plain linear blending it doesn't collapse a bent elbow or a
