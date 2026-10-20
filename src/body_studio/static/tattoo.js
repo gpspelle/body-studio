@@ -276,12 +276,15 @@ $("jointReset").onclick = () => {
 $("poseReset").onclick = () => { still(); S.sk.reset(); applyPose(); refreshJointSliders(); };
 
 // ---------------------------------------------------------------- walking
-// W A S D (or the arrows) walk the body across the floor, the way the camera looks; Space jumps
-// (walk.js). The camera follows. The panel's pose is what the body goes back to when it stops.
+// W A S D (or the arrows) walk the body across the floor, the way the camera looks; Space jumps;
+// Q / E raise an arm, Z / C a knee, until pressed again (walk.js). The camera follows. The
+// panel's pose is what the body goes back to when it stops, with arms held out as in the scan
+// brought down. The Guide (index.html) lists the keys.
 const KEYS = { KeyW: "f", ArrowUp: "f", KeyS: "b", ArrowDown: "b", KeyA: "l", ArrowLeft: "l", KeyD: "r", ArrowRight: "r" };
+const LIMB_KEYS = { KeyQ: "arm_l", KeyE: "arm_r", KeyZ: "knee_l", KeyC: "knee_r" };
 const held = new Set();
 const follow = new THREE.Vector3();          // where the walk has taken the body, in the scene
-let jumpAsked = false, walkFrameId = 0, lastFrame = 0;
+let jumpAsked = false, toggles = [], walkFrameId = 0, lastFrame = 0;
 const known = { get() { try { return localStorage.getItem("walk:known") === "1"; } catch { return false; } },
                 set() { try { localStorage.setItem("walk:known", "1"); } catch {} } };
 const keyboard = () => !matchMedia("(pointer: coarse)").matches && innerWidth > 600;   // (a phone has no keys)
@@ -317,14 +320,18 @@ function walkFrame(now) {
   const dt = lastFrame ? (now - lastFrame) / 1000 : 1 / 60;
   lastFrame = now;
   if (S.restored) {
+    const was = S.walker.active;
+    for (const limb of toggles) S.walker.toggle(limb);
+    toggles = [];
     if (S.walker.update(dt, { move: moveDir(), jump: jumpAsked })) {
       V.controls.autoRotate = false;
       drawPose();
       followBody();
     }
     jumpAsked = false;
+    if (was && !S.walker.active) save();      // the pose it stands in now (arms down) is kept
   }
-  if (S.walker.active || held.size || jumpAsked) walkFrameId = requestAnimationFrame(walkFrame);
+  if (S.walker.busy || held.size || jumpAsked || toggles.length) walkFrameId = requestAnimationFrame(walkFrame);
   else lastFrame = 0;
 }
 function walking() {
@@ -342,14 +349,15 @@ function followBody() {
 
 const typing = (e) => !!e.target.closest?.("input, textarea, select, [contenteditable]");
 addEventListener("keydown", async (e) => {
-  if (e.metaKey || e.ctrlKey || e.altKey || typing(e)) return;
+  if (e.metaKey || e.ctrlKey || e.altKey || typing(e) || $("guide").open) return;
   if (e.code === "KeyR") {                   // back where it was scanned (index.html frames it again)
-    if (S) { S.walker.home(); follow.set(0, 0, 0); drawPose(); }
+    if (S) { S.walker.home(); follow.set(0, 0, 0); drawPose(); save(); }
     return;
   }
   const k = KEYS[e.code];
   if (k) held.add(k);
   else if (e.code === "Space") { if (!e.repeat) jumpAsked = true; }
+  else if (LIMB_KEYS[e.code]) { if (!e.repeat) toggles.push(LIMB_KEYS[e.code]); }
   else return;
   e.preventDefault();                       // no page scroll, no button pressed
   if (!V.file()) return;
@@ -926,7 +934,7 @@ window.tattooStudio = {
                                             ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3, ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3 + 3)) })),
   heightCm: () => S.heightCm,
   // the walk: whether it is moving the body, in the air, how far it went (fractions of the height)
-  walk: () => S && { active: S.walker.active, airborne: S.walker.airborne, pos: v3.scale(S.walker.pos, 1 / S.rig.height),
+  walk: () => S && { active: S.walker.active, busy: S.walker.busy, airborne: S.walker.airborne, raised: S.walker.raised(), pos: v3.scale(S.walker.pos, 1 / S.rig.height),
                      facing: S.walker.facing() },
   // walk for a while as if the keys (f b l r) were held, in steps of a 60th of a second, and stop
   // there, mid-stride (for screenshots)

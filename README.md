@@ -141,11 +141,15 @@ panel sits at the left edge (at the bottom on a phone).
   The tattoo moves with the skin.
 - **Walk it around**: press **W A S D** (or the arrow keys) and the body walks across the floor,
   away from you, toward you or to the sides, turning to face the way it goes; the camera follows.
-  **Space** jumps. Clothes, hair, shoes and tattoos go along. Let go and it stands in the pose
-  from the panel again, where it got to; **R** brings it back. The first press finds the skeleton
-  if the panel hasn't yet.
+  **Space** jumps. **Q** / **E** raise the left / right arm and **Z** / **C** the left / right
+  knee (the body's own left and right); they stay up until pressed again. Clothes, hair, shoes and
+  tattoos go along. Let go and it stands where it got to, in the pose from the panel, with arms
+  that were held out as in the scan now down by its sides; **R** brings it back. The first press
+  finds the skeleton if the panel hasn't yet. **Guide** (or **?**) lists every control.
 
   ![Walking](docs/images/walk-desktop.png)
+
+  ![The Guide](docs/images/guide-desktop.png)
 - The first time, the app finds the body's skeleton (a few seconds). It needs the A-pose from the
   filming guide: arms a little away from the body, feet apart. Tattoos and pose are kept in this
   browser, per body.
@@ -267,8 +271,12 @@ fica. O painel fica na borda esquerda (embaixo, no celular).
   articulação para ajustar os ângulos com controles deslizantes. A tatuagem acompanha a pele.
 - **Saia andando**: aperte **W A S D** (ou as setas) e o corpo anda pelo chão, para longe de você,
   na sua direção ou para os lados, virando para onde vai; a câmera acompanha. **Espaço** pula.
-  Roupas, cabelo, sapatos e tatuagens vão junto. Solte e ele volta à pose do painel, onde chegou;
-  **R** o traz de volta. O primeiro toque encontra o esqueleto, se o painel ainda não encontrou.
+  **Q** / **E** levantam o braço esquerdo / direito e **Z** / **C** o joelho esquerdo / direito (a
+  esquerda e a direita do próprio corpo); ficam levantados até você apertar de novo. Roupas, cabelo,
+  sapatos e tatuagens vão junto. Solte e ele fica onde chegou, na pose do painel, com os braços que
+  estavam abertos como no escaneamento agora abaixados ao lado do corpo; **R** o traz de volta. O
+  primeiro toque encontra o esqueleto, se o painel ainda não encontrou. **Guia** (ou **?**) mostra
+  todos os controles.
 - Na primeira vez, o app encontra o esqueleto do corpo (alguns segundos). Precisa da pose A do guia
   de filmagem: braços um pouco afastados do corpo, pés afastados. Tatuagens e pose ficam guardadas
   neste navegador, para cada corpo.

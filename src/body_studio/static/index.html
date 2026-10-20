@@ -24,6 +24,7 @@
   <span class="mark">Body Studio</span>
   <span id="job" class="pill" role="status" hidden></span>
   <button id="lang" class="link" data-i18n-aria-label="lang.label"></button>
+  <button id="guideBtn" class="btn" aria-haspopup="dialog" aria-controls="guide" data-i18n="guide.open"></button>
   <button id="studioBtn" class="btn" aria-controls="studio" aria-expanded="false" data-i18n="studio.btn" hidden></button>
   <button id="progressBtn" class="btn" aria-controls="progress" aria-expanded="false" data-i18n="prog.open"></button>
   <label class="btn" for="pick" data-i18n="app.new"></label>
@@ -137,6 +138,44 @@
     </section>
   </div>
 </aside>
+<!-- Every control on one card, as a game's controls screen: keys, what each does, in a word or two. -->
+<dialog id="guide" class="guide" aria-labelledby="guideTitle">
+  <div class="panel-head">
+    <strong id="guideTitle" data-i18n="guide.title"></strong>
+    <span class="grow"></span>
+    <button id="closeGuide" class="link" data-i18n-aria-label="guide.close">✕</button>
+  </div>
+  <section>
+    <h2 data-i18n="guide.move"></h2>
+    <dl class="keys">
+      <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd data-i18n="guide.walk"></dd>
+      <dt><kbd data-i18n="guide.space"></kbd></dt><dd data-i18n="guide.jump"></dd>
+      <dt><kbd>R</kbd></dt><dd data-i18n="guide.back"></dd>
+    </dl>
+  </section>
+  <section>
+    <h2 data-i18n="guide.limbs"></h2>
+    <dl class="keys">
+      <dt><kbd>Q</kbd><kbd>E</kbd></dt><dd data-i18n="guide.arms"></dd>
+      <dt><kbd>Z</kbd><kbd>C</kbd></dt><dd data-i18n="guide.knees"></dd>
+    </dl>
+  </section>
+  <section>
+    <h2 data-i18n="guide.camera"></h2>
+    <dl class="keys">
+      <dt><span class="gesture" data-i18n="guide.drag"></span></dt><dd data-i18n="guide.orbit"></dd>
+      <dt><span class="gesture" data-i18n="guide.scroll"></span></dt><dd data-i18n="guide.zoom"></dd>
+    </dl>
+  </section>
+  <section>
+    <h2 data-i18n="guide.panels"></h2>
+    <dl class="keys">
+      <dt><span class="gesture" data-i18n="studio.btn"></span></dt><dd data-i18n="guide.tryOn"></dd>
+      <dt><span class="gesture" data-i18n="prog.open"></span></dt><dd data-i18n="guide.progress"></dd>
+    </dl>
+    <p class="small" data-i18n="guide.note"></p>
+  </section>
+</dialog>
 <div id="drop" class="drop" hidden><p class="big" data-i18n="drop.title"></p></div>
 
 <script type="module">
@@ -344,6 +383,11 @@ async function upload(file) {
   refreshJobs();
 }
 
+// the Guide: every control on one card (Esc, ✕ or a click outside it closes it)
+$("guideBtn").onclick = () => $("guide").showModal();
+$("closeGuide").onclick = () => $("guide").close();
+$("guide").addEventListener("click", (e) => { if (e.target === $("guide")) $("guide").close(); });
+
 $("pick").onchange = (e) => e.target.files[0] && upload(e.target.files[0]);
 let depth = 0;
 addEventListener("dragenter", (e) => { e.preventDefault(); depth++; $("drop").hidden = false; });
@@ -356,6 +400,7 @@ addEventListener("drop", (e) => {
 });
 addEventListener("keydown", (e) => {
   if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+  if (e.key === "?" && !$("guide").open) { $("guide").showModal(); return; }
   if (e.key === "r" || e.key === "R") { if (fit) frame(); }      // (Space jumps: tattoo.js)
 });
 

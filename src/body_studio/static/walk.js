@@ -27,7 +27,15 @@ export function gait(p) {
     chest: 6 * c,
   };
 }
-export const HIP_RANGE = [-10, 30];             // what gait() swings the hip between
+export const HIP_RANGE = [-10, 30];
+
+// Q / E raise the left / right arm, Z / C the left / right knee (the body's own left and right),
+// as a game's emote keys do; pressed again, it comes down. Angles in the joints' own degrees.
+export const LIMBS = ["arm_l", "arm_r", "knee_l", "knee_r"];
+const RAISED = {
+  arm: { shoulder: { flex: 0, side: 165, twist: 0 }, elbow: { flex: 8 } },
+  knee: { hip: { flex: 95, side: 2, twist: 0 }, knee: { flex: 100, twist: 0 }, ankle: { flex: -10 } },
+};             // what gait() swings the hip between
 
 // sizes in the person's heights (H) and seconds: 1.2 m/s for someone 1.75 m tall, a jump of 35 cm
 export const WALK = { speed: 0.7, accel: 6, turn: 7, gravity: 9.81 / 1.75, jump: 0.2, crouch: 0.22, land: 0.24 };
@@ -56,6 +64,10 @@ export class Walker {
     this.walking = 0;                           // how much of the walk cycle is shown, 0..1
     this.jump = null;                           // { t, flight, drop } while jumping
     this.base = null;                           // the pose from the panel, while the walker moves the body
+    this.relax = 0;                             // how far arms held out as in the scan have come down, 0..1
+    this.relaxing = [];                         // the sides whose arms are as in the scan
+    // arms and knees raised with a key: whether each is up, and how far it is up now (0..1)
+    this.limbs = Object.fromEntries(LIMBS.map((n) => [n, { on: false, v: 0 }]));
   }
 
   // the arms swing nearer the body than the A-pose holds them, but not into it: the smallest
@@ -80,6 +92,52 @@ export class Walker {
   }
 
   get active() { return !!this.base; }
+  // whether the next frames still change the body (walking, jumping, an arm or knee on its way)
+  get busy() {
+    return this.speed > 1e-4 || this.walking > 1e-3 || !!this.jump || this._easing();
+  }
+  _easing() {
+    return LIMBS.some((n) => Math.abs(this.limbs[n].v - +this.limbs[n].on) > 1e-3) ||
+      (!!this.base && this.relaxing.length > 0 && this.relax < 0.999);
+  }
+  _limbsUp() { return LIMBS.some((n) => this.limbs[n].on || this.limbs[n].v > 1e-3); }
+
+  // raise an arm or a knee, or lower it if it is up; one knee at a time (the body stands on the
+  // other). Returns whether it is now up.
+  toggle(name) {
+    const l = this.limbs[name];
+    if (!l) return false;
+    l.on = !l.on;
+    if (l.on && name.startsWith("knee")) this.limbs[name === "knee_l" ? "knee_r" : "knee_l"].on = false;
+    return l.on;
+  }
+  raised() { return LIMBS.filter((n) => this.limbs[n].on); }
+
+  // the arms held out as in the scan, brought down beside the body by f (0..1), on pose A
+  _relaxed(A, f) {
+    for (const s of this.relaxing) {
+      const sh = A[this.sk.index("shoulder_" + s)], el = A[this.sk.index("elbow_" + s)];
+      for (const [k, v] of [["flex", 0], ["side", this.armSide], ["twist", 0]]) sh[k] += (v - sh[k]) * f;
+      if (el) el.flex += (10 - el.flex) * f;
+    }
+    return A;
+  }
+
+  // angles a for joint j within its range; a joint the walker left as the panel had it stays exactly so
+  _limit(j, a) {
+    const b = this.base[j];
+    if (!a) return null;
+    if (b && a.flex === b.flex && a.side === b.side && a.twist === b.twist) return { ...b };
+    return this.sk.clamp(j, a);
+  }
+
+  // the pose the walker leaves: the panel's, with arms that were as in the scan now down
+  _leave() {
+    const A = this._relaxed(this.base.map((a) => (a ? { ...a } : null)), 1);
+    this.sk.angles = A.map((a, j) => this._limit(j, a));
+    this.base = null; this.relax = 0; this.relaxing = [];
+    for (const n of LIMBS) this.limbs[n] = { on: false, v: 0 };
+  }
   get airborne() { return !!(this.jump && this.jump.flight !== null && this.jump.t >= this.o.crouch && this.jump.t < this.o.crouch + this.jump.flight); }
 
   // the way the body faces now
@@ -89,18 +147,18 @@ export class Walker {
   basePose() {
     if (!this.base) return this.sk.pose();
     const now = this.sk.angles;
-    this.sk.angles = this.base;
+    this.sk.angles = this._relaxed(this.base.map((a) => (a ? { ...a } : null)), 1);
     const p = this.sk.pose();
     this.sk.angles = now;
     return p;
   }
 
-  // stop at once (no steps to finish, no landing): the panel's pose again, where the body is now.
-  // Whether it was moving the body.
+  // stop at once (no steps to finish, no landing, arms and knees down): the panel's pose again,
+  // where the body is now. Whether it was moving the body.
   settle() {
     const was = !!this.base;
     this.speed = 0; this.walking = 0; this.jump = null;
-    if (this.base) { this.sk.angles = this.base; this.base = null; }
+    if (this.base) this._leave();
     this.sk.place = { q: this.sk.place.q, t: this.pos.slice() };
     this.sk.solve();
     return was;
@@ -109,7 +167,7 @@ export class Walker {
   // back where the body was scanned, facing the same way, in the panel's pose
   home() {
     this.pos = [0, 0, 0]; this.heading = 0; this.speed = 0; this.jump = null; this.walking = 0;
-    if (this.base) { this.sk.angles = this.base; this.base = null; }
+    if (this.base) this._leave();
     this.sk.place = { q: q.id(), t: [0, 0, 0] };
     this.sk.solve();
   }
@@ -125,8 +183,21 @@ export class Walker {
       const v0 = Math.sqrt(2 * o.gravity * o.jump);
       this.jump = { t: 0, flight: 2 * v0 / o.gravity, v0, drop: null };
     }
-    if (!this.base && !want && !this.jump && this.speed < 1e-4) return false;
-    if (!this.base) this.base = this.sk.angles.map((a) => (a ? { ...a } : null));
+    if (want > 1e-3) { this.limbs.knee_l.on = false; this.limbs.knee_r.on = false; }   // knees come down to walk
+    const quiet = !want && !this.jump && this.speed < 1e-4 && this.walking < 1e-4 && !this._easing();
+    if (quiet && (!this.base ? !this._limbsUp() : this._limbsUp())) return false;   // nothing changes
+    if (!this.base) {
+      this.base = this.sk.angles.map((a) => (a ? { ...a } : null));
+      // arms still held out as in the scan come down beside the body, and stay down
+      this.relaxing = ["l", "r"].filter((s) => {
+        const j = this.sk.index("shoulder_" + s), a = this.base[j], r = this.sk.restAngles[j];
+        return a && r && Math.abs(a.flex - r.flex) < 0.5 && Math.abs(a.side - r.side) < 0.5 && r.side > this.armSide + 5;
+      });
+      this.relax = 0;
+    }
+    this.relax = ease(this.relax, 1, 6, dt);
+    if (this.relax > 0.995) this.relax = 1;
+    for (const n of LIMBS) { const l = this.limbs[n]; l.v = ease(l.v, +l.on, 9, dt); if (Math.abs(l.v - +l.on) < 1e-3) l.v = +l.on; }
 
     // turn toward the way to go, the short way round, and walk the way the body faces
     if (want > 1e-3) {
@@ -147,7 +218,7 @@ export class Walker {
     this.walking = ease(this.walking, smooth(this.speed / (0.25 * o.speed)), 10, dt);
 
     // the joint angles: the panel's pose, the walk cycle over it, the jump over both
-    const sk = this.sk, A = this.base.map((a) => (a ? { ...a } : null));
+    const sk = this.sk, A = this._relaxed(this.base.map((a) => (a ? { ...a } : null)), this.relax);
     const w = this.walking;
     const set = (name, key, value, mix = w) => {
       const j = sk.index(name);
@@ -165,6 +236,13 @@ export class Walker {
       }
       set("chest", "twist", gait(this.phase).chest * Math.min(1, this.speed / o.speed));
       set("spine", "flex", 3 * Math.min(1, this.speed / o.speed));
+    }
+    // an arm or a knee raised with its key, over the walk
+    for (const n of LIMBS) {
+      const v = smooth(this.limbs[n].v), [part, s] = n.split("_");
+      if (v < 1e-4) continue;
+      for (const [joint, angles] of Object.entries(RAISED[part]))
+        for (const [key, value] of Object.entries(angles)) set(joint + "_" + s, key, value, v);
     }
     let lift = 0, k = 0, tuck = 0, reach = 0;
     if (this.jump) {
@@ -188,7 +266,7 @@ export class Walker {
       }
       add("spine", "flex", 18 * k);
     }
-    A.forEach((a, j) => { if (a) sk.angles[j] = sk.clamp(j, a); });
+    A.forEach((a, j) => { sk.angles[j] = this._limit(j, a); });
 
     // the lowest foot stays on the floor (the body bobs and crouches with the legs), except in the
     // air, where the body rises and falls as anything thrown does
@@ -201,10 +279,11 @@ export class Walker {
     sk.place = { q: sk.place.q, t: v3.add(this.pos, v3.scale(up, ground + lift)) };
     sk.solve();
 
-    // stopped and landed: the panel's pose again, exactly; the body stays where it walked to
-    if (!want && !this.jump && this.speed < 1e-3 && this.walking < 1e-3) {
+    // stopped, landed, arms and knees down: the panel's pose again (arms that were held out as in
+    // the scan stay down); the body stays where it walked to
+    if (!want && !this.jump && this.speed < 1e-3 && this.walking < 1e-3 && !this._limbsUp() && !this._easing()) {
       this.speed = 0; this.walking = 0;
-      sk.angles = this.base; this.base = null;
+      this._leave();
       sk.place = { q: sk.place.q, t: this.pos.slice() };
       sk.solve();
     }

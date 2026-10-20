@@ -75,3 +75,7 @@
   turning to face the way it goes, the camera following; **Space** jumps (it no longer starts and
   stops the turntable); **R** brings the body back. Clothes, hair, shoes and tattoos move with it.
   A quiet line at the bottom says so until the first walk. See `docs/tattoo.md`.
+- Walking: the arms no longer go back out to the scan's A-pose when the body stops; they stay down
+  by its sides (an arm placed in the panel stays where it was put). **Q** / **E** raise the left /
+  right arm and **Z** / **C** a knee, until pressed again. A **Guide** button (or **?**) in the top
+  bar lists every control with a line on what it does.

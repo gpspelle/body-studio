@@ -248,7 +248,10 @@ class Viewer(unittest.TestCase):
         self.assertTrue(page.locator("#walkHint").is_hidden())
         page.keyboard.up("w")
         page.wait_for_function("!tattooStudio.walk().active", timeout=30000)
-        self.assertEqual(page.evaluate("tattooStudio.pose()"), {})     # standing as the panel had it
+        # standing as the panel had it, but the arms held out as in the scan stay down
+        pose = page.evaluate("tattooStudio.pose()")
+        self.assertEqual(sorted(pose), ["elbow_l", "elbow_r", "shoulder_l", "shoulder_r"])
+        self.assertLess(pose["shoulder_l"]["side"], 15)
         walked = page.evaluate("tattooStudio.walk()")
         # away from the camera: the camera looks along -z in the scene, the body walked that way
         away = page.evaluate("""(() => { const v = bodyApp.viewer, p = tattooStudio.walk().pos;
@@ -277,6 +280,28 @@ class Viewer(unittest.TestCase):
         # R: back where it was scanned
         page.keyboard.press("r")
         self.assertLess(dist(page.evaluate("tattooStudio.walk().pos"), [0, 0, 0]), 1e-9)
+        # Q raises the left arm and it stays up with no key held; Q again lowers it
+        page.keyboard.press("q")
+        page.wait_for_function("tattooStudio.walk().raised.join() === 'arm_l' && !tattooStudio.walk().busy")
+        elbow, shoulder = page.evaluate("[tattooStudio.joint('elbow_l'), tattooStudio.joint('shoulder_l')]")
+        self.assertLess(elbow[1], shoulder[1], "the elbow is above the shoulder (the PLY is y-down)")
+        page.keyboard.press("q")
+        page.wait_for_function("!tattooStudio.walk().active")
+        # C raises the right knee
+        page.keyboard.press("c")
+        page.wait_for_function("tattooStudio.walk().raised.join() === 'knee_r' && !tattooStudio.walk().busy")
+        knee, hip = page.evaluate("[tattooStudio.joint('knee_r'), tattooStudio.joint('hip_r')]")
+        self.assertLess(abs(knee[1] - hip[1]), 0.1 * page.evaluate("bodyViewer.size()[1]"), "thigh level")
+        page.keyboard.press("c")
+        page.wait_for_function("!tattooStudio.walk().active")
+        # the Guide lists the keys; Escape closes it, and keys don't walk behind it
+        page.click("#guideBtn")
+        self.assertTrue(page.evaluate("document.getElementById('guide').open"))
+        self.assertIn("Raise the left or right arm", page.locator("#guide").inner_text())
+        page.keyboard.press("w")
+        self.assertFalse(page.evaluate("tattooStudio.walk().active"))
+        page.keyboard.press("Escape")
+        self.assertFalse(page.evaluate("document.getElementById('guide').open"))
         # typing in a field doesn't walk
         page.click("#studioBtn")
         page.focus("#tatHeight")

@@ -207,9 +207,19 @@ weights) go along on their own.
 - **The jump**: a crouch and push (0.22 s), then a throw: up at the speed that reaches 20 % of the
   person's height under real gravity, legs tucking and arms swinging up, then a landing crouch. A
   jump while walking carries on forward.
+- **Arms and knees.** Q / E raise the left / right arm (straight up, like the Arms up pose), Z / C
+  the left / right knee (thigh level, shin hanging, standing on the other foot), the body's own left
+  and right. Like a game's emote keys they stay until pressed again, with no key held; arms stay up
+  while walking, a knee comes down to walk, and one knee at a time. Keyboard games that move single
+  limbs either give each limb a key (QWOP: a key per thigh and calf) or hold a button per arm
+  (Human: Fall Flat, Gang Beasts: a mouse button raises that arm). Holding was the complaint here,
+  and the mouse already turns the camera, so these are toggles.
+- **The Guide** (top bar, or ?) lists every control in a card, keys on the left and a line on what
+  each does, grouped as a game's controls screen is: move, arms and legs, camera, panels.
 - **The panel's pose stays.** The walk is blended over the pose set in the panel (or a preset), and
-  the body goes back to it when it stops, where it got to; that pose, not a step of the walk, is
-  what is kept. Changing the pose in the panel stops the walk first. **R** brings the body back to
+  the body goes back to it when it stops, where it got to, except that arms held out as in the
+  scan come down by the sides (the A-pose is for the capture, not for standing about) and stay
+  down; that pose, not a step of the walk, is what is kept. Changing the pose in the panel stops the walk first. **R** brings the body back to
   where it was scanned.
 
 Limits: one walking speed, no running; a foot slides a little at the start and end of a walk (the

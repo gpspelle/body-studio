@@ -36,6 +36,7 @@ SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("tattoo-phone", 390, 844, "dark", "pt", "tattoo"),
     ("wardrobe-desktop", 1280, 800, "light", "en", "wardrobe"),
     ("walk-desktop", 1280, 800, "light", "en", "walk"),
+    ("guide-desktop", 1280, 800, "light", "en", "guide"),
 ]
 # a line-art design drawn on white, like a scanned tattoo sketch: a sun with a wave inside
 DESIGN = """(() => {
@@ -116,6 +117,8 @@ def main() -> None:
                     wardrobe_scene(page)
                 if panel == "walk":
                     walk_scene(page)
+                if panel == "guide":
+                    page.click("#guideBtn")
                 page.wait_for_function("document.getElementById('version').textContent.length > 0")
                 page.wait_for_timeout(1500)
                 page.screenshot(path=str(out / f"{name}.png"), timeout=180000)
