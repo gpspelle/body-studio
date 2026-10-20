@@ -1,0 +1,99 @@
+# Trial: fitting the clothes' body with Anny (PyTorch)
+
+A side-by-side trial of two ways to lay MakeHuman's base mesh (the body every garment is made
+for) on a scan, before deciding which to keep:
+
+- **Plain** (`body-studio fit`, `fit.py`, the default): MakeHuman's own shape targets solved by
+  least squares, the bones bent onto the scan's skeleton, then a shrinkwrap onto the splats.
+  Standard library only. See [wardrobe.md](wardrobe.md).
+- **Anny** (`body-studio fit-anny`, `anny_fit.py`, optional): [Anny](https://github.com/naver/anny)
+  by NAVER LABS, MakeHuman as a differentiable PyTorch model (code Apache-2.0, MakeHuman data
+  CC0). Its "makehuman" topology is the base mesh vertex for vertex, so every garment keeps its
+  binding with no change.
+
+## Trying it
+
+```bash
+pip install 'body-studio[anny]'          # PyTorch and Anny, about 5 GB with PyTorch's CUDA libraries
+body-studio fit-anny BODY.ply            # writes BODY.fit.json; the page's clothes use it as it is
+body-studio fit-anny BODY.ply --wrap     # then the shrinkwrap's close pass on top
+body-studio fit BODY.ply                 # back to the plain fit
+```
+
+Open the body in the app and put clothes on: they go on whichever fit was written last. The file
+says which (`"model": "anny"`) and keeps Anny's overall sliders under `"shape"`. The first run
+builds Anny's cache (`~/.cache/anny`, about a minute); then a body takes about two minutes on
+four CPU cores. The plain fit takes 5–10 seconds.
+
+## How it fits
+
+1. **Pose.** Each main bone of Anny's skeleton (spine, neck, head, clavicles, shoulders, arms,
+   wrists, legs, feet) gets a turn, plus one overall turn, shift and size, found with Adam so
+   that the joints the skeleton finder (`rig.py`) finds on the base mesh land on the joints it
+   found on the scan. A joint is read off the mesh as a fixed blend of the skin vertices around
+   it, so the same joint is read off any shape.
+2. **Shape.** Then also the sliders: 11 overall ones (gender, age, muscle, weight, height,
+   proportions, cup size, firmness, three for ancestry) and 129 regional ones (waist, hips, bust,
+   thighs, upper arm fat, neck…). The face and finger sliders are left at zero: a scan can't tell
+   them apart. The fit puts the skin on the splats both ways (each skin vertex near a splat, each
+   splat near the skin, 3 000 and 6 000 of them drawn afresh each step), with a robust loss whose
+   width narrows from 10% to 2% of the height, so skin that starts far off (a bust, a belly) is
+   still pulled in while stray splats and hair end up ignored.
+3. **Gender, both ways.** From the middle, the fit stays between a male and a female trunk. So it
+   is run a short way from each side, and the one closer to the splats goes on.
+4. **Wrap** (`--wrap`): the plain fit's close shrinkwrap pass (2.5% of the height) on top, for
+   what the sliders can't reach.
+
+Each vertex's turn, which the clothes' offsets follow, comes from the same bone transforms as in
+the plain fit, so the two differ only in where the skin is.
+
+## Results
+
+The MakeHuman test body (`tests/fakes/makehuman.py`) in two shapes: a heavy man turned 25° and a
+slim woman with her arms 20° lower. Each shape is also used **with holes and hair**, like a real
+capture: no splats under the arms or at the crotch, 12% of the body missing in 6 cm patches, and
+8 000 splats of hair 1–5 cm out over the head. The distance from each fitted skin vertex to the
+true skin, in centimetres ("back" is the other way: from the true skin to the fitted one, so a
+part of the body the fit misses shows there). Plain is `fit.py` v3, with the shape solve.
+
+| Body | Fit | Median | 90% | 99% | Back, 99% | Time |
+|---|---|---|---|---|---|---|
+| heavy man | plain | **0.31** | **0.70** | **1.13** | **1.17** | 11 s |
+| | Anny | 0.37 | 1.20 | 2.27 | 2.12 | 116 s |
+| | Anny + wrap | 0.38 | 1.06 | 1.78 | 1.64 | 115 s |
+| slim woman | plain | **0.33** | **0.73** | **1.31** | **1.50** | 6 s |
+| | Anny | 0.48 | 1.24 | 1.96 | 1.95 | 115 s |
+| | Anny + wrap | 0.39 | 1.00 | 1.64 | 1.61 | 108 s |
+| heavy man, holes and hair | plain | **0.39** | **1.09** | 2.54 | 2.54 | 5 s |
+| | Anny | 0.49 | 1.49 | 2.55 | 2.70 | 117 s |
+| | Anny + wrap | 0.44 | 1.15 | **1.95** | **1.94** | 116 s |
+| slim woman, holes and hair | plain | 0.49 | 1.24 | 2.78 | 3.67 | 5 s |
+| | Anny | 0.59 | 1.64 | 3.44 | 3.45 | 119 s |
+| | Anny + wrap | **0.48** | **1.23** | **2.49** | **3.02** | 119 s |
+
+- **On a clean body the plain fit wins.** No surprise: the test body *is* MakeHuman's base mesh
+  with MakeHuman's targets, the very ones the plain fit solves for, and its shrinkwrap has a
+  splat under every vertex.
+- **Where the capture has holes and hair, Anny + wrap is better at the worst places**: the 99th
+  percentile drops from 2.5 to 1.9 cm (heavy) and 2.8 to 2.5 cm (slim), and the most-missed true
+  skin from 3.7 to 3.0 cm. That's under the arms, at the crotch and over the gaps, where the
+  shrinkwrap has nothing to land on and only smooths, and Anny's sliders keep a human shape.
+- **Anny alone is never the best.** The sliders can't reach every bump; the wrap pass is what makes
+  it competitive.
+- **It costs 10–20 times the time and a 5 GB install.** The plain fit is standard library and
+  runs in the app on first use; Anny would have to stay an optional step.
+
+The test bodies are MakeHuman shapes, which flatters both fits. A real scan (clothes, hair,
+fog, uneven density) is the test that decides: run both on the same body and put the same
+clothes on.
+
+Seen with clothes in the page: `docs/images/anny-*.png` (one body, plain left, Anny + wrap right).
+
+## Limits of the trial
+
+- CPU only here. On a GPU it would be seconds, but the Mac app has none to count on (PyTorch's
+  `mps` was not tried).
+- The gender slider picks a side by a short fit from each; a body between the two may land on
+  the other side, with the regional sliders making up most of the difference.
+- Anny pulls in PyTorch (CUDA libraries included on Linux) and NVIDIA Warp; that's why it is an
+  extra, and why the app does not use it on its own.
