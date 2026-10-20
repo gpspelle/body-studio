@@ -331,10 +331,14 @@ class Viewer(unittest.TestCase):
         under = page.evaluate("wardrobe.hidden()")
         self.assertGreater(under, 5000)                  # the skin under it is hidden
         # with the arms raised the shirt stays on the skin it hangs from (its sides once took the
-        # upper arm's motion and flew out 11 cm)
+        # upper arm's motion and flew out 11 cm); across the armpit it bridges the hollow
         page.evaluate("tattooStudio.preset('armsUp')")
-        self.assertLess(page.evaluate("wardrobe.gap('tee_jeans', 1)"), 0.045)
+        self.assertLess(page.evaluate("wardrobe.gap('tee_jeans', 0.99)"), 0.035)
+        self.assertLess(page.evaluate("wardrobe.gap('tee_jeans', 1)"), 0.08)
+        # and the splats where the cloth stretches grow to keep it closed, then shrink back
+        page.wait_for_function("wardrobe.grown('tee_jeans') > 100", timeout=30000)
         page.evaluate("tattooStudio.preset('rest')")
+        page.wait_for_function("wardrobe.grown('tee_jeans') === 0", timeout=30000)
         self.assertEqual(page.get_attribute("#wearSlots [data-item=tee_jeans]", "aria-pressed"), "true")
         page.click("#wearSlots [data-item=white_sneakers]")
         page.wait_for_function("wardrobe.worn().length === 2", timeout=60000)

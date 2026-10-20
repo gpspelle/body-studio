@@ -5,7 +5,7 @@
 // One item per slot (clothes, shoes, hair, hat). Design and sources: docs/wardrobe.md.
 import * as THREE from "three";
 import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
-import { SkinCover, decodeItem, fitNormals, fitSkin, itemSplats, skinUnder } from "/static/dress.js";
+import { SkinCover, decodeItem, fitNormals, fitSkin, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
 import { dualQuats, skinPoint } from "/static/pose.js";
 
 const $ = (id) => document.getElementById(id);
@@ -45,6 +45,7 @@ addEventListener("posed", (e) => {
   if (!W) return;
   W.transforms = e.detail;
   for (const w of W.worn.values()) pose(w);
+  refit();
 });
 
 function status(text) { $("wearStatus").textContent = text || ""; }
@@ -125,9 +126,10 @@ async function wear(id, restoring = false) {
     const s = itemSplats(d, tex, SPACING * H * (hair ? HAIR_SPACING : 1), w.rig.frame);
     const mesh = await splatMesh(s);
     if (W !== w) { mesh.dispose?.(); return; }
-    const skinning = skin(mesh, s, w);
+    const skinning = skin(mesh, s, w, d);
     takeOff(it.slot);
-    const entry = { id, slot: it.slot, mesh, skinning, n: s.n, splats: s };
+    const entry = { id, slot: it.slot, mesh, skinning, n: s.n, splats: s, nbr: neighbours(s, H),
+                    grow: new Uint8Array(s.n).fill(GROW_STEPS) };
     if (hair) {
       // hair cards let the scalp show between them: the scalp takes the hair's colour instead
       entry.tint = skinUnder(d, w.skin, w.normals, SCALP * H);
@@ -138,6 +140,7 @@ async function wear(id, restoring = false) {
     w.worn.set(it.slot, entry);
     V.holder.add(mesh);
     pose(entry);
+    if (W.transforms) grow(entry);
   } finally {
     w.busy--;
     if (W === w && !w.busy) status("");
@@ -237,23 +240,24 @@ async function splatMesh(s) {
   return mesh;
 }
 
-// The item's splats take the skin weights of the skin they hang from (the nearest skin vertex
-// to their anchor), so they move with that skin. Not the weights where they are: off the skin,
-// beside the chest under the armpit, the nearest bone is the upper arm, and a shirt's sides
-// flew out with the arms when they were raised.
-function skin(mesh, s, w) {
+// The item's splats move with the skin they hang from (itemWeights in dress.js): weights at the
+// skin vertex nearest each anchor, smoothed over the item. Not the weights where the splats are:
+// off the skin, beside the chest under the armpit, the nearest bone is the upper arm, and a
+// shirt's sides flew out with the arms when they were raised.
+function skin(mesh, s, w, item) {
   const nb = w.rig.joints.length;
   const skinning = new SplatSkinning({ mesh, numSplats: s.n, numBones: nb });
-  const bones = new Uint8Array(4), weights = new Uint8Array(4), vb = new THREE.Vector4(), vw = new THREE.Vector4();
-  const A = s.anchors, sk = w.skin;
-  s.bones = new Uint8Array(s.n * 4); s.weights = new Uint8Array(s.n * 4);
-  for (let i = 0; i < s.n; i++) {
-    const v = w.cover.nearestSkin(A[i * 3], A[i * 3 + 1], A[i * 3 + 2]);
+  const sk = w.skin, vb = new THREE.Vector4(), vw = new THREE.Vector4();
+  const at = (x, y, z, bones, weights) => {
+    const v = w.cover.nearestSkin(x, y, z);
     if (v >= 0) w.weights.at(sk[v * 3], sk[v * 3 + 1], sk[v * 3 + 2], bones, weights);
-    else w.weights.at(A[i * 3], A[i * 3 + 1], A[i * 3 + 2], bones, weights);
-    s.bones.set(bones, i * 4); s.weights.set(weights, i * 4);
-    vb.set(bones[0], bones[1], bones[2], bones[3]);
-    vw.set(weights[0] / 255, weights[1] / 255, weights[2] / 255, weights[3] / 255);
+    else w.weights.at(x, y, z, bones, weights);
+  };
+  const { bones, weights } = itemWeights(item, s, at, nb);
+  s.bones = bones; s.weights = weights;
+  for (let i = 0; i < s.n; i++) {
+    vb.set(bones[i * 4], bones[i * 4 + 1], bones[i * 4 + 2], bones[i * 4 + 3]);
+    vw.set(weights[i * 4] / 255, weights[i * 4 + 1] / 255, weights[i * 4 + 2] / 255, weights[i * 4 + 3] / 255);
     skinning.setSplatBones(i, vb, vw);
   }
   skinning.skinTexture.needsUpdate = true;
@@ -271,6 +275,68 @@ function pose(e) {
   e.skinning.updateBones();
 }
 
+// A pose stretches cloth where it passes from one bone to the next (under a raised arm, the
+// sleeve's underside spans from the chest to the arm): its splats, sized for the item at rest,
+// would pull apart into flakes there. So after a pose each splat grows by how far its nearest
+// neighbours at rest have moved away from it (up to 3 times), and shrinks back when they return.
+const GROW_STEPS = 4;            // sizes in quarters: 4 is the size at rest
+const GROW_MAX = 12;
+let refitTimer = null, refitAt = 0;
+function refit() {
+  // at most a few times a second while the body moves (walking), and once more when it stops
+  clearTimeout(refitTimer);
+  const wait = Math.max(0, refitAt + 250 - performance.now());
+  refitTimer = setTimeout(() => {
+    refitAt = performance.now();
+    if (W && W.transforms) for (const e of W.worn.values()) grow(e);
+  }, wait);
+}
+
+function neighbours(s, H) {
+  const grid = new SkinCover(s.centres, new Float32Array(0), 0.01 * H), C = s.centres, cell = grid.reach;
+  const out = new Int32Array(s.n * 2).fill(-1), d2 = new Float64Array(2);
+  for (let i = 0; i < s.n; i++) {
+    const x = C[i * 3], y = C[i * 3 + 1], z = C[i * 3 + 2];
+    d2[0] = d2[1] = Infinity;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      for (const j of grid.grid.get(grid.key(Math.floor(x / cell) + dx, Math.floor(y / cell) + dy, Math.floor(z / cell) + dz)) || []) {
+        if (j === i) continue;
+        const d = (C[j * 3] - x) ** 2 + (C[j * 3 + 1] - y) ** 2 + (C[j * 3 + 2] - z) ** 2;
+        if (d === 0) continue;
+        if (d < d2[0]) { d2[1] = d2[0]; out[i * 2 + 1] = out[i * 2]; d2[0] = d; out[i * 2] = j; }
+        else if (d < d2[1]) { d2[1] = d; out[i * 2 + 1] = j; }
+      }
+    }
+  }
+  return out;
+}
+
+function grow(e) {
+  const s = e.splats, C = s.centres, dq = dualQuats(W.transforms), P = new Float32Array(s.n * 3), out = [0, 0, 0];
+  for (let i = 0; i < s.n; i++) P.set(skinPoint([C[i * 3], C[i * 3 + 1], C[i * 3 + 2]], s.bones, s.weights, dq, out, i), i * 3);
+  const packed = e.mesh.packedSplats;
+  if (!packed) return;
+  let touched = false;
+  for (let i = 0; i < s.n; i++) {
+    let f = 1;
+    for (let k = 0; k < 2; k++) {
+      const j = e.nbr[i * 2 + k];
+      if (j < 0) continue;
+      const rest = Math.hypot(C[j * 3] - C[i * 3], C[j * 3 + 1] - C[i * 3 + 1], C[j * 3 + 2] - C[i * 3 + 2]);
+      const now = Math.hypot(P[j * 3] - P[i * 3], P[j * 3 + 1] - P[i * 3 + 1], P[j * 3 + 2] - P[i * 3 + 2]);
+      f = Math.max(f, now / rest);
+    }
+    const g = Math.min(GROW_MAX, Math.max(GROW_STEPS, Math.round(f * GROW_STEPS)));
+    if (g === e.grow[i]) continue;
+    e.grow[i] = g;
+    const sp = packed.getSplat(i), k = g / GROW_STEPS;
+    sp.scales.set(s.scale[0] * k, s.scale[1] * k, s.scale[2]);
+    packed.setSplat(i, sp.center, sp.scales, sp.quaternion, sp.opacity, sp.color);
+    touched = true;
+  }
+  if (touched) { packed.needsUpdate = true; e.mesh.updateGenerator(); }
+}
+
 // ---------------------------------------------------------------- for the tattoo panel, tests and scripts
 window.wardrobe = {
   ready: false,
@@ -280,6 +346,35 @@ window.wardrobe = {
   splats: (id) => [...(W ? W.worn.values() : [])].find((e) => e.id === id)?.n || 0,
   hidden: () => (W ? W.hidden.size : 0),
   tinted: () => (W ? W.tinted.size : 0),
+  // how many of an item's splats are grown to cover cloth the pose stretches
+  grown: (id) => { const e = W && [...W.worn.values()].find((x) => x.id === id); return e ? e.grow.reduce((a, g) => a + (g > GROW_STEPS), 0) : 0; },
+  // how much an item's surface is stretched in the current pose: for each splat, how far its
+  // nearest neighbour at rest has moved away from it, as a multiple of their distance at rest (the
+  // given quantile). Splats are sized for the item at rest; well past 2 they leave gaps.
+  stretch(id, quantile = 0.99) {
+    const e = W && [...W.worn.values()].find((x) => x.id === id);
+    if (!e || !W.transforms) return null;
+    const s = e.splats, dq = dualQuats(W.transforms), P = new Float32Array(s.n * 3), out = [0, 0, 0];
+    for (let i = 0; i < s.n; i++)
+      P.set(skinPoint([s.centres[i * 3], s.centres[i * 3 + 1], s.centres[i * 3 + 2]], s.bones, s.weights, dq, out, i), i * 3);
+    const grid = new SkinCover(s.centres, new Float32Array(0), 0.01 * W.rig.height), C = s.centres, r = [];
+    for (let i = 0; i < s.n; i += 3) {
+      // nearest other splat at rest
+      let best = -1, bd = Infinity;
+      const x = C[i * 3], y = C[i * 3 + 1], z = C[i * 3 + 2], cell = grid.reach;
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+        for (const j of grid.grid.get(grid.key(Math.floor(x / cell) + dx, Math.floor(y / cell) + dy, Math.floor(z / cell) + dz)) || []) {
+          if (j === i) continue;
+          const d = (C[j * 3] - x) ** 2 + (C[j * 3 + 1] - y) ** 2 + (C[j * 3 + 2] - z) ** 2;
+          if (d < bd) { bd = d; best = j; }
+        }
+      }
+      if (best < 0 || bd === 0) continue;
+      r.push(Math.hypot(P[best * 3] - P[i * 3], P[best * 3 + 1] - P[i * 3 + 1], P[best * 3 + 2] - P[i * 3 + 2]) / Math.sqrt(bd));
+    }
+    r.sort((x, y) => x - y);
+    return r[Math.min(r.length - 1, Math.floor(quantile * r.length))];
+  },
   // how far an item's splats are, in the current pose, from the skin they hang from (the skin
   // vertex nearest their anchor): the given quantile, in fractions of the person's height
   gap(id, quantile = 0.99) {

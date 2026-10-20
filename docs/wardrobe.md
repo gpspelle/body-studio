@@ -48,7 +48,15 @@ So once the base mesh is laid on a scan, the same rule puts every garment on tha
    nearest that. Weights looked up where the splat itself is went wrong off the skin: beside the
    chest under the armpit the nearest bone is the upper arm, so a shirt's sides took the arm's
    motion and flew out up to 23 cm with the arms raised. Bound to their skin they stay within 4 cm
-   of it in every pose.
+   of it in every pose (99% of splats), and across the armpit they bridge the hollow.
+   - The weights are then smoothed over the item's own surface. Skin shears where one bone hands
+     over to the next, cloth doesn't: under a raised arm, splats that each copied the skin under
+     them pulled apart into loose flakes, the sleeve going with the arm and the side with the chest.
+   - **Stretched cloth grows its splats.** Raising the arms stretches the cloth under them to about
+     twice its size at rest (up to 4 to 6 times in the armpit), and splats sized for the cloth at
+     rest left gaps between them. After each pose, each splat grows by how far its two nearest
+     neighbours at rest have moved from it (up to 3 times its size), and shrinks back when they
+     come back. While the body walks this runs a few times a second.
 5. **Hide the skin under it.** A skin vertex of the fitted mesh is covered when MakeHuman's list
    for the garment has it, or when the line out from the skin along its normal meets the garment
    within 4% of the person's height (7 cm). MakeHuman's list alone leaves out skin that a loose

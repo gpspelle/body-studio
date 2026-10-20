@@ -2,7 +2,7 @@
 // Run by tests/unit/test_dress_js.py:  node --test tests/js/dress.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SkinCover, itemSplats, fitSkin, fitNormals, skinUnder } from "../../src/body_studio/static/dress.js";
+import { SkinCover, itemSplats, itemWeights, fitSkin, fitNormals, skinUnder } from "../../src/body_studio/static/dress.js";
 
 const frame = { origin: [0, 0, 0], left: [1, 0, 0], up: [0, 1, 0], front: [0, 0, 1] };
 const b64 = (a) => Buffer.from(a.buffer).toString("base64");
@@ -83,4 +83,26 @@ test("each splat knows the point of the skin it hangs from", () => {
     assert.ok(Math.abs(s.anchors[i * 3] - s.centres[i * 3]) < 1e-6 && Math.abs(s.anchors[i * 3 + 1] - s.centres[i * 3 + 1]) < 1e-6);
     assert.ok(Math.abs(s.anchors[i * 3 + 2] - 0.09) < 1e-6);
   }
+});
+
+test("an item's weights blend across the cloth instead of jumping where the skin's bone changes", () => {
+  // a strip of 11 vertices along x, the skin left of x = 0.05 on bone 0 and right of it on bone 1
+  const xs = Array.from({ length: 11 }, (_, i) => i * 0.01), verts = [], tris = [];
+  for (const x of xs) verts.push(x, 0, 0.1, x, 0.01, 0.1);
+  for (let i = 0; i < 10; i++) { const a = i * 2; tris.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+  const item = { anchors: new Float32Array(verts), tris: new Int32Array(tris) };
+  const n = 100, s = { n, tri: new Int32Array(n), bary: new Float32Array(n * 2) };
+  for (let i = 0; i < n; i++) { s.tri[i] = 2 * Math.floor(i / 10); s.bary[i * 2] = (i % 10) / 10; }
+  const at = (x, y, z, bones, weights) => { bones.fill(0); weights.fill(0); bones[0] = x < 0.05 ? 0 : 1; weights[0] = 255; };
+  const share = (r, i) => { let w = 0; for (let m = 0; m < 4; m++) if (r.bones[i * 4 + m] === 1) w += r.weights[i * 4 + m]; return w; };
+  const hard = itemWeights(item, s, at, 3, 0), soft = itemWeights(item, s, at, 3);
+  for (const r of [hard, soft]) for (let i = 0; i < n; i++) {
+    let sum = 0; for (let m = 0; m < 4; m++) sum += r.weights[i * 4 + m];
+    assert.equal(sum, 255);
+  }
+  // without smoothing the whole change happens within one triangle; smoothed it spreads over several
+  const jump = (r) => Math.max(...Array.from({ length: n - 10 }, (_, i) => Math.abs(share(r, i + 10) - share(r, i))));
+  assert.ok(jump(soft) < jump(hard) * 0.6, `${jump(soft)} vs ${jump(hard)}`);
+  assert.equal(share(soft, 0), 0);                  // far from the change the skin's own bone
+  assert.equal(share(soft, n - 1), 255);
 });

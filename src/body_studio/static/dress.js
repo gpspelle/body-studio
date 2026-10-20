@@ -98,7 +98,7 @@ const R2 = [0.7548776662466927, 0.5698402909980532];     // a low-discrepancy se
 export function itemSplats(item, tex, spacing, frame) {
   const V = item.verts, A = item.anchors || item.verts, T = item.tris, TU = item.tuv, UV = item.uv;
   const light = v3.unit(v3.add(v3.scale(frame.up, 0.55), v3.scale(frame.front, 0.85)));
-  const centres = [], anchors = [], quats = [], colours = [], opacity = [];
+  const centres = [], anchors = [], quats = [], colours = [], opacity = [], tri = [], bary = [];
   let carry = 0;
   for (let t = 0; t < T.length / 3; t++) {
     const a = T[t * 3], b = T[t * 3 + 1], c = T[t * 3 + 2];
@@ -129,16 +129,65 @@ export function itemSplats(item, tex, spacing, frame) {
       if (item.alpha && alpha < 0.2) continue;
       centres.push(pa[0] + r1 * e1[0] + r2 * e2[0], pa[1] + r1 * e1[1] + r2 * e2[1], pa[2] + r1 * e1[2] + r2 * e2[2]);
       for (let k = 0; k < 3; k++) anchors.push(A[a * 3 + k] + r1 * (A[b * 3 + k] - A[a * 3 + k]) + r2 * (A[c * 3 + k] - A[a * 3 + k]));
+      tri.push(t); bary.push(r1, r2);
       quats.push(...rot);
       colours.push(Math.min(1, tex.data[k] / 255 * shade), Math.min(1, tex.data[k + 1] / 255 * shade), Math.min(1, tex.data[k + 2] / 255 * shade));
       opacity.push(item.alpha ? 0.95 * alpha : 1);
     }
   }
   return { n: opacity.length, centres: Float32Array.from(centres), anchors: Float32Array.from(anchors),
+           tri: Int32Array.from(tri), bary: Float32Array.from(bary),
            quats: Float32Array.from(quats),
            colours: Float32Array.from(colours), opacity: Float32Array.from(opacity),
            scale: [0.62 * spacing, 0.62 * spacing, 0.08 * spacing] };
 }
+
+// Skin weights for an item's splats (four bones and weights in 0..255 adding to 255 per splat).
+// Each vertex of the item takes the weights of the skin it hangs from (`weightAt(x, y, z, bones,
+// weights)` at its anchor); the weights are then smoothed over the item's own surface, and each
+// splat blends those of its triangle's corners. Cloth doesn't shear the way skin does where it
+// passes from one bone to the next: under a raised arm, splats that each copied the skin under
+// them pulled apart into flakes, the sleeve going with the arm and the side with the chest.
+export function itemWeights(item, s, weightAt, numBones, smooth = SMOOTH_STEPS) {
+  const nv = item.anchors.length / 3, T = item.tris, A = item.anchors;
+  let W = new Float32Array(nv * numBones), next = new Float32Array(nv * numBones);
+  const bones = new Uint8Array(4), weights = new Uint8Array(4);
+  for (let v = 0; v < nv; v++) {
+    weightAt(A[v * 3], A[v * 3 + 1], A[v * 3 + 2], bones, weights);
+    for (let m = 0; m < 4; m++) if (weights[m]) W[v * numBones + bones[m]] += weights[m] / 255;
+  }
+  const nbrs = Array.from({ length: nv }, () => new Set());
+  for (let t = 0; t < T.length / 3; t++) {
+    const a = T[t * 3], b = T[t * 3 + 1], c = T[t * 3 + 2];
+    nbrs[a].add(b).add(c); nbrs[b].add(a).add(c); nbrs[c].add(a).add(b);
+  }
+  for (let it = 0; it < smooth; it++) {
+    for (let v = 0; v < nv; v++) {
+      const o = v * numBones, k = nbrs[v].size;
+      for (let j = 0; j < numBones; j++) next[o + j] = k ? 0.5 * W[o + j] : W[o + j];
+      if (!k) continue;
+      for (const u of nbrs[v]) for (let j = 0; j < numBones; j++) next[o + j] += 0.5 * W[u * numBones + j] / k;
+    }
+    [W, next] = [next, W];
+  }
+  const outB = new Uint8Array(s.n * 4), outW = new Uint8Array(s.n * 4), blend = new Float32Array(numBones);
+  for (let i = 0; i < s.n; i++) {
+    const t = s.tri[i], r1 = s.bary[i * 2], r2 = s.bary[i * 2 + 1];
+    const a = T[t * 3], b = T[t * 3 + 1], c = T[t * 3 + 2];
+    for (let j = 0; j < numBones; j++)
+      blend[j] = (1 - r1 - r2) * W[a * numBones + j] + r1 * W[b * numBones + j] + r2 * W[c * numBones + j];
+    const top = [...blend.keys()].sort((x, y) => blend[y] - blend[x]).slice(0, 4).filter((j) => blend[j] > 0);
+    const sum = top.reduce((acc, j) => acc + blend[j], 0) || 1;
+    let left = 255;
+    top.forEach((j, m) => {
+      const w = m === top.length - 1 ? left : Math.floor(255 * blend[j] / sum);
+      outB[i * 4 + m] = j; outW[i * 4 + m] = w; left -= w;
+    });
+    if (!top.length) outW[i * 4] = 255;
+  }
+  return { bones: outB, weights: outW };
+}
+const SMOOTH_STEPS = 3;
 
 // For every splat of the body, the skin vertex of the fitted base mesh nearest to it (-1 when
 // none is within `reach`), so the splats under an item can be hidden while it is worn.

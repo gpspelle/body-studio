@@ -75,6 +75,9 @@
   version 2).
 - Clothes: with the arms raised a shirt no longer flares out at the sides. Each part of an item now
   moves with the skin it hangs from, not with the nearest bone (the upper arm, beside the chest).
+- Clothes: with the arms raised a T-shirt no longer breaks into loose flakes under the sleeves.
+  The cloth blends the bones it follows across its surface, and its splats grow where a pose
+  stretches it and shrink back after. See `docs/wardrobe.md`.
 - Walk and jump: **W A S D** (or the arrows) walk the body across the floor with a walk cycle,
   turning to face the way it goes, the camera following; **Space** jumps (it no longer starts and
   stops the turntable); **R** brings the body back. Clothes, hair, shoes and tattoos move with it.
