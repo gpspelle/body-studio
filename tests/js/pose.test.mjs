@@ -9,6 +9,7 @@ import { Skeleton, SkinSurface, SkinWeights, dualQuats, inkSamples, inkUnder, pl
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { left: L, up: U, front: F } = rig.frame;
 const H = rig.height;
+const RAD = Math.PI / 180;
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg ?? ""} ${a} vs ${b} (±${tol})`);
 const dir = (sk, a, b) => v3.unit(v3.sub(sk.P[sk.index(b)], sk.P[sk.index(a)]));
 
@@ -77,9 +78,12 @@ test("limits hold", () => {
   const sk = new Skeleton(rig);
   sk.set("elbow_l", { flex: 200 }); assert.equal(sk.angles[sk.index("elbow_l")].flex, 145);
   sk.set("knee_r", { flex: -30 }); assert.equal(sk.angles[sk.index("knee_r")].flex, 0);
-  sk.set("hip_l", { flex: 120, side: 45 });                  // both at once stay inside the ellipse
+  sk.set("hip_l", { flex: 125, side: 45 });                  // both at once stay inside the hip's cone
   const a = sk.angles[sk.index("hip_l")];
-  assert.ok((a.flex / 120) ** 2 + (a.side / 45) ** 2 <= 1.0001);
+  assert.ok(Math.hypot(a.flex, a.side) < 112, `hip ${a.flex}, ${a.side}`);
+  sk.set("wrist_l", { flex: 80, side: 20 });                 // and other joints inside their ellipse
+  const wr = sk.angles[sk.index("wrist_l")];
+  assert.ok((wr.flex / 80) ** 2 + (wr.side / 20) ** 2 <= 1.0001);
   sk.set("shoulder_l", { twist: 500 }); assert.equal(sk.angles[sk.index("shoulder_l")].twist, DOF.shoulder_l.twist[1]);
   // a hinge can't be aimed sideways or backwards
   sk.reset();
@@ -87,6 +91,57 @@ test("limits hold", () => {
   assert.ok(v3.dot(dir(sk, "knee_l", "ankle_l"), U) < -0.9, "knee doesn't bend forward");
   sk.aim("elbow_l", v3.scale(F, -1)); sk.solve();
   assert.ok(v3.dot(dir(sk, "elbow_l", "wrist_l"), F) > -0.2, "elbow doesn't bend backward");
+});
+
+test("every joint moves as far as a person's does, and no further", () => {
+  // adult active ranges of motion (AAOS, Norkin & White; horizontal adduction and abduction of the
+  // shoulder measured from the arm out to the side at shoulder height)
+  const sk = new Skeleton(rig);
+  // (a swing in one plane: the other swing angle 0; a swing stops 5 short of a half turn, where it would flip)
+  const reach = (j, a) => {
+    sk.reset();
+    sk.set(j, "flex" in a && !("side" in a) ? { side: 0, ...a } : "side" in a && !("flex" in a) ? { flex: 0, ...a } : a);
+    return sk.angles[sk.index(j)];
+  };
+  const ranges = {
+    shoulder: { flex: [-60, 180], side: [-50, 180], twist: [-90, 70] },
+    elbow: { flex: [0, 145], twist: [-80, 80] },
+    wrist: { flex: [-70, 80], side: [-30, 20] },
+    hip: { flex: [-30, 125], side: [-25, 45], twist: [-45, 40] },
+    ankle: { flex: [-50, 20] },
+  };
+  for (const s of ["l", "r"]) {
+    for (const [j, r] of Object.entries(ranges)) {
+      for (const [k, [lo, hi]] of Object.entries(r)) {
+        const rest = k === "twist" ? 0 : sk.restAngles[sk.index(j + "_" + s)][k];
+        // each end of each range, on its own (the scan's own pose may be further: it always stays allowed)
+        near(reach(j + "_" + s, { [k]: lo })[k], Math.min(lo, rest), 0.5, `${j}_${s} ${k} to ${lo}`);
+        near(reach(j + "_" + s, { [k]: hi })[k], Math.min(175, Math.max(hi, rest)), 0.5, `${j}_${s} ${k} to ${hi}`);
+        assert.ok(reach(j + "_" + s, { [k]: lo - 40 })[k] > lo - 39, `${j}_${s} ${k} stops at ${lo}`);
+        assert.ok(reach(j + "_" + s, { [k]: hi + 40 })[k] < hi + 39, `${j}_${s} ${k} stops at ${hi}`);
+      }
+    }
+    const arm = (target) => { sk.reset(); sk.aim("shoulder_" + s, target); return v3.dot(dir(sk, "shoulder_" + s, "elbow_" + s), target); };
+    const out = s === "l" ? L : v3.scale(L, -1), back = v3.scale(F, -1);
+    const at = (a, b, deg) => v3.unit(v3.add(v3.scale(a, Math.cos(deg * RAD)), v3.scale(b, Math.sin(deg * RAD))));
+    // at shoulder height: across the chest 40 past straight forward (horizontal adduction 130), and
+    // 35 behind out to the side (horizontal abduction), but not straight back
+    assert.ok(arm(at(F, v3.scale(out, -1), 40)) > 0.99, `${s} arm across the chest`);
+    assert.ok(arm(at(out, back, 35)) > 0.99, `${s} arm out and back`);
+    assert.ok(arm(back) < 0.8, `${s} arm doesn't point straight back at shoulder height`);
+    assert.ok(arm(U) > 0.99, `${s} arm straight up`);
+    // a bent hip crosses the legs; a straight one only a little
+    sk.reset(); sk.aim("hip_" + s, at(F, v3.scale(out, -1), 25));
+    assert.ok(v3.dot(dir(sk, "hip_" + s, "knee_" + s), at(F, v3.scale(out, -1), 25)) > 0.99, `${s} thigh across, hip bent`);
+    // the shin turns about its bone only with the knee bent
+    assert.equal(reach("knee_" + s, { flex: 0, twist: 30 }).twist, 0, `${s} straight knee doesn't turn`);
+    near(reach("knee_" + s, { flex: 90, twist: 30 }).twist, 30, 1e-6, `${s} bent knee turns in`);
+    near(reach("knee_" + s, { flex: 90, twist: -40 }).twist, -30, 1e-6, `${s} bent knee turns`);
+  }
+  // the neck and head together: flexion 60, extension 75, sideways 45, turning 85
+  const both = (k, v) => { sk.reset(); sk.set("neck", { flex: 0, side: 0, [k]: v }); sk.set("head", { flex: 0, side: 0, [k]: v }); return sk.angles[sk.index("neck")][k] + sk.angles[sk.index("head")][k]; };
+  near(both("flex", 100), 60, 0.5, "neck forward"); near(both("flex", -100), -75, 0.5, "neck back");
+  near(both("side", 100), 45, 0.5, "neck sideways"); near(both("twist", 100), 85, 0.5, "neck turning");
 });
 
 test("aim points a bone where it can go", () => {
@@ -160,7 +215,7 @@ function readPly(path) {
   return { centres, opaque };
 }
 const body = readPly(process.env.BODY_PLY);
-const skin = new SkinSurface(rig, body.centres, body.opaque);
+const skin = new SkinSurface(rig, body.centres, body.opaque, new SkinWeights(rig));
 const joint = (name) => rig.joints.find((j) => j.name === name).pos;
 const between = (...names) => v3.scale(names.map(joint).reduce(v3.add), 1 / names.length);
 // the outermost skin seen from `from` looking along `dir` (a tap on the body)
@@ -352,6 +407,9 @@ test("the image never stretches into a line, at rest or posed", () => {
     { ...both("shoulder", { flex: 0, side: 165, twist: 0 }), ...both("elbow", { flex: 8, twist: 0 }) },
     { ...both("shoulder", { flex: 0, side: 90, twist: -90 }), ...both("elbow", { flex: 115, twist: 0 }) },
     { ...both("hip", { flex: 88, side: 6, twist: 0 }), ...both("knee", { flex: 88 }), spine: { flex: 8 } },
+    // arms folded across the chest, legs crossed with the shins turned
+    { ...both("shoulder", { flex: 80, side: -60, twist: 20 }), ...both("elbow", { flex: 120, twist: 0 }),
+      hip_l: { flex: 80, side: -25, twist: 0 }, knee_l: { flex: 85, twist: 25 }, hip_r: { flex: 30, side: 5 }, knee_r: { flex: 40, twist: -20 } },
   ].map((p) => { sk.reset(); sk.setPose(p); return dualQuats(sk.transforms()); });
   let seed = 3;
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -378,8 +436,70 @@ test("the image never stretches into a line, at rest or posed", () => {
     for (const dq of poses) {
       const P = new Float32Array(NX * NY * 3);
       for (let k = 0; k < NX * NY; k++) if (g.valid[k]) { skinPoint(Array.from(g.positions.subarray(k * 3, k * 3 + 3)), b, x, dq, o, k); P.set(o, k * 3); }
-      // posing stretches skin (arms up pulls the chest), but never by a whole tear
-      assert.ok(stretch(P) < 8, `${where}: an edge ${stretch(P).toFixed(1)} cells too long when posed`);
+      // posing stretches skin (arms up pulls the chest, and the armpit to about three times its
+      // length, as on the scan's skin itself), but never by a whole tear
+      assert.ok(stretch(P) < 10, `${where}: an edge ${stretch(P).toFixed(1)} cells too long when posed`);
+    }
+  }
+});
+
+// the MakeHuman mesh's own outward normals where its skin is (from tests/fakes/makehuman.py)
+const truth = JSON.parse(readFileSync(process.env.SKIN_NORMALS, "utf8"));
+const truthGrid = new Map(), TG = 0.02 * H, tkey = (p) => p.map((x) => Math.floor(x / TG)).join();
+truth.forEach((t, i) => { const k = tkey(t.slice(0, 3)); (truthGrid.get(k) || truthGrid.set(k, []).get(k)).push(i); });
+function trueNormal(p) {
+  let best = -1, bd = Infinity;
+  const c = p.map((x) => Math.floor(x / TG));
+  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let e = -1; e <= 1; e++) {
+    for (const t of truthGrid.get([c[0] + a, c[1] + b, c[2] + e].join()) || []) {
+      const d = (truth[t][0] - p[0]) ** 2 + (truth[t][1] - p[1]) ** 2 + (truth[t][2] - p[2]) ** 2;
+      if (d < bd) { bd = d; best = t; }
+    }
+  }
+  return best < 0 ? null : truth[best].slice(3);
+}
+
+test("the skin's normals point out of the body, under the arms too", () => {
+  // the normal is what lifts the ink out of the skin and keeps a design on one surface: one that
+  // points in (the side of the chest under the arm used to be turned toward the upper arm, the
+  // nearer bone) sinks the ink into the body and stops the design there
+  let bad = 0, all = 0;
+  const flipped = {};
+  for (let c = 0; c < skin.count; c++) {
+    const p = skin._p(c), bone = boneAt(p);
+    // (a face has the inside of its mouth in the mesh; fingers and toes are thinner than a cell)
+    if (/^(head|neck|wrist|ankle)/.test(bone)) continue;
+    skin._prep(c);
+    const t = trueNormal(p);
+    if (!t) continue;
+    all++;
+    if (v3.dot(skin._n(c), t) < 0) { bad++; flipped[bone] = (flipped[bone] || 0) + 1; }
+  }
+  assert.ok(bad < 0.003 * all, `${bad} of ${all} normals point into the body: ${JSON.stringify(flipped)}`);
+  // designs laid in and around the armpits: on the skin's outside all over, and whole
+  const sk = new Skeleton(rig);
+  for (const side of ["l", "r"]) {
+    const sh = joint("shoulder_" + side), out = v3.unit(v3.sub(joint("elbow_" + side), sh));
+    const spots = [];
+    for (let c = 0; c < skin.count && spots.length < 400; c++) {
+      const p = skin._p(c), d = v3.sub(p, sh);
+      // below the shoulder and no further out than it: the hollow under the arm and the chest around it
+      if (v3.len(d) < 0.09 * H && v3.dot(d, U) < -0.02 * H && v3.dot(d, out) < 0.03 * H) spots.push(p);
+    }
+    assert.ok(spots.length > 50, `skin under the ${side} arm`);
+    for (let t = 0; t < 8; t++) {
+      const at = spots[Math.floor((t + 0.5) / 8 * spots.length)];
+      const g = skin.wrap({ at, up: U, width: 0.05 * H, height: 0.05 * H, angle: t * 45, lift: 0 }, 21, 21);
+      let pts = 0, outside = 0;
+      for (let k = 0; k < g.nx * g.ny; k++) {
+        if (!g.valid[k]) continue;
+        pts++;
+        const tn = trueNormal(Array.from(g.positions.subarray(k * 3, k * 3 + 3)));
+        if (tn && v3.dot(tn, Array.from(g.normals.subarray(k * 3, k * 3 + 3))) > 0) outside++;
+      }
+      const where = `9 cm design at ${at.map((x) => x.toFixed(2))} (${boneAt(at)})`;
+      assert.ok(pts > 0.75 * g.nx * g.ny, `${where}: only ${pts} of ${g.nx * g.ny} points on the skin`);
+      assert.ok(outside > 0.97 * pts, `${where}: ${pts - outside} of ${pts} points face into the body`);
     }
   }
 });
@@ -482,6 +602,9 @@ test("quality sweep: ink anywhere on the body, in any pose, stays on the skin an
     { shoulder_l: { flex: -22, side: 8 }, shoulder_r: { flex: 24, side: 8 }, elbow_r: { flex: 35 }, hip_l: { flex: 24, side: 2 },
       hip_r: { flex: -12, side: 2 }, knee_r: { flex: 28 }, chest: { flex: 0, side: 0, twist: -6 } },
     { ...both("hip", { flex: 88, side: 6, twist: 0 }), ...both("knee", { flex: 88 }), spine: { flex: 8 } },
+    // arms folded across the chest, legs crossed with the shins turned
+    { ...both("shoulder", { flex: 80, side: -60, twist: 20 }), ...both("elbow", { flex: 120, twist: 0 }),
+      hip_l: { flex: 80, side: -25, twist: 0 }, knee_l: { flex: 85, twist: 25 }, hip_r: { flex: 30, side: 5 }, knee_r: { flex: 40, twist: -20 } },
   ].map((p) => { sk.reset(); sk.setPose(p); return dualQuats(sk.transforms()); });
   // a dragon-like design: a blob with thin wings and a tail
   const designImage = image(150, 210, (x, y) => (x - 75) ** 2 + (y - 80) ** 2 < 900 ||

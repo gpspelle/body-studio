@@ -111,7 +111,7 @@ function setup(rig, mesh, file) {
     if (opacity >= 0.3) opaque.push(i);
     weights.at(c.x, c.y, c.z, bones, w, i);
   });
-  const surface = new SkinSurface(rig, centres, opaque);
+  const surface = new SkinSurface(rig, centres, opaque, weights);
   const skinning = new SplatSkinning({ mesh, numSplats: n, numBones: rig.joints.length });
   const vb = new THREE.Vector4(), vw = new THREE.Vector4();
   for (let i = 0; i < n; i++) {

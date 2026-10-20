@@ -34,6 +34,11 @@
   the tail of a design on the chest): the design stays on one surface where the arm meets the
   chest, the skin no longer tears at the armpit when the arm moves, and splats no longer fly off
   when posed because of a rounding error in their weights.
+- Joints move as far as a person's, checked against published ranges of motion: an arm reaches
+  across the chest at shoulder height and back behind, a bent hip crosses the legs, a bent knee
+  turns the shin, and the head tilts back and sideways further.
+- A tattoo near the armpit no longer loses parts or sinks into the body: the skin there was taken
+  to face inward (its nearest bone was the upper arm, not the bones that carry it).
 - Tattoos are drawn as splats on the skin, and the body's own splats under them take the ink, all
   skinned with the body's own weights: whatever hides the skin hides the ink (an arm, the other
   side of the body, clothes, a fold), so a design no longer loses parts (a dragon's head) when moved

@@ -133,7 +133,8 @@ panel sits at the left edge (at the bottom on a phone).
   ink, so the skin shows through it, and whatever covers the skin (an arm, clothes) covers it.
 - **Move the body**: drag the dot on a joint (the elbow dot turns the shoulder, the wrist dot
   the elbow…), or pick a pose: standing, arms up, flex, walking, sitting. Each joint only moves
-  the way a person's can, within its normal range. Pick a joint to set its angles with sliders.
+  the way a person's can, within its normal range: an arm reaches across the chest or back behind,
+  a bent knee turns the shin. Pick a joint to set its angles with sliders.
   The tattoo moves with the skin.
 - The first time, the app finds the body's skeleton (a few seconds). It needs the A-pose from the
   filming guide: arms a little away from the body, feet apart. Tattoos and pose are kept in this
@@ -249,7 +250,8 @@ fica. O painel fica na borda esquerda (embaixo, no celular).
   então a pele aparece através dela, e o que cobre a pele (um braço, a roupa) cobre a tatuagem.
 - **Mexa o corpo**: arraste o ponto de uma articulação (o ponto do cotovelo gira o ombro, o do
   pulso gira o cotovelo…) ou escolha uma pose: em pé, braços para cima, bíceps, andando, sentado.
-  Cada articulação só se move como a de uma pessoa, dentro da amplitude normal. Escolha uma
+  Cada articulação só se move como a de uma pessoa, dentro da amplitude normal: o braço cruza
+  na frente do peito ou vai para trás, o joelho dobrado gira a canela. Escolha uma
   articulação para ajustar os ângulos com controles deslizantes. A tatuagem acompanha a pele.
 - Na primeira vez, o app encontra o esqueleto do corpo (alguns segundos). Precisa da pose A do guia
   de filmagem: braços um pouco afastados do corpo, pés afastados. Tatuagens e pose ficam guardadas

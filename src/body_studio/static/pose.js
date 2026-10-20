@@ -61,23 +61,45 @@ const RAD = Math.PI / 180;
 // the anatomical position (n, in the person's frame: x left, y up, z front), the two axes it
 // swings about (a1: forward and back, a2: sideways), and the signs that turn the anatomical
 // angles (flex, side, twist about the bone) into rotations. Ranges are adult active ranges of
-// motion in degrees (AAOS; Soucie et al. 2011); a body whose resting pose lies outside a range
-// gets that range widened to include it.
+// motion in degrees (AAOS; Soucie et al. 2011; Norkin & White); a body whose resting pose lies
+// outside a range gets that range widened to include it.
+// flex and side together are one swing of the bone away from where it hangs: how far (the
+// elevation, hypot(flex, side)) and in which plane (atan2(flex, side): 0 out to the side, 90
+// forward, 180 across the front, -90 back). A shoulder and a hip reach much further in some
+// planes than in others, so they list the furthest elevation per plane (cone); the other joints
+// keep within the ellipse their ranges make. A knee turns about its bone only when it is bent
+// (twistBent: the bend at which its whole twist range opens).
 const L = [1, 0, 0], U = [0, 1, 0], F = [0, 0, 1], D = [0, -1, 0];
 export const DOF = {
   spine:      { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-25, 50], side: [-25, 25], twist: [-15, 15], labels: ["forward", "side", "twist"] },
   chest:      { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-20, 35], side: [-20, 20], twist: [-35, 35], labels: ["forward", "side", "twist"] },
-  neck:       { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-40, 40], side: [-25, 25], twist: [-45, 45], labels: ["forward", "side", "twist"] },
-  head:       { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-25, 20], side: [-15, 15], twist: [-40, 40], labels: ["forward", "side", "twist"] },
+  neck:       { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-40, 40], side: [-30, 30], twist: [-45, 45], labels: ["forward", "side", "twist"] },
+  head:       { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-35, 20], side: [-15, 15], twist: [-40, 40], labels: ["forward", "side", "twist"] },
   clavicle_l: { n: L, a1: F, a2: U, k: [1, -1, 0],  flex: [-10, 30], side: [-15, 15], twist: [0, 0],    labels: ["raise", "forward"] },
-  shoulder_l: { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [-50, 180], side: [-30, 180], twist: [-90, 70], labels: ["forward", "out", "twist"] },
+  // shoulder: flexion 180, extension 60, abduction 180, adduction 50 (across the front), horizontal
+  // adduction 135 from out to the side (45 past straight forward), horizontal abduction 40 behind
+  shoulder_l: { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [-60, 180], side: [-110, 180], twist: [-90, 70], labels: ["forward", "out", "twist"],
+                cone: [[-180, 50], [-135, 50], [-90, 60], [-60, 80], [-40, 95], [-20, 160], [0, 180], [90, 180], [120, 160], [135, 110], [155, 70], [180, 50]] },
   elbow_l:    { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [0, 145], side: [0, 0],    twist: [-80, 80], labels: ["bend", null, "twist"] },
   wrist_l:    { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [-70, 80], side: [-30, 20], twist: [0, 0],    labels: ["bend", "side"] },
-  hip_l:      { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [-20, 120], side: [-25, 45], twist: [-45, 40], labels: ["forward", "out", "twist"] },
-  knee_l:     { n: D, a1: L, a2: F, k: [1, 1, 1],   flex: [0, 145], side: [0, 0],    twist: [0, 0],    labels: ["bend"] },
+  // hip: flexion 125, extension 30, abduction 45, adduction 25, further across with the hip bent
+  // (crossing the legs)
+  hip_l:      { n: D, a1: L, a2: F, k: [-1, 1, 1],  flex: [-30, 125], side: [-60, 45], twist: [-45, 40], labels: ["forward", "out", "twist"],
+                cone: [[-180, 25], [-90, 30], [-45, 35], [0, 45], [50, 95], [90, 125], [115, 115], [140, 60], [160, 35], [180, 25]] },
+  // knee: bend 145; the shin turns in 30 and out 40, with the knee bent (none when straight)
+  knee_l:     { n: D, a1: L, a2: F, k: [1, 1, 1],   flex: [0, 145], side: [0, 0],    twist: [-30, 40], labels: ["bend", null, "twist"], twistBent: 90 },
   ankle_l:    { n: F, a1: L, a2: U, k: [-1, 1, -1], flex: [-50, 20], side: [-10, 10], twist: [-15, 30], labels: ["foot", "side", "tilt"] },
 };
-const MAX_SWING = 175;                          // keeps a swing away from the half-turn where it flips
+const MAX_SWING = 175;
+
+// the furthest elevation of a cone in plane p (degrees), between the planes it lists
+function coneAt(cone, p) {
+  for (let i = 0; i + 1 < cone.length; i++) {
+    const [p0, e0] = cone[i], [p1, e1] = cone[i + 1];
+    if (p >= p0 && p <= p1) return e0 + (e1 - e0) * (p - p0) / (p1 - p0 || 1);
+  }
+  return cone[cone.length - 1][1];
+}                          // keeps a swing away from the half-turn where it flips
 
 function defFor(name) {
   if (DOF[name]) return DOF[name];
@@ -149,13 +171,28 @@ export class Skeleton {
     return q.norm(q.mul(swing, q.axisAngle(d.n, d.k[2] * a.twist * RAD)));
   }
 
-  // keep angles inside the joint's range: sideways and forward together stay inside an ellipse
+  // keep angles inside the joint's range: sideways and forward together stay inside the joint's
+  // cone (or the ellipse of its ranges)
   clamp(j, a) {
     const d = this.defs[j];
     let { flex, side, twist } = a;
     const [f0, f1] = d.flex, [s0, s1] = d.side;
     if (d.hinge) side = this.restAngles[j] ? this.restAngles[j].side : 0;   // a hinge keeps its resting side angle
-    else if (f0 <= 0 && f1 >= 0 && s0 <= 0 && s1 >= 0) {
+    else if (d.cone) {
+      const el = Math.hypot(flex, side);
+      if (el > 1e-9) {
+        const plane = Math.atan2(flex, side) / RAD;
+        let max = coneAt(d.cone, plane);
+        // the scan's own pose is always allowed, and swings near it as far
+        const r = this.restAngles[j];
+        if (r) {
+          const re = Math.hypot(r.flex, r.side), rp = Math.atan2(r.flex, r.side) / RAD;
+          const dp = Math.abs(((plane - rp + 540) % 360) - 180);
+          if (dp < 30) max = Math.max(max, re);
+        }
+        if (el > max) { flex *= max / el; side *= max / el; }
+      }
+    } else if (f0 <= 0 && f1 >= 0 && s0 <= 0 && s1 >= 0) {
       const rf = flex >= 0 ? f1 : -f0, rs = side >= 0 ? s1 : -s0;
       const e = (rf ? (flex / rf) ** 2 : flex ? Infinity : 0) + (rs ? (side / rs) ** 2 : side ? Infinity : 0);
       if (e > 1 && Number.isFinite(e)) { const k = 1 / Math.sqrt(e); flex *= k; side *= k; }
@@ -164,7 +201,8 @@ export class Skeleton {
     side = Math.min(Math.max(side, s0), s1);
     const mag = Math.hypot(flex, side);
     if (mag > MAX_SWING) { flex *= MAX_SWING / mag; side *= MAX_SWING / mag; }
-    twist = Math.min(Math.max(twist, d.twist[0]), d.twist[1]);
+    const open = d.twistBent ? Math.min(1, Math.max(0, flex / d.twistBent)) : 1;
+    twist = Math.min(Math.max(twist, open * d.twist[0]), open * d.twist[1]);
     return { flex, side, twist };
   }
 
@@ -452,8 +490,9 @@ export class SurfaceMap {
 // arm to the flank beside it, one leg to the other): parts of the image it can't reach on the
 // skin are left out.
 export class SkinSurface {
-  // centres: x, y, z per splat (PLY coordinates, rest pose); opaque: the indices of opaque splats
-  constructor(rig, centres, opaque) {
+  // centres: x, y, z per splat (PLY coordinates, rest pose); opaque: the indices of opaque splats;
+  // weights (SkinWeights, optional): which bones carry the skin, to tell out from in
+  constructor(rig, centres, opaque, weights = null) {
     const H = this.H = rig.height, n = opaque.length;
     // about three splats per cell (a body's skin is about 0.6 H^2), never finer than 0.4 % of the height
     const h = this.h = Math.max(0.004 * H, Math.sqrt(3 * 0.6 * H * H / Math.max(n, 1)));
@@ -488,6 +527,13 @@ export class SkinSurface {
     for (const i of opaque) this.members[fill[this.cells.get(this._key(centres[i * 3], centres[i * 3 + 1], centres[i * 3 + 2]))]++] = i;
     this.segments = [];
     rig.joints.forEach((j) => { if (j.parent >= 0) this.segments.push([rig.joints[j.parent].pos, j.pos]); });
+    // each bone's own segment: from its joint to its first child (a bone with none: from its parent)
+    this.weights = weights;
+    this.boneSeg = rig.joints.map((j, b) => {
+      const kid = rig.joints.findIndex((k) => k.parent === b);
+      return kid >= 0 ? [j.pos, rig.joints[kid].pos] : j.parent >= 0 ? [rig.joints[j.parent].pos, j.pos] : null;
+    });
+    this._wb = new Uint8Array(4); this._ww = new Uint8Array(4);
     // worked out when a tattoo first needs them: neighbours and normal
     this.adj = new Array(m).fill(null);
     this.nrm = new Float32Array(m * 3); this.surf = new Float32Array(m * 3);
@@ -527,8 +573,23 @@ export class SkinSurface {
   _n(c) { return [this.nrm[c * 3], this.nrm[c * 3 + 1], this.nrm[c * 3 + 2]]; }
   _s(c) { return [this.surf[c * 3], this.surf[c * 3 + 1], this.surf[c * 3 + 2]]; }
 
-  // away from the nearest bone
+  // away from the bones that carry the skin here (by their weights), or else from the nearest bone.
+  // The nearest bone alone gets it wrong where skin of one part lies close to another: the side of
+  // the chest under the arm is nearer the upper arm than the spine.
   _outward(p) {
+    if (this.weights) {
+      const b = this._wb, w = this._ww, out = [0, 0, 0];
+      this.weights.at(p[0], p[1], p[2], b, w);
+      for (let k = 0; k < 4; k++) {
+        const seg = w[k] ? this.boneSeg[b[k]] : null;
+        if (!seg) continue;
+        const [a, e] = seg, ab = v3.sub(e, a), ap = v3.sub(p, a);
+        const t = Math.max(0, Math.min(1, v3.dot(ap, ab) / (v3.dot(ab, ab) || 1)));
+        const d = v3.unit(v3.sub(ap, v3.scale(ab, t)));
+        for (let x = 0; x < 3; x++) out[x] += w[k] * d[x];
+      }
+      if (v3.len(out) > 1e-6) return v3.unit(out);
+    }
     let best = null, bd = Infinity;
     for (const [a, e] of this.segments) {
       const ab = v3.sub(e, a), ap = v3.sub(p, a);
@@ -565,17 +626,24 @@ export class SkinSurface {
                      -C[4] * v[0] - C[5] * v[1] + (tr - C[2]) * v[2]]);
       }
       nv = v3.dot(v, o) < 0 ? v3.scale(v, -1) : v;
-      // the skin here: splats scatter a few millimetres above and below it, in layers a cell
-      // apart, and a walk along the inner layers would come up short. So the cell is moved onto
-      // the outside of the scatter (about three quarters of it below), keeping its place along the skin.
-      let vr = 0;
-      for (const d of [c, ...adj]) vr += v3.dot(v3.sub(this._p(d), mean), nv) ** 2;
-      const off = 0.67 * Math.sqrt(vr / (adj.length + 1)) - v3.dot(v3.sub(p, mean), nv);
-      this.surf.set(v3.add(p, v3.scale(nv, off)), c * 3);
-    } else {
-      this.surf.set(p, c * 3);
     }
     this.nrm.set(nv, c * 3);
+    this._lift(c);
+  }
+
+  // the skin here: splats scatter a few millimetres above and below it, in layers a cell apart,
+  // and a walk along the inner layers would come up short. So the cell is moved onto the outside
+  // of the scatter (about three quarters of it below), keeping its place along the skin.
+  _lift(c) {
+    const p = this._p(c), adj = this.adj[c], nv = this._n(c);
+    if (adj.length < 4) { this.surf.set(p, c * 3); return; }
+    const mean = [...p];
+    for (const d of adj) for (let a = 0; a < 3; a++) mean[a] += this.pos[d * 3 + a];
+    for (let a = 0; a < 3; a++) mean[a] /= adj.length + 1;
+    let vr = 0;
+    for (const d of [c, ...adj]) vr += v3.dot(v3.sub(this._p(d), mean), nv) ** 2;
+    const off = 0.67 * Math.sqrt(vr / (adj.length + 1)) - v3.dot(v3.sub(p, mean), nv);
+    this.surf.set(v3.add(p, v3.scale(nv, off)), c * 3);
   }
 
   // the cell nearest a point, or -1

@@ -143,6 +143,34 @@ def surface(shape: str | None = None, arms: float = 0.0, height: float = 1.75, y
     return [xf(v) for v in V]
 
 
+def skin_normals(shape: str | None = None, arms: float = 0.0, height: float = 1.75, yaw: float = 0.0) -> list:
+    """The skin vertices where write_body puts them, each with the mesh's outward normal there
+    (in the PLY's coordinates): [(x, y, z, nx, ny, nz), ...]. What a normal found from the splats
+    alone should agree with."""
+    V, Q, J = load(shape)
+    if arms:
+        _raise_arms(V, J, arms)
+    N = [[0.0, 0.0, 0.0] for _ in V]
+    for f in Q:
+        for t in ((f[0], f[1], f[2]), (f[0], f[2], f[3])):
+            if len(set(t)) < 3:
+                continue
+            a, b, c = (V[i] for i in t)
+            u, w = [b[j] - a[j] for j in range(3)], [c[j] - a[j] for j in range(3)]
+            cr = (u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0])
+            for i in t:
+                for j in range(3):
+                    N[i][j] += cr[j]                      # area-weighted
+    xf, _ = _placement(V, height, yaw)
+    cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+    out = []
+    for v, n in zip(V, N):
+        nx, ny, nz = cy * n[0] + sy * n[2], -n[1], -sy * n[0] + cy * n[2]   # turned, then y-down
+        m = math.sqrt(nx * nx + ny * ny + nz * nz) or 1.0
+        out.append((*xf(v), nx / m, ny / m, nz / m))
+    return out
+
+
 def write_body(path: Path, n: int = 120000, seed: int = 1, yaw: float = 0.0, shape: str | None = None,
                arms: float = 0.0, height: float = 1.75) -> dict:
     """Write the body as a splat PLY (Brush's layout: y-down, 'Vertical axis' comment) turned by

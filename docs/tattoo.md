@@ -85,22 +85,27 @@ Meshes*, SCA 2013), the method behind Maya's default skin binding:
 ## Joints that move like a person's
 
 Each joint has its own axes and anatomical motions (flex/extend, sideways, twist), with ranges of
-motion from the clinical references (AAOS; Soucie et al., *Range of motion measurements*, 2011).
-The right side mirrors the left.
+motion from the clinical references (AAOS; Soucie et al., *Range of motion measurements*, 2011;
+Norkin & White, *Measurement of Joint Motion*). The right side mirrors the left.
 
 | Joint | Motions (degrees from the anatomical position) |
 |---|---|
-| Shoulder | forward −50…180, out −30…180, twist −90…70 |
+| Shoulder | forward −60…180, out −50…180, twist −90…70; at shoulder height, across the chest to 45° past straight forward and back to 40° behind out to the side |
 | Elbow | bend 0…145, twist −80…80 (a hinge: no sideways) |
 | Wrist | bend −70…80, side −30…20 |
-| Hip | forward −20…120, out −25…45, twist −45…40 |
-| Knee | bend 0…145 (a hinge) |
+| Hip | forward −30…125, out −25…45, twist −45…40; further across with the hip bent (crossed legs) |
+| Knee | bend 0…145 (a hinge); the shin turns in 30 and out 40 once the knee is bent 90 (none when straight) |
 | Ankle | foot −50…20, side ±10, tilt −15…30 |
-| Spine, chest, neck, head | forward, side and twist, a few tens of degrees each |
+| Neck and head together | forward 60, back 75, sideways 45, turning 85 |
+| Spine, chest | forward, side and twist, a few tens of degrees each |
 | Collarbone | raise −10…30, forward ±15 |
 
-The scan's own pose is measured and always allowed. A rotation is a swing (limited by an ellipse
-between the two swing ranges) followed by a twist about the bone. Dragging a dot aims the bone at
+The scan's own pose is measured and always allowed. A rotation is a swing followed by a twist about
+the bone. A swing has an elevation (how far from where the bone hangs) and a plane (out to the
+side, forward, across the front, back). The shoulder and the hip list the furthest elevation for
+each plane, because they reach much further in some than in others (an arm goes straight up, or
+across the chest at shoulder height, but only 60° straight back); the other joints keep within the
+ellipse between their two swing ranges. The tests check each range against the table above. Dragging a dot aims the bone at
 the pointer and keeps its twist; the angle is then clamped to the joint's range.
 
 The splats are moved by **dual quaternion skinning** (Kavan et al., 2007), which Spark implements
@@ -114,7 +119,11 @@ twisted forearm into a "candy wrapper".
 - **Placement**: a *discrete exponential map* (Schmidt, Grimm & Wyvill, *Interactive Decal
   Compositing with Discrete Exponential Maps*, SIGGRAPH 2006), the way decals are laid on meshes and
   point clouds. The opaque splats are averaged into cells of about 7 mm (each with a normal, set on
-  the outside of the splats' few-millimetre scatter). From the point tapped, a shortest-path walk
+  the outside of the splats' few-millimetre scatter). A normal's direction (out, not in) comes
+  from the bones that carry that skin, by their weights: the nearest bone alone gets it backwards
+  where skin of one part lies close to another (the side of the chest under the arm is nearer the
+  upper arm than the spine), which sank the ink into the body and stopped a design at the armpit.
+  The tests check the normals against the MakeHuman mesh's own. From the point tapped, a shortest-path walk
   over the cells gives each one 2D coordinates on the skin, carrying a frame along; a cell takes the
   average of what its already placed neighbours say, leaving out a neighbour that disagrees (where
   the walk meets itself behind a limb). Each point of the image then sits where the splats with its
