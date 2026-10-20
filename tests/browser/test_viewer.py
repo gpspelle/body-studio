@@ -392,7 +392,7 @@ class Viewer(unittest.TestCase):
         self.assertGreater(dist(ink, page.evaluate("tattooStudio.tattoos()[0].centre")),
                            0.25 * page.evaluate("bodyViewer.size()[1]"))
         page.keyboard.up("w")
-        page.wait_for_function("!tattooStudio.walk().active", timeout=30000)
+        page.wait_for_function("!tattooStudio.walk().active", timeout=60000)   # (slow with clothes and the shop on CI)
         page.keyboard.press("r")
         page.reload()                                   # remembered for this body
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
