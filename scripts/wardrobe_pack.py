@@ -9,7 +9,8 @@ usr/share/makehuman/data). BASE_OBJ is makehuman/data/3dobjs/base.obj from
 https://github.com/makehumancommunity/makehuman (the hm08 base mesh every item is fitted to).
 MakeHuman released all of these as CC0 in 2020 (LICENSE.md in that repository, section C).
 
-Writes src/body_studio/wardrobe/ (the base mesh and each item's binding, read by wardrobe.py)
+Writes src/body_studio/wardrobe/ (the base mesh, its body-shape targets read by fit.py, and each
+item's binding, read by wardrobe.py)
 and src/body_studio/static/wardrobe/ (textures, read by the page). Needs ffmpeg for the textures.
 Only needed to remake those files.
 """
@@ -27,6 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+from body_studio.fit import SHAPES  # noqa: E402
 from body_studio.wardrobe import CATALOG  # noqa: E402
 
 OUT = ROOT / "src" / "body_studio" / "wardrobe"
@@ -46,7 +48,7 @@ def npy(raw: bytes) -> tuple[array, tuple]:
     assert raw[:6] == b"\x93NUMPY"
     hlen = int.from_bytes(raw[8:10], "little")
     head = ast.literal_eval(raw[10:10 + hlen].decode("latin1"))
-    code = {"<f4": "f", "<u4": "I", "<i4": "i", "<u2": "H", "|u1": "B", "<i8": "q"}[head["descr"]]
+    code = {"<f4": "f", "<u4": "I", "<i4": "i", "<u2": "H", "<i2": "h", "|u1": "B", "<i8": "q"}[head["descr"]]
     a = array(code)
     a.frombytes(raw[10 + hlen:])
     return a, head["shape"]
@@ -151,6 +153,20 @@ def pack_base(obj: Path) -> None:
     print(f"base: {len(V) // 3} vertices, {n_body} on the body, {len(body) // 3} triangles")
 
 
+def pack_shapes(data: Path) -> None:
+    """The body-shape targets fit.py solves for (MakeHuman's own sliders), from data/targets.npz:
+    per target the vertices it moves and how far, in thousandths of a MakeHuman unit (int16)."""
+    z = zipfile.ZipFile(data / "targets.npz")
+    out = {}
+    for name in SHAPES:
+        idx, _ = npy(z.read(f"targets/{name}.index.npy"))
+        vec, _ = npy(z.read(f"targets/{name}.vector.npy"))
+        assert len(idx) and idx.typecode == "H" and vec.typecode == "h", name
+        out[name] = {"index": b64(idx), "delta": b64(vec)}
+    (OUT / "shapes.json.gz").write_bytes(gzip.compress(json.dumps(out).encode(), 9, mtime=0))
+    print(f"shapes: {len(out)} targets, {(OUT / 'shapes.json.gz').stat().st_size // 1024} KB")
+
+
 def pack_item(data: Path, item: dict) -> None:
     folder = data / item["source"]
     mhclo = folder / (item["mhclo"] + ".mhclo")
@@ -177,6 +193,7 @@ def main() -> None:
     (OUT / "items").mkdir(parents=True, exist_ok=True)
     TEX.mkdir(parents=True, exist_ok=True)
     pack_base(obj)
+    pack_shapes(data)
     for item in CATALOG:
         pack_item(data, item)
 

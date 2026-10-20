@@ -9,7 +9,9 @@ made them.
 Each item was converted for Body Studio: its binding to MakeHuman's base mesh and its triangles
 packed into `src/body_studio/wardrobe/`, its texture scaled down (with the ambient occlusion
 multiplied in) into `src/body_studio/static/wardrobe/`, by `scripts/wardrobe_pack.py`. The
-base mesh (hm08) the items are fitted to is MakeHuman's too, also CC0.
+base mesh (hm08) the items are fitted to is MakeHuman's too, also CC0, and so are the 54
+body-shape targets it is shaped with (`targets.npz` in the data folder, packed into
+`src/body_studio/wardrobe/shapes.json.gz`).
 
 Source: the system assets of MakeHuman 1.1 (`makehuman/data` in the MakeHuman repository; the
 same files are in Ubuntu's `makehuman-data` 1.1.1 package). Licence: section C of

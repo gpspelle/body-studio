@@ -58,6 +58,15 @@ So once the base mesh is laid on a scan, the same rule puts every garment on tha
 1. **Fit the base mesh to the scan** (`fit.py`, once per body, saved as `<body>.fit.json`).
    - The skeleton is found on the base mesh with the same code that finds it on the scan
      (`rig.py`), so the two have the same joints.
+   - The base mesh first takes the person's build: MakeHuman's own body-shape sliders (54 CC0
+     targets: sex, muscle and weight, bust and cup, waist, hips, stomach, buttocks, torso width and
+     depth, neck, upper arm, thigh and calf girths) are set to what best matches the scan. This is
+     the shape space NAVER's Anny model uses, solved without PyTorch: the targets are linear, so
+     it is a non-negative least-squares solve of how far each skin vertex is from the splats along
+     its normal (every third vertex, weighted by its area, sliders pulled lightly towards 0), done
+     three times as the mesh settles, after the bones below are fitted. The helper geometry
+     clothes and hair hang from (tights, skirt, hair cap) changes shape with it. The values found
+     are saved in the fit as `shape`. Lengths are left to the bones.
    - Each bone of the base mesh is turned onto the scan's bone, stretched along it to the scan's
      bone length and scaled across by the ratio of heights. The vertices follow with the base
      mesh's own skin weights (linear blend).
@@ -65,7 +74,11 @@ So once the base mesh is laid on a scan, the same rule puts every garment on tha
      passes (6% then 2.5% of the person's height), with the moves smoothed over the mesh, so the
      base mesh takes the person's own shape: belly, chest, hips.
    - On the MakeHuman test body in three shapes, the fitted skin is a median 0.3–0.4 cm from the
-     true surface, 99% of it within about 2 cm (`tests/unit/test_wardrobe.py`).
+     true surface, 99% of it within about 1.2 cm (`tests/unit/test_wardrobe.py`). The shape step
+     brings 90% of the skin within 0.7–0.8 cm, from 0.8–0.9 cm without it; before the last step
+     (the moves along the normals) it matters more: on the slim body 99% of the skin is within
+     1.5 cm, from 4.2 cm. The test also checks the solve picks the very target the heavy and slim
+     test bodies were made with.
 2. **Put the item on the fitted mesh** (`wardrobe.py`, per request). MakeHuman's rule: the
    offsets are scaled by how wide, deep and tall the body is at three pairs of reference
    vertices, and turned with the limb they sit on.

@@ -32,7 +32,7 @@ a problem for a local app:
 |---|---|---|
 | SMPL, SMPL-X, SMPL+H, STAR | Non-commercial research only; registration to download | No: can't ship the files, can't be used commercially |
 | GHUM / GHUML | Apache-2.0, but TensorFlow-only and no readily usable skinned mesh | Not without a heavy runtime |
-| Anny (NAVER Labs, 2025) | Apache-2.0, built on MakeHuman | Possible later; needs PyTorch to fit |
+| Anny (NAVER Labs, 2025) | Apache-2.0, built on MakeHuman | Its shape space (MakeHuman's CC0 targets) is used by the clothes fit, solved without PyTorch (`docs/wardrobe.md`) |
 | MHR, Momentum Human Rig (Meta, 2025) | Apache-2.0 | Possible later; needs PyTorch to fit |
 | MakeHuman base mesh | CC0 | Used for **tests** (an artist-placed skeleton to check ours against) |
 

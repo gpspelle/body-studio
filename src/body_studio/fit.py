@@ -7,12 +7,16 @@ No body model and no download. The base mesh (hm08, CC0, shipped in body_studio/
 skeleton and skin weights by the same method as a scan (rig.py), so its joints mean the same as
 the scan's. Then, once per body:
 
-1. Every bone of the base mesh is turned onto the scan's bone, stretched to its length and scaled
+1. MakeHuman's own body-shape sliders (sex, muscle, weight, bust, waist, hips, thighs… CC0
+   targets, the shape space Anny uses) are set to the values that best match the scan: a
+   non-negative least-squares solve of how far each skin vertex is from the splats along its
+   normal, done three times as the shape settles. No PyTorch: the targets are linear.
+2. Every bone of the base mesh is turned onto the scan's bone, stretched to its length and scaled
    across by the ratio of the two heights; each vertex follows its bones by its skin weights.
-2. Each skin vertex moves along its normal onto the nearest layer of the scan's splats, and those
+3. Each skin vertex moves along its normal onto the nearest layer of the scan's splats, and those
    moves are smoothed over the mesh, so a vertex with no splats in front of it (a gap, the soles)
    moves with its neighbours. Done twice, the second time closer in.
-3. The helper geometry that clothes and hair are bound to (tights, skirt, hair cap) follows the
+4. The helper geometry that clothes and hair are bound to (tights, skirt, hair cap) follows the
    skin under it.
 
 Positions are kept in the scan's body coordinates (x to the person's left, y up from the soles,
@@ -23,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import gzip
 import json
 import math
 import random
@@ -33,12 +38,33 @@ from pathlib import Path
 
 from . import rig, wardrobe
 
-FIT_VERSION = 2         # 2: the skin's normals, for finding the skin under clothes
+FIT_VERSION = 3         # 2: the skin's normals, for finding the skin under clothes; 3: body shape
 SAMPLES = 100000        # points on the base mesh for its skeleton and weights
 PASSES = (0.06, 0.025)  # how far (fraction of stature) a vertex looks along its normal, per pass
 LATERAL = 0.006         # splats this close to the normal's line count (fraction of stature)
 SMOOTH = 40             # smoothing steps of the moves over the mesh
 MAX_SPLATS = 150000     # opaque splats used (every n-th, beyond this)
+SHAPE_ROUNDS = 3        # shape solves, each from where the last one left the mesh
+SHAPE_STRIDE = 3        # every n-th skin vertex takes part in the shape solve
+SHAPE_RIDGE = 2e-7      # pull of every slider towards 0 (the base mesh), per unit of fit
+SHAPE_REACH = 0.06      # how far (fraction of stature) a vertex looks for the splats in the shape solve
+
+# MakeHuman's body-shape targets solved for (in its data/targets.npz, packed into
+# wardrobe/shapes.json.gz by scripts/wardrobe_pack.py). Lengths are left to the bones; these
+# are girths. Sex comes from the <race>-<sex>-young targets, muscle and weight from the
+# universal ones on top (their average-muscle average-weight targets are empty).
+SHAPES = tuple(
+    [f"macrodetails/{r}-{g}-young" for r in ("african", "asian", "caucasian") for g in ("female", "male")]
+    + [f"macrodetails/universal-{g}-young-{m}muscle-{w}weight"
+       for g in ("female", "male") for m in ("min", "average", "max") for w in ("min", "average", "max")
+       if (m, w) != ("average", "average")]
+    + [f"breast/female-young-averagemuscle-averageweight-{c}cup-averagefirmness" for c in ("min", "max")]
+    + [f"measure/measure-{m}-circ-{d}" for m in ("neck", "bust", "underbust", "waist", "hips", "upperarm",
+                                                  "thigh", "calf") for d in ("incr", "decr")]
+    + [f"torso/torso-{m}-{d}" for m in ("scale-depth", "scale-horiz", "vshape") for d in ("incr", "decr")]
+    + [f"{g}/{m}-{d}" for g, m in (("stomach", "stomach-pregnant"), ("buttocks", "buttocks-volume"),
+                                  ("hip", "hip-scale-horiz"), ("hip", "hip-scale-depth"))
+       for d in ("incr", "decr")])
 
 
 class FitError(ValueError):
@@ -208,6 +234,119 @@ def base_rig() -> dict:
             "axes": axes}
 
 
+@lru_cache(maxsize=1)
+def shapes() -> list:
+    """SHAPES in the base mesh's body coordinates: per target, {vertex: how far it moves}."""
+    d = json.loads(gzip.decompress((wardrobe.DATA / "shapes.json.gz").read_bytes()))
+    ax = base_rig()["axes"]
+    out = []
+    for name in SHAPES:
+        I, D = wardrobe._arr("H", d[name]["index"]), wardrobe._arr("h", d[name]["delta"])
+        rows = {}
+        for k, i in enumerate(I):
+            m = (D[3 * k] * 1e-3, D[3 * k + 1] * 1e-3, D[3 * k + 2] * 1e-3)
+            rows[i] = tuple(m[0] * ax[0][c] + m[1] * ax[1][c] + m[2] * ax[2][c] for c in range(3))
+        out.append(rows)
+    return out
+
+
+def shaped(alpha) -> list:
+    """The base mesh with the sliders at alpha (body coordinates)."""
+    P = [list(p) for p in base_rig()["P"]]
+    for a, rows in zip(alpha, shapes()):
+        if a:
+            for i, d in rows.items():
+                P[i][0] += a * d[0]; P[i][1] += a * d[1]; P[i][2] += a * d[2]
+    return [tuple(p) for p in P]
+
+
+def _linear(T, d):
+    """The bone transform T applied to a direction (no translation)."""
+    along = rig._dot(d, T["u"]) * (T["s"] - T["g"])
+    return _q_rot(T["q"], tuple(T["g"] * d[k] + along * T["u"][k] for k in range(3)))
+
+
+def _pose(P0, W, T, n):
+    out = []
+    for i in range(n):
+        x = [0.0, 0.0, 0.0]
+        for b, w in W[i]:
+            y = _apply(T[b], P0[i])
+            x[0] += w * y[0]; x[1] += w * y[1]; x[2] += w * y[2]
+        out.append(tuple(x))
+    return out
+
+
+def _nnls(A, r, x, sweeps=300):
+    """min x'Ax - 2r'x with x >= 0, by coordinate descent from x."""
+    x = list(x)
+    K = len(x)
+    for _ in range(sweeps):
+        for k in range(K):
+            if A[k][k] > 0:
+                g = r[k] - sum(A[k][j] * x[j] for j in range(K))
+                x[k] = max(0.0, x[k] + g / A[k][k])
+    return x
+
+
+def solve_shape(T, pts, hsh, H) -> list:
+    """The slider values (one per SHAPES) that put the posed base mesh's skin on the splats."""
+    base = base_rig()
+    W, tris, nb = base["W"], base["tris"], base["n_body"]
+    S = shapes()
+    K = len(S)
+    area = [0.0] * nb                                      # each vertex's share of the skin
+    for t in range(len(tris) // 3):
+        a, b, c = (base["P"][tris[3 * t + k]] for k in range(3))
+        cr = rig._cross(rig._sub(b, a), rig._sub(c, a))
+        ar = math.sqrt(rig._dot(cr, cr)) / 6
+        for i in (tris[3 * t], tris[3 * t + 1], tris[3 * t + 2]):
+            area[i] += ar
+    idx = range(0, nb, SHAPE_STRIDE)
+    jac = {}                                               # vertex -> [(slider, posed move)]
+    for i in idx:
+        row = []
+        for k, rows in enumerate(S):
+            d = rows.get(i)
+            if d:
+                m = [0.0, 0.0, 0.0]
+                for b, w in W[i]:
+                    y = _linear(T[b], d)
+                    m[0] += w * y[0]; m[1] += w * y[1]; m[2] += w * y[2]
+                row.append((k, m))
+        jac[i] = row
+    R, lat2 = SHAPE_REACH * H, (LATERAL * H) ** 2
+    alpha = [0.0] * K
+    for _ in range(SHAPE_ROUNDS):
+        P = _pose(shaped(alpha), W, T, nb)
+        N = _normals(P, tris, nb)
+        A = [[0.0] * K for _ in range(K)]
+        r = [0.0] * K
+        total = 0.0
+        for i in idx:
+            t = _layer(P[i], N[i], pts, hsh, R, lat2)
+            if t is None or abs(t) > 0.9 * R:
+                continue
+            a = [(k, rig._dot(N[i], m) / H) for k, m in jac[i]]
+            b = t / H + sum(x * alpha[k] for k, x in a)
+            c = area[i]
+            total += c
+            for k, x in a:
+                r[k] += c * x * b
+                Ak = A[k]
+                for j, y in a:
+                    Ak[j] += c * x * y
+        if total <= 0:
+            break
+        for k in range(K):
+            r[k] /= total
+            for j in range(K):
+                A[k][j] /= total
+            A[k][k] += SHAPE_RIDGE
+        alpha = _nnls(A, r, alpha)
+    return alpha
+
+
 def _d2(a, b):
     return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
 
@@ -248,31 +387,38 @@ def _blend_q(qs):
     return tuple(x / n for x in acc)
 
 
+def _layer(p, n, pts, hsh, R, lat2):
+    """How far along the normal n from p the nearest layer of points is (within R), or None."""
+    step = 0.5 * hsh.size
+    seen = set()
+    k = -R
+    while k <= R:
+        seen.update(hsh.cells.get(hsh.key((p[0] + k * n[0], p[1] + k * n[1], p[2] + k * n[2])), ()))
+        k += step
+    ts = []
+    for j in seen:
+        d = rig._sub(pts[j], p)
+        t = rig._dot(d, n)
+        if abs(t) <= R and rig._dot(d, d) - t * t <= lat2:
+            ts.append(t)
+    if len(ts) < 2:
+        return None
+    ts.sort(key=abs)
+    near = sorted(ts[:max(2, len(ts) // 8)])
+    return near[len(near) // 2]
+
+
 def shrinkwrap(P, tris, nb, nbrs, pts, hsh, H, reach):
     """Move skin vertices along their normals onto the nearest layer of points; moves are
     smoothed over the mesh (a vertex with no points in front of it moves with its neighbours)."""
     N = _normals(P, tris, nb)
     lat2 = (LATERAL * H) ** 2
     R = reach * H
-    step = 0.5 * hsh.size
     meas, conf = [0.0] * nb, [0.0] * nb
     for i in range(nb):
-        p, n = P[i], N[i]
-        seen = set()
-        k = -R
-        while k <= R:
-            seen.update(hsh.cells.get(hsh.key((p[0] + k * n[0], p[1] + k * n[1], p[2] + k * n[2])), ()))
-            k += step
-        ts = []
-        for j in seen:
-            d = rig._sub(pts[j], p)
-            t = rig._dot(d, n)
-            if abs(t) <= R and rig._dot(d, d) - t * t <= lat2:
-                ts.append(t)
-        if len(ts) >= 2:
-            ts.sort(key=abs)
-            near = sorted(ts[:max(2, len(ts) // 8)])
-            meas[i], conf[i] = near[len(near) // 2], 1.0
+        t = _layer(P[i], N[i], pts, hsh, R, lat2)
+        if t is not None:
+            meas[i], conf[i] = t, 1.0
     d = meas[:]
     lam = 2.0
     for _ in range(SMOOTH):
@@ -281,9 +427,9 @@ def shrinkwrap(P, tris, nb, nbrs, pts, hsh, H, reach):
     return [rig._add(P[i], rig._mul(N[i], max(-R, min(R, d[i])))) for i in range(nb)], sum(conf) / nb
 
 
-def fit_splats(rig_json: dict, xs, ys, zs, opacity) -> dict:
+def fit_splats(rig_json: dict, xs, ys, zs, opacity, shape: bool = True) -> dict:
     """The fitted base mesh for a body whose rig is `rig_json` (rig.py's file) and whose splat
-    centres and opacities are given (PLY coordinates)."""
+    centres and opacities are given (PLY coordinates). shape=False leaves the sliders at 0."""
     base = base_rig()
     fr = {k: tuple(v) for k, v in rig_json["frame"].items() if k in ("origin", "left", "up", "front")}
     Hs = rig_json["height"]
@@ -299,18 +445,13 @@ def fit_splats(rig_json: dict, xs, ys, zs, opacity) -> dict:
     stride = max(1, len(opaque) // MAX_SPLATS)
     pts = [body((xs[i], ys[i], zs[i])) for i in opaque[::stride]]
     T = bone_transforms(base["J"], base["H"], Js, Hs)
-    P0, W, nb = base["P"], base["W"], base["n_body"]
-    P, Q = [], []
-    for i, p in enumerate(P0):
-        x = [0.0, 0.0, 0.0]
-        for b, w in W[i]:
-            y = _apply(T[b], p)
-            x[0] += w * y[0]; x[1] += w * y[1]; x[2] += w * y[2]
-        P.append(tuple(x))
-        Q.append(_blend_q([(T[b]["q"], w) for b, w in W[i]]))
-    lbs = P
-    skin = P[:nb]
+    W, nb = base["W"], base["n_body"]
     hsh = _Hash(pts, 0.01 * Hs)
+    alpha = solve_shape(T, pts, hsh, Hs) if shape else [0.0] * len(SHAPES)
+    P0 = shaped(alpha)
+    lbs = _pose(P0, W, T, len(P0))
+    Q = [_blend_q([(T[b]["q"], w) for b, w in W[i]]) for i in range(len(P0))]
+    skin = lbs[:nb]
     hit = 0.0
     for reach in PASSES:
         skin, hit = shrinkwrap(skin, base["tris"], nb, base["nbrs"], pts, hsh, Hs, reach)
@@ -324,7 +465,8 @@ def fit_splats(rig_json: dict, xs, ys, zs, opacity) -> dict:
                 move[k] += f * (skin[j][k] - lbs[j][k])
         out.append(rig._add(lbs[i], move))
     return {"verts": out, "rot": Q, "axes": base["axes"], "frame": fr, "height": Hs, "n_body": nb,
-            "normals": _normals(skin, base["tris"], nb), "surface_found": round(hit, 3)}
+            "normals": _normals(skin, base["tris"], nb), "surface_found": round(hit, 3),
+            "shape": {n: round(a, 3) for n, a in zip(SHAPES, alpha) if a > 0.0005}}
 
 
 def build(ply: Path) -> dict:
@@ -342,7 +484,7 @@ def _b64(a: array) -> str:
 
 def encode(f: dict) -> dict:
     return {"version": FIT_VERSION, "height": f["height"], "n_body": f["n_body"], "frame": f["frame"],
-            "axes": f["axes"], "surface_found": f["surface_found"],
+            "axes": f["axes"], "surface_found": f["surface_found"], "shape": f.get("shape", {}),
             "verts": _b64(array("f", (c for p in f["verts"] for c in p))),
             "rot": _b64(array("f", (c for q in f["rot"] for c in q))),
             "normals": _b64(array("f", (c for n in f["normals"] for c in n)))}

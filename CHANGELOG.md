@@ -95,3 +95,7 @@
   to wear it. The panel no longer lists every item (nor the Women's / Men's / Unisex filter); it
   lists what is worn, to take it off. The shop is drawn as plain 3D models, so Spark sorts no
   more splats than before. See `docs/wardrobe.md`.
+- Clothes fit the person's build better: the model body first takes MakeHuman's own body-shape
+  sliders (sex, muscle, weight, bust, waist, hips, girths; the shape space of NAVER's Anny,
+  solved without PyTorch) set to match the scan, then the surface. `<body>.fit.json` is version
+  3 (with the slider values as `shape`); older fits are remade on first use.

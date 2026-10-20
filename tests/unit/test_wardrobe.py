@@ -125,6 +125,41 @@ class Fit(unittest.TestCase):
                 self.assertLess(pct(back, 0.99), 0.04)
                 self.assertGreater(r["surface_found"], 0.8)
 
+    def test_the_body_shape_is_found(self):
+        # the test shapes are MakeHuman targets themselves, so the solve should pick that target
+        # and explain a good part of the change from the base mesh (the bones, fitted to the scan's
+        # own joints, take some of it), and find next to no shape on the base mesh itself
+        n = wardrobe.base()["n_body"]
+        S = fit.shapes()
+        truth = {"heavy": "macrodetails/universal-male-young-averagemuscle-maxweight",
+                 "slim": "macrodetails/universal-female-young-minmuscle-minweight"}
+        for shape, (ply, r) in self.bodies.items():
+            with self.subTest(shape):
+                alpha = [r["shape"].get(name, 0.0) for name in fit.SHAPES]
+                want = S[fit.SHAPES.index(truth[shape])] if shape else {}
+                err = size = 0.0
+                for i in range(n):
+                    got = [sum(a * S[k].get(i, (0, 0, 0))[c] for k, a in enumerate(alpha) if a) for c in range(3)]
+                    w = want.get(i, (0.0, 0.0, 0.0))
+                    err += sum((got[c] - w[c]) ** 2 for c in range(3))
+                    size += sum(w[c] ** 2 for c in range(3))
+                if shape:
+                    self.assertEqual(max(r["shape"], key=r["shape"].get), truth[shape])
+                    self.assertLess(math.sqrt(err / size), 0.8)           # 1.0 with no shape at all
+                else:
+                    self.assertLess(math.sqrt(err / n), 0.01)             # under 1 mm (MakeHuman units: decimetres)
+
+    def test_the_shape_brings_the_mesh_closer(self):
+        ply, r = self.bodies["slim"]
+        d = rig.load_splats(ply)
+        truth = surface("slim", yaw=25)
+        p90 = {}
+        for solve in (False, True):
+            f = fit.fit_splats(rig.cached(ply), d["x"], d["y"], d["z"], d["opacity"], shape=solve)
+            got = [rig.to_model(f["frame"], v) for v in f["verts"][:f["n_body"]]]
+            p90[solve] = pct(distances(got, truth), 0.9)
+        self.assertLess(p90[True], 0.95 * p90[False])
+
     def test_skin_normals_point_out(self):
         for shape, (ply, r) in self.bodies.items():
             with self.subTest(shape):
