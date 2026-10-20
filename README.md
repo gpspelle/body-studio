@@ -119,11 +119,14 @@ panel sits at the left edge (at the bottom on a phone).
 
 ![Clothes, tattoo & pose panel](docs/images/tattoo-desktop.png)
 
-- **Clothes**: pick an outfit, shoes, hair and a hat. There are 12 outfits (filter by Women's,
-  Men's or Unisex), 6 pairs of shoes, 10 hairstyles and a fedora. Each is fitted to this person's
-  shape, moves with the pose, and hides the skin under it. Tap it again to take it off. What is
-  worn is kept in this browser, per body. The first time, the app fits a model body to the scan
-  (a few seconds).
+- **Clothes**: while the panel is open, a small shop stands around the body: outfits on hangers
+  on a clothes rail, shoes on a shoe rack, folded T-shirts and jeans on shelves with short hair on
+  mannequin heads above them, and long hair and the fedora on stands. Point at an item to see its
+  name, click it to put it on. There are 12 outfits, 6 pairs of shoes, 10 hairstyles and a
+  fedora. Each is fitted to this person's shape, moves with the pose, and hides the skin under
+  it. What is worn leaves the rack and is listed in the panel; tap it there to take it off. What
+  is worn is kept in this browser, per body. The first time, the app fits a model body to the
+  scan (a few seconds).
   All of them are MakeHuman's own assets, free to use (CC0): see [CREDITS.md](CREDITS.md).
 
 - **Add an image** (PNG, JPG, WebP, SVG), then tap the body where it goes. Drag it to move it;
@@ -250,10 +253,13 @@ fica. O painel fica na borda esquerda (embaixo, no celular).
 
 <img src="docs/images/tattoo-phone.png" width="220" alt="Painel de roupas, tatuagem e pose no celular">
 
-- **Roupas**: escolha um look, sapatos, cabelo e um chapéu. São 12 looks (filtre por Femininas,
-  Masculinas ou Unissex), 6 pares de sapatos, 10 cortes de cabelo e um chapéu fedora. Cada peça se
-  ajusta ao corpo da pessoa, acompanha a pose e esconde a pele embaixo dela. Toque de novo para
-  tirar. O que está vestido fica guardado neste navegador, para cada corpo. Na primeira vez, o app
+- **Roupas**: com o painel aberto, uma pequena loja fica em volta do corpo: looks em cabides numa
+  arara, sapatos numa sapateira, camisetas e jeans dobrados em prateleiras com cabelos curtos em
+  cabeças de manequim acima, e cabelos compridos e o chapéu fedora em pedestais. Aponte para uma
+  peça para ver o nome e clique para vestir. São 12 looks, 6 pares de sapatos, 10 cortes de cabelo
+  e um chapéu fedora. Cada peça se ajusta ao corpo da pessoa, acompanha a pose e esconde a pele
+  embaixo dela. O que está vestido sai da arara e aparece no painel; toque ali para tirar. O que
+  está vestido fica guardado neste navegador, para cada corpo. Na primeira vez, o app
   ajusta um corpo modelo ao escaneado (alguns segundos). Todas são peças do próprio MakeHuman, de
   uso livre (CC0): veja [CREDITS.md](CREDITS.md).
 

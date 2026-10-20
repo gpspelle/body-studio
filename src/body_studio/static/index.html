@@ -107,9 +107,9 @@
   <div id="studioBody" hidden>
     <section id="wear">
       <h2 data-i18n="wear.title"></h2>
+      <p id="wearHint" class="small"></p>
+      <div class="chips" id="wearWorn"></div>
       <p id="wearStatus" class="small" role="status"></p>
-      <div class="chips" id="wearCut"></div>
-      <div id="wearSlots"></div>
     </section>
     <section>
       <h2 data-i18n="tat.title"></h2>
@@ -176,6 +176,7 @@
     <p class="small" data-i18n="guide.note"></p>
   </section>
 </dialog>
+<div id="shopTip" class="tip" role="tooltip" hidden></div>
 <div id="drop" class="drop" hidden><p class="big" data-i18n="drop.title"></p></div>
 
 <script type="module">
@@ -285,7 +286,10 @@ function frame() {
   const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
   const free = Math.max(0.3, (h - 2 * CHROME) / innerHeight);   // share of the height the body may use
   const width = Math.hypot(size.x, size.z);
-  const dist = 1.08 * Math.max(size.y / 2 / (tanV * free), width / 2 / (tanV * (w / innerHeight) * 0.92)) + width / 2;
+  let dist = 1.08 * Math.max(size.y / 2 / (tanV * free), width / 2 / (tanV * (w / innerHeight) * 0.92)) + width / 2;
+  // with the shop around the body (wardrobe.js), far enough back to see most of it too
+  const room = window.bodyApp.room?.() || 0;
+  if (room) dist = Math.max(dist, room / 2 / (tanV * (w / innerHeight)));
   camera.near = dist / 100; camera.far = dist * 20; camera.updateProjectionMatrix();
   camera.position.set(center.x, center.y + size.y * 0.05, center.z + dist);
   controls.target.copy(center);

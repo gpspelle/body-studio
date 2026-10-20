@@ -1,6 +1,7 @@
 # Wardrobe
 
-Clothes, shoes, hair and a hat to try on a scanned body, in the **Try on** panel. Experimental.
+Clothes, shoes, hair and a hat to try on a scanned body, from a shop of racks and shelves around it
+while the **Try on** panel is open. Experimental.
 
 ## What you can try on
 
@@ -15,9 +16,38 @@ Clothes, shoes, hair and a hat to try on a scanned body, in the **Try on** panel
 | Hair | short dark, short brown, side part, slicked back, afro, dark bob, blonde bob, long, ponytail, braid |
 | Hat | fedora |
 
-"Women's" and "Men's" say who the outfit was cut for, nothing more: every item is fitted to the
-body it is put on, so anything can be worn by anyone. The filter only shortens the list.
-One item per kind is worn at a time.
+Every item is fitted to the body it is put on, so anything can be worn by anyone ("Women's" and
+"Men's" only say who the outfit was cut for). One item per kind is worn at a time.
+
+## The shop around the body
+
+While the Try on panel is open the items are shown around the body, not listed in the panel:
+
+| Where | What | How it is shown |
+|---|---|---|
+| Clothes rail, behind on the left | suit, shirts with jeans, jacket, overalls, shirt and skirt | on a hanger: the arms turned down to the sides, the legs together, the cloth a little flatter |
+| Shoe rack, in front of the rail | the 6 pairs | the two shoes side by side, toes a little down toward you |
+| Shelves, behind on the right | T-shirts, long-sleeve top, crop top with jeans, shorts or leggings | folded: legs folded together along the inside seam, sleeves folded back, then folded in zigzags from the collar into a flat stack, chest on top |
+| Shelves, above | 7 short hairstyles | on a mannequin head (MakeHuman's own head and neck) |
+| Stands, at the right | long hair, ponytail, braid, the fedora | on a mannequin head on a pole (too long for a shelf) |
+
+How each outfit is shown is chosen in `wardrobe.py` (`FOLDED`, `LONG_HAIR`): what a shop folds
+(T-shirts, knitwear, sportswear) is folded, what has a collar, a jacket, a skirt or bibs is hung.
+The layout and each shape are worked out in `static/racks.js` (tested by `tests/js/racks.test.mjs`:
+no two items in each other's place, none in the body's, each on its shelf and under the next).
+
+- **Pointing** at an item names it; **clicking** it puts it on (a drag still turns the camera, and a
+  click on the body is never taken for the rack behind it). What is worn leaves the rack and is
+  listed at the top of the panel; tapping it there takes it off and puts it back.
+- **The items are shown as they are made**, on MakeHuman's base mesh (`GET /api/wardrobe/<id>/shape`,
+  the same for every body), sized to the person's height. They are fitted only when worn.
+- **Plain meshes, not splats.** Spark sorts every splat it draws each time the view turns: a body
+  is 150–300k splats and what it wears adds tens of thousands. The 29 items as splats would add
+  about as many again as the body. The racks and items are ordinary three.js meshes with their
+  textures, lit by two lights of their own. They stand apart from the body, so none of them cuts
+  through its splats (the reason clothes on the body are splats).
+- **The camera takes the shop in**: with the panel open it starts far enough back to see the whole
+  shop around the body (scroll to come closer).
 
 ## How an item gets on a person
 

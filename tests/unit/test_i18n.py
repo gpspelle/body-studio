@@ -47,8 +47,9 @@ class I18n(unittest.TestCase):
     def test_wardrobe_names_are_translated(self):
         from body_studio import wardrobe
         en, pt = table("en"), table("pt")
-        keys = {"wear.item." + i["id"] for i in wardrobe.CATALOG} | {"wear.slot." + s for s in wardrobe.SLOTS}
-        keys |= {"wear.cut." + i["cut"] for i in wardrobe.CATALOG} | {"wear.cut.all"}
+        keys = {"wear.item." + i["id"] for i in wardrobe.CATALOG}
+        keys |= set(re.findall(r'\bt\(\s*"(wear\.\w+)"', (STATIC / "wardrobe.js").read_text()))
+        keys |= set(re.findall(r'"(wear\.(?:hint|wait))"', (STATIC / "wardrobe.js").read_text()))
         self.assertLessEqual(keys, en)
         self.assertLessEqual(keys, pt)
         fit = (STATIC.parent / "fit.py").read_text()      # fit errors reuse the rig's advice

@@ -12,6 +12,8 @@
     GET  /api/fit?body=<file>  MakeHuman's base mesh fitted to the body (fit.py); 202 and 422 the same
     GET  /api/wardrobe         the clothes, shoes, hair and hats (wardrobe.py)
     GET  /api/wardrobe/<id>?body=<file>  one item fitted to the body; 202 while the body is fitted
+    GET  /api/wardrobe/<id>/shape        the item as it is made, for the shop around the body
+    GET  /api/mannequin                  the mannequin head the hair and hats are shown on
 
     GET  /api/people                    people whose progress is followed
     GET  /api/people/<id>               one person's tape measures, body fat and scans over time
@@ -133,7 +135,10 @@ def make_handler(data: DataDir, runner: Runner):
             pass
 
         def _json(self, obj, code: int = 200) -> None:
-            body = json.dumps(obj).encode()
+            self._raw_json(json.dumps(obj), code)
+
+        def _raw_json(self, text: str, code: int = 200) -> None:
+            body = text.encode()
             self.send_response(code)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
@@ -185,6 +190,13 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._file(out) if state == "ready" else None
             if p == "/api/wardrobe":
                 return self._json(wardrobe.catalog())
+            if p == "/api/mannequin":
+                return self._raw_json(wardrobe.mannequin())
+            m = re.fullmatch(r"/api/wardrobe/([a-z0-9_]+)/shape", p)
+            if m:
+                if m.group(1) not in wardrobe.BY_ID:
+                    return self._json({"error": "no such item", "code": "no_item"}, 404)
+                return self._raw_json(wardrobe.shape(m.group(1)))
             m = re.fullmatch(r"/api/wardrobe/([a-z0-9_]+)", p)
             if m:
                 if m.group(1) not in wardrobe.BY_ID:

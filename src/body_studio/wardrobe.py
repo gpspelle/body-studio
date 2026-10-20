@@ -57,6 +57,25 @@ for _item in CATALOG:
 BY_ID = {item["id"]: item for item in CATALOG}
 SLOTS = ["outfit", "shoes", "hair", "hat"]
 
+# How the shop around the body shows each item (static/racks.js): outfits on hangers on the rail
+# ("hang") or folded on the shelves ("fold"), shoes in pairs on the shoe rack, hair on mannequin
+# heads on the shelves ("head") or, when it is too long for a shelf, on a stand ("stand"), hats on a
+# mannequin head on a stand ("hat"). Folded: what a shop folds (T-shirts, knitwear, sportswear, with
+# jeans or shorts); hung: what has a collar, a jacket, a skirt or bibs.
+FOLDED = {"tee_jeans_f", "tee_shorts", "crop_leggings", "longsleeve_jeans", "tee_jeans", "white_tee_jeans"}
+LONG_HAIR = {"long", "ponytail", "braid"}       # reaches below the shoulders (tests/unit/test_wardrobe.py)
+DISPLAYS = {"hang", "fold", "shoes", "head", "stand", "hat"}
+
+
+def display(item_id: str) -> str:
+    slot = BY_ID[item_id]["slot"]
+    if slot == "outfit":
+        return "fold" if item_id in FOLDED else "hang"
+    if slot == "hair":
+        return "stand" if item_id in LONG_HAIR else "head"
+    return slot
+
+
 
 def _arr(code: str, s: str) -> array:
     a = array(code)
@@ -89,8 +108,45 @@ def catalog() -> list:
     out = []
     for c in CATALOG:
         tex = next((p.name for p in (DATA.parent / "static" / "wardrobe").glob(c["id"] + ".*")), None)
-        out.append({"id": c["id"], "slot": c["slot"], "cut": c["cut"], "texture": tex})
+        out.append({"id": c["id"], "slot": c["slot"], "cut": c["cut"], "texture": tex, "display": display(c["id"])})
     return out
+
+
+@lru_cache(maxsize=None)
+def shape(item_id: str) -> str:
+    """The item as it is made, on MakeHuman's base mesh (not fitted to anyone), for the shop's
+    racks and shelves: vertices in MakeHuman's units and axes (decimetres, y up, z to the front,
+    the feet at y = -8.2), triangles and UVs. As JSON, cached: it is the same for every body."""
+    it, V = item(item_id), base()["verts"]
+    ref, w, off = it["ref"], it["w"], it["off"]
+    out = array("f")
+    for i in range(len(ref) // 3):
+        r = ref[3 * i:3 * i + 3]
+        out.extend(sum(w[3 * i + m] * V[r[m]][j] for m in range(3)) + off[3 * i + j] for j in range(3))
+    return json.dumps({"id": item_id, "slot": BY_ID[item_id]["slot"], "display": display(item_id),
+                       "texture": it["texture"], "alpha": it["alpha"], "verts": _b64(out), "tris": _b64(it["tris"]),
+                       "tuv": _b64(it["tuv"]), "uv": _b64(it["uv"])})
+
+
+NECK = 5.75                      # the mannequin head is the base mesh's skin above this (decimetres)
+
+
+@lru_cache(maxsize=1)
+def mannequin() -> str:
+    """The base mesh's head and neck, for the mannequin heads the hair and the hat are shown on,
+    as JSON: vertices in MakeHuman's units and axes, and triangles."""
+    b = base()
+    V, T = b["verts"], b["tris"]
+    keep, out, tris = {}, array("f"), array("i")
+    for t in range(len(T) // 3):
+        tri = T[3 * t:3 * t + 3]
+        if all(V[i][1] > NECK for i in tri):
+            for i in tri:
+                if i not in keep:
+                    keep[i] = len(keep)
+                    out.extend(V[i])
+                tris.append(keep[i])
+    return json.dumps({"verts": _b64(out), "tris": _b64(tris), "neck": NECK})
 
 
 def fitted(item_id: str, fit: dict) -> dict:

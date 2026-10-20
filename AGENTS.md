@@ -16,7 +16,9 @@
   Clothes: MakeHuman's base mesh fitted to the body in `fit.py` (once per body, `<body>.fit.json`),
   the catalogue and each item's fit in `wardrobe.py` (data packed by `scripts/wardrobe_pack.py` into
   `wardrobe/` and `static/wardrobe/`), items as splats in `static/dress.js` (tested by
-  `tests/js/dress.test.mjs`), the Clothes section in `static/wardrobe.js`. Only CC0 or CC-BY items,
+  `tests/js/dress.test.mjs`), the Clothes section and the shop around the body in `static/wardrobe.js`
+(its layout and how each item is hung, folded or shown on a mannequin head in `static/racks.js`,
+tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no extra splats). Only CC0 or CC-BY items,
   each listed in `CREDITS.md`. See `docs/wardrobe.md`.
 - Runs go through splat-studio's job runner (`splat_studio.server.jobs.Runner`): pty, measured
   time left, lock files, timeline.jsonl, advice in seconds of video. Don't write a second runner.

@@ -89,3 +89,9 @@
   by its sides (an arm placed in the panel stays where it was put). **Q** / **E** raise the left /
   right arm and **Z** / **C** a knee, until pressed again. A **Guide** button (or **?**) in the top
   bar lists every control with a line on what it does.
+- Clothes in a shop around the body: while the Try on panel is open, the clothes hang on a rail,
+  the shoes stand on a shoe rack, T-shirts and jeans lie folded on shelves under short hair on
+  mannequin heads, and long hair and the hat are on stands. Point at one to see its name, click it
+  to wear it. The panel no longer lists every item (nor the Women's / Men's / Unisex filter); it
+  lists what is worn, to take it off. The shop is drawn as plain 3D models, so Spark sorts no
+  more splats than before. See `docs/wardrobe.md`.

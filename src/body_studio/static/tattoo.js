@@ -910,6 +910,12 @@ window.tattooStudio = {
   joint: (name) => S.sk.P[S.sk.index(name)].slice(),
   armDepth: () => S.sk.body.depth(S.sk) / S.rig.height,     // how far the arms are in the trunk and the head
   frame: () => S.rig.frame,
+  // how far from the camera the body is under a point of the screen (null: not there), so a click on
+  // the body doesn't pick the clothes on the racks behind it (wardrobe.js)
+  bodyDistance: (x, y) => {
+    const h = S && hitBody({ clientX: x, clientY: y });
+    return h ? new THREE.Vector3(...h.posed).applyMatrix4(V.holder.matrixWorld).distanceTo(V.camera.position) : null;
+  },
   // a tattoo's ink strength, read or set (as the Ink slider does, without having to select it)
   ink: (i, v) => {
     const tt = S.tattoos[i];

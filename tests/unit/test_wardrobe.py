@@ -57,6 +57,40 @@ class Catalog(unittest.TestCase):
         cuts = {c["cut"] for c in wardrobe.CATALOG if c["slot"] == "outfit"}
         self.assertEqual(cuts, {"women", "men", "unisex"})
 
+    def test_every_item_has_a_place_in_the_shop(self):
+        shown = {c["id"]: c["display"] for c in wardrobe.catalog()}
+        self.assertEqual(set(shown), set(wardrobe.BY_ID))
+        for c in wardrobe.CATALOG:
+            d = shown[c["id"]]
+            self.assertIn(d, wardrobe.DISPLAYS)
+            self.assertIn(d, {"outfit": {"hang", "fold"}, "shoes": {"shoes"}, "hair": {"head", "stand"},
+                              "hat": {"hat"}}[c["slot"]], c["id"])
+        self.assertEqual({"hang", "fold"}, {shown[c["id"]] for c in wardrobe.CATALOG if c["slot"] == "outfit"})
+
+    def test_shapes_are_the_items_as_made(self):
+        """On MakeHuman's base mesh: shoes on its soles, hair and hats on its head, and only hair
+        that reaches past the shoulders too long for a shelf of mannequin heads."""
+        lo_y = {}
+        for c in wardrobe.CATALOG:
+            d = json.loads(wardrobe.shape(c["id"]))
+            v = arr("f", d["verts"])
+            nv = len(v) // 3
+            self.assertEqual(nv, len(wardrobe.item(c["id"])["ref"]) // 3)
+            self.assertLess(max(arr("i", d["tris"])), nv)
+            ys = v[1::3]
+            lo_y[c["id"]] = min(ys)
+            if c["slot"] == "shoes":
+                self.assertLess(abs(min(ys) + 8.25), 0.25, c["id"])
+            if c["slot"] in ("hair", "hat"):
+                self.assertGreater(max(ys), 8.4, c["id"])
+        neck = json.loads(wardrobe.mannequin())["neck"]
+        long = {c["id"] for c in wardrobe.CATALOG if c["slot"] == "hair" and lo_y[c["id"]] < neck - 1.0}
+        self.assertEqual(long, wardrobe.LONG_HAIR)
+        head = arr("f", json.loads(wardrobe.mannequin())["verts"])
+        self.assertGreater(min(head[1::3]), neck)
+        self.assertGreater(max(head[1::3]), 8.4)
+        self.assertLess(max(abs(x) for x in head[0::3]), 1.2)             # a head and neck, no shoulders
+
     def test_every_item_is_credited(self):
         credits = (ROOT / "CREDITS.md").read_text()
         for c in wardrobe.CATALOG:

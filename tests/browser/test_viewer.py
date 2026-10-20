@@ -321,11 +321,17 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
         page.click("#studioBtn")
         page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=240000)
-        page.get_by_role("button", name="Men's", exact=True).click()
-        self.assertEqual(page.locator("#wearSlots [data-item=tee_shorts]").count(), 0)     # a women's outfit
-        self.assertEqual(page.locator("#wearSlots [data-item=suit]").count(), 1)
-        page.get_by_role("button", name="All", exact=True).click()
-        page.click("#wearSlots [data-item=tee_jeans]")
+        # every item is on a rack, a shelf or a stand around the body, and the panel lists none
+        shop = page.evaluate("wardrobe.shop()")
+        self.assertTrue(shop["shown"])
+        self.assertEqual(len(shop["racked"]), 29)
+        self.assertEqual(page.locator("#wearWorn button").count(), 0)
+        # pointing at one names it; clicking it puts it on and takes it off the rack
+        at = page.evaluate("wardrobe.onScreen('tee_jeans')")
+        page.mouse.move(at["x"], at["y"])
+        page.wait_for_function("!document.getElementById('shopTip').hidden")
+        self.assertEqual(page.inner_text("#shopTip"), "Loose T-shirt and jeans")
+        pick(page, "tee_jeans")
         page.wait_for_function("wardrobe.worn().includes('tee_jeans')", timeout=60000)
         self.assertGreater(page.evaluate("wardrobe.splats('tee_jeans')"), 5000)
         under = page.evaluate("wardrobe.hidden()")
@@ -339,21 +345,22 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("wardrobe.grown('tee_jeans') > 100", timeout=30000)
         page.evaluate("tattooStudio.preset('rest')")
         page.wait_for_function("wardrobe.grown('tee_jeans') === 0", timeout=30000)
-        self.assertEqual(page.get_attribute("#wearSlots [data-item=tee_jeans]", "aria-pressed"), "true")
-        page.click("#wearSlots [data-item=white_sneakers]")
+        self.assertEqual(page.locator("#wearWorn [data-item=tee_jeans]").count(), 1)
+        self.assertNotIn("tee_jeans", page.evaluate("wardrobe.shop().racked"))
+        pick(page, "white_sneakers")
         page.wait_for_function("wardrobe.worn().length === 2", timeout=60000)
         self.assertGreater(page.evaluate("wardrobe.hidden()"), under)
         # hair colours the scalp under it rather than hiding it
-        page.click("#wearSlots [data-item=ponytail]")
+        pick(page, "ponytail")
         page.wait_for_function("wardrobe.worn().includes('ponytail')", timeout=60000)
         self.assertGreater(page.evaluate("wardrobe.tinted()"), 500)
         # a hat goes over the hair, and fits the head again when the hair comes off
-        page.click("#wearSlots [data-item=fedora]")
+        pick(page, "fedora")
         page.wait_for_function("wardrobe.worn().includes('fedora')", timeout=60000)
         self.assertGreater(page.evaluate("wardrobe.hatScale()"), 1.02)
-        page.click("#wearSlots [data-item=ponytail]")
+        page.click("#wearWorn [data-item=ponytail]")       # taken off from the panel
         page.wait_for_function("!wardrobe.worn().includes('ponytail') && wardrobe.hatScale() === 1", timeout=60000)
-        page.click("#wearSlots [data-item=fedora]")
+        page.click("#wearWorn [data-item=fedora]")
         page.wait_for_function("!wardrobe.worn().includes('fedora') && wardrobe.tinted() === 0", timeout=60000)
         # a tattoo on the forearm: under a long sleeve, not under a short one
         page.set_input_files("#tatPick", str(self.design))
@@ -365,14 +372,15 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("tattooStudio.tattoos()[0].inked")
         page.evaluate("bodyApp.viewer.controls.autoRotate = false")
         self.assertGreater(ink_pixels(page, at), 30)       # the ink shows on the bare arm
-        page.click("#wearSlots [data-item=longsleeve_jeans]")
+        pick(page, "longsleeve_jeans")
         page.wait_for_function("wardrobe.worn().includes('longsleeve_jeans')", timeout=60000)
         # the skin under the sleeve is hidden, and the ink in it with it
         page.wait_for_function("tattooStudio.tattoos()[0].shown < 0.02 * tattooStudio.tattoos()[0].splats")
         self.assertLess(ink_pixels(page, at), 5)            # nothing of it on screen
-        page.click("#wearSlots [data-item=suit]")        # one outfit at a time
+        pick(page, "suit")                                # one outfit at a time
         page.wait_for_function("wardrobe.worn().join() === 'suit,white_sneakers'", timeout=60000)
-        page.click("#wearSlots [data-item=suit]")        # tapped again: taken off
+        self.assertIn("longsleeve_jeans", page.evaluate("wardrobe.shop().racked"))   # back on its shelf
+        page.click("#wearWorn [data-item=suit]")          # taken off
         page.wait_for_function("wardrobe.worn().join() === 'white_sneakers'")
         self.assertGreater(ink_pixels(page, at), 30)
         page.evaluate("tattooStudio.preset('walk')")    # moves with the body, no errors
@@ -395,6 +403,13 @@ class Viewer(unittest.TestCase):
         self.assertEqual(page.evaluate("tattooStudio.tattoos().length"), 1)
         self.assertEqual(errors, [])
         page.close()
+
+
+def pick(page, item):
+    """Click an item on the racks around the body, where it shows on the screen."""
+    at = page.evaluate(f"wardrobe.onScreen('{item}')")
+    assert at, f"{item} isn't in view"
+    page.mouse.click(at["x"], at["y"])
 
 
 def settled(page):

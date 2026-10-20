@@ -2,17 +2,19 @@
 // the pose). The body's base mesh is fitted once (fit.py, GET /api/fit); an item comes fitted to
 // the body (GET /api/wardrobe/<id>), becomes splats (dress.js), is skinned with the body's own
 // weights and moved by the same pose, and the body's splats under it are hidden while it is worn.
-// One item per slot (clothes, shoes, hair, hat). Design and sources: docs/wardrobe.md.
+// One item per slot (clothes, shoes, hair, hat). The items are shown in a shop around the body (racks.js:
+// a rail, a shoe rack, shelves and stands) while the panel is open; a click on one puts it on, and
+// the panel lists what is worn. Design and sources: docs/wardrobe.md.
 import * as THREE from "three";
 import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
-import { SkinCover, decodeItem, fitNormals, fitSkin, hatOverHair, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
+import { SkinCover, decodeItem, f32, i32, fitNormals, fitSkin, hatOverHair, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
 import { dualQuats, skinPoint } from "/static/pose.js";
+import { fold, hang, onHead, pair, shopLayout } from "/static/racks.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
 const V = window.bodyApp.viewer;
 const SLOTS = ["outfit", "shoes", "hair", "hat"];
-const CUTS = ["all", "women", "men", "unisex"];
 const SPACING = 0.0032;          // splat spacing on an item, fraction of the person's height (about 6 mm)
 const REACH = 0.03;              // a body splat is under an item if its nearest skin vertex is (within this)
 const HANG = 0.04;               // how far out from the skin an item still covers it (a skirt over the thighs)
@@ -22,7 +24,6 @@ const HAIR_SPACING = 0.7;        // hair cards are partly see-through: twice as 
 
 let W = null;                    // the body being dressed: rig, weights, its mesh, what is worn…
 let catalog = null;
-let cut = "all";
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -36,12 +37,13 @@ addEventListener("studioready", async (e) => {
   window.wardrobe.ready = false;
   if (!catalog) catalog = await (await fetch("/api/wardrobe")).json();
   ui();
+  placeShop(W);
   if (await loadFit(W) && W.file === file) {
     for (const id of store.get("wear:" + file) || []) if (W && W.file === file) await wear(id, true);
   }
   if (W && W.file === file) window.wardrobe.ready = true;
 });
-addEventListener("studiogone", () => { undressAll(); W = null; });
+addEventListener("studiogone", () => { undressAll(); W = null; showShop(); });
 addEventListener("posed", (e) => {
   if (!W) return;
   W.transforms = e.detail;
@@ -69,37 +71,20 @@ async function loadFit(w) {
   }
 }
 
-// ---------------------------------------------------------------- panel
+// ---------------------------------------------------------------- panel: what is worn
 function ui() {
-  const box = $("wearSlots");
+  const box = $("wearWorn");
   if (!W || !catalog) { box.replaceChildren(); return; }
-  $("wearCut").replaceChildren(...CUTS.map((c) => {
+  box.replaceChildren(...SLOTS.map((slot) => W.worn.get(slot)).filter(Boolean).map((e) => {
     const b = document.createElement("button");
-    b.textContent = t("wear.cut." + c);
-    b.classList.toggle("on", c === cut);
-    b.onclick = () => { cut = c; ui(); };
+    b.textContent = t("wear.item." + e.id) + " ✕";
+    b.dataset.item = e.id;
+    b.setAttribute("aria-label", t("wear.takeOff", { name: t("wear.item." + e.id) }));
+    b.onclick = () => wear(e.id);
     return b;
   }));
-  box.replaceChildren(...SLOTS.map((slot) => {
-    const items = catalog.filter((i) => i.slot === slot && (slot !== "outfit" || cut === "all" || i.cut === cut));
-    const wrap = document.createElement("div");
-    const h = document.createElement("h3");
-    h.textContent = t("wear.slot." + slot);
-    const chips = document.createElement("div");
-    chips.className = "chips";
-    chips.append(...items.map((it) => {
-      const b = document.createElement("button");
-      b.textContent = t("wear.item." + it.id);
-      b.dataset.item = it.id;
-      b.disabled = !W.fit;
-      b.classList.toggle("on", W.worn.get(slot)?.id === it.id);
-      b.setAttribute("aria-pressed", String(W.worn.get(slot)?.id === it.id));
-      b.onclick = () => wear(it.id);
-      return b;
-    }));
-    wrap.append(h, chips);
-    return wrap;
-  }));
+  $("wearHint").textContent = t(W.fit ? "wear.hint" : "wear.wait");
+  showShop();
 }
 addEventListener("langchange", ui);
 
@@ -348,12 +333,192 @@ function grow(e) {
   if (touched) { packed.needsUpdate = true; e.mesh.updateGenerator(); }
 }
 
+// ---------------------------------------------------------------- the shop around the body
+// Racks, shelves and the items on them are plain three.js meshes, not splats: they add nothing to
+// what Spark sorts each frame (it already sorts the body and what it wears), and they stand apart
+// from the body, so none of them cuts through its splats. Each item is shown as it is made (GET
+// /api/wardrobe/<id>/shape, the same for every body), sized to the person, and hidden while worn.
+const MATERIALS = { wood: 0xc8a57a, metal: 0x6b6f75, hanger: 0x8d6a45, back: 0xebe6dd, foam: 0xe6e2dc };
+const SHAPE = { hang, fold, shoes: pair };
+let shop = null;                 // {group, objects: Map id -> its group on the racks, pickable meshes}
+let shopLoad = null;
+
+function shopShape(V, kind, head) {
+  return SHAPE[kind] ? SHAPE[kind](V) : onHead(V, head);
+}
+
+function itemGeometry(V, tris, tuv, uv) {
+  // one vertex per (position, UV) pair: smooth normals, broken only where the UVs are
+  const seen = new Map(), pos = [], uvs = [], index = [], nu = uv ? uv.length / 2 : 1;
+  for (let c = 0; c < tris.length; c++) {
+    const v = tris[c], u = tuv ? tuv[c] : 0, k = v * nu + u;
+    let i = seen.get(k);
+    if (i === undefined) {
+      i = pos.length / 3;
+      seen.set(k, i);
+      pos.push(V[v * 3], V[v * 3 + 1], V[v * 3 + 2]);
+      uvs.push(uv ? uv[u * 2] : 0, uv ? uv[u * 2 + 1] : 0);
+    }
+    index.push(i);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  g.setIndex(index);
+  g.computeVertexNormals();
+  return g;
+}
+
+async function loadShop() {
+  const list = catalog || (catalog = await (await fetch("/api/wardrobe")).json());
+  const head = await (await fetch("/api/mannequin")).json();
+  const headV = f32(head.verts), headT = i32(head.tris);
+  const mat = Object.fromEntries(Object.entries(MATERIALS).map(([k, c]) => [k, new THREE.MeshLambertMaterial({ color: c })]));
+  const group = new THREE.Group();
+  group.name = "shop";
+  group.visible = false;
+  group.add(new THREE.HemisphereLight(0xffffff, 0x8a8178, 2.4));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+  sun.position.set(0.6, 2, 1.5);
+  group.add(sun);
+  const { places, parts, half } = shopLayout(list);
+  const up = new THREE.Vector3(0, 1, 0);
+  for (const p of parts) {
+    let m;
+    if (p.kind === "box") {
+      m = new THREE.Mesh(new THREE.BoxGeometry(...p.size), mat[p.material]);
+      m.position.set(...p.at);
+    } else {
+      const a = new THREE.Vector3(...p.at), b = new THREE.Vector3(...p.to), d = b.clone().sub(a);
+      m = new THREE.Mesh(new THREE.CylinderGeometry(p.r, p.r, d.length(), 10), mat[p.material]);
+      m.position.copy(a).addScaledVector(d, 0.5);
+      m.quaternion.setFromUnitVectors(up, d.normalize());
+    }
+    group.add(m);
+  }
+  const loader = new THREE.TextureLoader(), objects = new Map(), pickable = [];
+  await Promise.all(list.map(async (it) => {
+    const place = places[it.id];
+    const d = await (await fetch(`/api/wardrobe/${it.id}/shape`)).json();
+    const tex = await loader.loadAsync("/static/wardrobe/" + d.texture);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 4;
+    const V = f32(d.verts);
+    const mesh = new THREE.Mesh(itemGeometry(shopShape(V, place.kind, headV), i32(d.tris), i32(d.tuv), f32(d.uv)),
+      new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide, alphaTest: d.alpha ? 0.5 : 0, transparent: false }));
+    mesh.userData.item = it.id;
+    const obj = new THREE.Group();
+    obj.position.set(place.x, place.y, place.z);
+    obj.rotation.x = place.tilt || 0;
+    obj.add(mesh);
+    if (["head", "stand", "hat"].includes(place.kind))                // the mannequin head it is shown on
+      obj.add(new THREE.Mesh(itemGeometry(onHead(headV, headV), headT, null, null), mat.foam));
+    group.add(obj);
+    objects.set(it.id, obj);
+    pickable.push(mesh);
+  }));
+  return { group, objects, pickable, half };
+}
+
+// The shop stands on the floor under the body as it was scanned, its racks behind it as the
+// camera first sees it, sized to the person.
+async function placeShop(w) {
+  if (!shopLoad) shopLoad = loadShop().then((s) => { shop = s; V.scene.add(s.group); return s; });
+  const s = await shopLoad;
+  if (W !== w) return;
+  V.holder.updateMatrixWorld(true);
+  const C = w.centres, n = C.length / 3, step = Math.max(1, Math.floor(n / 20000)), p = new THREE.Vector3(), ys = [], xs = [], zs = [];
+  for (let i = 0; i < n; i += step) {
+    p.set(C[i * 3], C[i * 3 + 1], C[i * 3 + 2]).applyMatrix4(V.holder.matrixWorld);
+    xs.push(p.x); ys.push(p.y); zs.push(p.z);
+  }
+  const at = (a, q) => { a.sort((x, y) => x - y); return a[Math.floor(q * (a.length - 1))]; };
+  s.group.position.set(at(xs, 0.5), at(ys, 0.003), at(zs, 0.5));
+  s.group.scale.setScalar(w.rig.height);
+  showShop();
+  window.bodyApp.reframe();
+}
+
+// shown while the panel is open on a body, with what is worn taken off the racks
+function showShop() {
+  if (!shop) return;
+  const on = !!W && !$("studio").hidden;
+  shop.group.visible = on;
+  for (const [id, obj] of shop.objects) obj.visible = !(W && [...W.worn.values()].some((e) => e.id === id));
+  if (!on) tip(null);
+}
+// how wide a view the camera should take in (window.bodyApp.reframe): the shop, while shown (on a
+// phone only the racks nearest the body, or the body would be too small to see; turn to see more)
+window.bodyApp.room = () => (shop && W && !$("studio").hidden ? Math.min(2 * shop.half, innerWidth <= 600 ? 1.4 : 9) * W.rig.height : 0);
+new MutationObserver(showShop).observe($("studio"), { attributes: true, attributeFilter: ["hidden"] });
+
+// the item under the pointer (not one behind the body)
+const ray = new THREE.Raycaster();
+function shopItemAt(x, y, checkBody = true) {
+  if (!shop || !shop.group.visible) return null;
+  const r = V.canvas.getBoundingClientRect();
+  ray.setFromCamera(new THREE.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1), V.camera);
+  const hit = ray.intersectObjects(shop.pickable.filter((m) => m.parent.visible), false)[0];
+  if (!hit) return null;
+  const body = checkBody && window.tattooStudio?.bodyDistance?.(x, y);
+  return body && body < hit.distance ? null : hit.object.userData.item;
+}
+
+function tip(id, x, y) {
+  const el = $("shopTip");
+  if (!id) { el.hidden = true; V.canvas.style.cursor = ""; return; }
+  el.textContent = t("wear.item." + id);
+  el.style.left = x + 14 + "px"; el.style.top = y + 14 + "px";
+  el.hidden = false;
+  V.canvas.style.cursor = "pointer";
+}
+
+let press = null, hoverAt = null;
+V.canvas.addEventListener("pointerdown", (e) => { press = e.button === 0 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null; });
+V.canvas.addEventListener("pointerup", (e) => {
+  const p = press;
+  press = null;
+  if (!p || Math.hypot(e.clientX - p.x, e.clientY - p.y) > 6 || performance.now() - p.t > 600) return;   // a drag turns the camera
+  const id = shopItemAt(e.clientX, e.clientY);
+  if (id && W && W.fit) { tip(null); wear(id); }
+});
+V.canvas.addEventListener("pointermove", (e) => {
+  if (e.pointerType === "touch" || e.buttons) return;
+  const first = !hoverAt;
+  hoverAt = [e.clientX, e.clientY];
+  if (first) requestAnimationFrame(() => { const [x, y] = hoverAt; hoverAt = null; tip(shopItemAt(x, y, false), x, y); });
+});
+V.canvas.addEventListener("pointerleave", () => tip(null));
+
+// a point of the screen where a click picks the item (null: none in view), for tests and scripts
+function onScreen(id) {
+  const obj = shop && shop.objects.get(id);
+  if (!obj || !shop.group.visible || !obj.visible) return null;
+  const mesh = obj.children[0], P = mesh.geometry.attributes.position, p = new THREE.Vector3(), r = V.canvas.getBoundingClientRect();
+  const c = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
+  // its vertices from the middle out, until one is in view and in front of everything else
+  const order = [...Array(P.count).keys()].filter((i) => i % 7 === 0)
+    .map((i) => [i, p.fromBufferAttribute(P, i).applyMatrix4(mesh.matrixWorld).distanceToSquared(c)]).sort((a, b) => a[1] - b[1]);
+  for (const [i] of order) {
+    p.fromBufferAttribute(P, i).applyMatrix4(mesh.matrixWorld).lerp(c, 0.05).project(V.camera);
+    if (Math.abs(p.x) > 0.98 || Math.abs(p.y) > 0.98 || p.z > 1) continue;
+    const x = r.left + (p.x + 1) / 2 * r.width, y = r.top + (1 - p.y) / 2 * r.height;
+    if (document.elementFromPoint(x, y) === V.canvas && shopItemAt(x, y) === id) return { x, y };
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------- for the tattoo panel, tests and scripts
 window.wardrobe = {
   ready: false,
   items: () => catalog,
   wear: (id) => wear(id),
   worn: () => (W ? SLOTS.map((s) => W.worn.get(s)?.id).filter(Boolean) : []),
+  // the shop: shown or not, how each item is displayed there, and where one is on the screen
+  shop: () => (shop ? { shown: shop.group.visible, items: shop.objects.size,
+                        racked: [...shop.objects].filter(([, o]) => o.visible).map(([id]) => id) } : null),
+  onScreen,
+  itemAt: (x, y) => shopItemAt(x, y),
   splats: (id) => [...(W ? W.worn.values() : [])].find((e) => e.id === id)?.n || 0,
   hidden: () => (W ? W.hidden.size : 0),
   // how much the hat was enlarged to go over the hair (1: no hair, or it fits as it is)

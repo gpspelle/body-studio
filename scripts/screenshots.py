@@ -168,19 +168,20 @@ def tattoo_scene(page, tmp: Path) -> None:
 
 
 def wardrobe_scene(page) -> None:
-    """Mia walking in a T-shirt, jeans, sneakers and a bob, the Clothes section in view."""
+    """Mia walking in a T-shirt, jeans, sneakers and a bob, in the shop of clothes around her."""
     page.locator(".shelf button", has_text="Mia").click()
     page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
     page.click("#studioBtn")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
     page.evaluate("bodyApp.viewer.controls.autoRotate = false")
     for item in ("tee_jeans_f", "white_sneakers", "bob_dark"):
-        page.click(f"#wearSlots [data-item={item}]")
+        at = page.evaluate(f"wardrobe.onScreen('{item}')")      # on the racks around her
+        page.mouse.click(at["x"], at["y"])
         page.wait_for_function(f"wardrobe.worn().includes('{item}')", timeout=120000)
     page.locator("#presets button").nth(3).click()                 # walking
     page.evaluate("""(() => {                                       // a little from the side
       const V = bodyApp.viewer, t = V.controls.target, p = V.camera.position, d = p.distanceTo(t);
-      p.set(t.x + d * Math.sin(0.5), p.y, t.z + d * Math.cos(0.5)); V.controls.update();
+      p.set(t.x + d * Math.sin(0.3), p.y, t.z + d * Math.cos(0.3)); V.controls.update();
     })()""")
     # in software rendering a sort of this many splats takes a while: wait until the clothes are
     # on screen, then for one more sort from the new angle
@@ -197,7 +198,8 @@ def walk_scene(page) -> None:
     page.click("#studioBtn")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
     for item in ("tee_jeans_f", "white_sneakers", "bob_dark"):
-        page.click(f"#wearSlots [data-item={item}]")
+        at = page.evaluate(f"wardrobe.onScreen('{item}')")      # on the racks around her
+        page.mouse.click(at["x"], at["y"])
         page.wait_for_function(f"wardrobe.worn().includes('{item}')", timeout=120000)
     page.click("#closeStudio")
     page.evaluate("bodyApp.viewer.controls.autoRotate = false")

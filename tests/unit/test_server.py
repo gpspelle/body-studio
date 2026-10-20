@@ -211,6 +211,18 @@ class Server(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertGreater(f["surface_found"], 0.8)
 
+    def test_shop_shapes(self):
+        """The shop around the body: each item as it is made, and the mannequin head, for any body."""
+        status, d = self.post("/api/wardrobe/suit/shape", None, method="GET")
+        self.assertEqual(status, 200)
+        self.assertEqual((d["id"], d["display"], d["texture"]), ("suit", "hang", "suit.jpg"))
+        self.assertTrue(d["verts"] and d["tris"] and d["tuv"] and d["uv"])
+        self.assertEqual(self.post("/api/wardrobe/no_such_thing/shape", None, method="GET"),
+                         (404, {"error": "no such item", "code": "no_item"}))
+        status, m = self.post("/api/mannequin", None, method="GET")
+        self.assertEqual(status, 200)
+        self.assertTrue(m["verts"] and m["tris"])
+
 
 if __name__ == "__main__":
     unittest.main()

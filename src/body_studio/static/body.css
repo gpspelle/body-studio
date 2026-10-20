@@ -166,7 +166,13 @@ figure { margin: 12px 0 0; }
 .chips button.on { color: var(--text); border-color: var(--text); }
 .chips button:disabled { opacity: 0.5; cursor: default; }
 .panel h3 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 10px 0 6px; }
-#wearCut { margin-bottom: 0; }
+#wearWorn button { color: var(--text); border-color: var(--text); }
+#wearWorn:empty { display: none; }
+/* the name of the item on the racks under the pointer */
+.tip {
+  position: fixed; z-index: 30; pointer-events: none; font-size: 12px; color: var(--text);
+  background: var(--chip); border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px;
+}
 #scanRows { margin-top: 10px; }
 details { margin-top: 10px; font-size: 12px; color: var(--muted); }
 details summary { cursor: pointer; }
