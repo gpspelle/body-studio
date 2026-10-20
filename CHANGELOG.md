@@ -37,6 +37,10 @@
 - Joints move as far as a person's, checked against published ranges of motion: an arm reaches
   across the chest at shoulder height and back behind, a bent hip crosses the legs, a bent knee
   turns the shin, and the head tilts back and sideways further.
+- With the arms raised, the sides of the chest stay where they are instead of standing out like
+  oversized lats: the upper arm no longer carries the skin below the armpit (rig version 4; each
+  body's skeleton is found again the first time). Clothes there follow, since they take the skin's
+  weights.
 - An arm can no longer be moved into the body: dragging the elbow toward the chest stops the arm
   at the skin, and a forearm turned in stops at the belly. The trunk and head are measured from the
   scan.

@@ -437,8 +437,11 @@ test("the image never stretches into a line, at rest or posed", () => {
       const P = new Float32Array(NX * NY * 3);
       for (let k = 0; k < NX * NY; k++) if (g.valid[k]) { skinPoint(Array.from(g.positions.subarray(k * 3, k * 3 + 3)), b, x, dq, o, k); P.set(o, k * 3); }
       // posing stretches skin (arms up pulls the chest, and the armpit to about three times its
-      // length, as on the scan's skin itself), but never by a whole tear
-      assert.ok(stretch(P) < 10, `${where}: an edge ${stretch(P).toFixed(1)} cells too long when posed`);
+      // length, as on the scan's skin itself), but never by a whole tear. With the arms up the
+      // stretch gathers at the armpit crease, where the arm's weight stops so the side of the chest
+      // stays put (spread wider, it swung the side out like big lats)
+      const limit = dq === poses[0] ? 14 : 10;
+      assert.ok(stretch(P) < limit, `${where}: an edge ${stretch(P).toFixed(1)} cells too long when posed`);
     }
   }
 });
@@ -508,6 +511,26 @@ test("raising the arms leaves the back and the sides of the chest where they are
   // the upper arm used to carry part of the shoulder blade and the side of the chest, so arms up
   // swung the back out into wings and stretched a back piece with them
   const sk = new Skeleton(rig), w = new SkinWeights(rig);
+  // the side of the chest under the arm, out to the armpit: it used to swing 5 to 8 cm out (big lats)
+  {
+    sk.setPose({ shoulder_l: { flex: 0, side: 165, twist: 0 }, shoulder_r: { flex: 0, side: 165, twist: 0 } });
+    const dq = dualQuats(sk.transforms()), chest = joint("chest"), b = new Uint8Array(4), x = new Uint8Array(4), o = [0, 0, 0];
+    const outs = [];
+    for (const s of ["l", "r"]) {
+      const sh = joint("shoulder_" + s), sg = Math.sign(v3.dot(v3.sub(sh, chest), L)), lat = sg * v3.dot(v3.sub(sh, chest), L);
+      for (const i of body.opaque) {
+        const p = Array.from(body.centres.subarray(i * 3, i * 3 + 3)), below = v3.dot(v3.sub(sh, p), U);
+        const l = sg * v3.dot(v3.sub(p, chest), L);
+        if (below < 0.025 * H || below > 0.12 * H || l > lat + 0.006 * H || l < 0.03 * H) continue;
+        w.at(...p, b, x); skinPoint(p, b, x, dq, o);
+        outs.push(sg * v3.dot(v3.sub(o, p), L));
+      }
+    }
+    outs.sort((a, c) => a - c);
+    const p95 = outs[Math.floor(0.95 * (outs.length - 1))];
+    assert.ok(outs.length > 1000, `${outs.length} splats on the sides`);
+    assert.ok(p95 < 0.02 * H, `the side of the chest swings ${(100 * p95).toFixed(1)} cm out with the arms up`);
+  }
   sk.setPose({ shoulder_l: { flex: 0, side: 165, twist: 0 }, shoulder_r: { flex: 0, side: 165, twist: 0 } });
   const dq = dualQuats(sk.transforms());
   const chest = joint("chest"), sh = joint("shoulder_l"), lat = Math.abs(v3.dot(v3.sub(sh, chest), L));
@@ -741,9 +764,9 @@ test("quality sweep: ink anywhere on the body, in any pose, stays on the skin an
       worstOut = Math.max(worstOut, off - outer);
       worstIn = Math.max(worstIn, -off);
       if (best < 0) continue;
-      // and it moves with that splat
+      // and it moves with that splat (the page gives it that splat's weights)
       const sp = Array.from(body.centres.subarray(best * 3, best * 3 + 3));
-      w.at(...p, b, x); w.at(...sp, bs, xs);
+      w.at(...sp, bs, xs); b.set(bs); x.set(xs);
       for (const dq of poses) {
         skinPoint(p, b, x, dq, o); skinPoint(sp, bs, xs, dq, o2);
         worstApart = Math.max(worstApart, v3.len(v3.sub(o, o2)) - bd);

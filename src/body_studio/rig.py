@@ -33,7 +33,8 @@ import sys
 from array import array
 from pathlib import Path
 
-RIG_VERSION = 3          # 2: region maps (trunk, legs) for big tattoos; 3: arm weights off the back
+RIG_VERSION = 4          # 2: region maps (trunk, legs) for big tattoos; 3: arm weights off the back;
+                         # 4: arm weights off the side of the chest
 
 # (name, parent). Joints with children are bones: they rotate and carry skin weights. The
 # "_end" joints only mark where the last bone of a chain ends (top of the head, fingertips, toes).
@@ -65,7 +66,8 @@ CELL = 0.015            # grid that splits a slice into pieces (about 2.6 cm)
 VOXEL = 1 / 80          # voxel size for skin weights (about 2.1 cm)
 REACH = 0.30            # a bone's influence stops this far inside the body (fraction of stature)
 FALLOFF = 4             # weight ~ 1 / distance^FALLOFF
-ARM_FADE = 0.06         # the upper arm's weight fades out this far past the armpit crease
+ARM_FADE = 0.015        # the upper arm's weight fades out this far past the armpit crease (2.6 cm
+                         # on 1.75 m: wider, and with the arms up the side of the chest swings out)
 MAP_DT = 0.006          # surface map: step along the bone (fraction of stature)
 MAP_ANGLES = 64         # surface map: steps around the bone
 MAP_EXTEND = 0.5        # surface map reaches this share of the bone's length past each end,

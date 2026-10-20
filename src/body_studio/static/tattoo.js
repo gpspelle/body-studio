@@ -652,7 +652,10 @@ function inkOnSkin(tt) {
     const hidden = S.hiddenSkin.has(near);
     if (!hidden) shown++;
     packed.setSplat(i, c.set(p[0], p[1], p[2]), sc, qq, hidden ? 0 : s.alpha[i], col);
-    S.weights.at(p[0], p[1], p[2], b, w);
+    // and moves exactly with it (weights taken where the ink is could differ a little from the
+    // skin's, which the armpit's sharp change from arm to trunk turns into centimetres)
+    if (near >= 0) { b.set(S.bones.subarray(near * 4, near * 4 + 4)); w.set(S.w.subarray(near * 4, near * 4 + 4)); }
+    else S.weights.at(p[0], p[1], p[2], b, w);
     tt.skinning.setSplatBones(i, vb.set(b[0], b[1], b[2], b[3]), vw.set(w[0] / 255, w[1] / 255, w[2] / 255, w[3] / 255));
   }
   packed.needsUpdate = true;
