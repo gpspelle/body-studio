@@ -124,7 +124,8 @@ panel sits at the left edge (at the bottom on a phone).
   mannequin heads above them, and long hair and the fedora on stands. Point at an item to see its
   name, click it to put it on. There are 12 outfits, 6 pairs of shoes, 10 hairstyles and a
   fedora. Each is fitted to this person's shape, moves with the pose, and hides the skin under
-  it. What is worn leaves the rack and is listed in the panel; tap it there to take it off. What
+  it. What is worn stays in its place on the rack as a pale outline and is listed in the panel:
+  click the outline (or its ✕ in the panel) to take it off, or **Take everything off**. What
   is worn is kept in this browser, per body. The first time, the app fits a model body to the
   scan (a few seconds): it takes the person's build first (MakeHuman's own body-shape sliders,
   set to match the scan), then their exact surface, so clothes sit closer.
@@ -259,7 +260,8 @@ fica. O painel fica na borda esquerda (embaixo, no celular).
   cabeças de manequim acima, e cabelos compridos e o chapéu fedora em pedestais. Aponte para uma
   peça para ver o nome e clique para vestir. São 12 looks, 6 pares de sapatos, 10 cortes de cabelo
   e um chapéu fedora. Cada peça se ajusta ao corpo da pessoa, acompanha a pose e esconde a pele
-  embaixo dela. O que está vestido sai da arara e aparece no painel; toque ali para tirar. O que
+  embaixo dela. O que está vestido fica no lugar dele na arara como um contorno claro e aparece no painel:
+  clique no contorno (ou no ✕ no painel) para tirar, ou em **Tirar tudo**. O que
   está vestido fica guardado neste navegador, para cada corpo. Na primeira vez, o app
   ajusta um corpo modelo ao escaneado (alguns segundos): primeiro o tipo físico da pessoa (os
   próprios controles de forma do corpo do MakeHuman, ajustados ao escaneado), depois a superfície

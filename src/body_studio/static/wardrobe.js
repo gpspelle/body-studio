@@ -83,10 +83,16 @@ function ui() {
     b.onclick = () => wear(e.id);
     return b;
   }));
+  $("wearNone").hidden = W.worn.size === 0;
   $("wearHint").textContent = t(W.fit ? "wear.hint" : "wear.wait");
   showShop();
 }
 addEventListener("langchange", ui);
+$("wearNone").onclick = () => {
+  if (!W) return;
+  for (const slot of [...W.worn.keys()]) takeOff(slot);
+  changed();
+};
 
 // ---------------------------------------------------------------- wearing
 async function wear(id, restoring = false) {
@@ -404,9 +410,13 @@ async function loadShop() {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;
     const V = f32(d.verts);
+    const look = { map: tex, side: THREE.DoubleSide, alphaTest: d.alpha ? 0.5 : 0 };
     const mesh = new THREE.Mesh(itemGeometry(shopShape(V, place.kind, headV), i32(d.tris), i32(d.tuv), f32(d.uv)),
-      new THREE.MeshLambertMaterial({ map: tex, side: THREE.DoubleSide, alphaTest: d.alpha ? 0.5 : 0, transparent: false }));
+      new THREE.MeshLambertMaterial(look));
     mesh.userData.item = it.id;
+    mesh.userData.look = mesh.material;
+    // while it is worn: a pale silhouette in its place, to click to put it back
+    mesh.userData.ghost = new THREE.MeshLambertMaterial({ ...look, color: 0x4a4844, emissive: 0xd6d1c8, emissiveIntensity: 0.8 });
     const obj = new THREE.Group();
     obj.position.set(place.x, place.y, place.z);
     obj.rotation.x = place.tilt || 0;
@@ -439,12 +449,14 @@ async function placeShop(w) {
   window.bodyApp.reframe();
 }
 
-// shown while the panel is open on a body, with what is worn taken off the racks
+// shown while the panel is open on a body; what is worn stays in its place as a pale silhouette
+// (a click on it takes it off, as the ✕ in the panel does)
+const isWorn = (id) => !!W && [...W.worn.values()].some((e) => e.id === id);
 function showShop() {
   if (!shop) return;
   const on = !!W && !$("studio").hidden;
   shop.group.visible = on;
-  for (const [id, obj] of shop.objects) obj.visible = !(W && [...W.worn.values()].some((e) => e.id === id));
+  for (const m of shop.pickable) m.material = isWorn(m.userData.item) ? m.userData.ghost : m.userData.look;
   if (!on) tip(null);
 }
 // how wide a view the camera should take in (window.bodyApp.reframe): the shop, while shown (on a
@@ -467,7 +479,7 @@ function shopItemAt(x, y, checkBody = true) {
 function tip(id, x, y) {
   const el = $("shopTip");
   if (!id) { el.hidden = true; V.canvas.style.cursor = ""; return; }
-  el.textContent = t("wear.item." + id);
+  el.textContent = isWorn(id) ? t("wear.takeOff", { name: t("wear.item." + id) }) : t("wear.item." + id);
   el.style.left = x + 14 + "px"; el.style.top = y + 14 + "px";
   el.hidden = false;
   V.canvas.style.cursor = "pointer";
@@ -516,7 +528,8 @@ window.wardrobe = {
   worn: () => (W ? SLOTS.map((s) => W.worn.get(s)?.id).filter(Boolean) : []),
   // the shop: shown or not, how each item is displayed there, and where one is on the screen
   shop: () => (shop ? { shown: shop.group.visible, items: shop.objects.size,
-                        racked: [...shop.objects].filter(([, o]) => o.visible).map(([id]) => id) } : null),
+                        racked: [...shop.objects.keys()].filter((id) => !isWorn(id)),
+                        ghosts: [...shop.objects.keys()].filter(isWorn) } : null),
   onScreen,
   itemAt: (x, y) => shopItemAt(x, y),
   splats: (id) => [...(W ? W.worn.values() : [])].find((e) => e.id === id)?.n || 0,

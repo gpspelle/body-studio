@@ -37,8 +37,10 @@ The layout and each shape are worked out in `static/racks.js` (tested by `tests/
 no two items in each other's place, none in the body's, each on its shelf and under the next).
 
 - **Pointing** at an item names it; **clicking** it puts it on (a drag still turns the camera, and a
-  click on the body is never taken for the rack behind it). What is worn leaves the rack and is
-  listed at the top of the panel; tapping it there takes it off and puts it back.
+  click on the body is never taken for the rack behind it). What is worn stays in its place as a
+  pale outline (its own shape, washed out) and is listed at the top of the panel. Clicking the
+  outline, or its ✕ in the panel, takes it off; **Take everything off** undresses the body at once.
+  Nothing has to be put on to take something off.
 - **The items are shown as they are made**, on MakeHuman's base mesh (`GET /api/wardrobe/<id>/shape`,
   the same for every body), sized to the person's height. They are fitted only when worn.
 - **Plain meshes, not splats.** Spark sorts every splat it draws each time the view turns: a body

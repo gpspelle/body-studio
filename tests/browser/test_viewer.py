@@ -360,7 +360,12 @@ class Viewer(unittest.TestCase):
         self.assertGreater(page.evaluate("wardrobe.hatScale()"), 1.02)
         page.click("#wearWorn [data-item=ponytail]")       # taken off from the panel
         page.wait_for_function("!wardrobe.worn().includes('ponytail') && wardrobe.hatScale() === 1", timeout=60000)
-        page.click("#wearWorn [data-item=fedora]")
+        # what is worn stays on its stand as a pale outline: clicking it takes it off
+        self.assertIn("fedora", page.evaluate("wardrobe.shop().ghosts"))
+        at = page.evaluate("wardrobe.onScreen('fedora')")
+        page.mouse.move(at["x"], at["y"])
+        page.wait_for_function("document.getElementById('shopTip').textContent === 'Take off Fedora'")
+        pick(page, "fedora")
         page.wait_for_function("!wardrobe.worn().includes('fedora') && wardrobe.tinted() === 0", timeout=60000)
         # a tattoo on the forearm: under a long sleeve, not under a short one
         page.set_input_files("#tatPick", str(self.design))
@@ -401,6 +406,13 @@ class Viewer(unittest.TestCase):
         page.click("#studioBtn")
         page.wait_for_function("wardrobe.ready && wardrobe.worn().join() === 'white_sneakers'", timeout=120000)
         self.assertEqual(page.evaluate("tattooStudio.tattoos().length"), 1)
+        # undressed without putting anything else on
+        pick(page, "fedora")
+        page.wait_for_function("wardrobe.worn().length === 2", timeout=60000)
+        page.click("#wearNone")
+        page.wait_for_function("wardrobe.worn().length === 0 && wardrobe.hidden() === 0")
+        self.assertTrue(page.is_hidden("#wearNone"))
+        self.assertEqual(page.evaluate("wardrobe.shop().ghosts"), [])
         self.assertEqual(errors, [])
         page.close()
 
