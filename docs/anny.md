@@ -16,7 +16,7 @@ for) on a scan, before deciding which to keep:
 ```bash
 pip install 'body-studio[anny]'          # PyTorch and Anny, about 5 GB with PyTorch's CUDA libraries
 body-studio fit-anny BODY.ply            # writes BODY.fit.json; the page's clothes use it as it is
-body-studio fit-anny BODY.ply --wrap     # then the shrinkwrap's close pass on top
+body-studio fit-anny BODY.ply --no-wrap  # Anny's skin alone, without the shrinkwrap's close pass
 body-studio fit BODY.ply                 # back to the plain fit
 ```
 
@@ -41,8 +41,14 @@ four CPU cores. The plain fit takes 5–10 seconds.
    still pulled in while stray splats and hair end up ignored.
 3. **Gender, both ways.** From the middle, the fit stays between a male and a female trunk. So it
    is run a short way from each side, and the one closer to the splats goes on.
-4. **Wrap** (`--wrap`): the plain fit's close shrinkwrap pass (2.5% of the height) on top, for
-   what the sliders can't reach.
+4. **Wrap**: the plain fit's close shrinkwrap pass (2.5% of the height) on top, for what the
+   sliders can't reach (`--no-wrap` leaves it out).
+5. **Helpers.** The helper geometry clothes and hair hang from (tights, skirt, hair cap) follows
+   the skin under it, as in the plain fit. Anny moves its own helpers too, but not with its
+   shape: they ended up as much as 2% of the height (3.5 cm) nearer or further from the skin
+   they hang from than on the base mesh, which moves a skirt or tights by as much.
+   `test_clothes_stay_outside_the_skin` checks that no more of an outfit sinks under the skin
+   than on the plain fit.
 
 Each vertex's turn, which the clothes' offsets follow, comes from the same bone transforms as in
 the plain fit, so the two differ only in where the skin is.
@@ -78,8 +84,9 @@ part of the body the fit misses shows there). Plain is `fit.py` v3, with the sha
   percentile drops from 2.5 to 1.9 cm (heavy) and 2.8 to 2.5 cm (slim), and the most-missed true
   skin from 3.7 to 3.0 cm. That's under the arms, at the crotch and over the gaps, where the
   shrinkwrap has nothing to land on and only smooths, and Anny's sliders keep a human shape.
-- **Anny alone is never the best.** The sliders can't reach every bump; the wrap pass is what makes
-  it competitive.
+- **Anny alone is never the best.** The sliders can't reach every bump, and a tight outfit sinks
+  into its skin (on the heavy man, 12% of an outfit more than 1 cm under the true skin, against
+  3% on the plain fit). The wrap pass is what makes it competitive, so it is on by default.
 - **It costs 10–20 times the time and a 5 GB install.** The plain fit is standard library and
   runs in the app on first use; Anny would have to stay an optional step.
 
@@ -87,7 +94,16 @@ The test bodies are MakeHuman shapes, which flatters both fits. A real scan (clo
 fog, uneven density) is the test that decides: run both on the same body and put the same
 clothes on.
 
-Seen with clothes in the page: `docs/images/anny-*.png` (one body, plain left, Anny + wrap right).
+### With clothes on
+
+The slim woman with holes and hair, in the page, plain fit on the left and Anny + wrap on the
+right. Where the capture has nothing under her arms, the plain fit's shrinkwrap leaves the
+shoulders uneven: the left sleeve breaks and a piece of skin floats off the shoulder, the right
+shoulder is pinched, and the jeans bunch at the crotch. On Anny's shape the sleeves and the
+shoulders come out whole. On the heavy man the two look the same.
+
+![T-shirt and jeans: plain fit and Anny](images/anny-slim-tee.png)
+![Shirt and skirt: plain fit and Anny](images/anny-slim-skirt.png)
 
 ## Limits of the trial
 

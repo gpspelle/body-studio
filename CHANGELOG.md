@@ -99,9 +99,6 @@
   sliders (sex, muscle, weight, bust, waist, hips, girths; the shape space of NAVER's Anny,
   solved without PyTorch) set to match the scan, then the surface. `<body>.fit.json` is version
   3 (with the slider values as `shape`); older fits are remade on first use.
-- Clothes come off without putting something else on: what is worn stays on its rack or stand as a
-  pale outline, and clicking it takes it off (as the ✕ in the panel does). **Take everything off**
-  in the panel undresses the body at once.
-- Trial: `body-studio fit-anny BODY.ply [--wrap]` fits the clothes' body with NAVER's Anny
+- Trial: `body-studio fit-anny BODY.ply [--no-wrap]` fits the clothes' body with NAVER's Anny
   (PyTorch, an optional extra: `pip install 'body-studio[anny]'`) and writes the same
   `<body>.fit.json`, to compare with the plain fit with the same clothes on. See `docs/anny.md`.

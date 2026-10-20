@@ -13,7 +13,7 @@ from unittest import mock
 
 from body_studio import __main__ as cli
 from body_studio import anny_fit, fit, rig, wardrobe
-from tests.fakes.makehuman import surface, write_body
+from tests.fakes.makehuman import skin_normals, surface, write_body
 from tests.unit.test_wardrobe import distances, pct
 
 try:
@@ -41,7 +41,7 @@ class WithoutTorch(unittest.TestCase):
             with self.assertRaises(SystemExit) as e:
                 cli.main(["fit-anny", "--help"])
         self.assertEqual(e.exception.code, 0)
-        self.assertIn("--wrap", out.getvalue())
+        self.assertIn("--no-wrap", out.getvalue())
 
     def test_face_sliders_are_left_alone(self):
         for label in ("nose-trans-up", "l-ear-lobe-incr", "mouth-scale-horiz-incr", "r-eye-bag-incr",
@@ -105,6 +105,29 @@ class WithAnny(unittest.TestCase):
                 pts = [(V[i], V[i + 1], V[i + 2]) for i in range(0, len(V), 3)]
                 self.assertTrue(all(math.isfinite(x) for x in V))
                 self.assertLess(pct(distances(pts, skin), 0.9), 0.05)     # worn, not floating off
+
+    def test_clothes_stay_outside_the_skin(self):
+        """No more of an outfit sinks under the skin than on the plain fit (a skirt hangs from
+        helper geometry, which has to take the body's shape too)."""
+        sn = skin_normals("heavy", yaw=25)
+        h = fit._Hash([p[:3] for p in sn], 0.03)
+
+        def inside(r, item):
+            V = wardrobe._arr("f", wardrobe.fitted(item, fit.decode(r))["verts"])
+            n = sunk = 0
+            for i in range(0, len(V), 3):
+                p = (V[i], V[i + 1], V[i + 2])
+                near = min(h.near(p, 2), key=lambda j: fit._d2(p, sn[j][:3]), default=None)
+                if near is None:
+                    continue
+                v = sn[near]
+                n += 1
+                sunk += sum((p[k] - v[k]) * v[3 + k] for k in range(3)) < -0.01
+            return sunk / n
+        plain = fit.build(self.ply)
+        for item in ("shirt_skirt", "tee_jeans"):
+            with self.subTest(item):
+                self.assertLess(inside(self.r, item), inside(plain, item) + 0.03)
 
 
 if __name__ == "__main__":

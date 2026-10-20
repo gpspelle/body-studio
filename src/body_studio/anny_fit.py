@@ -2,7 +2,7 @@
 fit.py's shape solve, bone bending and shrinkwrap. Optional and experimental, to compare the two.
 
     pip install 'body-studio[anny]'          PyTorch and Anny (Apache-2.0 code, CC0 MakeHuman data)
-    body-studio fit-anny BODY.ply [--wrap]   writes BODY.fit.json, the file the page's clothes use
+    body-studio fit-anny BODY.ply [--no-wrap]  writes BODY.fit.json, the file the page's clothes use
 
 Anny (https://github.com/naver/anny) is MakeHuman with its shape sliders made differentiable:
 eleven overall ones (gender, age, muscle, weight, height, proportions, cup size, firmness and
@@ -17,8 +17,11 @@ keeps its binding. Once per body:
    don't pull. The pose first, then the shape from a male and a female start (from the middle it
    stays between the two), the better one going on. Face and finger sliders are left alone: a
    scan can't tell them apart.
-2. With --wrap, the skin then moves along its normals onto the splats like fit.py's last pass, for
-   what the sliders can't reach.
+2. The skin then moves along its normals onto the splats like fit.py's last pass, for what the
+   sliders can't reach (--no-wrap leaves Anny's skin as it is: further off, and more of a tight
+   outfit sinks into it).
+3. The helper geometry clothes and hair are bound to follows the skin under it, as in fit.py
+   (Anny's own helpers drift from the skin they hang from).
 
 The result is fit.py's file and version (the page uses it as it is), with "model": "anny" and
 Anny's overall sliders as "shape". Each vertex's turn, for the clothes' offsets, comes from the
@@ -119,7 +122,7 @@ def _robust(torch, d2, s):
     return (d2 / (d2 + s * s)).mean()
 
 
-def fit_anny(rig_json: dict, xs, ys, zs, opacity, wrap: bool = False, log=None, start=None) -> dict:
+def fit_anny(rig_json: dict, xs, ys, zs, opacity, wrap: bool = True, log=None, start=None) -> dict:
     """Like fit.fit_splats, with Anny's mesh in place of the bent and shrinkwrapped base mesh."""
     torch, _ = _torch()
     import roma
@@ -240,21 +243,24 @@ def fit_anny(rig_json: dict, xs, ys, zs, opacity, wrap: bool = False, log=None, 
 
     with torch.no_grad():
         X = forward(p) * Hs
-    P = [tuple(map(float, p)) for p in X.tolist()]
+    skin = [tuple(map(float, v)) for v in X[:nb].tolist()]
     Q = _rotations(base, Js, Hs)
-    skin = P[:nb]
     if wrap:
         hsh = fit._Hash(pts, 0.01 * Hs)
         skin, hit = fit.shrinkwrap(skin, base["tris"], nb, base["nbrs"], pts, hsh, Hs, fit.PASSES[-1])
-        out = list(skin)
-        for i in range(nb, len(P)):                              # helpers follow the skin's moves
-            move = [0.0, 0.0, 0.0]
-            for j, f in base["follow"][i - nb]:
-                for k in range(3):
-                    move[k] += f * (skin[j][k] - P[j][k])
-            out.append(rig._add(P[i], move))
     else:
-        out, hit = P, _found(skin, pts, Hs)
+        hit = _found(skin, pts, Hs)
+    # The helpers clothes and hair are bound to (tights, skirt, hair cap) follow the skin under
+    # them, as in fit.py: Anny's own helpers drift up to 2% of the height from the skin they hang from.
+    T = fit.bone_transforms(base["J"], base["H"], Js, Hs)
+    lbs = fit._pose(base["P"], base["W"], T, len(base["P"]))
+    out = list(skin)
+    for i in range(nb, len(lbs)):
+        move = [0.0, 0.0, 0.0]
+        for j, f in base["follow"][i - nb]:
+            for k in range(3):
+                move[k] += f * (skin[j][k] - lbs[j][k])
+        out.append(rig._add(lbs[i], move))
     if hit < 0.5:
         raise fit.FitError("the body's surface wasn't found around most of the base mesh", "shape")
     sliders = dict(zip(m.phenotype_labels, (round(x, 3) for x in torch.sigmoid(p["ph"]).tolist())))
@@ -280,7 +286,7 @@ def _found(skin, pts, H, near=0.015):
     return sum(any(fit._d2(p, pts[j]) < r2 for j in h.near(p)) for p in skin) / len(skin)
 
 
-def build(ply: Path, wrap: bool = False, log=None) -> dict:
+def build(ply: Path, wrap: bool = True, log=None) -> dict:
     _torch()                                                  # before the slow rig, if it's missing
     r = rig.cached(ply) or rig.build_and_save(ply)
     d = rig.load_splats(ply)
@@ -290,7 +296,7 @@ def build(ply: Path, wrap: bool = False, log=None) -> dict:
     return out
 
 
-def build_and_save(ply: Path, wrap: bool = False, log=None) -> dict:
+def build_and_save(ply: Path, wrap: bool = True, log=None) -> dict:
     r = build(ply, wrap, log)
     f = fit.fit_file(ply)
     tmp = f.with_name(f.name + ".tmp")
@@ -306,18 +312,19 @@ def main(argv: list[str] | None = None) -> None:
                                              "BODY.fit.json, the file the page's clothes use; `body-studio fit "
                                              "BODY.ply` puts the plain fit back.")
     ap.add_argument("ply", type=Path, help="the body: workspace/<video>/run_*/splat/*_object.ply")
-    ap.add_argument("--wrap", action="store_true", help="then move the skin onto the splats, like fit.py's last pass")
+    ap.add_argument("--no-wrap", action="store_true",
+                    help="leave Anny's skin as it is (no last pass onto the splats, like fit.py's)")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args(argv)
     try:
-        r = build_and_save(a.ply, a.wrap, print if a.verbose else None)
+        r = build_and_save(a.ply, not a.no_wrap, print if a.verbose else None)
     except Missing as e:
         sys.exit(str(e))
     except (rig.RigError, fit.FitError) as e:
         sys.exit(f"Can't fit this body: {e}")
     sl = ", ".join(f"{k} {v:.2f}" for k, v in r["shape"].items())
     print(f"Fitted with Anny ({sl}): a splat within 1.5% of the height of "
-          f"{round(100 * r['surface_found'])}% of the skin." if not a.wrap else
+          f"{round(100 * r['surface_found'])}% of the skin." if a.no_wrap else
           f"Fitted with Anny ({sl}), then wrapped: the body's surface was found under "
           f"{round(100 * r['surface_found'])}% of the base mesh.")
     print(f"Saved {fit.fit_file(a.ply)}")
