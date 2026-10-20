@@ -41,8 +41,17 @@ So once the base mesh is laid on a scan, the same rule puts every garment on tha
    vertices, and turned with the limb they sit on.
 3. **Draw it as splats** (`static/dress.js`). About one flat disc per 6 mm on its surface, coloured
    from its texture (with MakeHuman's ambient occlusion baked in, so folds read as folds) and
-   lit a little from above and in front. Hair is drawn denser, and see-through parts of its
-   cards get no splats.
+   lit a little from above and in front, with the normal smoothed over the item (flat-shaded
+   triangles showed as grey facets on a white shirt). Hair is drawn denser, and see-through parts
+   of its cards get no splats.
+   - An outfit is one piece with layers: the jeans' dark waistband runs under the shirt's hem, and
+     showed through the gaps between the shirt's splats as grey dots. A splat is left out when
+     the line out from it meets the item again within about 4.5 cm, on a part hanging from the
+     same skin (so a sleeve beside the chest is kept).
+   - **A hat goes over the hair.** MakeHuman's hats are made for a bald head, and the strands came
+     out through the crown. When hair is worn, the hat is scaled about its brim's height just
+     enough for its crown to hold the hair above the brim (up to half as big again), and fitted
+     again when the hair changes.
 4. **Move it with the body.** Each splat takes the skin weights of the skin it hangs from: the
    point of the fitted mesh it is bound to, without its offset (its anchor), and the skin vertex
    nearest that. Weights looked up where the splat itself is went wrong off the skin: beside the

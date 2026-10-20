@@ -2,7 +2,7 @@
 // Run by tests/unit/test_dress_js.py:  node --test tests/js/dress.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SkinCover, itemSplats, itemWeights, fitSkin, fitNormals, skinUnder } from "../../src/body_studio/static/dress.js";
+import { SkinCover, itemSplats, itemWeights, fitSkin, fitNormals, hatOverHair, skinUnder } from "../../src/body_studio/static/dress.js";
 
 const frame = { origin: [0, 0, 0], left: [1, 0, 0], up: [0, 1, 0], front: [0, 0, 1] };
 const b64 = (a) => Buffer.from(a.buffer).toString("base64");
@@ -105,4 +105,35 @@ test("an item's weights blend across the cloth instead of jumping where the skin
   assert.ok(jump(soft) < jump(hard) * 0.6, `${jump(soft)} vs ${jump(hard)}`);
   assert.equal(share(soft, 0), 0);                  // far from the change the skin's own bone
   assert.equal(share(soft, n - 1), 255);
+});
+
+test("an inner layer of an item under an outer one gets no splats", () => {
+  // two squares, 1 cm apart, hanging from the same skin: the inner one is under the outer one
+  const sq = square(), outer = new Float32Array(sq.verts);
+  for (let i = 0; i < 4; i++) outer[i * 3 + 2] = 0.11;
+  const item = { ...sq, verts: new Float32Array([...sq.verts, ...outer]), anchors: new Float32Array([...sq.verts, ...sq.verts]),
+                 tris: new Int32Array([0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6]), tuv: new Int32Array([0, 2, 1, 0, 3, 2, 0, 2, 1, 0, 3, 2]) };
+  const s = itemSplats(item, tex, 0.005, frame);
+  assert.ok(s.under > 350, `${s.under} hidden`);
+  for (let i = 0; i < s.n; i++) assert.ok(Math.abs(s.centres[i * 3 + 2] - 0.11) < 1e-6);
+  // apart (hanging from skin 10 cm away, like a sleeve beside the chest) both layers are kept
+  const apart = { ...item, anchors: new Float32Array([...sq.verts, ...sq.verts.map((v, i) => (i % 3 === 0 ? v + 0.1 : v))]) };
+  assert.equal(itemSplats(apart, tex, 0.005, frame).under, 0);
+});
+
+test("a hat is enlarged just enough to go over the hair", () => {
+  // a hat: a cube's top and sides, 10 cm wide, its brim (bottom) open at y = 0
+  const P = [[-1, 0, -1], [1, 0, -1], [1, 0, 1], [-1, 0, 1], [-1, 1, -1], [1, 1, -1], [1, 1, 1], [-1, 1, 1]];
+  const verts = new Float32Array(P.flat().map((v) => v * 0.05));
+  const quads = [[4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]];
+  const hat = { verts, tris: new Int32Array(quads.flatMap(([a, b, c, d]) => [a, b, c, a, c, d])) };
+  const up = { ...frame, up: [0, 1, 0] };
+  assert.equal(hatOverHair(hat, new Float32Array(0), up, 0.005).scale, 1);
+  // hair inside the hat leaves it as it is; hair 1.5 cm above its top raises it to hold it
+  const inside = new Float32Array(Array.from({ length: 300 }, (_, i) => [0.02 * Math.cos(i), 0.03, 0.02 * Math.sin(i)]).flat());
+  assert.equal(hatOverHair(hat, inside, up, 0.005).scale, 1);
+  const tall = new Float32Array(Array.from({ length: 300 }, (_, i) => [0.01 * Math.cos(i), 0.065, 0.01 * Math.sin(i)]).flat());
+  const { item, scale } = hatOverHair(hat, tall, up, 0.005);
+  assert.ok(Math.abs(scale - 0.07 / 0.05) < 0.01, `scale ${scale}`);
+  for (let i = 0; i < 8; i++) assert.ok(item.verts[i * 3 + 1] >= -1e-6, "the brim stays where it was");
 });

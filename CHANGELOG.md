@@ -78,6 +78,9 @@
 - Clothes: with the arms raised a T-shirt no longer breaks into loose flakes under the sleeves.
   The cloth blends the bones it follows across its surface, and its splats grow where a pose
   stretches it and shrink back after. See `docs/wardrobe.md`.
+- Clothes: no more grey dots on a white T-shirt (the jeans' waistband under it no longer shows
+  through, and the shading is smooth), and a hat sits over the hair instead of the hair coming
+  out through it.
 - Walk and jump: **W A S D** (or the arrows) walk the body across the floor with a walk cycle,
   turning to face the way it goes, the camera following; **Space** jumps (it no longer starts and
   stops the turntable); **R** brings the body back. Clothes, hair, shoes and tattoos move with it.

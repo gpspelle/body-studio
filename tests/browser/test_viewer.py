@@ -347,8 +347,14 @@ class Viewer(unittest.TestCase):
         page.click("#wearSlots [data-item=ponytail]")
         page.wait_for_function("wardrobe.worn().includes('ponytail')", timeout=60000)
         self.assertGreater(page.evaluate("wardrobe.tinted()"), 500)
+        # a hat goes over the hair, and fits the head again when the hair comes off
+        page.click("#wearSlots [data-item=fedora]")
+        page.wait_for_function("wardrobe.worn().includes('fedora')", timeout=60000)
+        self.assertGreater(page.evaluate("wardrobe.hatScale()"), 1.02)
         page.click("#wearSlots [data-item=ponytail]")
-        page.wait_for_function("!wardrobe.worn().includes('ponytail') && wardrobe.tinted() === 0")
+        page.wait_for_function("!wardrobe.worn().includes('ponytail') && wardrobe.hatScale() === 1", timeout=60000)
+        page.click("#wearSlots [data-item=fedora]")
+        page.wait_for_function("!wardrobe.worn().includes('fedora') && wardrobe.tinted() === 0", timeout=60000)
         # a tattoo on the forearm: under a long sleeve, not under a short one
         page.set_input_files("#tatPick", str(self.design))
         page.wait_for_function("document.getElementById('tatHint').textContent.length > 0")

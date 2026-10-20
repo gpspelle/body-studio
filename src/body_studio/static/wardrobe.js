@@ -5,7 +5,7 @@
 // One item per slot (clothes, shoes, hair, hat). Design and sources: docs/wardrobe.md.
 import * as THREE from "three";
 import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
-import { SkinCover, decodeItem, fitNormals, fitSkin, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
+import { SkinCover, decodeItem, fitNormals, fitSkin, hatOverHair, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
 import { dualQuats, skinPoint } from "/static/pose.js";
 
 const $ = (id) => document.getElementById(id);
@@ -17,6 +17,7 @@ const SPACING = 0.0032;          // splat spacing on an item, fraction of the pe
 const REACH = 0.03;              // a body splat is under an item if its nearest skin vertex is (within this)
 const HANG = 0.04;               // how far out from the skin an item still covers it (a skirt over the thighs)
 const SCALP = 0.012;             // hair this close over the skin colours it (the scalp under the hair)
+const HAT_GAP = 0.004;           // between the hair and the hat's crown, fraction of the height (7 mm)
 const HAIR_SPACING = 0.7;        // hair cards are partly see-through: twice as many splats
 
 let W = null;                    // the body being dressed: rig, weights, its mesh, what is worn…
@@ -107,7 +108,7 @@ async function wear(id, restoring = false) {
   const w = W, it = catalog && catalog.find((i) => i.id === id);
   if (!w || !w.fit || !it) return;
   const old = w.worn.get(it.slot);
-  if (old && old.id === id && !restoring) { takeOff(it.slot); return changed(); }
+  if (old && old.id === id && !restoring) { takeOff(it.slot); changed(); return rehat(it.slot); }
   w.busy++;
   status(t("wear.loading", { name: t("wear.item." + id) }));
   try {
@@ -123,13 +124,16 @@ async function wear(id, restoring = false) {
     const tex = await texture("/static/wardrobe/" + d.texture);
     if (W !== w) return;
     const H = w.rig.height, hair = it.slot === "hair";
+    // a hat goes over the hair worn, not through it
+    let hatScale = 1;
+    if (it.slot === "hat" && w.worn.get("hair")) ({ item: d, scale: hatScale } = hatOverHair(d, w.worn.get("hair").splats.centres, w.rig.frame, HAT_GAP * H));
     const s = itemSplats(d, tex, SPACING * H * (hair ? HAIR_SPACING : 1), w.rig.frame);
     const mesh = await splatMesh(s);
     if (W !== w) { mesh.dispose?.(); return; }
     const skinning = skin(mesh, s, w, d);
     takeOff(it.slot);
     const entry = { id, slot: it.slot, mesh, skinning, n: s.n, splats: s, nbr: neighbours(s, H),
-                    grow: new Uint8Array(s.n).fill(GROW_STEPS) };
+                    grow: new Uint8Array(s.n).fill(GROW_STEPS), hatScale };
     if (hair) {
       // hair cards let the scalp show between them: the scalp takes the hair's colour instead
       entry.tint = skinUnder(d, w.skin, w.normals, SCALP * H);
@@ -146,6 +150,13 @@ async function wear(id, restoring = false) {
     if (W === w && !w.busy) status("");
   }
   changed();
+  await rehat(it.slot);
+}
+
+// when the hair changes, the hat is fitted again over the new hair
+async function rehat(slot) {
+  const hat = W && W.worn.get("hat");
+  if (slot === "hair" && hat) await wear(hat.id, true);
 }
 
 function takeOff(slot) {
@@ -345,6 +356,8 @@ window.wardrobe = {
   worn: () => (W ? SLOTS.map((s) => W.worn.get(s)?.id).filter(Boolean) : []),
   splats: (id) => [...(W ? W.worn.values() : [])].find((e) => e.id === id)?.n || 0,
   hidden: () => (W ? W.hidden.size : 0),
+  // how much the hat was enlarged to go over the hair (1: no hair, or it fits as it is)
+  hatScale: () => (W && W.worn.get("hat")?.hatScale) || 0,
   tinted: () => (W ? W.tinted.size : 0),
   // how many of an item's splats are grown to cover cloth the pose stretches
   grown: (id) => { const e = W && [...W.worn.values()].find((x) => x.id === id); return e ? e.grow.reduce((a, g) => a + (g > GROW_STEPS), 0) : 0; },
