@@ -170,6 +170,8 @@ export class Skeleton {
       this.restA[j] = this.rotation(j, a);
     }
     this.angles = this.restAngles.map((a) => (a ? { ...a } : null));
+    // where the whole body is: turned by q about the root joint, then moved by t (walk.js)
+    this.place = { q: q.id(), t: [0, 0, 0] };
     this.solve();
   }
 
@@ -283,7 +285,7 @@ export class Skeleton {
         const A = this.rotation(j, this.angles[j]);
         delta = q.mul(q.mul(this.C[j], q.mul(A, q.conj(this.restA[j]))), q.conj(this.C[j]));
       }
-      if (p < 0) { this.W[j] = q.norm(delta); this.P[j] = this.rest[j].slice(); continue; }
+      if (p < 0) { this.W[j] = q.norm(q.mul(this.place.q, delta)); this.P[j] = v3.add(this.rest[j], this.place.t); continue; }
       this.W[j] = q.norm(q.mul(this.W[p], delta));
       this.P[j] = v3.add(this.P[p], q.rot(this.W[p], v3.sub(this.rest[j], this.rest[p])));
     }

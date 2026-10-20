@@ -71,3 +71,7 @@
   version 2).
 - Clothes: with the arms raised a shirt no longer flares out at the sides. Each part of an item now
   moves with the skin it hangs from, not with the nearest bone (the upper arm, beside the chest).
+- Walk and jump: **W A S D** (or the arrows) walk the body across the floor with a walk cycle,
+  turning to face the way it goes, the camera following; **Space** jumps (it no longer starts and
+  stops the turntable); **R** brings the body back. Clothes, hair, shoes and tattoos move with it.
+  A quiet line at the bottom says so until the first walk. See `docs/tattoo.md`.

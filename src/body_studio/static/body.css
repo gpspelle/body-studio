@@ -71,6 +71,8 @@ body {
   display: flex; gap: 8px; justify-content: center; flex-wrap: nowrap;
   overflow-x: auto; padding: 0 20px 8px; scrollbar-width: none;
 }
+.walk-hint { text-align: center; font-size: 12px; color: var(--muted); margin: 0 auto 8px; padding: 0 20px; width: fit-content; }
+.walk-hint[hidden], .with-studio .walk-hint, .with-panel .walk-hint { display: none; }
 .foot { text-align: center; font-size: 11px; color: var(--muted); padding: 0 20px 10px; width: fit-content; margin: 0 auto; }
 .foot a { color: inherit; }
 .link {

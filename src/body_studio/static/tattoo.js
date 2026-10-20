@@ -9,6 +9,7 @@
 import * as THREE from "three";
 import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
 import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, INK_OUT, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
+import { Walker } from "/static/walk.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -143,7 +144,8 @@ function setup(rig, mesh, file) {
 
   S = { file, rig, sk, weights, map, surface, mesh, skinning, n, centres, colours, radius, bones, w, opaque: Uint32Array.from(opaque),
         posed: null, posedOk: false, dq: null, transforms: null, skinColour: new Map(), tinted: new Map(), hiddenSkin: new Set(), handles, handleJoints, lines, pairs, tattoos: [], selected: null,
-        joint: null, heightCm: 170, nextId: 1 };
+        joint: null, heightCm: 170, nextId: 1, walker: new Walker(sk, rig) };
+  follow.set(0, 0, 0);
   handles.visible = lines.visible = !$("studio").hidden;
   presetsUI();
   applyPose();
@@ -185,6 +187,12 @@ function dotTexture() {
 // ---------------------------------------------------------------- pose
 const ACCENT = new THREE.Color(0x2f5bd3), WHITE = new THREE.Color(0xffffff);
 function applyPose() {
+  drawPose();
+  save();
+}
+
+// the body, its clothes, its tattoos and the dots where the skeleton is now
+function drawPose() {
   const { sk, skinning } = S;
   sk.solve();
   const tr = sk.transforms();
@@ -206,14 +214,13 @@ function applyPose() {
   S.pairs.forEach(([p, j], i) => { lp.setXYZ(2 * i, ...sk.P[p]); lp.setXYZ(2 * i + 1, ...sk.P[j]); });
   lp.needsUpdate = true;
   for (const tt of S.tattoos) { poseInk(tt); skinTattoo(tt); }
-  save();
 }
 
 function presetsUI() {
   $("presets").replaceChildren(...Object.keys(PRESETS).map((name) => {
     const b = document.createElement("button");
     b.textContent = t("pose.p." + name);
-    b.onclick = () => { S.sk.setPose(PRESETS[name]); applyPose(); jointUI(); };
+    b.onclick = () => { still(); S.sk.setPose(PRESETS[name]); applyPose(); jointUI(); };
     return b;
   }));
 }
@@ -242,6 +249,7 @@ function jointUI() {
     input.dataset.key = key;
     out.textContent = Math.round(a[key]) + "°";
     input.oninput = () => {
+      still();
       S.sk.set(j, { [key]: +input.value });
       out.textContent = Math.round(S.sk.angles[j][key]) + "°";
       applyPose();
@@ -260,11 +268,101 @@ function refreshJointSliders() {
   }
 }
 $("jointReset").onclick = () => {
+  still();
   const j = S.sk.index(S.joint);
   S.sk.set(j, { ...S.sk.restAngles[j] });
   applyPose(); refreshJointSliders();
 };
-$("poseReset").onclick = () => { S.sk.reset(); applyPose(); refreshJointSliders(); };
+$("poseReset").onclick = () => { still(); S.sk.reset(); applyPose(); refreshJointSliders(); };
+
+// ---------------------------------------------------------------- walking
+// W A S D (or the arrows) walk the body across the floor, the way the camera looks; Space jumps
+// (walk.js). The camera follows. The panel's pose is what the body goes back to when it stops.
+const KEYS = { KeyW: "f", ArrowUp: "f", KeyS: "b", ArrowDown: "b", KeyA: "l", ArrowLeft: "l", KeyD: "r", ArrowRight: "r" };
+const held = new Set();
+const follow = new THREE.Vector3();          // where the walk has taken the body, in the scene
+let jumpAsked = false, walkFrameId = 0, lastFrame = 0;
+const known = { get() { try { return localStorage.getItem("walk:known") === "1"; } catch { return false; } },
+                set() { try { localStorage.setItem("walk:known", "1"); } catch {} } };
+const keyboard = () => !matchMedia("(pointer: coarse)").matches && innerWidth > 600;   // (a phone has no keys)
+
+function walkHint(text) {
+  $("walkHint").textContent = text || "";
+  $("walkHint").hidden = !text;
+}
+addEventListener("bodyshown", () => walkHint(keyboard() && !known.get() ? t("walk.hint") : ""));
+addEventListener("langchange", () => { if (!$("walkHint").hidden && !loading) walkHint(t("walk.hint")); });
+
+// the panel's pose again, right away, wherever the body walked to (before the panel changes it)
+function still() {
+  if (S && S.walker.settle()) drawPose();
+}
+
+// the way to walk, in the body's coordinates: forward is away from the camera
+function moveDir() {
+  const f = (held.has("f") ? 1 : 0) - (held.has("b") ? 1 : 0), r = (held.has("r") ? 1 : 0) - (held.has("l") ? 1 : 0);
+  if (!f && !r) return null;
+  const look = V.camera.getWorldDirection(new THREE.Vector3()).applyQuaternion(V.holder.quaternion.clone().invert());
+  const up = S.rig.frame.up;
+  let ahead = v3.sub([look.x, look.y, look.z], v3.scale(up, v3.dot([look.x, look.y, look.z], up)));
+  if (v3.len(ahead) < 1e-3) ahead = quat.rot(S.sk.W[0], S.rig.frame.front);
+  ahead = v3.unit(ahead);
+  const right = v3.cross(ahead, up);
+  return v3.unit(v3.add(v3.scale(ahead, f), v3.scale(right, r)));
+}
+
+function walkFrame(now) {
+  walkFrameId = 0;
+  if (!S) return;
+  const dt = lastFrame ? (now - lastFrame) / 1000 : 1 / 60;
+  lastFrame = now;
+  if (S.restored) {
+    if (S.walker.update(dt, { move: moveDir(), jump: jumpAsked })) {
+      V.controls.autoRotate = false;
+      drawPose();
+      followBody();
+    }
+    jumpAsked = false;
+  }
+  if (S.walker.active || held.size || jumpAsked) walkFrameId = requestAnimationFrame(walkFrame);
+  else lastFrame = 0;
+}
+function walking() {
+  if (!walkFrameId) walkFrameId = requestAnimationFrame(walkFrame);
+}
+
+// the camera keeps its view of the body as it walks (not as it jumps: the floor stays put)
+function followBody() {
+  const p = S.walker.pos, now = new THREE.Vector3(p[0], p[1], p[2]).applyQuaternion(V.holder.quaternion);
+  const d = now.clone().sub(follow);
+  V.camera.position.add(d);
+  V.controls.target.add(d);
+  follow.copy(now);
+}
+
+const typing = (e) => !!e.target.closest?.("input, textarea, select, [contenteditable]");
+addEventListener("keydown", async (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey || typing(e)) return;
+  if (e.code === "KeyR") {                   // back where it was scanned (index.html frames it again)
+    if (S) { S.walker.home(); follow.set(0, 0, 0); drawPose(); }
+    return;
+  }
+  const k = KEYS[e.code];
+  if (k) held.add(k);
+  else if (e.code === "Space") { if (!e.repeat) jumpAsked = true; }
+  else return;
+  e.preventDefault();                       // no page scroll, no button pressed
+  if (!V.file()) return;
+  known.set();
+  if (S) { if ($("walkHint").textContent === t("walk.hint")) walkHint(""); return walking(); }
+  if (loading) return;
+  walkHint(t("walk.loading"));
+  await load();
+  walkHint(S ? "" : $("studioStatus").textContent);
+  if (S) walking();
+});
+addEventListener("keyup", (e) => { const k = KEYS[e.code]; if (k) held.delete(k); });
+addEventListener("blur", () => held.clear());
 
 // ---------------------------------------------------------------- picking
 const ray = new THREE.Raycaster();
@@ -353,6 +451,7 @@ function onDown(e) {
   } else {
     const h = nearestHandle(e);
     if (h) {
+      still();
       selectJoint(HANDLES[h]);
       drag = { kind: "joint", handle: h, pivot: HANDLES[h] };
     } else {
@@ -732,7 +831,7 @@ let saveTimer = null;
 function save() {
   if (!S || !S.restored) return;            // (setting up poses the body before what was kept is back)
   const file = S.file;
-  const record = { heightCm: S.heightCm, pose: S.sk.pose(),
+  const record = { heightCm: S.heightCm, pose: S.walker.basePose(),     // not a step of a walk
                    tattoos: S.tattoos.map((tt) => ({ image: tt.canvas.toDataURL("image/png"), bone: tt.bone, at: tt.at,
                                                      widthCm: tt.widthCm, angle: tt.angle, ink: tt.ink, name: tt.name })) };
   clearTimeout(saveTimer);
@@ -795,8 +894,8 @@ window.tattooStudio = {
   saving: false,                            // a change not yet in IndexedDB
   open: () => setOpen(true),
   pose: () => S.sk.pose(),
-  setPose: (p) => { S.sk.setPose(p); applyPose(); },
-  preset: (name) => { S.sk.setPose(PRESETS[name]); applyPose(); },
+  setPose: (p) => { still(); S.sk.setPose(p); applyPose(); },
+  preset: (name) => { still(); S.sk.setPose(PRESETS[name]); applyPose(); },
   joint: (name) => S.sk.P[S.sk.index(name)].slice(),
   armDepth: () => S.sk.body.depth(S.sk) / S.rig.height,     // how far the arms are in the trunk and the head
   frame: () => S.rig.frame,
@@ -826,6 +925,18 @@ window.tattooStudio = {
                                           centre: Array.from(tt.posedPos.slice(
                                             ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3, ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3 + 3)) })),
   heightCm: () => S.heightCm,
+  // the walk: whether it is moving the body, in the air, how far it went (fractions of the height)
+  walk: () => S && { active: S.walker.active, airborne: S.walker.airborne, pos: v3.scale(S.walker.pos, 1 / S.rig.height),
+                     facing: S.walker.facing() },
+  // walk for a while as if the keys (f b l r) were held, in steps of a 60th of a second, and stop
+  // there, mid-stride (for screenshots)
+  walkFor: (seconds, keys = "f", jump = false) => {
+    held.clear();
+    for (const k of keys) held.add(k);
+    for (let i = 0; i < Math.round(seconds * 60); i++) S.walker.update(1 / 60, { move: moveDir(), jump: jump && i === 0 });
+    held.clear();
+    drawPose(); followBody();
+  },
   screen: (p) => {                          // a point in the body's coordinates, in page pixels
     const r = V.canvas.getBoundingClientRect();
     const v = new THREE.Vector3(...p).applyMatrix4(V.holder.matrixWorld).project(V.camera);

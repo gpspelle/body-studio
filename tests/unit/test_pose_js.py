@@ -25,7 +25,8 @@ class PoseJs(unittest.TestCase):
             rig.build_and_save(ply)
             normals = Path(tmp) / "normals.json"            # the mesh's own: what the skin's should agree with
             normals.write_text(json.dumps(skin_normals()))
-            r = subprocess.run([NODE, "--test", str(ROOT / "tests" / "js" / "pose.test.mjs")],
+            r = subprocess.run([NODE, "--test", str(ROOT / "tests" / "js" / "pose.test.mjs"),
+                                str(ROOT / "tests" / "js" / "walk.test.mjs")],
                                env={**os.environ, "RIG_JSON": str(rig.rig_file(ply)), "BODY_PLY": str(ply),
                                     "SKIN_NORMALS": str(normals)},
                                capture_output=True, text=True, timeout=600)

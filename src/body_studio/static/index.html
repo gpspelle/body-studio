@@ -37,6 +37,7 @@
 <div id="loading" class="center" hidden><p class="quiet" id="loadingText"></p></div>
 
 <div class="bottom">
+  <p id="walkHint" class="walk-hint" role="status" hidden></p>
   <nav id="shelf" class="shelf" data-i18n-aria-label="app.bodies"></nav>
   <footer class="foot">
     <span id="version"></span> ·
@@ -354,8 +355,8 @@ addEventListener("drop", (e) => {
   if (f) upload(f);
 });
 addEventListener("keydown", (e) => {
-  if (e.key === "r" || e.key === "R") { if (fit) frame(); }
-  if (e.key === " " && mesh) { e.preventDefault(); controls.autoRotate = !controls.autoRotate; }
+  if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+  if (e.key === "r" || e.key === "R") { if (fit) frame(); }      // (Space jumps: tattoo.js)
 });
 
 // for the progress panel (progress.js)

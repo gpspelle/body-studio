@@ -35,6 +35,7 @@ SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("tattoo-desktop", 1280, 800, "light", "en", "tattoo"),
     ("tattoo-phone", 390, 844, "dark", "pt", "tattoo"),
     ("wardrobe-desktop", 1280, 800, "light", "en", "wardrobe"),
+    ("walk-desktop", 1280, 800, "light", "en", "walk"),
 ]
 # a line-art design drawn on white, like a scanned tattoo sketch: a sun with a wave inside
 DESIGN = """(() => {
@@ -113,6 +114,8 @@ def main() -> None:
                     tattoo_scene(page, Path(tmp))
                 if panel == "wardrobe":
                     wardrobe_scene(page)
+                if panel == "walk":
+                    walk_scene(page)
                 page.wait_for_function("document.getElementById('version').textContent.length > 0")
                 page.wait_for_timeout(1500)
                 page.screenshot(path=str(out / f"{name}.png"), timeout=180000)
@@ -181,6 +184,23 @@ def wardrobe_scene(page) -> None:
     page.wait_for_function("""(() => { const s = bodyApp.viewer.spark;
       return s.display === s.current && s.display.numSplats > bodyViewer.numSplats() + 1000; })()""", timeout=300000)
     page.evaluate("document.getElementById('studio').scrollTop = 0")
+    page.wait_for_timeout(30000)
+
+
+def walk_scene(page) -> None:
+    """Mia dressed, walking to the right across the screen, mid-stride, seen from her side."""
+    page.locator(".shelf button", has_text="Mia").click()
+    page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+    page.click("#studioBtn")
+    page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
+    for item in ("tee_jeans_f", "white_sneakers", "bob_dark"):
+        page.click(f"#wearSlots [data-item={item}]")
+        page.wait_for_function(f"wardrobe.worn().includes('{item}')", timeout=120000)
+    page.click("#closeStudio")
+    page.evaluate("bodyApp.viewer.controls.autoRotate = false")
+    page.evaluate("tattooStudio.walkFor(1.45, 'r')")
+    page.wait_for_function("""(() => { const s = bodyApp.viewer.spark;
+      return s.display === s.current && s.display.numSplats > bodyViewer.numSplats() + 1000; })()""", timeout=300000)
     page.wait_for_timeout(30000)
 
 

@@ -185,6 +185,38 @@ twisted forearm into a "candy wrapper".
 - **Skinning**: the outline shown while editing is the border of the grid, moved on the CPU by the
   same dual quaternion blend as Spark's shader.
 
+## Walking and jumping
+
+**W A S D** (or the arrows) walk the body across the floor and **Space** jumps (`static/walk.js`,
+tested by `tests/js/walk.test.mjs`). Nothing new is learned or stored: the same skeleton is posed
+every frame, so the body, the clothes, hair, shoes and tattoos (all skinned with the body's
+weights) go along on their own.
+
+- **Where the body is.** `Skeleton.place` turns the whole skeleton about its root and moves it;
+  every bone's skinning transform includes it. Keys are read the way the camera looks: W is away
+  from the camera, A to its left. The body turns to face the way it goes (turning on the spot
+  before it walks off) and the camera moves with it, not with the jump, so the floor stays put.
+- **The walk cycle** is normal gait's joint angles, simplified (Perry & Burnfield, *Gait Analysis*,
+  2010): the hip from 30° forward to 10° back, the knee bent 15° as the heel takes the weight and
+  60° in the swing, the ankle up before push-off and down at toe-off, each arm swinging against the
+  leg on its side, the chest turning against the hips. The cycle's speed comes from the length of
+  the legs (a stride is how far a foot travels under the hip), so the foot on the floor barely
+  slides. The arms come in from the A-pose, but only as far as they swing clear of the trunk.
+- **On the floor.** After the joints are set, the body is lowered or raised so its lowest foot is at
+  the floor's height in the scan: it bobs with each step and sinks into a crouch.
+- **The jump**: a crouch and push (0.22 s), then a throw: up at the speed that reaches 20 % of the
+  person's height under real gravity, legs tucking and arms swinging up, then a landing crouch. A
+  jump while walking carries on forward.
+- **The panel's pose stays.** The walk is blended over the pose set in the panel (or a preset), and
+  the body goes back to it when it stops, where it got to; that pose, not a step of the walk, is
+  what is kept. Changing the pose in the panel stops the walk first. **R** brings the body back to
+  where it was scanned.
+
+Limits: one walking speed, no running; a foot slides a little at the start and end of a walk (the
+legs blend in and out rather than taking a first and last step); with the panel's pose far from
+standing (sitting) the walk is still a walk. The hips don't turn (the rig has no pelvis joint), so
+the steps look a little stiff.
+
 ## Limits
 
 - **A-pose capture needed.** Arms touching the body or legs together make the skeleton fail (with

@@ -139,6 +139,13 @@ panel sits at the left edge (at the bottom on a phone).
   the hand. An arm stops at the body instead of going into it. Pick a joint to set its angles with
   sliders.
   The tattoo moves with the skin.
+- **Walk it around**: press **W A S D** (or the arrow keys) and the body walks across the floor,
+  away from you, toward you or to the sides, turning to face the way it goes; the camera follows.
+  **Space** jumps. Clothes, hair, shoes and tattoos go along. Let go and it stands in the pose
+  from the panel again, where it got to; **R** brings it back. The first press finds the skeleton
+  if the panel hasn't yet.
+
+  ![Walking](docs/images/walk-desktop.png)
 - The first time, the app finds the body's skeleton (a few seconds). It needs the A-pose from the
   filming guide: arms a little away from the body, feet apart. Tattoos and pose are kept in this
   browser, per body.
@@ -258,6 +265,10 @@ fica. O painel fica na borda esquerda (embaixo, no celular).
   na frente do peito ou vai para trás, o joelho dobrado gira a canela, o pulso dobra para a palma
   e para os lados e o antebraço gira a mão. O braço para no corpo em vez de entrar nele. Escolha uma
   articulação para ajustar os ângulos com controles deslizantes. A tatuagem acompanha a pele.
+- **Saia andando**: aperte **W A S D** (ou as setas) e o corpo anda pelo chão, para longe de você,
+  na sua direção ou para os lados, virando para onde vai; a câmera acompanha. **Espaço** pula.
+  Roupas, cabelo, sapatos e tatuagens vão junto. Solte e ele volta à pose do painel, onde chegou;
+  **R** o traz de volta. O primeiro toque encontra o esqueleto, se o painel ainda não encontrou.
 - Na primeira vez, o app encontra o esqueleto do corpo (alguns segundos). Precisa da pose A do guia
   de filmagem: braços um pouco afastados do corpo, pés afastados. Tatuagens e pose ficam guardadas
   neste navegador, para cada corpo.

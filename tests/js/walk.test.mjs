@@ -1,0 +1,198 @@
+// Walking and jumping (src/body_studio/static/walk.js) against a real rig. Run by
+// tests/unit/test_pose_js.py with the rig it builds from the MakeHuman test body:
+//   RIG_JSON=/path/to/body.rig.json node --test tests/js/walk.test.mjs
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { BodyVolume, Skeleton, SkinWeights, SurfaceMap, dualQuats, skinPoint, q, v3 } from "../../src/body_studio/static/pose.js";
+import { Walker, WALK, gait } from "../../src/body_studio/static/walk.js";
+
+const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
+const { left: L, up: U, front: F } = rig.frame;
+const H = rig.height;
+const DT = 1 / 60;
+const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg ?? ""} ${a} vs ${b} (±${tol})`);
+const flat = (v) => v3.sub(v, v3.scale(U, v3.dot(v, U)));
+const at = (sk, name) => sk.P[sk.index(name)];
+const run = (w, seconds, input = {}, each = () => {}) => {
+  for (let i = 0; i < Math.round(seconds / DT); i++) { w.update(DT, input); each(i); }
+};
+const lowestFoot = (sk) => Math.min(...["ankle_l", "ankle_r", "toe_end_l", "toe_end_r"].map((n) => v3.dot(at(sk, n), U)));
+const corr = (a, b) => {
+  const ma = a.reduce((s, x) => s + x, 0) / a.length, mb = b.reduce((s, x) => s + x, 0) / b.length;
+  let ab = 0, aa = 0, bb = 0;
+  a.forEach((x, i) => { ab += (x - ma) * (b[i] - mb); aa += (x - ma) ** 2; bb += (b[i] - mb) ** 2; });
+  return ab / Math.sqrt(aa * bb);
+};
+
+test("the body's place moves every bone rigidly", () => {
+  const sk = new Skeleton(rig);
+  const turn = q.axisAngle(U, 0.7), move = v3.scale(F, 0.3 * H);
+  sk.place = { q: turn, t: move };
+  sk.solve();
+  const root = sk.rest[0];
+  const dq = dualQuats(sk.transforms());
+  for (const name of ["head", "wrist_l", "toe_end_r"]) {
+    const p = sk.rest[sk.index(name)];
+    const want = v3.add(v3.add(root, q.rot(turn, v3.sub(p, root))), move);
+    const got = skinPoint(p, [sk.index(name), 0, 0, 0], [255, 0, 0, 0], dq);
+    near(v3.len(v3.sub(got, want)), 0, 1e-6 * H, name);
+    near(v3.len(v3.sub(at(sk, name), want)), 0, 1e-6 * H, name + " joint");
+  }
+});
+
+test("left alone, the walker leaves the body as it is", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  sk.setPose({ elbow_l: { flex: 60 } });
+  const before = sk.pose();
+  run(w, 1);
+  assert.equal(w.active, false);
+  assert.deepEqual(sk.pose(), before);
+  near(v3.len(sk.place.t), 0, 0);
+});
+
+test("a walk cycle: legs swing in turn, each arm against its leg", () => {
+  const hips = [], arms = [];
+  for (let p = 0; p < 1; p += 0.02) { const g = gait(p); hips.push(g.hip); arms.push(g.shoulder); }
+  assert.ok(corr(hips, arms) < -0.95);
+  assert.ok(Math.max(...hips) >= 29 && Math.min(...hips) <= -9);
+  const knee = (p) => gait(p).knee;
+  assert.ok(knee(0.72) > 55 && knee(0.4) < 15, "the knee bends most in the swing");
+});
+
+test("W walks the body forward on the floor, legs and arms swinging", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  const start = at(sk, "pelvis").slice(), ground = lowestFoot(sk);
+  const hipL = [], hipR = [], armL = [], floor = [];
+  run(w, 3, { move: F }, (i) => {
+    if (i < 60) return;
+    hipL.push(sk.angles[sk.index("hip_l")].flex); hipR.push(sk.angles[sk.index("hip_r")].flex);
+    armL.push(sk.angles[sk.index("shoulder_l")].flex);
+    floor.push(lowestFoot(sk) - ground);
+  });
+  const moved = v3.sub(at(sk, "pelvis"), start);
+  const ahead = v3.dot(moved, F);
+  assert.ok(ahead > 0.6 * WALK.speed * 3 * H && ahead < 1.05 * WALK.speed * 3 * H, `walked ${ahead / H} H`);
+  near(v3.dot(moved, L), 0, 0.02 * H, "straight ahead");
+  for (const d of floor) near(d, 0, 0.002 * H, "a foot on the floor");
+  assert.ok(Math.max(...hipL) > 25 && Math.min(...hipL) < -5, "the left thigh swings forward and back");
+  assert.ok(corr(hipL, hipR) < -0.8, "the legs take turns");
+  assert.ok(corr(hipL, armL) < -0.8, "the left arm swings against the left leg");
+  const faced = w.facing();
+  near(v3.dot(faced, F), 1, 1e-6, "still facing ahead");
+});
+
+test("the foot on the floor stays put while the body walks over it", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  run(w, 1.5, { move: F });
+  let slid = 0, travelled = 0, prev = null;
+  run(w, 2, { move: F }, () => {
+    const feet = ["ankle_l", "ankle_r"].map((n) => at(sk, n));
+    const now = { foot: feet.map((p) => v3.dot(p, U)), p: feet, pelvis: at(sk, "pelvis").slice() };
+    if (prev) {
+      const k = now.foot[0] < now.foot[1] ? 0 : 1;          // the foot lower down carries the body
+      slid += v3.len(flat(v3.sub(now.p[k], prev.p[k])));
+      travelled += v3.len(flat(v3.sub(now.pelvis, prev.pelvis)));
+    }
+    prev = { ...now, p: now.p.map((x) => x.slice()) };
+  });
+  assert.ok(slid < 0.4 * travelled, `the standing foot slid ${(slid / travelled * 100).toFixed(0)}% of the way walked`);
+});
+
+test("A and D turn the body and walk it that way", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  const start = at(sk, "pelvis").slice();
+  run(w, 3, { move: L });
+  assert.ok(v3.dot(w.facing(), L) > 0.99, "faces left");
+  const moved = flat(v3.sub(at(sk, "pelvis"), start));
+  assert.ok(v3.dot(v3.unit(moved), L) > 0.9, "went left");
+  // the face turned with the body
+  const face = q.rot(sk.W[sk.index("head")], F);
+  assert.ok(v3.dot(face, L) > 0.9);
+  run(w, 3, { move: v3.scale(L, -1) });
+  assert.ok(v3.dot(w.facing(), L) < -0.99, "turned round to the right");
+});
+
+test("let go: back to the panel's pose, where the body got to", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  sk.setPose({ elbow_r: { flex: 90 } });
+  const before = sk.pose();
+  run(w, 2, { move: F });
+  assert.notDeepEqual(sk.pose(), before);
+  assert.deepEqual(w.basePose(), before, "the panel's pose is kept while walking");
+  const there = v3.dot(at(sk, "pelvis"), F);
+  run(w, 2);
+  assert.equal(w.active, false);
+  assert.deepEqual(sk.pose(), before);
+  assert.ok(v3.dot(at(sk, "pelvis"), F) >= there, "it doesn't slide back");
+  w.home();
+  near(v3.len(v3.sub(at(sk, "pelvis"), sk.rest[sk.index("pelvis")])), 0, 1e-9, "home again");
+});
+
+test("Space jumps: a crouch, up off the floor, and down again", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  const ground = lowestFoot(sk), hip0 = v3.dot(at(sk, "pelvis"), U);
+  let low = Infinity, high = -Infinity, air = 0, under = 0;
+  w.update(DT, { jump: true });
+  run(w, 2, { jump: true }, () => {          // held down: one jump, not another as it lands
+    const hip = v3.dot(at(sk, "pelvis"), U);
+    low = Math.min(low, hip); high = Math.max(high, hip);
+    if (w.airborne) air = Math.max(air, lowestFoot(sk) - ground);
+    under = Math.min(under, lowestFoot(sk) - ground);
+  });
+  assert.ok(hip0 - low > 0.03 * H, `crouches ${(hip0 - low) / H}`);
+  assert.ok(high - hip0 > 0.12 * H, `rises ${(high - hip0) / H}`);
+  assert.ok(air > 0.12 * H, `the feet leave the floor by ${air / H}`);
+  near(under, 0, 0.003 * H, "never through the floor");
+  run(w, 1);
+  assert.equal(w.active, false, "landed and still");
+  assert.deepEqual(sk.pose(), {});
+  near(v3.dot(at(sk, "pelvis"), U), hip0, 1e-9);
+});
+
+test("a jump while walking carries on forward", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  run(w, 1.5, { move: F });
+  const start = v3.dot(at(sk, "pelvis"), F);
+  w.update(DT, { move: F, jump: true });
+  let airborne = false;
+  run(w, 0.6, { move: F }, () => { airborne ||= w.airborne; });
+  assert.ok(airborne);
+  assert.ok(v3.dot(at(sk, "pelvis"), F) - start > 0.25 * H);
+});
+
+test("walking arms swing clear of the trunk", () => {
+  const map = new SurfaceMap(rig);
+  const sk = new Skeleton(rig, { body: new BodyVolume(rig, map) }), w = new Walker(sk, rig);
+  const rest = sk.body.depth(sk.solve());
+  assert.ok(w.armSide < sk.restAngles[sk.index("shoulder_l")].side, "the arms come down from the A-pose");
+  let worst = 0;
+  run(w, 3, { move: F }, () => { worst = Math.max(worst, sk.body.depth(sk)); });
+  assert.ok(worst <= Math.max(rest, sk.body.tol) + 0.01 * H, `arms ${worst / H} H into the body`);
+});
+
+test("skin weights follow: a splat on the shin moves with its foot", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig), weights = new SkinWeights(rig);
+  const knee = sk.rest[sk.index("knee_l")], ankle = sk.rest[sk.index("ankle_l")];
+  const p = v3.add(v3.scale(knee, 0.3), v3.scale(ankle, 0.7));
+  const b = new Uint8Array(4), wt = new Uint8Array(4);
+  weights.at(p[0], p[1], p[2], b, wt);
+  run(w, 2, { move: F });
+  const shin = skinPoint(p, b, wt, dualQuats(sk.transforms()));
+  const kn = at(sk, "knee_l"), an = at(sk, "ankle_l");
+  const want = v3.add(v3.scale(kn, 0.3), v3.scale(an, 0.7));
+  assert.ok(v3.len(v3.sub(shin, want)) < 0.05 * H, `${v3.len(v3.sub(shin, want)) / H} H from where the bones put it`);
+});
+
+test("settle: the panel's pose at once, where the body is", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  assert.equal(w.settle(), false, "nothing to settle");
+  run(w, 1, { move: F });
+  w.update(DT, { move: F, jump: true });
+  const there = v3.dot(at(sk, "pelvis"), F);
+  assert.equal(w.settle(), true);
+  assert.equal(w.active, false);
+  assert.deepEqual(sk.pose(), {});
+  near(v3.dot(at(sk, "pelvis"), F), there, 0.01 * H, "stays where it got to");
+  near(v3.dot(at(sk, "pelvis"), U), v3.dot(sk.rest[sk.index("pelvis")], U), 1e-9, "on the floor");
+});

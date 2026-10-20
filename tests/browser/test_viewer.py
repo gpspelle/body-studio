@@ -228,6 +228,62 @@ class Viewer(unittest.TestCase):
         page.close()
 
 
+    def test_walks_and_jumps_with_the_keyboard(self):
+        page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        self.addCleanup(page.close)
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+        page.goto(self.url)
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+        self.assertIn("W A S D", page.locator("#walkHint").inner_text())
+        # W with the panel closed: the skeleton is found first, then the body walks away from the camera
+        page.keyboard.down("w")
+        page.wait_for_function("window.tattooStudio && tattooStudio.ready", timeout=180000)
+        page.wait_for_function("tattooStudio.walk().active", timeout=30000)
+        target = page.evaluate("bodyApp.viewer.controls.target.toArray()")
+        page.wait_for_function("Math.hypot(...tattooStudio.walk().pos) > 0.4", timeout=60000)
+        self.assertTrue(page.locator("#walkHint").is_hidden())
+        page.keyboard.up("w")
+        page.wait_for_function("!tattooStudio.walk().active", timeout=30000)
+        self.assertEqual(page.evaluate("tattooStudio.pose()"), {})     # standing as the panel had it
+        walked = page.evaluate("tattooStudio.walk()")
+        # away from the camera: the camera looks along -z in the scene, the body walked that way
+        away = page.evaluate("""(() => { const v = bodyApp.viewer, p = tattooStudio.walk().pos;
+            const w = new v.holder.quaternion.constructor().copy(v.holder.quaternion);
+            const d = v.camera.getWorldDirection(v.controls.target.clone());
+            const m = v.controls.target.clone().set(...p).applyQuaternion(w);
+            return (m.x * d.x + m.z * d.z) / Math.hypot(m.x, m.z) / Math.hypot(d.x, d.z); })()""")
+        self.assertGreater(away, 0.9)
+        moved = page.evaluate("bodyApp.viewer.controls.target.toArray()")
+        self.assertGreater(dist(target, moved), 0.3 * page.evaluate("bodyViewer.size()[1]"),
+                           "the camera follows the body")
+        # Space: up in the air and down again, in the same place
+        page.keyboard.press("Space")
+        page.wait_for_function("tattooStudio.walk().airborne", timeout=30000)
+        page.wait_for_function("!tattooStudio.walk().active", timeout=30000)
+        self.assertLess(dist(walked["pos"], page.evaluate("tattooStudio.walk().pos")), 0.01)
+        # A turns the body to the camera's left
+        page.keyboard.down("a")
+        page.wait_for_function("tattooStudio.walk().active")
+        page.wait_for_function("""(() => { const f = tattooStudio.walk().facing, v = bodyApp.viewer;
+            const s = new v.holder.quaternion.constructor().copy(v.holder.quaternion);
+            const w = v.controls.target.clone().set(...f).applyQuaternion(s);
+            const r = v.camera.getWorldDirection(v.controls.target.clone()).cross(v.camera.up);
+            return (w.x * r.x + w.z * r.z) / Math.hypot(w.x, w.z) / Math.hypot(r.x, r.z) < -0.95; })()""", timeout=30000)
+        page.keyboard.up("a")
+        # R: back where it was scanned
+        page.keyboard.press("r")
+        self.assertLess(dist(page.evaluate("tattooStudio.walk().pos"), [0, 0, 0]), 1e-9)
+        # typing in a field doesn't walk
+        page.click("#studioBtn")
+        page.focus("#tatHeight")
+        page.keyboard.press("w")
+        self.assertFalse(page.evaluate("tattooStudio.walk().active"))
+        self.assertEqual(errors, [])
+
     def test_clothes_go_on_and_come_off(self):
         page = self.browser.new_page(viewport={"width": 1280, "height": 800})
         self.addCleanup(page.close)              # (a failed test leaves no page rendering behind)
@@ -285,6 +341,16 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("wardrobe.worn().join() === 'white_sneakers'")
         self.assertGreater(ink_pixels(page, at), 30)
         page.evaluate("tattooStudio.preset('walk')")    # moves with the body, no errors
+        # walking: the shoes stay on the feet, the tattoo goes along on the arm
+        ink, shoes = page.evaluate("[tattooStudio.tattoos()[0].centre, wardrobe.gap('white_sneakers')]")
+        page.keyboard.down("w")
+        page.wait_for_function("Math.hypot(...tattooStudio.walk().pos) > 0.3", timeout=60000)
+        self.assertLess(abs(page.evaluate("wardrobe.gap('white_sneakers')") - shoes), 0.01)
+        self.assertGreater(dist(ink, page.evaluate("tattooStudio.tattoos()[0].centre")),
+                           0.25 * page.evaluate("bodyViewer.size()[1]"))
+        page.keyboard.up("w")
+        page.wait_for_function("!tattooStudio.walk().active", timeout=30000)
+        page.keyboard.press("r")
         page.reload()                                   # remembered for this body
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
         page.locator(".shelf button", has_text="Mia").click()
