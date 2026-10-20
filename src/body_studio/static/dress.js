@@ -10,7 +10,8 @@ export const f32 = (s) => new Float32Array(b64bytes(s).buffer);
 export const i32 = (s) => new Int32Array(b64bytes(s).buffer);
 
 export function decodeItem(d) {
-  return { ...d, verts: f32(d.verts), tris: i32(d.tris), tuv: i32(d.tuv), uv: f32(d.uv), delete: i32(d.delete) };
+  return { ...d, verts: f32(d.verts), anchors: f32(d.anchors), tris: i32(d.tris), tuv: i32(d.tuv), uv: f32(d.uv),
+           delete: i32(d.delete) };
 }
 
 // The fitted base mesh's skin vertices in the PLY's coordinates (fit.py keeps them in body
@@ -95,9 +96,9 @@ const R2 = [0.7548776662466927, 0.5698402909980532];     // a low-discrepancy se
 // triangle's plane, lit a little from above and in front so folds and the underside of the
 // arms read. `frame` is the body's (rig.frame): the light comes from its up and front.
 export function itemSplats(item, tex, spacing, frame) {
-  const V = item.verts, T = item.tris, TU = item.tuv, UV = item.uv;
+  const V = item.verts, A = item.anchors || item.verts, T = item.tris, TU = item.tuv, UV = item.uv;
   const light = v3.unit(v3.add(v3.scale(frame.up, 0.55), v3.scale(frame.front, 0.85)));
-  const centres = [], quats = [], colours = [], opacity = [];
+  const centres = [], anchors = [], quats = [], colours = [], opacity = [];
   let carry = 0;
   for (let t = 0; t < T.length / 3; t++) {
     const a = T[t * 3], b = T[t * 3 + 1], c = T[t * 3 + 2];
@@ -127,12 +128,14 @@ export function itemSplats(item, tex, spacing, frame) {
       const alpha = tex.data[k + 3] / 255;
       if (item.alpha && alpha < 0.2) continue;
       centres.push(pa[0] + r1 * e1[0] + r2 * e2[0], pa[1] + r1 * e1[1] + r2 * e2[1], pa[2] + r1 * e1[2] + r2 * e2[2]);
+      for (let k = 0; k < 3; k++) anchors.push(A[a * 3 + k] + r1 * (A[b * 3 + k] - A[a * 3 + k]) + r2 * (A[c * 3 + k] - A[a * 3 + k]));
       quats.push(...rot);
       colours.push(Math.min(1, tex.data[k] / 255 * shade), Math.min(1, tex.data[k + 1] / 255 * shade), Math.min(1, tex.data[k + 2] / 255 * shade));
       opacity.push(item.alpha ? 0.95 * alpha : 1);
     }
   }
-  return { n: opacity.length, centres: Float32Array.from(centres), quats: Float32Array.from(quats),
+  return { n: opacity.length, centres: Float32Array.from(centres), anchors: Float32Array.from(anchors),
+           quats: Float32Array.from(quats),
            colours: Float32Array.from(colours), opacity: Float32Array.from(opacity),
            scale: [0.62 * spacing, 0.62 * spacing, 0.08 * spacing] };
 }
@@ -143,6 +146,7 @@ export class SkinCover {
   constructor(skin, centres, reach) {
     const nv = skin.length / 3, key = (x, y, z) => (x * 73856093) ^ (y * 19349663) ^ (z * 83492791);
     const grid = new Map();
+    this.skin = skin; this.grid = grid; this.key = key; this.reach = reach;
     for (let i = 0; i < nv; i++) {
       const k = key(Math.floor(skin[i * 3] / reach), Math.floor(skin[i * 3 + 1] / reach), Math.floor(skin[i * 3 + 2] / reach));
       (grid.get(k) || grid.set(k, []).get(k)).push(i);
@@ -164,6 +168,22 @@ export class SkinCover {
       this.nearest[s] = best;
     }
     this.nv = nv;
+  }
+
+  // the skin vertex nearest a point (-1 when none is within reach)
+  nearestSkin(x, y, z) {
+    const r = this.reach, skin = this.skin;
+    const cx = Math.floor(x / r), cy = Math.floor(y / r), cz = Math.floor(z / r);
+    let best = -1, bd = r * r;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const list = this.grid.get(this.key(cx + dx, cy + dy, cz + dz));
+      if (!list) continue;
+      for (const i of list) {
+        const d = (skin[i * 3] - x) ** 2 + (skin[i * 3 + 1] - y) ** 2 + (skin[i * 3 + 2] - z) ** 2;
+        if (d < bd) { bd = d; best = i; }
+      }
+    }
+    return best;
   }
 
   // the body's splats under the worn items (each item's list of skin vertices it covers)

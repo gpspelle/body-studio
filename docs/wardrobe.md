@@ -43,8 +43,12 @@ So once the base mesh is laid on a scan, the same rule puts every garment on tha
    from its texture (with MakeHuman's ambient occlusion baked in, so folds read as folds) and
    lit a little from above and in front. Hair is drawn denser, and see-through parts of its
    cards get no splats.
-4. **Move it with the body.** Its splats take the body's skin weights where they are, so the
-   pose moves the clothes exactly as it moves the skin under them.
+4. **Move it with the body.** Each splat takes the skin weights of the skin it hangs from: the
+   point of the fitted mesh it is bound to, without its offset (its anchor), and the skin vertex
+   nearest that. Weights looked up where the splat itself is went wrong off the skin: beside the
+   chest under the armpit the nearest bone is the upper arm, so a shirt's sides took the arm's
+   motion and flew out up to 23 cm with the arms raised. Bound to their skin they stay within 4 cm
+   of it in every pose.
 5. **Hide the skin under it.** A skin vertex of the fitted mesh is covered when MakeHuman's list
    for the garment has it, or when the line out from the skin along its normal meets the garment
    within 4% of the person's height (7 cm). MakeHuman's list alone leaves out skin that a loose

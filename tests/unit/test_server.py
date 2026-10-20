@@ -205,7 +205,7 @@ class Server(unittest.TestCase):
             time.sleep(0.2)
         self.assertEqual((statuses[0], statuses[-1]), (202, 200))
         self.assertEqual((d["id"], d["slot"], d["texture"]), ("tee_jeans", "outfit", "tee_jeans.jpg"))
-        self.assertTrue(d["verts"] and d["tris"] and d["delete"])
+        self.assertTrue(d["verts"] and d["anchors"] and d["tris"] and d["delete"])
         self.assertTrue(ply.with_name("standard_30000_object.fit.json").is_file())
         status, f = self.post("/api/fit" + body, None, method="GET")
         self.assertEqual(status, 200)

@@ -127,8 +127,15 @@ class Fit(unittest.TestCase):
                     d = wardrobe.fitted(item, f)
                     v = arr("f", d["verts"])
                     pts = [(v[i], v[i + 1], v[i + 2]) for i in range(0, len(v), 3)]
+                    a = arr("f", d["anchors"])
+                    self.assertEqual(len(a), len(v))
+                    if item not in ("bob_dark", "fedora"):              # (hair and hats hang from helpers)
+                        on = distances([(a[i], a[i + 1], a[i + 2]) for i in range(0, len(a), 3)], skin, 0.05)
+                        self.assertLess(pct(on, 0.9), 0.025, "anchors on the skin")
                     gap = distances(pts, skin, 0.05)
                     self.assertLess(pct(gap, 0.5), 0.03, "most of it close to the skin")
+                    if item not in ("bob_dark", "fedora"):
+                        self.assertLess(pct(on, 0.5), pct(gap, 0.5), "anchors closer than the item")
                     self.assertLess(pct(gap, 0.9), 0.15 if item in ("bob_dark", "fedora", "shirt_skirt") else 0.06)
                     if item == "white_sneakers":            # around both ankles
                         for side in ("l", "r"):

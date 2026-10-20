@@ -76,3 +76,11 @@ test("the skin an item hangs over, and only that", () => {
   assert.deepEqual([...skinUnder(tight, skin, normals, 0.05)], [0, 1]);
 });
 
+test("each splat knows the point of the skin it hangs from", () => {
+  const item = { ...square(), anchors: new Float32Array([0, 0, 0.09, 0.1, 0, 0.09, 0.1, 0.1, 0.09, 0, 0.1, 0.09]) };
+  const s = itemSplats(item, tex, 0.005, frame);
+  for (let i = 0; i < s.n; i++) {
+    assert.ok(Math.abs(s.anchors[i * 3] - s.centres[i * 3]) < 1e-6 && Math.abs(s.anchors[i * 3 + 1] - s.centres[i * 3 + 1]) < 1e-6);
+    assert.ok(Math.abs(s.anchors[i * 3 + 2] - 0.09) < 1e-6);
+  }
+});

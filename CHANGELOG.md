@@ -63,3 +63,5 @@
   no longer looks bald under see-through strands, and hair is drawn denser. Skin no longer shows
   through loose clothes like a skirt. The fitted body is rebuilt once (`<body>.fit.json`
   version 2).
+- Clothes: with the arms raised a shirt no longer flares out at the sides. Each part of an item now
+  moves with the skin it hangs from, not with the nearest bone (the upper arm, beside the chest).

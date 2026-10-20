@@ -95,7 +95,9 @@ def catalog() -> list:
 
 def fitted(item_id: str, fit: dict) -> dict:
     """The item on one body: its vertices in the body's PLY coordinates (at rest), triangles, UVs,
-    and the base mesh vertices whose skin it covers.
+    and the base mesh vertices whose skin it covers. Each vertex's anchor is the point on the
+    fitted mesh it hangs from (the vertex without its offset): the item moves the way the skin
+    there moves.
 
     A vertex is w1*r1 + w2*r2 + w3*r3 plus an offset, with r the fitted base mesh. The offset is
     in MakeHuman's axes and scaled by how wide, deep and tall the body is at three pairs of base
@@ -107,15 +109,16 @@ def fitted(item_id: str, fit: dict) -> dict:
         d = [V[a][j] - V[b][j] for j in range(3)]
         scale.append(abs(sum(d[j] * ax[k][j] for j in range(3))) / den)
     ref, w, off = it["ref"], it["w"], it["off"]
-    out = array("f")
+    out, anchors = array("f"), array("f")
     for i in range(len(ref) // 3):
         r = ref[3 * i:3 * i + 3]
         p = [sum(w[3 * i + m] * V[r[m]][j] for m in range(3)) for j in range(3)]
         o = [sum(off[3 * i + k] * scale[k] * ax[k][j] for k in range(3)) for j in range(3)]
         o = _rot(R[r[0]], o)
         out.extend(fit["to_model"]((p[0] + o[0], p[1] + o[1], p[2] + o[2])))
+        anchors.extend(fit["to_model"](p))
     return {"id": item_id, "slot": BY_ID[item_id]["slot"], "z_depth": it["z_depth"], "texture": it["texture"],
-            "alpha": it["alpha"], "verts": _b64(out), "tris": _b64(it["tris"]), "tuv": _b64(it["tuv"]),
+            "alpha": it["alpha"], "verts": _b64(out), "anchors": _b64(anchors), "tris": _b64(it["tris"]), "tuv": _b64(it["tuv"]),
             "uv": _b64(it["uv"]), "delete": _b64(it["delete"])}
 
 
