@@ -191,11 +191,14 @@ its floor. Walk it round with **W A S D**: walls and furniture stop it (it slide
 Press **F** next to the sofa or a chair to sit down, or next to a wall to lean on it; **F** again
 gets up. The camera stays inside the room.
 
-![The body sitting on a sofa in a scanned room](docs/images/room-desktop.png)
+![The body sitting on the sofa of the sample living room](docs/images/room-desktop.png)
 
 - **Room** at the top opens the list of rooms filmed so far. **Add a room…** takes its video (an
   iPhone capture from Splat Capture works too, and is in metres). Pick a room to put the body in
   it, **No room** to take it out. **Size** corrects the room's size if it looks off.
+- **Sample living room** is always in the list, so you can try it before filming anything: a
+  furnished room drawn by the app (sofa, armchair, bookshelf, TV, dining table, plant), made in
+  the data folder the first time the list opens (`workspace/_sample_room/`).
 - Filming a room: walk slowly round it with the phone at chest height, pointing at the walls, and
   get the floor (and the ceiling, if you can) in view. One take, 1–3 minutes; for a house, walk
   from room to room without stopping.
@@ -370,6 +373,9 @@ levanta. A câmera fica dentro do cômodo.
   vídeo (uma captura do iPhone feita no Splat Capture também serve, e já vem em metros). Escolha um
   cômodo para colocar o corpo nele, **Nenhum** para tirar. **Tamanho** corrige o tamanho do cômodo
   se parecer errado.
+- **Sala de exemplo** está sempre na lista, para experimentar antes de filmar qualquer coisa: uma
+  sala mobiliada desenhada pelo app (sofá, poltrona, estante, TV, mesa de jantar, planta), criada
+  na pasta de dados na primeira vez que a lista abre (`workspace/_sample_room/`).
 - Para filmar um cômodo: ande devagar em volta, com o celular na altura do peito, apontando para as
   paredes, e pegue o chão (e o teto, se der). Uma tomada só, de 1 a 3 minutos; para a casa, vá de
   um cômodo ao outro sem parar.

@@ -135,3 +135,9 @@
   does it in the terminal. A **Size** slider in the Room menu corrects the scale. New API:
   `GET /api/rooms`, `GET /api/room?room=`, `POST /api/upload?kind=room`. splat-studio pinned at
   `0d31486`.
+
+- **Sample living room**: the Room menu always lists a furnished living room drawn by the app
+  (`sample_room.py`), so the body can be tried in a room before one is filmed. It is made in the
+  data folder the first time the rooms are listed. Room maps are now squared with the walls
+  (the sharpest rows of splats along the floor) instead of the splats' main axis; maps made
+  before are made again.

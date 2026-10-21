@@ -28,7 +28,8 @@ tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no ex
   map (floor, size, walls, seats) in `room.py` (once per room, `<room>.room.json`), walls, seats,
   the camera's view and where the room sits round the body as maths in `static/room.js` (tested by
   `tests/js/room.test.mjs`), sitting and leaning in `static/walk.js`, the page side (the Room menu,
-  F, the camera kept inside) in `static/house.js`. The fake room is `tests/fakes/room.py`. See
+  F, the camera kept inside) in `static/house.js`. The sample living room (drawn, listed before
+  any room is filmed) in `sample_room.py`. The fake room for tests is `tests/fakes/room.py`. See
   `docs/room.md`.
 - Runs go through splat-studio's job runner (`splat_studio.server.jobs.Runner`): pty, measured
   time left, lock files, timeline.jsonl, advice in seconds of video. Don't write a second runner.

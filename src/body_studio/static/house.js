@@ -44,7 +44,7 @@ function list() {
   none.onclick = pick(null);
   $("roomList").replaceChildren(none, ...rooms.map((r) => {
     const b = document.createElement("button");
-    b.textContent = r.name.replace(/_/g, " ");
+    b.textContent = r.sample ? t("room.sample") : r.name.replace(/_/g, " ");
     b.dataset.file = r.file;
     b.classList.toggle("on", r.file === want);
     b.onclick = pick(r.file);
@@ -52,7 +52,7 @@ function list() {
   }));
   $("roomSize").hidden = !R;
   if (R) { $("roomScale").value = R.size; $("roomScaleOut").textContent = Math.round(R.size * 100) + "%"; }
-  $("roomNone").hidden = rooms.length > 0;
+  $("roomNone").hidden = rooms.some((r) => !r.sample);
 }
 
 async function refresh() {

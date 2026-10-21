@@ -7,7 +7,7 @@
     GET  /api/jobs         runs: queued, running and finished, newest first
     POST /api/upload?name= raw video bytes; saved to videos/ and queued
                            &kind=room: a room filmed from inside it (an iPhone capture .zip too), kept whole
-    GET  /api/rooms        finished rooms, newest first
+    GET  /api/rooms        finished rooms, newest first, then the sample living room (made the first time)
     GET  /api/room?room=<file>  the room's map: floor, size, walls, furniture and seats (room.py); 202
                            while it is being worked out, 422 if it doesn't look like a room
     GET  /files/<path>     a body's .ply (only files inside workspace/)
@@ -46,7 +46,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from splat_studio.server.jobs import Runner, validate_options
 from splat_studio.server.library import DataDir
 
-from . import __version__, anny_fit, fit, history, library, rig, room, wardrobe
+from . import __version__, anny_fit, fit, history, library, rig, room, sample_room, wardrobe
 from .pipeline import job_options, room_job_options
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -194,6 +194,10 @@ def make_handler(data: DataDir, runner: Runner):
                 rooms = library.room_names(data.root)
                 return self._json(sorted((job_view(v, rooms) for v in jobs), key=lambda v: v["id"], reverse=True))
             if p == "/api/rooms":
+                try:
+                    sample_room.ensure(data.root)       # the drawn living room, until one is filmed
+                except OSError:
+                    pass
                 return self._json(library.rooms(data.root))
             if p == "/api/room":
                 state, out = self._built(maps, "room")

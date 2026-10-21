@@ -49,15 +49,19 @@ def _runs(data_dir: Path):
             yield run_dir
 
 
+SAMPLE = "_sample_room"           # the drawn living room (sample_room.py): listed last, never a body
+
+
 def rooms(data_dir: Path) -> list[dict]:
-    names, out = room_names(data_dir), []
+    names, out = room_names(data_dir) | {SAMPLE}, []
     for run_dir in _runs(data_dir):
         f = run_dir.parent.name in names and room_file(run_dir)
         if not f:
             continue
         out.append({"id": f"{run_dir.parent.name}/{run_dir.name}", "name": run_dir.parent.name,
-                    "file": f.relative_to(data_dir).as_posix(), "updated": f.stat().st_mtime})
-    return sorted(out, key=lambda b: b["updated"], reverse=True)
+                    "file": f.relative_to(data_dir).as_posix(), "updated": f.stat().st_mtime,
+                    "sample": run_dir.parent.name == SAMPLE})
+    return sorted(out, key=lambda b: (not b["sample"], b["updated"]), reverse=True)
 
 
 def body_file(run_dir: Path) -> Path | None:
@@ -74,7 +78,7 @@ def body_file(run_dir: Path) -> Path | None:
 
 
 def bodies(data_dir: Path) -> list[dict]:
-    out, names = [], room_names(data_dir)
+    out, names = [], room_names(data_dir) | {SAMPLE}
     for run_dir in _runs(data_dir):
         if run_dir.parent.name in names:
             continue

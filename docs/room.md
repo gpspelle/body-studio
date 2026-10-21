@@ -14,7 +14,9 @@ its floor, walking round the furniture, sitting on the sofa or leaning on a wall
    `NAME_clean.ply`. The video's name goes in `rooms.json` in the data folder, so the library
    lists it as a room (`GET /api/rooms`), never as a body.
 2. **A map, once per room** (`room.py`, `GET /api/room`, saved as `NAME_clean.room.json`):
-   - **Up** is Brush's vertical axis; the floor's two directions follow the room's longer side.
+   - **Up** is Brush's vertical axis. The floor's two directions are square with the walls: turned
+     that way, the splats pile up in thin rows (the walls, the sides of the furniture), so the
+     turn with the sharpest rows is taken; x is along the room's longer side.
    - **Floor and ceiling**: the lowest and the highest wide flat layers of opaque splats (a
      histogram of heights).
    - **Size in metres**: a phone filming a room is held at about 1.45 m, so the camera path's
@@ -51,6 +53,17 @@ its floor, walking round the furniture, sitting on the sofa or leaning on a wall
      a camera behind a wall or above the ceiling is drawn from the last place it sees the body
      from; the orbit itself isn't changed, so turning back round gives the same view.
    - The clothes shop around the body isn't shown in a room: the room's own furniture is there.
+
+## The sample living room
+
+Before any room is filmed, the Room menu has **Sample living room** (`sample_room.py`): a 5.5 ×
+4.5 m room, 2.6 m high, drawn by the app as about 480,000 flat splats on boxes, cylinders and a
+leafy plant. A sofa (three places to sit) with a picture above it, an armchair by the window, a
+bookshelf, a TV on its console, a dining table, a floor lamp, a rug and a door. It is written like
+a room run (`workspace/_sample_room/run_sample/splat/living_room_clean.ply`, y-down, with a COLMAP
+camera loop 1.45 m up), so it is mapped and shown like a filmed room, and listed last. It is made
+the first time the rooms are listed (a few seconds, 26 MB) and again only when its `VERSION`
+changes.
 
 ## Filming a room
 

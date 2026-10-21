@@ -20,13 +20,12 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from tests.fakes.bodyply import write_body  # noqa: E402
 from tests.fakes.makehuman import write_body as write_person  # noqa: E402
-from tests.fakes.room import write_room  # noqa: E402
 
 from playwright.sync_api import sync_playwright  # noqa: E402
 from splat_studio.server.jobs import Runner  # noqa: E402
 from splat_studio.server.library import DataDir  # noqa: E402
 
-from body_studio import history, library, server  # noqa: E402
+from body_studio import history, server  # noqa: E402
 
 SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("desktop-light", 1280, 800, "light", "en", None),
@@ -96,8 +95,6 @@ def main() -> None:
         write_person(p, n=300_000)
         os.utime(p, (1_990_000_000, 1_990_000_000))
         seed_person(data)
-        write_room(data.workspace / "Living_room" / "run_20261021_120000", n=150_000)   # a room filmed from inside
-        library.mark_room(data.root, "Living_room")
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
         url = f"http://127.0.0.1:{httpd.server_address[1]}/"
@@ -222,7 +219,7 @@ def settle(page) -> None:
 
 
 def room_scene(page) -> None:
-    """Mia dressed, sitting on the sofa of a scanned living room, seen from across the room."""
+    """Mia dressed, sitting on the sofa of the sample living room, seen from across the room."""
     dress(page)
     page.evaluate("house.choose(house.rooms()[0].file)")
     page.wait_for_function("house.shown()", timeout=300000)

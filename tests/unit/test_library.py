@@ -57,6 +57,15 @@ class Library(unittest.TestCase):
         (self.d / "rooms.json").write_text("not json")
         self.assertEqual(library.room_names(self.d), set())
 
+    def test_the_sample_room_is_listed_last_and_never_as_a_body(self):
+        touch(self.d / "workspace/living/run_2/splat/standard_30000_clean.ply", 100)
+        touch(self.d / f"workspace/{library.SAMPLE}/run_sample/splat/living_room_clean.ply", 200)
+        library.mark_room(self.d, "living")
+        self.assertEqual([(r["name"], r["sample"]) for r in library.rooms(self.d)],
+                         [("living", False), (library.SAMPLE, True)])
+        (self.d / "rooms.json").unlink()                # even when the list of rooms is lost
+        self.assertNotIn(library.SAMPLE, [b["name"] for b in library.bodies(self.d)])
+
     def test_safe_path_stays_inside_workspace(self):
         touch(self.d / "workspace/x/run_1/splat/a.ply", 1)
         touch(self.d / "secret.txt", 1)

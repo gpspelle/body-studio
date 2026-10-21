@@ -18,6 +18,8 @@ import struct
 import sys
 from pathlib import Path
 
+from body_studio.sample_room import write_cameras      # n cameras on a loop round the middle, 1.45 m up, looking out
+
 C0 = 0.28209479177387814
 PROPS = (["x", "y", "z", "nx", "ny", "nz", "f_dc_0", "f_dc_1", "f_dc_2"] + [f"f_rest_{i}" for i in range(45)]
          + ["opacity", "scale_0", "scale_1", "scale_2", "rot_0", "rot_1", "rot_2", "rot_3"])
@@ -102,46 +104,8 @@ def write_room(run_dir: Path, n: int = 200000, unit: float = 2.5, yaw: float = 0
         for x, y, z, col in rows:
             f.write(row.pack(x, y, z, 0, 0, 0, *(_dc(c) for c in col), *([0.0] * 45), 4.0, ls, ls, ls, 1, 0, 0, 0))
     if cameras:
-        write_cameras(run_dir / "dense" / "sparse" / "0" / "images.bin", unit, yaw)
+        write_cameras(run_dir / "dense" / "sparse" / "0" / "images.bin", to_file=lambda p: _to_file(p, unit, yaw))
     return path
-
-
-def write_cameras(path: Path, unit: float, yaw: float, n: int = 40) -> Path:
-    """COLMAP images.bin: n cameras on a loop 0.8 m round the middle, 1.45 m up, looking out."""
-    out = bytearray(struct.pack("<Q", n))
-    up = (0.0, -1.0, 0.0)                          # in the file: y-down
-    for i in range(n):
-        a = 2 * math.pi * i / n
-        c = _to_file((0.8 * math.cos(a), CAMERA_HEIGHT + 0.05 * math.sin(3 * a), 0.6 * math.sin(a)), unit, yaw)
-        ahead = _to_file((math.cos(a), 0.0, math.sin(a)), 1.0, yaw)
-        z = [v / math.sqrt(sum(w * w for w in ahead)) for v in ahead]
-        x = [up[1] * z[2] - up[2] * z[1], up[2] * z[0] - up[0] * z[2], up[0] * z[1] - up[1] * z[0]]
-        nx = math.sqrt(sum(v * v for v in x))
-        x = [v / nx for v in x]
-        y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]]
-        R = [x, y, z]                              # world -> camera rows
-        t = [-sum(R[r][k] * c[k] for k in range(3)) for r in range(3)]
-        out += struct.pack("<I7dI", i + 1, *_quat(R), *t, 1)
-        out += f"frame_{i + 1:04d}.jpg".encode() + b"\0" + struct.pack("<Q", 0)
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(bytes(out))
-    return path
-
-
-def _quat(R):
-    tr = R[0][0] + R[1][1] + R[2][2]
-    if tr > 0:
-        s = 0.5 / math.sqrt(tr + 1)
-        return 0.25 / s, (R[2][1] - R[1][2]) * s, (R[0][2] - R[2][0]) * s, (R[1][0] - R[0][1]) * s
-    if R[0][0] > R[1][1] and R[0][0] > R[2][2]:
-        s = 2 * math.sqrt(1 + R[0][0] - R[1][1] - R[2][2])
-        return (R[2][1] - R[1][2]) / s, 0.25 * s, (R[0][1] + R[1][0]) / s, (R[0][2] + R[2][0]) / s
-    if R[1][1] > R[2][2]:
-        s = 2 * math.sqrt(1 + R[1][1] - R[0][0] - R[2][2])
-        return (R[0][2] - R[2][0]) / s, (R[0][1] + R[1][0]) / s, 0.25 * s, (R[1][2] + R[2][1]) / s
-    s = 2 * math.sqrt(1 + R[2][2] - R[0][0] - R[1][1])
-    return (R[1][0] - R[0][1]) / s, (R[0][2] + R[2][0]) / s, (R[1][2] + R[2][1]) / s, 0.25 * s
 
 
 if __name__ == "__main__":

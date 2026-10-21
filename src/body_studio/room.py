@@ -33,7 +33,7 @@ from pathlib import Path
 
 from .rig import _cross, _dot, _quantile, _unit, load_splats
 
-ROOM_VERSION = 1
+ROOM_VERSION = 2
 CELL = 0.05                 # m: a cell of the floor
 BIN = 0.05                  # m: a step of height in a cell
 TOP = 2.4                   # m: heights looked at above the floor
@@ -62,21 +62,38 @@ class RoomError(ValueError):
 # ---------------------------------------------------------------- frame and size
 
 def room_frame(xs, ys, zs, idx, up) -> dict:
-    """Up, and the two directions along the floor: x along the room's longer side."""
+    """Up, and the two directions along the floor: square with the walls, x along the longer side.
+
+    Rooms have square corners, so turned square with the walls, the splats along the floor pile up
+    in a few thin rows (the walls, the sides of the furniture): the way with the sharpest piles is
+    the one. Searched every 2 degrees, then every quarter of a degree round the best."""
     U = _unit(up)
     a = (1.0, 0.0, 0.0) if abs(U[0]) < 0.9 else (0.0, 1.0, 0.0)
     e1 = _unit(_cross(U, a))
     e2 = _cross(e1, U)
-    step = max(1, len(idx) // 200000)
+    step = max(1, len(idx) // 30000)
     pts = [(xs[i] * e1[0] + ys[i] * e1[1] + zs[i] * e1[2], xs[i] * e2[0] + ys[i] * e2[1] + zs[i] * e2[2])
            for i in idx[::step]]
-    m1 = sum(p[0] for p in pts) / len(pts)
-    m2 = sum(p[1] for p in pts) / len(pts)
-    c11 = sum((p[0] - m1) ** 2 for p in pts)
-    c22 = sum((p[1] - m2) ** 2 for p in pts)
-    c12 = sum((p[0] - m1) * (p[1] - m2) for p in pts)
-    ang = 0.5 * math.atan2(2 * c12, c11 - c22)
-    X = _unit(tuple(e1[k] * math.cos(ang) + e2[k] * math.sin(ang) for k in range(3)))
+    s1 = sorted(p[0] for p in pts)
+    bin_ = max(1e-9, (_quantile(s1, 0.95) - _quantile(s1, 0.05)) / 80)   # about 5 cm in a room
+
+    def sharp(ang):
+        c, s = math.cos(ang), math.sin(ang)
+        h1, h2 = {}, {}
+        for u, v in pts:
+            k1, k2 = int((c * u + s * v) // bin_), int((c * v - s * u) // bin_)
+            h1[k1] = h1.get(k1, 0) + 1
+            h2[k2] = h2.get(k2, 0) + 1
+        return sum(n * n for n in h1.values()) + sum(n * n for n in h2.values())
+
+    best = max((math.radians(d) for d in range(0, 90, 2)), key=sharp)
+    best = max((best + math.radians(d / 4) for d in range(-8, 9)), key=sharp)
+    c, s = math.cos(best), math.sin(best)
+    d1 = sorted(c * u + s * v for u, v in pts)
+    d2 = sorted(c * v - s * u for u, v in pts)
+    if _quantile(d2, 0.98) - _quantile(d2, 0.02) > _quantile(d1, 0.98) - _quantile(d1, 0.02):
+        best += math.pi / 2
+    X = _unit(tuple(e1[k] * math.cos(best) + e2[k] * math.sin(best) for k in range(3)))
     Z = _cross(X, U)
     return {"x": X, "up": U, "z": Z}
 
