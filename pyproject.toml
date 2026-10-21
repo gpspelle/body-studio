@@ -12,7 +12,7 @@ license = { text = "MIT" }
 # The capture pipeline (ffmpeg -> COLMAP -> Brush, fog and background removal, Spark viewer
 # files) comes from splat-studio, pinned to one commit. Bump the pin on purpose, never float it.
 dependencies = [
-    "splat-studio @ git+https://github.com/gpspelle/splat-studio@ac7c892fad4f60898af06f6aea7275470d99d538",
+    "splat-studio @ git+https://github.com/gpspelle/splat-studio@8a9482e3e2fb33489f38e9fb52812927f8321283",
     # splat-studio drops blurry frames with OpenCV when it's there; install it with the app so a
     # capture never runs without it (and setup never has to install it afterwards)
     "opencv-python-headless",

@@ -122,3 +122,6 @@
 - **What if** sliders in the pose panel: lighter or heavier (about ±12 kg) and less or more
   muscle, with the kilograms shown; not saved. `<body>.fit.json` is version 4 (with `whatif`);
   older fits are remade on first use.
+- The person is cut out of every frame before training, on a Mac (Apple's Vision) or with SAM 2:
+  runs pass splat-studio's `--person` (the `person` job option) whenever it can find a person.
+  splat-studio pinned at `8a9482e`.
