@@ -7,9 +7,12 @@
 // hides both with the rest of the body, so whatever hides the skin (an arm, clothes, a fold) hides
 // the ink too, and whichever splat is in front shows it. Design and sources: docs/tattoo.md.
 import * as THREE from "three";
-import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
+import { SplatEdit, SplatEditSdf, SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
 import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, INK_OUT, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
-import { Walker } from "/static/walk.js";
+const q = quat;
+import { Life, Walker } from "/static/walk.js";
+import { bodyCapsules, channelLevels, copyLayers, fillLayers, handFrames, posedCapsules, Swing, SWING, weightGradients } from "/static/flesh.js";
+import { Flesh } from "/static/fleshgpu.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -113,7 +116,8 @@ function setup(rig, mesh, file) {
     weights.at(c.x, c.y, c.z, bones, w, i);
   });
   const surface = new SkinSurface(rig, centres, opaque, weights);
-  const sk = new Skeleton(rig, { palms: palmNormals(rig, centres, bones, opaque), body: new BodyVolume(rig, map) });
+  const palms = palmNormals(rig, centres, bones, opaque);
+  const sk = new Skeleton(rig, { palms, body: new BodyVolume(rig, map) });
   const skinning = new SplatSkinning({ mesh, numSplats: n, numBones: rig.joints.length });
   const vb = new THREE.Vector4(), vw = new THREE.Vector4();
   for (let i = 0; i < n; i++) {
@@ -126,6 +130,11 @@ function setup(rig, mesh, file) {
   for (let b = 0; b < rig.joints.length; b++) skinning.setRestQuatPos(b, qi, zero);
   mesh.skinning = skinning;
   mesh.updateGenerator();
+  // what skin does that bones don't (flesh.js): bulges, contact shading, skin that stays closed
+  const caps = bodyCapsules(rig, map), hands = handFrames(rig, palms);
+  const flesh = new Flesh(mesh, skinning, n, rig.height, { shade: true, stretch: true });
+  fillLayers(flesh.layers, rig, caps, centres, bones, w, n, { hands, stretch: weightGradients(centres, bones, w, n, 0.012 * rig.height) });
+  flesh.upload();
 
   const handleJoints = Object.keys(HANDLES).filter((h) => sk.index(h) >= 0);
   const hp = new THREE.BufferGeometry();
@@ -144,14 +153,20 @@ function setup(rig, mesh, file) {
 
   S = { file, rig, sk, weights, map, surface, mesh, skinning, n, centres, colours, radius, bones, w, opaque: Uint32Array.from(opaque),
         posed: null, posedOk: false, dq: null, transforms: null, skinColour: new Map(), tinted: new Map(), hiddenSkin: new Set(), handles, handleJoints, lines, pairs, tattoos: [], selected: null,
-        joint: null, heightCm: 170, nextId: 1, walker: new Walker(sk, rig) };
+        joint: null, heightCm: 170, nextId: 1, walker: new Walker(sk, rig), caps, handFrames: hands, flesh, fleshState: null,
+        shape: [0, 0], life: { breath: 0, fist: { l: 0, r: 0 } }, hands: 0, alive: new Life(sk, rig), blink: null,
+        swing: { hips: new Swing(rig.height, SWING.hips), head: new Swing(rig.height, SWING.head), at: 0, moving: false },
+        // breathing, a sway, a blink, the head to the camera: not for tests and screenshots (a
+        // browser driven by a script says so), which want a body that holds still
+        lifeOn: !navigator.webdriver };
   follow.set(0, 0, 0);
   handles.visible = lines.visible = !$("studio").hidden;
-  presetsUI();
+  presetsUI(); handsUI();
   applyPose();
   window.tattooStudio.ready = true;
+  walking();                                 // (the body comes alive)
   // the Clothes section (wardrobe.js) dresses this body with the same weights and pose
-  dispatchEvent(new CustomEvent("studioready", { detail: { file, rig, weights, mesh, centres, transforms: sk.transforms() } }));
+  dispatchEvent(new CustomEvent("studioready", { detail: { file, rig, weights, mesh, centres, transforms: sk.transforms(), caps, hands } }));
 }
 
 function teardown() {
@@ -161,6 +176,8 @@ function teardown() {
   tintSkin();
   V.holder.remove(S.handles, S.lines);
   S.handles.geometry.dispose(); S.lines.geometry.dispose();
+  S.flesh.dispose();
+  S.mesh.edits = null;
   if (S.mesh && S.mesh.skinning === S.skinning) { S.mesh.skinning = null; S.mesh.updateGenerator(); }
   S = null; pending = null; drag = null;
   window.tattooStudio.ready = false;
@@ -192,14 +209,22 @@ function applyPose() {
 }
 
 // the body, its clothes, its tattoos and the dots where the skeleton is now
-function drawPose() {
+function drawPose(idle = false) {
   const { sk, skinning } = S;
   sk.solve();
   const tr = sk.transforms();
   const qv = new THREE.Quaternion(), tv = new THREE.Vector3();
   tr.forEach(({ q, t: tt }, b) => skinning.setBoneQuatPos(b, qv.set(q[0], q[1], q[2], q[3]), tv.set(tt[0], tt[1], tt[2])));
   skinning.updateBones();
-  dispatchEvent(new CustomEvent("posed", { detail: tr }));
+  const walk = S.walker.walking, fist = Math.max(S.hands, 0.3 * walk);   // hands relax a little to walk
+  S.life.fist = { l: fist, r: fist };
+  S.fleshState = { caps: posedCapsules(S.caps, tr), nCaps: S.caps.length, chans: channelLevels(sk, S.life), shape: S.shape, swing: swing() };
+  S.flesh.set(S.fleshState);
+  shadow();
+  blinkAt(tr);
+  const ev = new CustomEvent("posed", { detail: tr });
+  ev.idle = idle;                            // only breathing and such: nothing for clothes to refit
+  dispatchEvent(ev);
   S.dq = dualQuats(tr);
   S.transforms = tr;
   S.posedOk = false;
@@ -214,6 +239,18 @@ function drawPose() {
   S.pairs.forEach(([p, j], i) => { lp.setXYZ(2 * i, ...sk.P[p]); lp.setXYZ(2 * i + 1, ...sk.P[j]); });
   lp.needsUpdate = true;
   for (const tt of S.tattoos) { poseInk(tt); skinTattoo(tt); }
+}
+
+// the hands: as in the scan, a little curled, or a fist (flesh.js curls the fingers)
+const HANDS = { scan: 0, relaxed: 0.35, fist: 1 };
+function handsUI() {
+  $("handsPick").replaceChildren(...Object.entries(HANDS).map(([name, v]) => {
+    const b = document.createElement("button");
+    b.textContent = t("pose.h." + name);
+    b.classList.toggle("on", Math.abs(S.hands - v) < 1e-6);
+    b.onclick = () => { S.hands = v; handsUI(); drawPose(); save(); };
+    return b;
+  }));
 }
 
 function presetsUI() {
@@ -323,19 +360,114 @@ function walkFrame(now) {
     const was = S.walker.active;
     for (const limb of toggles) S.walker.toggle(limb);
     toggles = [];
-    if (S.walker.update(dt, { move: moveDir(), jump: jumpAsked })) {
+    const moved = S.walker.update(dt, { move: moveDir(), jump: jumpAsked });
+    jumpAsked = false;
+    let lived = false;
+    if (S.lifeOn && !document.hidden) {
+      const eye = V.holder.worldToLocal(V.camera.position.clone());
+      const r = S.alive.update(dt, { eye: [eye.x, eye.y, eye.z], walking: S.walker.walking });
+      S.sk.extra = r.extra; S.life.breath = r.breath; S.life.blink = r.blink;
+      // breathing alone needn't redraw at 60 frames a second
+      lived = moved || now - lastLife > 33;
+      if (lived) lastLife = now;
+    } else if (S.sk.extra) { S.sk.extra = null; S.life.breath = 0; S.life.blink = 0; lived = true; }
+    if (moved) {
       V.controls.autoRotate = false;
       drawPose();
       followBody();
-    }
-    jumpAsked = false;
+    } else if (lived || S.swing.moving) drawPose(true);
     if (was && !S.walker.active) save();      // the pose it stands in now (arms down) is kept
   }
-  if (S.walker.busy || held.size || jumpAsked || toggles.length) walkFrameId = requestAnimationFrame(walkFrame);
+  if (S.walker.busy || held.size || jumpAsked || toggles.length || S.swing.moving || (S.lifeOn && !document.hidden)) walkFrameId = requestAnimationFrame(walkFrame);
   else lastFrame = 0;
 }
+let lastLife = 0;
+addEventListener("visibilitychange", () => { if (!document.hidden) walking(); });
 function walking() {
   if (!walkFrameId) walkFrameId = requestAnimationFrame(walkFrame);
+}
+
+// ---------------------------------------------------------------- blinking
+// The eyes (the fitted base mesh's eye joints, wardrobe.js loads the fit) shut for a blink: a
+// small ellipsoid over each eye, the colour of the skin just above it, grows down from the brow.
+const EYE = { width: 0.009, height: 0.0045, depth: 0.007, out: 0.006, brow: 0.009 };   // of the height
+addEventListener("fitready", (e) => {
+  if (!S || e.detail.file !== S.file) return;
+  const fit = e.detail.fit, V0 = e.detail.verts, H = S.rig.height, fr = S.rig.frame;
+  const eyes = [[13606, 13614], [13614, 13622]].map(([a, b]) => {
+    if (V0.length < b * 3) return null;
+    const c = [0, 0, 0];
+    for (let i = a; i < b; i++) for (let k = 0; k < 3; k++) c[k] += V0[i * 3 + k] / (b - a);
+    return c;
+  });
+  if (eyes.some((x) => !x)) return;
+  // the eyelid's colour: the skin between the eye and the brow
+  const colour = eyes.map((c) => {
+    const p = v3.add(v3.add(c, v3.scale(fr.up, EYE.brow * H)), v3.scale(fr.front, EYE.out * H)), r2 = (0.008 * H) ** 2, sum = [0, 0, 0];
+    let n = 0;
+    for (const i of S.opaque) {
+      if ((S.centres[i * 3] - p[0]) ** 2 + (S.centres[i * 3 + 1] - p[1]) ** 2 + (S.centres[i * 3 + 2] - p[2]) ** 2 > r2) continue;
+      for (let k = 0; k < 3; k++) sum[k] += S.colours[i * 3 + k];
+      n++;
+    }
+    return n ? sum.map((v) => v / n) : null;
+  });
+  if (colour.some((x) => !x)) return;
+  const edit = new SplatEdit({ rgbaBlendMode: "set_rgb", softEdge: 0.002 * H });
+  const sdfs = eyes.map((c, k) => {
+    const sdf = new SplatEditSdf({ type: "ellipsoid", color: new THREE.Color(...colour[k]) });
+    edit.addSdf(sdf);
+    return sdf;
+  });
+  S.blink = { edit, sdfs, eyes: eyes.map((c) => v3.add(c, v3.scale(fr.front, EYE.out * H))), head: S.sk.index("head") };
+  S.mesh.edits = [edit];
+  blinkAt(S.transforms);
+});
+
+// loose clothes swing from the hips, hair from the head (flesh.js Swing); the frames go on while
+// they still move
+function swing() {
+  const W = S.swing, now = performance.now(), dt = W.at ? (now - W.at) / 1000 : 0, H = S.rig.height;
+  W.at = now;
+  const hips = W.hips.update(dt, S.sk.P[S.sk.index("pelvis")]), head = W.head.update(dt, S.sk.P[S.sk.index("head")]);
+  const fast = (w) => Math.hypot(...w.v) > 0.01 * H;
+  W.moving = Math.hypot(...hips) + Math.hypot(...head) > 1e-4 * H || fast(W.hips) || fast(W.head);
+  if (W.moving) walking();
+  return { hips, head };
+}
+
+// the shadow under the body follows the pose (ground.js), in the scene's coordinates
+function shadow() {
+  const c = S.fleshState.caps, n = S.fleshState.nCaps, m = V.holder.matrixWorld, p = new THREE.Vector3();
+  V.holder.updateMatrixWorld();
+  const w = new Float32Array(n * 8);
+  for (let k = 0; k < n; k++) {
+    for (const o of [0, 4]) { p.set(c[k * 8 + o], c[k * 8 + o + 1], c[k * 8 + o + 2]).applyMatrix4(m); w[k * 8 + o] = p.x; w[k * 8 + o + 1] = p.y; w[k * 8 + o + 2] = p.z; }
+    w[k * 8 + 3] = c[k * 8 + 3]; w[k * 8 + 7] = c[k * 8 + 7];
+  }
+  V.ground.pose(w, n);
+}
+
+function blinkAt(tr) {
+  const B = S && S.blink;
+  if (!B || !tr) return;
+  const shut = S.life.blink || 0, H = S.rig.height, fr = S.rig.frame, T = tr[B.head];
+  V.holder.updateMatrixWorld();
+  const turn = new THREE.Quaternion(...T.q).premultiply(V.holder.getWorldQuaternion(new THREE.Quaternion()));
+  // the ellipsoid's axes are the head's: across, up, out of the face
+  const basis = new THREE.Matrix4().makeBasis(new THREE.Vector3(...fr.left), new THREE.Vector3(...fr.up), new THREE.Vector3(...fr.front));
+  const orient = new THREE.Quaternion().setFromRotationMatrix(basis).premultiply(turn);
+  B.sdfs.forEach((sdf, k) => {
+    if (shut < 0.02) { sdf.position.set(1e6, 1e6, 1e6); sdf.scale.set(1e-3, 1e-3, 1e-3); return; }
+    // the lid comes down from the brow: its lower edge drops as it shuts
+    const h = EYE.height * H, top = v3.add(B.eyes[k], v3.scale(fr.up, h));
+    const c = v3.add(top, v3.scale(fr.up, -h * shut));
+    const p = v3.add(q.rot(T.q, c), T.t);
+    sdf.position.copy(V.holder.localToWorld(new THREE.Vector3(...p)));
+    sdf.quaternion.copy(orient);
+    sdf.scale.set(EYE.width * H, Math.max(1e-4, h * shut), EYE.depth * H);
+  });
+  S.mesh.updateVersion?.();
 }
 
 // the camera keeps its view of the body as it walks (not as it jumps: the floor stays put)
@@ -596,6 +728,7 @@ async function inkMesh(tt) {
   tt.skinning = new SplatSkinning({ mesh, numSplats: s.n, numBones: nb });
   for (let b = 0; b < nb; b++) tt.skinning.setRestQuatPos(b, qi, zero);
   mesh.skinning = tt.skinning;
+  tt.flesh = new Flesh(mesh, tt.skinning, s.n, S.rig.height, { shade: true });
   tt.mesh = mesh;
   V.holder.add(mesh);
   inkOnSkin(tt);
@@ -660,6 +793,9 @@ function inkOnSkin(tt) {
   }
   packed.needsUpdate = true;
   tt.skinning.skinTexture.needsUpdate = true;
+  // the ink bulges, breathes and darkens with the skin it lies on
+  copyLayers(tt.flesh.layers, S.flesh.layers, tt.skinOf, s.n);
+  tt.flesh.upload();
   tt.mesh.updateGenerator();
   tt.inked = true;
   tt.shown = shown;
@@ -698,6 +834,7 @@ function poseInk(tt) {
   const qv = new THREE.Quaternion(), tv = new THREE.Vector3();
   S.transforms.forEach(({ q, t: x }, b) => tt.skinning.setBoneQuatPos(b, qv.set(q[0], q[1], q[2], q[3]), tv.set(x[0], x[1], x[2])));
   tt.skinning.updateBones();
+  if (S.fleshState) tt.flesh.set(S.fleshState);
 }
 
 const NX = 48;
@@ -762,7 +899,7 @@ function select(tt) {
 function disposeTattoo(tt) {
   V.holder.remove(tt.outline);
   tt.outline.geometry.dispose();
-  if (tt.mesh) { V.holder.remove(tt.mesh); tt.mesh.dispose?.(); tt.mesh = null; }
+  if (tt.mesh) { V.holder.remove(tt.mesh); tt.flesh?.dispose(); tt.mesh.dispose?.(); tt.mesh = null; }
 }
 
 function tattooList() {
@@ -823,7 +960,7 @@ addEventListener("skinhidden", (e) => {
   S.hiddenSkin = e.detail;
   for (const tt of S.tattoos) inkOnSkin(tt);
 });
-addEventListener("langchange", () => { if (S) { presetsUI(); jointUI(); tattooList(); } });
+addEventListener("langchange", () => { if (S) { presetsUI(); handsUI(); jointUI(); tattooList(); } });
 
 // ---------------------------------------------------------------- kept in this browser
 // Pose, height and tattoos (with their images) per body, in IndexedDB. Nothing leaves the computer.
@@ -842,7 +979,7 @@ let saveTimer = null;
 function save() {
   if (!S || !S.restored) return;            // (setting up poses the body before what was kept is back)
   const file = S.file;
-  const record = { heightCm: S.heightCm, pose: S.walker.basePose(),     // not a step of a walk
+  const record = { heightCm: S.heightCm, pose: S.walker.basePose(), hands: S.hands,     // not a step of a walk
                    tattoos: S.tattoos.map((tt) => ({ image: tt.canvas.toDataURL("image/png"), bone: tt.bone, at: tt.at,
                                                      widthCm: tt.widthCm, angle: tt.angle, ink: tt.ink, name: tt.name })) };
   clearTimeout(saveTimer);
@@ -877,6 +1014,8 @@ async function restore() {
       try { addTattoo(await inkImage(d.image), { bone: d.bone, at }, d); } catch {}
     }
     S.sk.setPose(rec.pose || {});
+    S.hands = rec.hands || 0;
+    handsUI();
   } else {
     const person = await personHeight();
     if (!S) return;
@@ -942,6 +1081,16 @@ window.tattooStudio = {
                                           centre: Array.from(tt.posedPos.slice(
                                             ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3, ((tt.grid.ny >> 1) * NX + (NX >> 1)) * 3 + 3)) })),
   heightCm: () => S.heightCm,
+  // breathing, a sway, blinks and the head to the camera: on by itself unless a script drives the
+  // browser; life(true) turns it on for a test, life() says whether it is on
+  life: (on) => { if (on !== undefined) { S.lifeOn = !!on; walking(); } return S.lifeOn; },
+  lifeState: () => S && { breath: S.life.breath, blink: S.life.blink || 0, extra: !!S.sk.extra, look: [S.alive.yaw, S.alive.pitch],
+                          blinkReady: !!S.blink },
+  // the swing of loose clothes and hair (fractions of the height) and whether it still moves
+  swing: () => S && { moving: S.swing.moving, hips: v3.scale(S.fleshState.swing.hips, 1 / S.rig.height), head: v3.scale(S.fleshState.swing.head, 1 / S.rig.height) },
+  hands: (v) => { if (v !== undefined) { S.hands = v; handsUI(); drawPose(); save(); } return S.hands; },
+  // the flesh step's state (flesh.js): the body's GPU step, the posed capsules and channel levels
+  flesh: () => S && { gpu: S.flesh, state: S.fleshState, caps: S.caps },
   // the walk: whether it is moving the body, in the air, how far it went (fractions of the height)
   walk: () => S && { active: S.walker.active, busy: S.walker.busy, airborne: S.walker.airborne, raised: S.walker.raised(), pos: v3.scale(S.walker.pos, 1 / S.rig.height),
                      facing: S.walker.facing() },

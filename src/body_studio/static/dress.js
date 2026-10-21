@@ -19,6 +19,11 @@ export function decodeItem(d) {
 export function fitSkin(fit) {
   return toModel(f32(fit.verts), fit.n_body, fit.frame, fit.frame.origin);
 }
+// every vertex of the fitted base mesh (the skin, then the helpers: eyes, tights, skirt, hair cap…)
+export function fitVerts(fit) {
+  const v = f32(fit.verts);
+  return toModel(v, v.length / 3, fit.frame, fit.frame.origin);
+}
 export function fitNormals(fit) {
   return toModel(f32(fit.normals), fit.n_body, fit.frame, [0, 0, 0]);
 }

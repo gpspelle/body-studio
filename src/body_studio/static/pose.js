@@ -71,6 +71,8 @@ const RAD = Math.PI / 180;
 // (twistBent: the bend at which its whole twist range opens).
 const L = [1, 0, 0], U = [0, 1, 0], F = [0, 0, 1], D = [0, -1, 0];
 export const DOF = {
+  // the pelvis turns and tilts a little in each step (walk.js); it carries everything
+  pelvis:     { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-15, 15], side: [-10, 10], twist: [-20, 20], labels: ["forward", "side", "twist"] },
   spine:      { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-25, 50], side: [-25, 25], twist: [-15, 15], labels: ["forward", "side", "twist"] },
   chest:      { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-20, 35], side: [-20, 20], twist: [-35, 35], labels: ["forward", "side", "twist"] },
   neck:       { n: U, a1: L, a2: F, k: [1, -1, 1],  flex: [-40, 40], side: [-30, 30], twist: [-45, 45], labels: ["forward", "side", "twist"] },
@@ -172,6 +174,9 @@ export class Skeleton {
     this.angles = this.restAngles.map((a) => (a ? { ...a } : null));
     // where the whole body is: turned by q about the root joint, then moved by t (walk.js)
     this.place = { q: q.id(), t: [0, 0, 0] };
+    // small motions added on top of the pose, never kept with it nor limited by the joints'
+    // ranges: breathing, a sway, the head turning to look (walk.js Life). {joint index: angles}
+    this.extra = null;
     this.solve();
   }
 
@@ -282,7 +287,8 @@ export class Skeleton {
       const p = this.parents[j];
       let delta = q.id();
       if (this.angles[j]) {
-        const A = this.rotation(j, this.angles[j]);
+        const e = this.extra && this.extra[j], a = this.angles[j];
+        const A = this.rotation(j, e ? { flex: a.flex + (e.flex || 0), side: a.side + (e.side || 0), twist: a.twist + (e.twist || 0) } : a);
         delta = q.mul(q.mul(this.C[j], q.mul(A, q.conj(this.restA[j]))), q.conj(this.C[j]));
       }
       if (p < 0) { this.W[j] = q.norm(q.mul(this.place.q, delta)); this.P[j] = v3.add(this.rest[j], this.place.t); continue; }

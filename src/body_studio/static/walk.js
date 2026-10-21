@@ -15,7 +15,10 @@ const ease = (x, target, rate, dt) => x + (target - x) * (1 - Math.exp(-rate * d
 // cycle on), in the joints' own degrees. Sagittal angles of normal gait, simplified (Perry &
 // Burnfield, Gait Analysis, 2010): the hip from 30 forward to 10 back, the knee bent 15 as the
 // heel takes the weight and 60 in the swing, the ankle up before push-off and down at toe-off; the
-// arm swings against the leg on its side, the chest turns against the pelvis.
+// arm swings against the leg on its side. The pelvis turns about 5 degrees each way, the left hip
+// forward as the left heel strikes, and the chest turns against it; the weight shifts over the
+// foot on the floor: both legs lean 2.5 degrees toward it (the left hip in, the right out), so with
+// that foot planted the pelvis moves over it (sway, for the left side: + toward the left).
 export function gait(p) {
   const c = Math.cos(TAU * p);
   return {
@@ -24,10 +27,17 @@ export function gait(p) {
     ankle: 2 + 9 * bump(p, 0.4, 0.1) - 18 * bump(p, 0.62, 0.06),
     shoulder: -16 * c,
     elbow: 18 - 10 * c,
-    chest: 6 * c,
+    pelvis: -5 * c,
+    chest: 10 * c,
+    sway: 2.5 * Math.sin(TAU * p),
   };
 }
 export const HIP_RANGE = [-10, 30];
+// how much the left foot is on the floor at phase p: from its heel strike (0) to its toe off (0.6)
+export const stance = (p) => {
+  const e = 0.03, rise = Math.min(1, Math.max(0, (p < 0.5 ? p : p - 1) / e + 0.5)), fall = Math.min(1, Math.max(0, (0.6 - p) / e + 0.5));
+  return p < 0.8 ? Math.min(rise, fall) + 1e-6 : rise + 1e-6;
+};
 
 // Q / E raise the left / right arm, Z / C the left / right knee (the body's own left and right),
 // as a game's emote keys do; pressed again, it comes down. Angles in the joints' own degrees.
@@ -91,6 +101,28 @@ export class Walker {
     return side;
   }
 
+  // where each foot touches the floor, with the body at its root (no place): the lower of its
+  // ankle and its toe
+  _contacts() {
+    return ["l", "r"].map((s) => {
+      const [a, t] = this.footPoints(s);
+      if (!a) return [0, 0, 0];
+      if (!t) return a.slice();
+      const up = this.up, ha = v3.dot(a, up), ht = v3.dot(t, up), k = 1 / (1 + Math.exp((ht - ha) / (0.0015 * this.H)));
+      return v3.add(v3.scale(t, k), v3.scale(a, 1 - k));
+    });
+  }
+
+  // the heel (the floor under the ankle at rest, carried by the ankle) and the tip of the toes of
+  // foot s, where the skeleton is now: the two points a foot rolls over in a step
+  footPoints(s) {
+    const sk = this.sk, a = sk.index("ankle_" + s), t = sk.index("toe_end_" + s);
+    if (a < 0) return [null, null];
+    this.heelOff ??= {};
+    this.heelOff[s] ??= v3.scale(this.up, this.ground - v3.dot(sk.rest[a], this.up));
+    return [v3.add(sk.P[a], q.rot(sk.W[a], this.heelOff[s])), t >= 0 ? sk.P[t] : null];
+  }
+
   get active() { return !!this.base; }
   // whether the next frames still change the body (walking, jumping, an arm or knee on its way)
   get busy() {
@@ -135,7 +167,7 @@ export class Walker {
   _leave() {
     const A = this._relaxed(this.base.map((a) => (a ? { ...a } : null)), 1);
     this.sk.angles = A.map((a, j) => this._limit(j, a));
-    this.base = null; this.relax = 0; this.relaxing = [];
+    this.base = null; this.relax = 0; this.relaxing = []; this.lastFeet = null;
     for (const n of LIMBS) this.limbs[n] = { on: false, v: 0 };
   }
   get airborne() { return !!(this.jump && this.jump.flight !== null && this.jump.t >= this.o.crouch && this.jump.t < this.o.crouch + this.jump.flight); }
@@ -213,7 +245,8 @@ export class Walker {
     const facing = this.facing();
     const along = want > 1e-3 ? Math.max(0, v3.dot(facing, v3.unit(m))) : 1;
     const v = this.speed * (0.35 + 0.65 * along);
-    this.pos = v3.add(this.pos, v3.scale(facing, v * this.H * dt));
+    // in the air the body flies on; on the floor it is carried by the foot on the floor (below)
+    if (!grounded) this.pos = v3.add(this.pos, v3.scale(facing, v * this.H * dt));
     if (grounded) this.phase = (this.phase + v * this.H / this.stride * dt) % 1;
     this.walking = ease(this.walking, smooth(this.speed / (0.25 * o.speed)), 10, dt);
 
@@ -234,8 +267,12 @@ export class Walker {
         set("shoulder_" + s, "flex", g.shoulder); set("shoulder_" + s, "side", this.armSide); set("shoulder_" + s, "twist", 0);
         set("elbow_" + s, "flex", g.elbow);
       }
-      set("chest", "twist", gait(this.phase).chest * Math.min(1, this.speed / o.speed));
-      set("spine", "flex", 3 * Math.min(1, this.speed / o.speed));
+      const g = gait(this.phase), pace = Math.min(1, this.speed / o.speed);
+      set("chest", "twist", g.chest * pace);
+      set("pelvis", "twist", g.pelvis * pace);
+      set("spine", "flex", 3 * pace);
+      // the weight over the foot on the floor: both legs lean toward it
+      for (const [s, k] of [["l", -1], ["r", 1]]) { const j = sk.index("hip_" + s); if (j >= 0 && A[j]) A[j].side += k * g.sway * w * pace; }
     }
     // an arm or a knee raised with its key, over the walk
     for (const n of LIMBS) {
@@ -268,6 +305,28 @@ export class Walker {
     }
     A.forEach((a, j) => { sk.angles[j] = this._limit(j, a); });
 
+    // On the floor the foot that carries the body stays where it is: the body moves by as much as
+    // that foot moved back under it (the toe, once the heel is up), and a foot that slides is a
+    // foot that isn't carrying it. So the walk's speed comes from the legs: small steps as they
+    // start and stop move it little, and a turn on the spot pivots it over its feet.
+    sk.place = { q: q.id(), t: [0, 0, 0] };
+    sk.solve();
+    const feet = this._contacts();
+    if (!this.airborne && this.lastFeet && (this.walking > 1e-4 || this.jump)) {
+      const H = this.H, d = feet.map((f, k) => v3.sub(f, this.lastFeet[k]));
+      // which foot is on the floor: by the walk cycle (each foot stands for 60% of it, both at once
+      // just after each heel strikes); when standing (the cycle faded out) the lower one
+      const sl = this.walking > 0.05 ? stance(this.phase) / (stance(this.phase) + stance((this.phase + 0.5) % 1))
+        : 1 / (1 + Math.exp((v3.dot(feet[0], up) - v3.dot(feet[1], up)) / (0.004 * H)));
+      let step = v3.add(v3.scale(d[0], sl), v3.scale(d[1], 1 - sl));
+      step = v3.sub(step, v3.scale(up, v3.dot(step, up)));
+      // while the walk blends in or out the feet come together from the scan's wider stance (or go
+      // back to it): that sideways part isn't a step, only the sway of a walk under way is
+      const side = this.side;
+      step = v3.sub(step, v3.scale(side, v3.dot(step, side) * (1 - smooth((this.walking - 0.9) / 0.1))));
+      this.pos = v3.sub(this.pos, q.rot(q.axisAngle(up, this.heading), step));
+    }
+    this.lastFeet = feet;
     // the lowest foot stays on the floor (the body bobs and crouches with the legs), except in the
     // air, where the body rises and falls as anything thrown does
     sk.place = { q: q.axisAngle(up, this.heading), t: this.pos };
@@ -290,3 +349,70 @@ export class Walker {
     return true;
   }
 }
+
+// ---------------------------------------------------------------- standing about
+// What a person does without thinking: breathes (about 14 breaths a minute, the chest rising and
+// the shoulders a little with each), sways a little over the feet, blinks every few seconds, and
+// turns the head to whoever is looking (the camera), within what a neck turns without the body:
+// 40 degrees to the side, 15 up or down, eased, and back to straight ahead when the camera is
+// behind. While walking: breathing only, a little quicker, and the head straight. All of it goes
+// on top of the pose (Skeleton.extra), never into it, so nothing is kept of it.
+export const LIFE = { breaths: 14 / 60, look: { yaw: 40, pitch: 15, rate: 2.5 }, blink: [2, 6], blinkTime: 0.16 };
+
+export class Life {
+  constructor(sk, rig, rand = Math.random) {
+    this.sk = sk; this.rand = rand;
+    this.up = v3.unit(rig.frame.up); this.front = v3.unit(rig.frame.front); this.left = v3.unit(rig.frame.left);
+    this.t = 0; this.breathT = 0; this.yaw = 0; this.pitch = 0; this.still = 1;
+    this.nextBlink = LIFE.blink[0] + rand() * (LIFE.blink[1] - LIFE.blink[0]); this.blinkT = -1;
+  }
+
+  // one frame: dt seconds; eye, where the camera is (the body's coordinates; null: don't look);
+  // walking, how much the walk shows (0..1). Returns { extra, breath (0..1), blink (0..1: how
+  // shut the eyes are) }; extra is for Skeleton.extra.
+  update(dt, { eye = null, walking = 0 } = {}) {
+    dt = Math.min(Math.max(dt, 0), 0.1);
+    this.t += dt;
+    this.still = ease(this.still, walking > 0.05 ? 0 : 1, 3, dt);
+    this.breathT += dt * LIFE.breaths * (1 + 0.5 * (1 - this.still));
+    const breath = 0.5 - 0.5 * Math.cos(TAU * this.breathT), st = this.still;
+    // the head to the camera, measured in the chest's frame
+    let yaw = 0, pitch = 0;
+    const sk = this.sk, chest = sk.index("chest"), head = sk.index("head");
+    if (eye && chest >= 0 && head >= 0 && st > 0.5) {
+      const W = sk.W[chest], f = q.rot(W, this.front), l = q.rot(W, this.left), u = q.rot(W, this.up);
+      const d = v3.unit(v3.sub(eye, sk.P[head]));
+      const a = Math.atan2(v3.dot(d, l), v3.dot(d, f)) / RAD;
+      if (Math.abs(a) < 100) {
+        yaw = Math.max(-LIFE.look.yaw, Math.min(LIFE.look.yaw, a));
+        pitch = Math.max(-LIFE.look.pitch, Math.min(LIFE.look.pitch, Math.asin(Math.max(-1, Math.min(1, v3.dot(d, u)))) / RAD));
+      }
+    }
+    this.yaw = ease(this.yaw, yaw * st, LIFE.look.rate, dt);
+    this.pitch = ease(this.pitch, pitch * st, LIFE.look.rate, dt);
+    // a blink: shut in 60 ms, open in 100
+    let blink = 0;
+    if (this.blinkT < 0 && this.t >= this.nextBlink) this.blinkT = 0;
+    if (this.blinkT >= 0) {
+      this.blinkT += dt;
+      const s = this.blinkT, down = 0.06;
+      blink = s < down ? s / down : Math.max(0, 1 - (s - down) / (LIFE.blinkTime - down));
+      if (s >= LIFE.blinkTime) {
+        this.blinkT = -1;
+        this.nextBlink = this.t + LIFE.blink[0] + this.rand() * (LIFE.blink[1] - LIFE.blink[0]);
+      }
+    }
+    const sway = st * Math.sin(TAU * this.t / 8.3), drift = st * Math.sin(TAU * this.t / 12.7 + 1.3);
+    const extra = {};
+    const add = (name, a) => { const j = sk.index(name); if (j >= 0 && sk.angles[j]) extra[j] = a; };
+    add("pelvis", { flex: 0, side: 0.5 * sway, twist: 0.6 * drift });
+    add("spine", { flex: 0, side: -0.4 * sway, twist: -0.3 * drift });
+    add("chest", { flex: -0.8 * breath, side: 0, twist: 0 });
+    for (const s of ["l", "r"]) add("clavicle_" + s, { flex: 1.5 * breath, side: 0, twist: 0 });
+    // a neck turns the head 40% of the way and the head the rest; the head nods
+    add("neck", { flex: -0.4 * this.pitch + 0.6 * breath, side: 0, twist: 0.4 * this.yaw - 0.3 * drift });
+    add("head", { flex: -0.6 * this.pitch, side: 0, twist: 0.6 * this.yaw });
+    return { extra, breath, blink };
+  }
+}
+const RAD = Math.PI / 180;

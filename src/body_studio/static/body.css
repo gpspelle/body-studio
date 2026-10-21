@@ -192,6 +192,8 @@ details li { display: flex; justify-content: space-between; align-items: center;
 #jointSliders { display: grid; gap: 4px; }
 .joint-head { display: flex; align-items: center; justify-content: space-between; }
 label.inline { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.inline-chips { display: flex; align-items: baseline; gap: 8px; }
+.inline-chips .chips { margin-bottom: 8px; }
 label.inline input { width: 80px; }
 label.btn { display: inline-block; font-size: 13px; }
 
