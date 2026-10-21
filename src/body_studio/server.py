@@ -6,6 +6,10 @@
     GET  /api/bodies       finished bodies, newest first
     GET  /api/jobs         runs: queued, running and finished, newest first
     POST /api/upload?name= raw video bytes; saved to videos/ and queued
+                           &kind=room: a room filmed from inside it (an iPhone capture .zip too), kept whole
+    GET  /api/rooms        finished rooms, newest first
+    GET  /api/room?room=<file>  the room's map: floor, size, walls, furniture and seats (room.py); 202
+                           while it is being worked out, 422 if it doesn't look like a room
     GET  /files/<path>     a body's .ply (only files inside workspace/)
     GET  /api/rig?body=<file>  the body's skeleton, skin weights and surface map (rig.py); 202 while
                            it is being worked out in the background, 422 if the body isn't a person
@@ -42,11 +46,12 @@ from urllib.parse import parse_qs, unquote, urlparse
 from splat_studio.server.jobs import Runner, validate_options
 from splat_studio.server.library import DataDir
 
-from . import __version__, anny_fit, fit, history, library, rig, wardrobe
-from .pipeline import job_options
+from . import __version__, anny_fit, fit, history, library, rig, room, wardrobe
+from .pipeline import job_options, room_job_options
 
 STATIC = Path(__file__).resolve().parent / "static"
 VIDEO_EXT = {".mov", ".mp4", ".m4v"}
+ROOM_EXT = VIDEO_EXT | {".zip"}             # a room may also be an iPhone capture (Splat Capture): in metres
 MAX_UPLOAD = 8 * 1024 ** 3
 MAX_JSON = 64 * 1024
 
@@ -111,11 +116,13 @@ def safe_name(name: str) -> str:
     return stem[:60] + ext
 
 
-def job_view(v: dict) -> dict:
+def job_view(v: dict, rooms: set = frozenset()) -> dict:
     """The few fields the page shows, from splat-studio's job view."""
+    name = Path(v.get("video") or "").stem
     return {
         "id": v.get("id"),
-        "name": Path(v.get("video") or "").stem,
+        "name": name,
+        "kind": "room" if name in rooms else "body",
         "status": v.get("status"),                 # queued, running, done, failed, cancelled, interrupted
         "stage": v.get("stage"),                   # 1 frames, 2 camera poses, 3 training
         "pct": v.get("step_pct"),
@@ -131,6 +138,7 @@ def make_handler(data: DataDir, runner: Runner):
     rigs = Builder(rig, rig.rig_file, rig.RigError)
     fits = Builder(fit, fit.fit_file, (rig.RigError, fit.FitError))
     anny_fits = Builder(anny_fit, anny_fit.fit_file, (rig.RigError, fit.FitError, anny_fit.Missing))
+    maps = Builder(room, room.map_file, room.RoomError)
     fitted = {}                                # (fit file, its mtime) -> decoded fit, the latest only
 
     class Handler(BaseHTTPRequestHandler):
@@ -183,7 +191,13 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._json(library.bodies(data.root))
             if p == "/api/jobs":
                 jobs = [runner.view(j) for j in list(runner.jobs.values()) if j.type == "video"]
-                return self._json(sorted((job_view(v) for v in jobs), key=lambda v: v["id"], reverse=True))
+                rooms = library.room_names(data.root)
+                return self._json(sorted((job_view(v, rooms) for v in jobs), key=lambda v: v["id"], reverse=True))
+            if p == "/api/rooms":
+                return self._json(library.rooms(data.root))
+            if p == "/api/room":
+                state, out = self._built(maps, "room")
+                return self._file(out) if state == "ready" else None
             if p == "/api/version":
                 return self._json({"version": __version__})
             if p.startswith("/files/"):
@@ -226,11 +240,12 @@ def make_handler(data: DataDir, runner: Runner):
             model = parse_qs(urlparse(self.path).query).get("model", ["standard"])[0]
             return anny_fits if model == "anny" else fits
 
-        def _built(self, builder):
-            """The body's rig or fit: ('ready', path), or the reply (202 working, 404, 422) already sent."""
-            ply = library.safe_path(data.root, parse_qs(urlparse(self.path).query).get("body", [""])[0])
+        def _built(self, builder, what="body"):
+            """The body's rig or fit, or a room's map: ('ready', path), or the reply (202 working, 404,
+            422) already sent."""
+            ply = library.safe_path(data.root, parse_qs(urlparse(self.path).query).get(what, [""])[0])
             if not ply or ply.suffix != ".ply":
-                self._json({"error": "no such body", "code": "no_body"}, 404)
+                self._json({"error": f"no such {what}", "code": f"no_{what}"}, 404)
                 return "sent", None
             state, out = builder.get(ply)
             if state == "working":
@@ -300,8 +315,10 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._json(r, 201) if r is not None else self.send_error(404)
             if u.path != "/api/upload":
                 return self.send_error(404)
-            name = safe_name(parse_qs(u.query).get("name", ["video.mov"])[0])
-            if Path(name).suffix not in VIDEO_EXT:
+            q = parse_qs(u.query)
+            name = safe_name(q.get("name", ["video.mov"])[0])
+            is_room = q.get("kind", ["body"])[0] == "room"
+            if Path(name).suffix not in (ROOM_EXT if is_room else VIDEO_EXT):
                 return self._json({"error": "Use a .mov or .mp4 video.", "code": "video_type"}, 400)
             size = int(self.headers.get("Content-Length") or 0)
             if not 0 < size <= MAX_UPLOAD:
@@ -321,8 +338,11 @@ def make_handler(data: DataDir, runner: Runner):
             if left:
                 dest.unlink()
                 return self._json({"error": "The upload was cut off.", "code": "upload_cut"}, 400)
-            job = runner.submit("video", video=data.rel(dest), options=validate_options(job_options()))
-            return self._json(job_view(runner.view(job)), 201)
+            if is_room:                     # remembered before the run starts, so it never shows as a body
+                library.mark_room(data.root, dest.stem)
+            opts = room_job_options() if is_room else job_options()
+            job = runner.submit("video", video=data.rel(dest), options=validate_options(opts))
+            return self._json(job_view(runner.view(job), library.room_names(data.root)), 201)
 
     return Handler
 

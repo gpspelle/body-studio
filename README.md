@@ -19,7 +19,7 @@ Everything runs locally: no uploads, no accounts, no cloud GPU. The capture pipe
 | Video → frames | ffmpeg |
 | Frames → camera poses | COLMAP |
 | Poses → splat | Brush (Metal on Apple Silicon) |
-| Fog, floor and room removed | Splat Studio (always on) |
+| Fog, floor and room removed | Splat Studio (always on for bodies; a room keeps itself) |
 | Runs, time left, advice | Splat Studio's job runner |
 | Body on screen | Spark + three.js |
 
@@ -57,6 +57,7 @@ body-studio              # opens http://localhost:8770
 body-studio run IMG_1234.MOV                     # whole pipeline in the terminal
 body-studio run IMG_1234.MOV --quality preview   # quick look
 body-studio run IMG_1234.MOV --start 0:03 --end 2:10
+body-studio room LIVING_ROOM.MOV                 # a room filmed from inside, for the body to stand in
 ```
 
 The finished body is `workspace/<video>/run_<date_time>/splat/<quality>_<steps>_object.ply`.
@@ -183,6 +184,30 @@ them, with nothing to type (a few minutes, once). The Anny fit takes about two m
 per body and is saved as `BODY.anny.fit.json`; `body-studio fit-anny BODY.ply` makes it in the
 terminal. PyTorch is only needed for this. Results so far: [docs/anny.md](docs/anny.md).
 
+## A room around the body
+
+Film a room, or your whole house, from inside it, and the body stands in it: to its own scale, on
+its floor. Walk it round with **W A S D**: walls and furniture stop it (it slides along them).
+Press **F** next to the sofa or a chair to sit down, or next to a wall to lean on it; **F** again
+gets up. The camera stays inside the room.
+
+![The body sitting on a sofa in a scanned room](docs/images/room-desktop.png)
+
+- **Room** at the top opens the list of rooms filmed so far. **Add a room…** takes its video (an
+  iPhone capture from Splat Capture works too, and is in metres). Pick a room to put the body in
+  it, **No room** to take it out. **Size** corrects the room's size if it looks off.
+- Filming a room: walk slowly round it with the phone at chest height, pointing at the walls, and
+  get the floor (and the ceiling, if you can) in view. One take, 1–3 minutes; for a house, walk
+  from room to room without stopping.
+- A room's run keeps the room: no background removal (splat-studio's `--scene`, where only the fog
+  in the air is removed). Its name is kept in `rooms.json` in the data folder, so it is listed as a
+  room, not a body. The first time, the app maps it (a few seconds): the floor, the size (from the
+  height the phone was held at), the walls, the furniture and the seats; it saves
+  `NAME_clean.room.json` next to it. `body-studio room-map ROOM.ply` does it in the terminal.
+
+How it works and the limits (flat floors only, the size is a guess within about 10%):
+[docs/room.md](docs/room.md).
+
 ## Development
 
 ```bash
@@ -239,6 +264,7 @@ body-studio              # abre http://localhost:8770
 ```bash
 body-studio run IMG_1234.MOV
 body-studio run IMG_1234.MOV --quality preview
+body-studio room SALA.MOV                        # um cômodo filmado por dentro, para o corpo ficar nele
 ```
 
 O corpo pronto fica em `workspace/<vídeo>/run_<data_hora>/splat/<qualidade>_<passos>_object.ply`.
@@ -332,6 +358,29 @@ primeiro clique em Anny os instala, sem nada para digitar (alguns minutos, uma v
 minutos na primeira vez para cada corpo e fica salvo como `CORPO.anny.fit.json`;
 `body-studio fit-anny CORPO.ply` faz o mesmo no terminal. O PyTorch só é preciso para isso.
 Resultados até agora (em inglês): [docs/anny.md](docs/anny.md).
+
+### Um cômodo em volta do corpo
+
+Filme um cômodo, ou a casa toda, por dentro, e o corpo fica nele: na escala certa, no chão dele.
+Ande com **W A S D**: as paredes e os móveis o param (ele desliza ao longo deles). Aperte **F**
+perto do sofá ou de uma cadeira para sentar, ou perto de uma parede para se encostar; **F** de novo
+levanta. A câmera fica dentro do cômodo.
+
+- **Cômodo**, no alto, abre a lista dos cômodos já filmados. **Adicionar um cômodo…** recebe o
+  vídeo (uma captura do iPhone feita no Splat Capture também serve, e já vem em metros). Escolha um
+  cômodo para colocar o corpo nele, **Nenhum** para tirar. **Tamanho** corrige o tamanho do cômodo
+  se parecer errado.
+- Para filmar um cômodo: ande devagar em volta, com o celular na altura do peito, apontando para as
+  paredes, e pegue o chão (e o teto, se der). Uma tomada só, de 1 a 3 minutos; para a casa, vá de
+  um cômodo ao outro sem parar.
+- A execução de um cômodo mantém o cômodo: sem remover o fundo (o `--scene` do splat-studio, que
+  tira só a névoa no ar). O nome fica em `rooms.json` na pasta de dados, para ele aparecer como
+  cômodo e não como corpo. Na primeira vez, o app faz o mapa (alguns segundos): o chão, o tamanho
+  (pela altura em que o celular foi segurado), as paredes, os móveis e os assentos; salva
+  `NOME_clean.room.json` ao lado. `body-studio room-map COMODO.ply` faz isso no terminal.
+
+Como funciona e os limites (só chão plano, o tamanho é uma estimativa com cerca de 10% de erro), em
+inglês: [docs/room.md](docs/room.md).
 
 ### Medidas e gordura corporal (experimental)
 

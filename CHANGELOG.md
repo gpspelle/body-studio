@@ -125,3 +125,13 @@
 - The person is cut out of every frame before training, on a Mac (Apple's Vision) or with SAM 2:
   runs pass splat-studio's `--person` (the `person` job option) whenever it can find a person.
   splat-studio pinned at `8a9482e`.
+- **A room around the body** (see `docs/room.md`): film a room or a house from inside it (**Room** →
+  **Add a room…**, or `body-studio room VIDEO`; an iPhone capture `.zip` too) and put the body in
+  it, to its scale, on its floor. Walls and furniture stop the walk (the body slides along them),
+  **F** sits down on a seat nearby or leans on a wall and **F** again gets up, and the camera stays
+  inside the room. Room runs keep the room (splat-studio's `--scene`, no background removal) and
+  are listed in `rooms.json` in the data folder. Each room is mapped once (floor, size from the
+  camera's height, walls, furniture, seats) into `<room>.room.json`; `body-studio room-map ROOM.ply`
+  does it in the terminal. A **Size** slider in the Room menu corrects the scale. New API:
+  `GET /api/rooms`, `GET /api/room?room=`, `POST /api/upload?kind=room`. splat-studio pinned at
+  `0d31486`.

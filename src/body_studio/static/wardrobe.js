@@ -508,14 +508,16 @@ async function placeShop(w) {
 const isWorn = (id) => !!W && [...W.worn.values()].some((e) => e.id === id);
 function showShop() {
   if (!shop) return;
-  const on = !!W && !$("studio").hidden;
+  // (not in a room: the room's own furniture is round the body then, house.js)
+  const on = !!W && !$("studio").hidden && !window.bodyApp.house?.shown();
   shop.group.visible = on;
   for (const m of shop.pickable) m.material = isWorn(m.userData.item) ? m.userData.ghost : m.userData.look;
   if (!on) tip(null);
 }
 // how wide a view the camera should take in (window.bodyApp.reframe): the shop, while shown (on a
 // phone only the racks nearest the body, or the body would be too small to see; turn to see more)
-window.bodyApp.room = () => (shop && W && !$("studio").hidden ? Math.min(2 * shop.half, innerWidth <= 600 ? 1.4 : 9) * W.rig.height : 0);
+addEventListener("roomchange", () => { showShop(); window.bodyApp.reframe(); });
+window.bodyApp.room = () => (shop && W && !$("studio").hidden && !window.bodyApp.house?.shown() ? Math.min(2 * shop.half, innerWidth <= 600 ? 1.4 : 9) * W.rig.height : 0);
 new MutationObserver(showShop).observe($("studio"), { attributes: true, attributeFilter: ["hidden"] });
 
 // the item under the pointer (not one behind the body)

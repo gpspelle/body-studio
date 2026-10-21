@@ -10,6 +10,13 @@ When the computer can find a person in a frame by itself (Apple's Vision on a Ma
 the run also asks for splat-studio's person masks (`--person`), so the person is cut out of every
 frame before training and nothing of the room is learnt.
 
+    body-studio room LIVING_ROOM.MOV
+
+A room (or a whole house) is filmed from inside it, for the body to stand in. Its run keeps the
+background, of course: splat-studio's --scene, where fog removal keeps everything around where
+the camera was (walls, floor, furniture) and only drops the fog in the air. The video's name is
+remembered in rooms.json, so the library lists it as a room, not as a body.
+
 Paths are relative to the data folder, laid out exactly as splat-studio lays it out
 (videos/, frames/<name>/, workspace/<name>/run_<date_time>/), so either app can open a run.
 """
@@ -63,6 +70,28 @@ def job_options(quality: str = "standard", frames: int = DEFAULT_FRAMES, person:
     return opts
 
 
+def room_run_args(video: Path, quality: str = "standard", start: str | None = None,
+                  end: str | None = None) -> list[str]:
+    """Arguments for `splat-studio run` of a room filmed from inside it: the background is the
+    point, so no background removal and no person masks; splat-studio picks the number of frames
+    from the video's length (a room takes a longer video than a person)."""
+    if quality not in QUALITY:
+        raise ValueError(f"unknown quality {quality!r}; use one of {', '.join(QUALITY)}")
+    args = [str(video), "--quality", quality, "--scene"]
+    if start:
+        args += ["--start", start]
+    if end:
+        args += ["--end", end]
+    return args
+
+
+def room_job_options(quality: str = "standard") -> dict:
+    """Options for a splat-studio "video" job of a room. Same as `body-studio room`."""
+    if quality not in QUALITY:
+        raise ValueError(f"unknown quality {quality!r}; use one of {', '.join(QUALITY)}")
+    return {"quality": quality, "scene": True}
+
+
 def splat_command(args: list[str]) -> list[str]:
     return [sys.executable, "-u", "-m", "splat_studio", "run", *args]
 
@@ -84,26 +113,39 @@ def body_from_log(text: str) -> Path | None:
     return None
 
 
-def build_parser() -> argparse.ArgumentParser:
-    ap = argparse.ArgumentParser(prog="body-studio run", description=__doc__,
+def room_from_log(text: str) -> Path | None:
+    """The finished room: the copy without fog ("Clean copy: ..."), else the raw splat."""
+    found = body_from_log(text)
+    return None if found is None or found.stem.endswith("_object") else found
+
+
+def build_parser(room: bool = False) -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(prog="body-studio room" if room else "body-studio run", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("video", type=Path, help="video of the person (.mov / .mp4)")
+    ap.add_argument("video", type=Path, help="video of the room, filmed from inside it" if room
+                    else "video of the person (.mov / .mp4)")
     ap.add_argument("--quality", choices=QUALITY, default="standard")
-    ap.add_argument("--frames", type=int, default=DEFAULT_FRAMES,
-                    help=f"frames to extract (default {DEFAULT_FRAMES})")
+    if not room:
+        ap.add_argument("--frames", type=int, default=DEFAULT_FRAMES,
+                        help=f"frames to extract (default {DEFAULT_FRAMES})")
     ap.add_argument("--start", help="trim: start time, e.g. 0:03")
     ap.add_argument("--end", help="trim: end time, e.g. 1:45")
     ap.add_argument("--data-dir", type=Path, default=Path("."), help="data folder (default: current folder)")
     return ap
 
 
-def main(argv: list[str] | None = None) -> None:
-    a = build_parser().parse_args(argv)
+def main(argv: list[str] | None = None, room: bool = False) -> None:
+    a = build_parser(room).parse_args(argv)
     video = a.video.resolve()
     if not video.exists():
         sys.exit(f"video not found: {a.video}")
     a.data_dir.mkdir(parents=True, exist_ok=True)
-    cmd = splat_command(splat_run_args(video, a.quality, a.frames, a.start, a.end))
+    if room:
+        from .library import mark_room
+        mark_room(a.data_dir, video.stem)
+        cmd = splat_command(room_run_args(video, a.quality, a.start, a.end))
+    else:
+        cmd = splat_command(splat_run_args(video, a.quality, a.frames, a.start, a.end))
     env = dict(os.environ, PYTHONUNBUFFERED="1")
     proc = subprocess.Popen(cmd, cwd=a.data_dir, env=env, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, text=True)
@@ -113,6 +155,10 @@ def main(argv: list[str] | None = None) -> None:
         lines.append(line)
     if proc.wait() != 0:
         sys.exit("The run failed - see the messages above.")
+    if room:
+        found = room_from_log("".join(lines))
+        print(f"\nRoom: {found}" if found else "\nThe run finished but no room file was reported.")
+        return
     body = body_from_log("".join(lines))
     print(f"\nBody: {body}" if body else "\nThe run finished but no body file was reported.")
 

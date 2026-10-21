@@ -17,6 +17,9 @@ from splat_studio.server.library import DataDir
 from body_studio import server
 from tests.fakes.bodyply import write_body
 from tests.fakes.makehuman import write_body as write_person
+from tests.fakes.room import write_room
+
+from body_studio import library
 
 try:
     from playwright.sync_api import sync_playwright
@@ -34,6 +37,8 @@ class Viewer(unittest.TestCase):
         mia = write_person(data.workspace / "Mia/run_20261011_120000/splat/standard_30000_object.ply", n=60000)
         old = 1_700_000_000                          # older than Anna: Anna opens first
         os.utime(data.workspace / "Mia/run_20261011_120000/splat/standard_30000_object.ply", (old, old))
+        write_room(data.workspace / "Living_room/run_20261021_120000", n=40000)    # a room filmed from inside
+        library.mark_room(data.root, "Living_room")
         cls.design = Path(cls.tmp.name) / "design.png"
         cls.design.write_bytes(arrow_png())
         cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
@@ -308,6 +313,71 @@ class Viewer(unittest.TestCase):
         page.focus("#tatHeight")
         page.keyboard.press("w")
         self.assertFalse(page.evaluate("tattooStudio.walk().active"))
+        self.assertEqual(errors, [])
+
+    def test_stands_walks_and_sits_in_a_room(self):
+        page = self.browser.new_page(viewport={"width": 960, "height": 600})
+        self.addCleanup(page.close)
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+        page.goto(self.url)
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+        self.assertEqual([b.inner_text() for b in page.locator(".shelf button").all()], ["Anna", "Mia"])   # not a body
+        page.click("#roomBtn")
+        page.locator("#roomList button", has_text="Living room").click()
+        page.wait_for_function("house.shown()", timeout=300000)
+        self.assertTrue(page.evaluate("bodyApp.viewer.holder.children.includes(house.mesh())"))
+        # standing on free floor in the middle of the room, the camera inside it and seeing her
+        where = page.evaluate("house.where()")
+        self.assertTrue(page.evaluate("house.map().clear(...house.where())"))
+        self.assertLess(dist(where, page.evaluate("house.map().start")), 0.05)
+        self.assertEqual(page.evaluate("house.sight()"), 1)
+        page.click("#roomBtn")                                        # (the menu closes)
+        # walking at a wall for six seconds: she stops at it, never in it
+        stopped = page.evaluate("""(() => {
+            const r = house.map(), P = house.placement(), w = tattooStudio.walker(), at = house.where();
+            let best = null, bd = Infinity;                     // the nearest wall, along the map's axes
+            for (const d of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+              let t = 0; while (t < 6 && r.free(at[0] + d[0] * t, at[1] + d[1] * t)) t += 0.02;
+              if (t < bd) { bd = t; best = d; }
+            }
+            const move = P.wayToBody(best);
+            let inside = true;
+            for (let i = 0; i < 360; i++) { w.update(1 / 60, { move }); inside = inside && r.clear(...house.where(), 0.199); }
+            tattooStudio.redraw();
+            return { inside, walked: Math.hypot(house.where()[0] - at[0], house.where()[1] - at[1]), wall: bd };
+        })()""")
+        self.assertTrue(stopped["inside"])
+        self.assertGreater(stopped["walked"], stopped["wall"] - 0.35)
+        self.assertLess(stopped["walked"], stopped["wall"] - 0.15)
+        page.evaluate("tattooStudio.stepFor(3)")                        # (stopped)
+        # in front of the sofa: F sits her down on it, F again gets her up
+        page.evaluate("""(() => { const s = house.map().seatNear(...house.map().start, 3) || house.map().seats[0];
+            const w = tattooStudio.walker(), P = house.placement(), o = tattooStudio.rig().frame.origin;
+            const b = P.toBody([s.x + s.dir[0] * 0.6, 0, s.z + s.dir[1] * 0.6]);
+            w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; tattooStudio.redraw(); })()""")
+        self.assertEqual(page.evaluate("house.nearby()"), "sit")
+        page.wait_for_function("house.hint() === 'F to sit down'", timeout=120000)
+        page.keyboard.press("f")
+        self.assertEqual(page.evaluate("tattooStudio.walker().resting"), "sit")
+        page.evaluate("tattooStudio.stepFor(3)")
+        self.assertFalse(page.evaluate("tattooStudio.walker().busy"))
+        seat, hips = page.evaluate("""(() => { const P = house.placement(), s = house.map().seatNear(...house.where(), 2);
+            return [s, P.toMap(tattooStudio.joint('pelvis'))]; })()""")
+        self.assertLess(dist([hips[0], hips[2]], [seat["x"], seat["z"]]), 0.05, "hips on the seat")
+        self.assertAlmostEqual(hips[1], seat["y"] + 0.09, delta=0.06)
+        page.keyboard.press("f")
+        self.assertIsNone(page.evaluate("tattooStudio.walker().resting"))
+        page.evaluate("tattooStudio.stepFor(3)")
+        self.assertIsNone(page.evaluate("tattooStudio.walker().rest"))
+        # no room: she stands on the plain floor again, walls gone
+        page.click("#roomBtn")
+        page.locator("#roomList button").first.click()
+        page.wait_for_function("!house.shown()")
+        self.assertIsNone(page.evaluate("tattooStudio.walker().bound"))
         self.assertEqual(errors, [])
 
     def test_clothes_go_on_and_come_off(self):

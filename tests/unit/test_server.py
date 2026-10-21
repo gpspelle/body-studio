@@ -28,7 +28,9 @@ out.mkdir(parents=True, exist_ok=True)
 print("==> 1/3 Frames: frames/" + video.stem, flush=True)
 print("==> 2/3 Camera poses (COLMAP): " + str(run.resolve()), flush=True)
 print("==> 3/3 Training the splat (Brush)", flush=True)
-(out / "standard_30000_object.ply").write_bytes(b"ply\nformat binary_little_endian 1.0\nend_header\n")
+for copy in ("clean", "object"):
+    (out / f"standard_30000_{copy}.ply").write_bytes(b"ply\nformat binary_little_endian 1.0\nend_header\n")
+print("Clean copy: " + str((out / "standard_30000_clean.ply").resolve()))
 print("Object copy: " + str((out / "standard_30000_object.ply").resolve()))
 """
 
@@ -98,6 +100,48 @@ class Server(unittest.TestCase):
         bodies = json.loads(self.get("/api/bodies")[1])
         self.assertEqual([b["name"] for b in bodies], ["Anna_front"])
         self.assertEqual(self.get("/files/" + bodies[0]["file"])[0], 200)
+
+    def test_a_room_is_uploaded_kept_whole_and_listed_as_a_room(self):
+        status, job = self.post("/api/upload?name=Living%20room.mov&kind=room", b"\x00" * 1024)
+        self.assertEqual((status, job["kind"]), (201, "room"))
+        self.assertIn("--scene", self.cmds[0])
+        self.assertNotIn("--remove-background", self.cmds[0])
+        self.assertNotIn("--person", self.cmds[0])
+        for _ in range(200):
+            jobs = json.loads(self.get("/api/jobs")[1])
+            if jobs[0]["status"] in ("done", "failed"):
+                break
+            time.sleep(0.05)
+        self.assertEqual((jobs[0]["status"], jobs[0]["kind"]), ("done", "room"))
+        self.assertEqual(json.loads(self.get("/api/bodies")[1]), [])
+        rooms = json.loads(self.get("/api/rooms")[1])
+        self.assertEqual([r["name"] for r in rooms], ["Living_room"])
+        self.assertEqual(self.post("/api/upload?name=house.zip&kind=room", b"PK")[0], 201)   # an iPhone capture
+        self.assertEqual(self.post("/api/upload?name=house.zip", b"PK")[0], 400)             # but not a body
+
+    def test_room_map_is_made_once_in_the_background(self):
+        from tests.fakes.room import write_room
+        ply = write_room(self.d / "data" / "workspace" / "Living" / "run_1", n=60000)
+        url = "/api/room?room=workspace/Living/run_1/splat/" + ply.name
+        deadline, statuses = time.time() + 60, []
+        while time.time() < deadline:
+            status, raw = self.get(url)
+            statuses.append(status)
+            if status != 202:
+                break
+            time.sleep(0.1)
+        self.assertEqual((statuses[0], statuses[-1]), (202, 200))
+        self.assertEqual(json.loads(raw)["scale_source"], "camera")
+        self.assertTrue(ply.with_name(ply.stem + ".room.json").is_file())
+        self.assertEqual(self.post("/api/room?room=../fake.py", None, method="GET")[1]["code"], "no_room")
+        write_body(self.d / "data" / "workspace" / "Ball" / "run_1" / "splat" / "x.ply", n=600)
+        deadline = time.time() + 60
+        while time.time() < deadline:
+            status, d = self.post("/api/room?room=workspace/Ball/run_1/splat/x.ply", None, method="GET")
+            if status != 202:
+                break
+            time.sleep(0.1)
+        self.assertEqual((status, d["code"]), (422, "few"))
 
     def test_rejects_non_video_and_paths_outside_workspace(self):
         self.assertEqual(self.post("/api/upload?name=notes.txt", b"x")[0], 400)

@@ -179,6 +179,21 @@ details summary { cursor: pointer; }
 details ul { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 2px; }
 details li { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 
+/* A room around the body: a small card under the top bar. */
+.menu {
+  position: fixed; top: 60px; right: 20px; width: 280px; z-index: 20;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px;
+  background: var(--chip); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.menu[hidden], .menu [hidden] { display: none; }
+.menu .chips { margin: 2px 0 4px; }
+.menu #roomNone { margin: 0 0 8px; }
+.menu .link { padding-left: 0; display: inline-block; }
+.menu #roomStatus:empty { display: none; }
+.inline-range { display: grid; grid-template-columns: auto 1fr 40px; align-items: center; gap: 8px; margin: 6px 0 2px; }
+.inline-range input { accent-color: var(--accent); width: 100%; }
+.inline-range output { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+
 /* Tattoo & pose: the same panel at the left edge. */
 .panel.left { left: 16px; right: auto; }
 .with-studio .bottom { left: 372px; }
@@ -204,5 +219,6 @@ label.btn { display: inline-block; font-size: 13px; }
   .panel { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 56vh; }
   .with-panel .bottom, .with-studio .bottom { display: none; }
   .panel.left { left: 8px; right: 8px; }
+  .menu { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .pill.busy::before { animation: none; } }

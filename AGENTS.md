@@ -24,6 +24,12 @@ tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no ex
   beyond the bones (contact shading, bulges, stretch, clothes out of the body, swing, "what if"
   sliders) as maths in `static/flesh.js` (tested by `tests/js/flesh.test.mjs`) and as one Spark
   object modifier in `static/fleshgpu.js`; the floor shadow in `static/ground.js`. See `docs/flesh.md`.
+  A room around the body: room runs and `rooms.json` in `pipeline.py` and `library.py`, the room's
+  map (floor, size, walls, seats) in `room.py` (once per room, `<room>.room.json`), walls, seats,
+  the camera's view and where the room sits round the body as maths in `static/room.js` (tested by
+  `tests/js/room.test.mjs`), sitting and leaning in `static/walk.js`, the page side (the Room menu,
+  F, the camera kept inside) in `static/house.js`. The fake room is `tests/fakes/room.py`. See
+  `docs/room.md`.
 - Runs go through splat-studio's job runner (`splat_studio.server.jobs.Runner`): pty, measured
   time left, lock files, timeline.jsonl, advice in seconds of video. Don't write a second runner.
 - three.js and Spark are served from the installed splat-studio package (`/vendor/...`), so
@@ -31,7 +37,9 @@ tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no ex
 
 ## Rules
 
-- Background and fog removal always run. Never add an option to turn them off.
+- Background and fog removal always run on bodies. Never add an option to turn them off. A room
+  (`body-studio room`, splat-studio's `--scene`) is a different kind of run, not an option: the
+  room is what it keeps, and fog removal still runs.
 - Standard library only on the Python side, like splat-studio.
 - Keep the page minimal: the body in the centre, small controls at the edges. New controls
   need a reason in the PR description.

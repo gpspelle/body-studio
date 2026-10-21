@@ -78,6 +78,10 @@ export class Walker {
     this.relaxing = [];                         // the sides whose arms are as in the scan
     // arms and knees raised with a key: whether each is up, and how far it is up now (0..1)
     this.limbs = Object.fromEntries(LIMBS.map((n) => [n, { on: false, v: 0 }]));
+    // in a room (room.js, the page's house.js): (from, to) -> where the body may go instead of to,
+    // both places of the body (pos); null: the floor goes on for ever
+    this.bound = null;
+    this.rest = null;                           // sitting or leaning (restAt), while it lasts
   }
 
   // the arms swing nearer the body than the A-pose holds them, but not into it: the smallest
@@ -126,7 +130,7 @@ export class Walker {
   get active() { return !!this.base; }
   // whether the next frames still change the body (walking, jumping, an arm or knee on its way)
   get busy() {
-    return this.speed > 1e-4 || this.walking > 1e-3 || !!this.jump || this._easing();
+    return this.speed > 1e-4 || this.walking > 1e-3 || !!this.jump || this._easing() || (!!this.rest && !this.rest.still);
   }
   _easing() {
     return LIMBS.some((n) => Math.abs(this.limbs[n].v - +this.limbs[n].on) > 1e-3) ||
@@ -189,6 +193,7 @@ export class Walker {
   // where the body is now. Whether it was moving the body.
   settle() {
     const was = !!this.base;
+    if (this.rest) { this.pos = this.rest.from.slice(); this.heading = this.rest.fromHeading; this.rest = null; }
     this.speed = 0; this.walking = 0; this.jump = null;
     if (this.base) this._leave();
     this.sk.place = { q: this.sk.place.q, t: this.pos.slice() };
@@ -198,7 +203,7 @@ export class Walker {
 
   // back where the body was scanned, facing the same way, in the panel's pose
   home() {
-    this.pos = [0, 0, 0]; this.heading = 0; this.speed = 0; this.jump = null; this.walking = 0;
+    this.pos = [0, 0, 0]; this.heading = 0; this.speed = 0; this.jump = null; this.walking = 0; this.rest = null;
     if (this.base) this._leave();
     this.sk.place = { q: q.id(), t: [0, 0, 0] };
     this.sk.solve();
@@ -208,7 +213,8 @@ export class Walker {
   // null or zero to stop), jump starts a jump. Returns whether the body moved.
   update(dt, { move = null, jump = false } = {}) {
     dt = Math.min(Math.max(dt, 0), 0.1);
-    const o = this.o, up = this.up;
+    if (this.rest) return this._resting(dt, !!(move && v3.len(move) > 1e-3) || jump);
+    const o = this.o, up = this.up, from = this.pos.slice();
     let m = move ? v3.sub(move, v3.scale(up, v3.dot(move, up))) : [0, 0, 0];
     const want = Math.min(1, v3.len(m));
     if (jump && !this.jump) {
@@ -328,6 +334,8 @@ export class Walker {
       this.pos = v3.sub(this.pos, q.rot(q.axisAngle(up, this.heading), step));
     }
     this.lastFeet = feet;
+    // walls and furniture in the way (in a room): the body goes along them instead
+    if (this.bound) this.pos = this.bound(from, this.pos);
     // the lowest foot stays on the floor (the body bobs and crouches with the legs), except in the
     // air, where the body rises and falls as anything thrown does
     sk.place = { q: q.axisAngle(up, this.heading), t: this.pos };
@@ -349,6 +357,131 @@ export class Walker {
     }
     return true;
   }
+
+  // ---------------------------------------------------------------- sitting and leaning
+  // Sit down or lean on a wall: target = { kind: "sit", at, facing, height, back } (at: where the
+  // hips go, on the seat; facing: the way to face, along the floor; height: the seat's, over the
+  // floor; back: whether there is one to lean back on) or { kind: "lean", at, facing } (at: a point
+  // on the wall's face; facing: out of the wall). All in the body's coordinates and units. The body
+  // turns and steps there as it sits down or leans; moving or jumping gets it up again. Whether it
+  // can (not in the air).
+  restAt(target) {
+    if (this.airborne) return false;
+    if (this.rest) this.settle();
+    if (!this.base) this.base = this.sk.angles.map((a) => (a ? { ...a } : null));
+    this.speed = 0; this.walking = 0; this.jump = null; this.lastFeet = null;
+    for (const n of LIMBS) this.limbs[n].on = false;
+    const f = v3.unit(v3.sub(target.facing, v3.scale(this.up, v3.dot(target.facing, this.up))));
+    const heading = Math.atan2(v3.dot(f, this.side), v3.dot(f, this.front));
+    const pose = target.kind === "sit" ? this._sitPose(target.height, target.back) : leanPose();
+    const tilt = target.kind === "lean" ? REST.leanTilt * RAD : target.back ? REST.sitBack * RAD : 0;
+    const turn = q.mul(q.axisAngle(v3.cross(this.up, f), -tilt), q.axisAngle(this.up, heading));
+    // where the hips go: on the seat, or as near the wall as the back lets them
+    const sk = this.sk, keep = sk.angles, place = sk.place, pel = sk.index("pelvis");
+    sk.angles = this._posed(pose, 1);
+    sk.place = { q: turn, t: [0, 0, 0] };
+    sk.solve();
+    let hips = target.at;
+    if (target.kind === "lean") {
+      let back = 0;
+      for (const [name, depth] of Object.entries(REST.back)) {
+        const j = sk.index(name);
+        if (j >= 0) back = Math.max(back, v3.dot(v3.sub(sk.P[j], sk.P[pel]), v3.scale(f, -1)) + depth * this.H);
+      }
+      hips = v3.add(target.at, v3.scale(f, back + 0.004 * this.H));
+    }
+    const flat = (v) => v3.sub(v, v3.scale(this.up, v3.dot(v, this.up)));
+    sk.angles = keep; sk.place = place; sk.solve();
+    this.rest = { kind: target.kind, pose, tilt, on: true, v: 0, still: false,
+                  from: this.pos.slice(), fromHeading: this.heading, heading,
+                  to: flat(v3.sub(hips, sk.rest[pel])) };
+    return true;
+  }
+  get resting() { return this.rest && this.rest.on ? this.rest.kind : null; }
+  // get up (from sitting or leaning): back where the body stood before
+  standUp() { if (this.rest) { this.rest.on = false; this.rest.still = false; } }
+
+  // the pose for sitting on a seat `height` over the floor (body units): the hips and knees bent
+  // so the thighs lie on the seat with the feet on the floor; hands on the thighs
+  _sitPose(height, back) {
+    const sk = this.sk, keep = sk.angles, place = sk.place, pel = sk.index("pelvis");
+    // the hip joint is about 9 cm above what it sits on (for someone 1.75 m tall)
+    const want = height + REST.hipOverSeat * this.H;
+    let best = null, bd = Infinity;
+    for (let hip = 60; hip <= 105; hip += 5)
+      for (let knee = 30; knee <= 120; knee += 5) {
+        const pose = sitPose(hip, knee, back);
+        sk.angles = this._posed(pose, 1);
+        sk.place = { q: q.id(), t: [0, 0, 0] };
+        sk.solve();
+        const foot = Math.min(...this.feet.map((j) => v3.dot(sk.P[j], this.up)));
+        const d = Math.abs(v3.dot(sk.P[pel], this.up) - foot - want) + 0.002 * this.H * Math.abs(hip - 90) / 5;
+        if (d < bd) { bd = d; best = pose; }
+      }
+    sk.angles = keep; sk.place = place; sk.solve();
+    return best;
+  }
+
+  // the panel's pose with `pose` ({joint: angles}) over it, by f (0..1)
+  _posed(pose, f) {
+    const A = this._relaxed(this.base.map((a) => (a ? { ...a } : null)), f);
+    for (const [name, angles] of Object.entries(pose)) {
+      const j = this.sk.index(name);
+      if (j < 0 || !A[j]) continue;
+      for (const [k, v] of Object.entries(angles)) A[j][k] += (v - A[j][k]) * f;
+    }
+    return A.map((a, j) => (a ? this.sk.clamp(j, a) : null));
+  }
+
+  _resting(dt, moving) {
+    const R = this.rest, sk = this.sk, up = this.up;
+    if (moving && R.on) this.standUp();
+    if (R.still && R.on) return false;
+    R.v = ease(R.v, R.on ? 1 : 0, REST.rate, dt);
+    if (Math.abs(R.v - (R.on ? 1 : 0)) < 2e-3) R.v = R.on ? 1 : 0;
+    // the body turns and steps over first, then goes down (or comes up, then steps back)
+    const go = smooth(Math.min(1, R.v / 0.6)), down = smooth(Math.max(0, (R.v - 0.25) / 0.75));
+    let d = ((R.heading - R.fromHeading + 3 * Math.PI) % TAU) - Math.PI;
+    this.heading = R.fromHeading + d * go;
+    this.pos = v3.add(R.from, v3.scale(v3.sub(R.to, R.from), go));
+    sk.angles = this._posed(R.pose, down);
+    // (tilted back as it goes down: on the wall, or on the seat's back)
+    const tilted = q.mul(q.axisAngle(v3.cross(up, q.rot(q.axisAngle(up, R.heading), this.front)), -R.tilt * down),
+                         q.axisAngle(up, this.heading));
+    sk.place = { q: tilted, t: this.pos };
+    sk.solve();
+    const drop = this.ground - Math.min(...this.feet.map((j) => v3.dot(sk.P[j], up)));
+    sk.place = { q: tilted, t: v3.add(this.pos, v3.scale(up, this.feet.length ? drop : 0)) };
+    sk.solve();
+    if (R.on && R.v === 1) R.still = true;
+    if (!R.on && R.v === 0) {                    // up again: the panel's pose, where it stood
+      this.rest = null;
+      this.pos = R.from.slice(); this.heading = R.fromHeading;
+      this._leave();
+      sk.place = { q: q.axisAngle(up, this.heading), t: this.pos.slice() };
+      sk.solve();
+    }
+    return true;
+  }
+}
+
+// Sitting and leaning: degrees and fractions of the height. Leaning on a wall, the body stands
+// a foot or so out from it, tilted back 8 degrees, the back on the wall, a knee a little bent.
+export const REST = { rate: 3, hipOverSeat: 0.05, sitBack: 6, leanTilt: 8,
+                      back: { chest: 0.075, spine: 0.07, pelvis: 0.085 } };
+function sitPose(hip, knee, back) {
+  const both = (j, a) => ({ [j + "_l"]: a, [j + "_r"]: a });
+  const pose = { ...both("hip", { flex: hip, side: 5, twist: 0 }), ...both("knee", { flex: knee, twist: 0 }),
+                 ...both("ankle", { flex: Math.max(-15, Math.min(15, knee - hip)), side: 0 }),
+                 ...both("shoulder", { flex: 12, side: 12, twist: 0 }), ...both("elbow", { flex: 48 }),
+                 spine: { flex: back ? -4 : 6, side: 0, twist: 0 }, chest: { flex: back ? -2 : 3, side: 0, twist: 0 } };
+  return pose;
+}
+function leanPose() {
+  return { hip_l: { flex: 4, side: 3, twist: 0 }, hip_r: { flex: 4, side: 3, twist: 0 },
+           knee_l: { flex: 8, twist: 0 }, knee_r: { flex: 14, twist: 0 },
+           shoulder_l: { flex: -4, side: 8, twist: 0 }, shoulder_r: { flex: -4, side: 8, twist: 0 },
+           elbow_l: { flex: 12 }, elbow_r: { flex: 12 }, neck: { flex: 4, side: 0, twist: 0 } };
 }
 
 // ---------------------------------------------------------------- standing about

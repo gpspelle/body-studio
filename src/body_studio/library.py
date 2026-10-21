@@ -1,12 +1,63 @@
-"""The bodies in a data folder: one entry per finished run, newest first.
+"""The bodies and the rooms in a data folder: one entry per finished run, newest first.
 
 A run folder is workspace/<name>/run_<date_time>/ (splat-studio's layout). Its body is the
 newest NAME_object.ply in splat/ (floor and room removed); runs made before that existed fall
 back to NAME_clean.ply, then to the raw splat.
+
+A room (a room or a house filmed from inside it, for the body to stand in) is a run of a video
+whose name is listed in rooms.json in the data folder: its runs keep the background, so its
+splat is NAME_clean.ply (only the fog in the air removed), or the raw splat.
 """
 from __future__ import annotations
 
+import json
 from pathlib import Path
+
+ROOMS = "rooms.json"            # {"rooms": [video names]}: the videos that film a room, not a person
+
+
+def room_names(data_dir: Path) -> set:
+    try:
+        d = json.loads((Path(data_dir) / ROOMS).read_text())
+    except (OSError, ValueError):
+        return set()
+    return {n for n in d.get("rooms", []) if isinstance(n, str)} if isinstance(d, dict) else set()
+
+
+def mark_room(data_dir: Path, name: str) -> None:
+    """Remember that the video `name` (its file name without the extension) films a room."""
+    names = room_names(data_dir) | {name}
+    f = Path(data_dir) / ROOMS
+    tmp = f.with_name(f.name + ".tmp")
+    tmp.write_text(json.dumps({"rooms": sorted(names)}, indent=1))
+    tmp.replace(f)
+
+
+def room_file(run_dir: Path) -> Path | None:
+    splat = run_dir / "splat"
+    if not splat.is_dir():
+        return None
+    plys = sorted(splat.glob("*.ply"), key=lambda p: p.stat().st_mtime, reverse=True)
+    clean = [p for p in plys if p.stem.endswith("_clean")]
+    raw = [p for p in plys if not p.stem.endswith(("_object", "_clean")) and "_part-" not in p.stem]
+    return (clean or raw or [None])[0]
+
+
+def _runs(data_dir: Path):
+    for run_dir in (data_dir / "workspace").glob("*/run_*"):
+        if run_dir.is_dir() and not run_dir.is_symlink():
+            yield run_dir
+
+
+def rooms(data_dir: Path) -> list[dict]:
+    names, out = room_names(data_dir), []
+    for run_dir in _runs(data_dir):
+        f = run_dir.parent.name in names and room_file(run_dir)
+        if not f:
+            continue
+        out.append({"id": f"{run_dir.parent.name}/{run_dir.name}", "name": run_dir.parent.name,
+                    "file": f.relative_to(data_dir).as_posix(), "updated": f.stat().st_mtime})
+    return sorted(out, key=lambda b: b["updated"], reverse=True)
 
 
 def body_file(run_dir: Path) -> Path | None:
@@ -23,9 +74,9 @@ def body_file(run_dir: Path) -> Path | None:
 
 
 def bodies(data_dir: Path) -> list[dict]:
-    out = []
-    for run_dir in (data_dir / "workspace").glob("*/run_*"):
-        if not run_dir.is_dir() or run_dir.is_symlink():
+    out, names = [], room_names(data_dir)
+    for run_dir in _runs(data_dir):
+        if run_dir.parent.name in names:
             continue
         f = body_file(run_dir)
         if not f:

@@ -1000,6 +1000,7 @@ $("tatHeight").onchange = () => {
   S.heightCm = v;
   for (const tt of S.tattoos) wrapTattoo(tt);
   tattooList(); whatIfUI(); save();
+  dispatchEvent(new Event("heightchange"));     // (a room around the body is to its scale: house.js)
 };
 addEventListener("skinhidden", (e) => {
   if (!S) return;
@@ -1070,6 +1071,7 @@ async function restore() {
   S.restored = true;
   applyPose();
   tattooList();
+  if (rec?.heightCm) dispatchEvent(new Event("heightchange"));
 }
 
 // the height of a person whose history includes this body, if any
@@ -1089,6 +1091,13 @@ window.tattooStudio = {
   ready: false,
   saving: false,                            // a change not yet in IndexedDB
   open: () => setOpen(true),
+  // for the room around the body (house.js): the skeleton ready (loaded if need be), the walker,
+  // the rig, a frame drawn now, frames drawn while the walker still moves the body
+  ensure: async () => { if (!S || S.file !== V.file()) await load(); },
+  walker: () => S && S.walker,
+  rig: () => S && S.rig,
+  redraw: () => { if (S) { drawPose(); followBody(); } },
+  wake: () => { if (S) { S.hold = false; walking(); } },
   pose: () => S.sk.pose(),
   setPose: (p) => { still(); S.sk.setPose(p); applyPose(); },
   preset: (name) => { still(); S.sk.setPose(PRESETS[name]); applyPose(); },
@@ -1151,6 +1160,11 @@ window.tattooStudio = {
     for (const k of keys) held.add(k);
     for (let i = 0; i < Math.round(seconds * 60); i++) S.walker.update(1 / 60, { move: moveDir(), jump: jump && i === 0 });
     held.clear();
+    drawPose(); followBody();
+  },
+  // let the walker go on for a while (sitting down, getting up…) in steps of a 60th of a second
+  stepFor: (seconds) => {
+    for (let i = 0; i < Math.round(seconds * 60); i++) S.walker.update(1 / 60, { move: moveDir() });
     drawPose(); followBody();
   },
   screen: (p) => {                          // a point in the body's coordinates, in page pixels

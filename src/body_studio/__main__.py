@@ -3,6 +3,8 @@
     body-studio                       open the app (same as `body-studio ui`)
     body-studio ui [--data-dir D] [--port N] [--no-browser]
     body-studio run VIDEO [options]   whole pipeline in the terminal (see `run --help`)
+    body-studio room VIDEO [options]  a room or a house filmed from inside it, for the body to stand in
+    body-studio room-map ROOM.ply     its floor, size, walls and seats (the app does it by itself)
     body-studio setup                 install ffmpeg, COLMAP and Brush (splat-studio's setup), and PyTorch and Anny
     body-studio check                 show which tools are installed
     body-studio measure BODY.ply --sex m --height 178 [--weight 80] [--tape-waist 86]
@@ -49,9 +51,12 @@ def main(argv: list[str] | None = None) -> None:
         a = ap.parse_args(rest)
         from .server import serve
         return serve(a.data_dir, a.port, not a.no_browser)
-    if cmd == "run":
+    if cmd in ("run", "room"):
         from .pipeline import main as run_main
-        return run_main(rest)
+        return run_main(rest, room=cmd == "room")
+    if cmd == "room-map":
+        from .room import main as map_main
+        return map_main(rest)
     if cmd == "measure":
         from .measure import main as measure_main
         return measure_main(rest)

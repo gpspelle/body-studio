@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from body_studio.pipeline import body_from_log, job_options, splat_run_args
+from body_studio.pipeline import body_from_log, job_options, room_from_log, room_job_options, room_run_args, splat_run_args
 
 
 class RunArgs(unittest.TestCase):
@@ -43,6 +43,33 @@ class RunArgs(unittest.TestCase):
         self.assertIn("--person", cmd)
         self.assertIn("--remove-background", cmd)
 
+
+class RoomArgs(unittest.TestCase):
+    """A room filmed from inside it keeps its background: it is what the body stands in."""
+
+    def test_rooms_keep_the_background(self):
+        args = room_run_args(Path("living.mov"), "high", "0:02", "2:10")
+        self.assertIn("--scene", args)
+        for flag in ("--remove-background", "--person", "--frames"):
+            self.assertNotIn(flag, args)
+        self.assertEqual(room_job_options(), {"quality": "standard", "scene": True})
+        with self.assertRaises(ValueError):
+            room_run_args(Path("v.mov"), "ultra")
+
+    def test_splat_studio_accepts_our_room_arguments(self):
+        from splat_studio.pipeline import build_parser
+        from splat_studio.server.jobs import Job, build_cmd, validate_options
+        a = build_parser().parse_args(room_run_args(Path("v.mov"), "preview", "0:01", "0:59"))
+        self.assertTrue(a.scene)
+        self.assertFalse(a.remove_background)
+        cmd = build_cmd(Job(Path("/tmp/none"), id="j", type="video", video="v.mov",
+                            options=validate_options(room_job_options())))
+        self.assertIn("--scene", cmd)
+        self.assertNotIn("--remove-background", cmd)
+
+    def test_room_from_log(self):
+        self.assertEqual(room_from_log("Done. Splat: /a.ply\nClean copy: /a_clean.ply\n"), Path("/a_clean.ply"))
+        self.assertIsNone(room_from_log("Object copy: /a_object.ply\n"))
 
 
 class BodyFromLog(unittest.TestCase):

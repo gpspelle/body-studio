@@ -20,12 +20,13 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from tests.fakes.bodyply import write_body  # noqa: E402
 from tests.fakes.makehuman import write_body as write_person  # noqa: E402
+from tests.fakes.room import write_room  # noqa: E402
 
 from playwright.sync_api import sync_playwright  # noqa: E402
 from splat_studio.server.jobs import Runner  # noqa: E402
 from splat_studio.server.library import DataDir  # noqa: E402
 
-from body_studio import history, server  # noqa: E402
+from body_studio import history, library, server  # noqa: E402
 
 SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("desktop-light", 1280, 800, "light", "en", None),
@@ -37,6 +38,7 @@ SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("wardrobe-desktop", 1280, 800, "light", "en", "wardrobe"),
     ("walk-desktop", 1280, 800, "light", "en", "walk"),
     ("guide-desktop", 1280, 800, "light", "en", "guide"),
+    ("room-desktop", 1280, 800, "light", "en", "room"),
 ]
 # a line-art design drawn on white, like a scanned tattoo sketch: a sun with a wave inside
 DESIGN = """(() => {
@@ -94,6 +96,8 @@ def main() -> None:
         write_person(p, n=300_000)
         os.utime(p, (1_990_000_000, 1_990_000_000))
         seed_person(data)
+        write_room(data.workspace / "Living_room" / "run_20261021_120000", n=150_000)   # a room filmed from inside
+        library.mark_room(data.root, "Living_room")
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
         url = f"http://127.0.0.1:{httpd.server_address[1]}/"
@@ -117,6 +121,8 @@ def main() -> None:
                     wardrobe_scene(page)
                 if panel == "walk":
                     walk_scene(page)
+                if panel == "room":
+                    room_scene(page)
                 if panel == "guide":
                     page.click("#guideBtn")
                 page.wait_for_function("document.getElementById('version').textContent.length > 0")
@@ -191,19 +197,20 @@ def wardrobe_scene(page) -> None:
     page.wait_for_timeout(30000)
 
 
-def walk_scene(page) -> None:
-    """Mia dressed, walking to the right across the screen, mid-stride, seen from her side."""
+def dress(page, items=("tee_jeans_f", "white_sneakers", "bob_dark")) -> None:
+    """Mia, dressed from the racks around her."""
     page.locator(".shelf button", has_text="Mia").click()
     page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
     page.click("#studioBtn")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
-    for item in ("tee_jeans_f", "white_sneakers", "bob_dark"):
+    for item in items:
         at = page.wait_for_function(f"wardrobe.onScreen('{item}')", timeout=120000).json_value()   # on the racks around her
         page.mouse.click(at["x"], at["y"])
         page.wait_for_function(f"wardrobe.worn().includes('{item}')", timeout=120000)
-    page.click("#closeStudio")
-    page.evaluate("bodyApp.viewer.controls.autoRotate = false")
-    page.evaluate("tattooStudio.walkFor(1.45, 'r')")
+    page.evaluate("document.getElementById('closeStudio').click()")   # (no waiting for a still frame)
+
+
+def settle(page) -> None:
     # in software rendering Spark may still be building a mesh's program when the pose changes,
     # and shows that mesh as it was: the splats are made again for a few seconds of frames
     page.evaluate("""new Promise((done) => { const t0 = performance.now(); (function f() {
@@ -212,6 +219,35 @@ def walk_scene(page) -> None:
     page.wait_for_function("""(() => { const s = bodyApp.viewer.spark;
       return s.display === s.current && s.display.numSplats > bodyViewer.numSplats() + 1000; })()""", timeout=300000)
     page.wait_for_timeout(30000)
+
+
+def room_scene(page) -> None:
+    """Mia dressed, sitting on the sofa of a scanned living room, seen from across the room."""
+    dress(page)
+    page.evaluate("house.choose(house.rooms()[0].file)")
+    page.wait_for_function("house.shown()", timeout=300000)
+    page.evaluate("""(() => { const r = house.map(), s = r.seats.reduce((a, b) => (Math.abs(b.x) < Math.abs(a.x) ? b : a));
+        const w = tattooStudio.walker(), P = house.placement(), o = tattooStudio.rig().frame.origin;
+        const b = P.toBody([s.x + s.dir[0] * 0.6, 0, s.z + s.dir[1] * 0.6]);
+        w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; tattooStudio.redraw(); house.rest(); tattooStudio.stepFor(3);
+        // the camera across the room, a little to the side, at eye height
+        const P2 = house.placement(), V = bodyApp.viewer, T = window.bodyApp.viewer.controls.target;
+        const eye = P2.toBody([s.x + s.dir[0] * 2.6 + s.dir[1] * 1.4, 1.65, s.z + s.dir[1] * 2.6 - s.dir[0] * 1.4]);
+        const at = P2.toBody([s.x + s.dir[0] * 0.3, 0.6, s.z + s.dir[1] * 0.3]);
+        V.holder.updateMatrixWorld();
+        T.copy(V.holder.localToWorld(T.clone().set(...at)));
+        V.camera.position.copy(V.holder.localToWorld(T.clone().set(...eye)));
+        V.controls.autoRotate = false; V.controls.update(); })()""")
+    page.wait_for_function("house.sight() === 1")
+    settle(page)
+
+
+def walk_scene(page) -> None:
+    """Mia dressed, walking to the right across the screen, mid-stride, seen from her side."""
+    dress(page)
+    page.evaluate("bodyApp.viewer.controls.autoRotate = false")
+    page.evaluate("tattooStudio.walkFor(1.45, 'r')")
+    settle(page)
 
 
 if __name__ == "__main__":

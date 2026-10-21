@@ -41,6 +41,22 @@ class Library(unittest.TestCase):
         (self.d / "workspace/carla/run_latest").symlink_to(run.name)
         self.assertEqual(len(library.bodies(self.d)), 1)
 
+    def test_rooms_are_listed_apart_from_bodies(self):
+        touch(self.d / "workspace/anna/run_1/splat/standard_30000_object.ply", 100)
+        room = self.d / "workspace/living/run_2/splat"
+        touch(room / "standard_30000.ply", 200)
+        touch(room / "standard_30000_clean.ply", 201)
+        self.assertEqual([b["name"] for b in library.bodies(self.d)], ["living", "anna"])   # not yet known as a room
+        library.mark_room(self.d, "living")
+        library.mark_room(self.d, "hall")
+        self.assertEqual(library.room_names(self.d), {"living", "hall"})
+        self.assertEqual([b["name"] for b in library.bodies(self.d)], ["anna"])
+        rooms = library.rooms(self.d)
+        self.assertEqual([(r["name"], r["file"]) for r in rooms],
+                         [("living", "workspace/living/run_2/splat/standard_30000_clean.ply")])
+        (self.d / "rooms.json").write_text("not json")
+        self.assertEqual(library.room_names(self.d), set())
+
     def test_safe_path_stays_inside_workspace(self):
         touch(self.d / "workspace/x/run_1/splat/a.ply", 1)
         touch(self.d / "secret.txt", 1)

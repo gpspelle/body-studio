@@ -27,6 +27,7 @@
   <button id="guideBtn" class="btn" aria-haspopup="dialog" aria-controls="guide" data-i18n="guide.open"></button>
   <button id="studioBtn" class="btn" aria-controls="studio" aria-expanded="false" data-i18n="studio.btn" hidden></button>
   <button id="progressBtn" class="btn" aria-controls="progress" aria-expanded="false" data-i18n="prog.open"></button>
+  <button id="roomBtn" class="btn" aria-controls="roomMenu" aria-expanded="false" data-i18n="room.btn"></button>
   <label class="btn" for="pick" data-i18n="app.new"></label>
   <input id="pick" type="file" accept=".mov,.mp4,.m4v,video/*" hidden>
 </header>
@@ -163,6 +164,7 @@
       <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></dt><dd data-i18n="guide.walk"></dd>
       <dt><kbd data-i18n="guide.space"></kbd></dt><dd data-i18n="guide.jump"></dd>
       <dt><kbd>R</kbd></dt><dd data-i18n="guide.back"></dd>
+      <dt><kbd>F</kbd></dt><dd data-i18n="guide.rest"></dd>
     </dl>
   </section>
   <section>
@@ -184,10 +186,21 @@
     <dl class="keys">
       <dt><span class="gesture" data-i18n="studio.btn"></span></dt><dd data-i18n="guide.tryOn"></dd>
       <dt><span class="gesture" data-i18n="prog.open"></span></dt><dd data-i18n="guide.progress"></dd>
+      <dt><span class="gesture" data-i18n="room.btn"></span></dt><dd data-i18n="guide.room"></dd>
     </dl>
     <p class="small" data-i18n="guide.note"></p>
   </section>
 </dialog>
+<!-- A room around the body (house.js): the rooms filmed so far, and one more. -->
+<div id="roomMenu" class="menu" role="dialog" data-i18n-aria-label="room.title" hidden>
+  <p class="small" id="roomNone" data-i18n="room.how"></p>
+  <div class="chips" id="roomList"></div>
+  <label id="roomSize" class="inline-range small" hidden><span data-i18n="room.size"></span>
+    <input id="roomScale" type="range" min="0.8" max="1.25" step="0.01" value="1"><output id="roomScaleOut"></output></label>
+  <p id="roomStatus" class="small" role="status"></p>
+  <label class="link" for="roomPick" data-i18n="room.add"></label>
+  <input id="roomPick" type="file" accept=".mov,.mp4,.m4v,.zip,video/*" hidden>
+</div>
 <div id="shopTip" class="tip" role="tooltip" hidden></div>
 <div id="drop" class="drop" hidden><p class="big" data-i18n="drop.title"></p></div>
 
@@ -240,7 +253,14 @@ addEventListener("resize", () => {
   renderer.setSize(innerWidth, innerHeight);
   if (fit) frame();
 });
-renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+// before and after each frame is drawn: f(true), f(false) (house.js keeps the camera inside a room)
+const frameHooks = [];
+renderer.setAnimationLoop(() => {
+  controls.update();
+  for (const f of frameHooks) f(true);
+  renderer.render(scene, camera);
+  for (const f of frameHooks) f(false);
+});
 
 // Brush writes the scene's up direction into the PLY header (numbers or a letter).
 function upAxisFromPly(bytes) {
@@ -297,6 +317,8 @@ function frame() {
   if (cover.right || cover.left || cover.bottom || cover.top)
     camera.setViewOffset(innerWidth, innerHeight, (cover.right - cover.left) / 2, (cover.bottom - cover.top) / 2, innerWidth, innerHeight);
   else camera.clearViewOffset();
+  // in a room (house.js): from where the camera sees the room round the body
+  if (window.bodyApp.house?.shown() && window.bodyApp.house.view()) return;
   const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
   const free = Math.max(0.3, (h - 2 * CHROME) / innerHeight);   // share of the height the body may use
   const width = Math.hypot(size.x, size.z);
@@ -385,16 +407,18 @@ async function refreshJobs() {
     lastPill = () => last.status === "done" ? pill("", t("job.ready", { name }))
       : pill("bad", t("job.failed", { name, error: last.advice[0] || last.error || last.status }));
     lastPill();
+    if (last.kind === "room") { dispatchEvent(new Event("roomsready")); return; }   // (house.js)
     const bodies = await refreshBodies();
     const made = bodies.find((b) => b.file === last.body);
     if (made) show(made);
   }
 }
 
-async function upload(file) {
+async function upload(file, kind = "body") {
   lastPill = null;
   pill("busy", t("job.uploading", { name: file.name }));
-  const r = await fetch("/api/upload?name=" + encodeURIComponent(file.name), { method: "POST", body: file });
+  const r = await fetch("/api/upload?name=" + encodeURIComponent(file.name) + (kind === "room" ? "&kind=room" : ""),
+                        { method: "POST", body: file });
   if (!r.ok) {
     const e = await r.json().catch(() => ({}));
     return pill("bad", t(e.code ? "err." + e.code : "err.upload"));
@@ -429,8 +453,9 @@ window.bodyApp = {
   current: () => bodyList.find((b) => b.file === current) || null,
   show: (id) => { const b = bodyList.find((x) => x.id === id); if (b) show(b); },
   reframe: () => { if (fit) frame(); },
+  upload,                                    // (house.js: a room's video)
   // for the tattoo and pose panel (tattoo.js)
-  viewer: { scene, spark, holder, ground, camera, controls, renderer, canvas, mesh: () => mesh, file: () => current },
+  viewer: { scene, spark, holder, ground, camera, controls, renderer, canvas, frameHooks, mesh: () => mesh, file: () => current },
 };
 refreshBodies(); refreshJobs();
 setInterval(refreshJobs, 2000);
@@ -438,5 +463,6 @@ setInterval(refreshJobs, 2000);
 <script type="module" src="/static/progress.js"></script>
 <script type="module" src="/static/wardrobe.js"></script>
 <script type="module" src="/static/tattoo.js"></script>
+<script type="module" src="/static/house.js"></script>
 </body>
 </html>
