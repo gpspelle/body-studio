@@ -155,6 +155,12 @@ panel sits at the left edge (at the bottom on a phone).
   ![Walking](docs/images/walk-desktop.png)
 
   ![The Guide](docs/images/guide-desktop.png)
+- **It looks alive**: standing still, the body breathes, sways a little, blinks and turns its head
+  to you. Walking, its feet stay planted. Skin darkens where it meets skin, the biceps swells as
+  the arm bends, a skirt or a ponytail swings, and a soft shadow on the floor follows it. Pick
+  **Hands**: as scanned, relaxed or a fist. **What if** sliders show the person lighter or heavier
+  (about ±12 kg) and with less or more muscle; they aren't saved. How it works:
+  [docs/flesh.md](docs/flesh.md).
 - The first time, the app finds the body's skeleton (a few seconds). It needs the A-pose from the
   filming guide: arms a little away from the body, feet apart. Tattoos and pose are kept in this
   browser, per body.
@@ -288,6 +294,12 @@ fica. O painel fica na borda esquerda (embaixo, no celular).
   estavam abertos como no escaneamento agora abaixados ao lado do corpo; **R** o traz de volta. O
   primeiro toque encontra o esqueleto, se o painel ainda não encontrou. **Guia** (ou **?**) mostra
   todos os controles.
+- **Parece vivo**: parado, o corpo respira, balança um pouco, pisca e vira a cabeça para você.
+  Andando, os pés ficam firmes no chão. A pele escurece onde encosta em pele, o bíceps cresce
+  quando o braço dobra, a saia ou o rabo de cavalo balançam, e uma sombra suave no chão acompanha
+  o corpo. Escolha **Mãos**: como escaneadas, relaxadas ou punho fechado. Os controles **E se**
+  mostram a pessoa mais leve ou mais pesada (cerca de ±12 kg) e com menos ou mais músculo; não são
+  salvos. Como funciona (em inglês): [docs/flesh.md](docs/flesh.md).
 - Na primeira vez, o app encontra o esqueleto do corpo (alguns segundos). Precisa da pose A do guia
   de filmagem: braços um pouco afastados do corpo, pés afastados. Tatuagens e pose ficam guardadas
   neste navegador, para cada corpo.

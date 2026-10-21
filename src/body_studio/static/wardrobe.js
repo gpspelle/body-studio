@@ -10,7 +10,7 @@ import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
 import { SkinCover, decodeItem, f32, i32, fitNormals, fitSkin, fitVerts, hatOverHair, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
 import { dualQuats, skinPoint } from "/static/pose.js";
 import { fold, hang, onHead, pair, shopLayout } from "/static/racks.js";
-import { fillLayers, looseness } from "/static/flesh.js";
+import { fillLayers, looseness, shapeOffsets } from "/static/flesh.js";
 import { Flesh } from "/static/fleshgpu.js";
 
 const $ = (id) => document.getElementById(id);
@@ -277,6 +277,9 @@ function skin(mesh, s, w, item, slot) {
   const loose = slot === "outfit" || slot === "hair";
   s.flesh = new Flesh(mesh, skinning, s.n, w.rig.height, { shade: true, collide: true, swing: loose });
   fillLayers(s.flesh.layers, w.rig, w.caps, s.centres, bones, weights, s.n, { cloth: true, hands: w.hands });
+  // the "what if" sliders move it with the skin under it
+  const wi = window.tattooStudio?.whatIf?.();
+  if (wi) { shapeOffsets(s.flesh.layers[0], wi.field, wi.weight, s.centres, s.n); shapeOffsets(s.flesh.layers[1], wi.field, wi.muscle, s.centres, s.n); }
   if (loose) {
     const L = s.flesh.layers[4], C = s.centres, H = w.rig.height, far = w.cover.reach;
     for (let i = 0; i < s.n; i++) {

@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Skeleton, SkinWeights, SurfaceMap, q, v3 } from "../../src/body_studio/static/pose.js";
 import { CH, MAX_CAPSULES, PARTS, SHADE, SWING, BULGE, Swing, bodyCapsules, channelLevels, curl, darknessAt, handFrames,
-         looseness, occlusion, partsOf, penetration, posedCapsules, pushOut, restOffsets, shadowBlobs, boneParts } from "../../src/body_studio/static/flesh.js";
+         looseness, occlusion, inkFactor, HEALED, PIGMENT, shapeKg, shapeOffsets, SkinField, partsOf, penetration, posedCapsules, pushOut, restOffsets, shadowBlobs, boneParts } from "../../src/body_studio/static/flesh.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { up: U, front: F, left: L } = rig.frame;
@@ -157,4 +157,26 @@ test("only what hangs away from the skin swings", () => {
   assert.equal(looseness(0.05 * H, H), 1, "a skirt's hem");
   let last = 0;
   for (let g = 0; g <= 0.04; g += 0.002) { const l = looseness(g * H, H); assert.ok(l >= last); last = l; }
+});
+
+test("what if: every splat takes the moves of the skin nearest it", () => {
+  // two skin vertices, one moving up, one moving out
+  const skin = Float32Array.from([0, 0, 0, 1, 0, 0]), moves = Float32Array.from([0, 1, 0, 0, 0, 1]);
+  const field = new SkinField(skin, 0.3), pts = Float32Array.from([0.01, 0, 0, 0.99, 0, 0, 5, 5, 5]), layer = new Float32Array(12).fill(-1);
+  shapeOffsets(layer, field, moves, pts, 3);
+  assert.ok(layer[1] > 0.9 && layer[2] < 0.1, "near the first: up");
+  assert.ok(layer[6] > 0.9 && layer[5] < 0.1, "near the second: out");
+  assert.deepEqual([layer[8], layer[9], layer[10]], [0, 0, 0], "no skin near: still");
+  assert.equal(layer[3], -1, "the part (w) is left alone");
+  // kilograms: volume (of H³) × H³ × density
+  near(shapeKg({ weight: 0.001, muscle: 0 }, [1, 1], 100), 1.01, 1e-9);
+  near(shapeKg({ weight: 0.001, muscle: 0.002 }, [-1, 0.5], 200), 8 * 1010 * (-0.001 + 0.001), 1e-9);
+});
+
+test("healed ink: darker than the skin, greyer than the design, never black", () => {
+  const black = inkFactor([0, 0, 0], 1), red = inkFactor([0.9, 0.1, 0.1], 1), none = inkFactor([0, 0, 0], 0);
+  assert.deepEqual(none, [1, 1, 1], "no ink: the skin as it is");
+  for (let x = 0; x < 3; x++) assert.ok(black[x] > PIGMENT[x] && black[x] < 0.25, "black ink lets a little skin through");
+  // red stays red, but less so than the design: its channels closer together
+  assert.ok(red[0] > red[1] && red[0] - red[1] < 0.88 * HEALED.depth * 0.8);
 });

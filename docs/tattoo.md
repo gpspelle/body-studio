@@ -246,3 +246,7 @@ the steps look a little stiff.
   forearm, the buttocks) a large design bends the way a sticker would; where it wraps around the
   side of the body, its far part is out of sight from behind, as on a real body. A design centred in
   the gap between the legs wraps into the crotch rather than across the air.
+
+What the skin does beyond the bones (contact shading, bulges, stretch, the push out of the body
+for clothes, the swing of loose things), the shadow on the floor and the "what if" sliders:
+[flesh.md](flesh.md).

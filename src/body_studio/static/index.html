@@ -132,6 +132,11 @@
       <p class="small" data-i18n="pose.hint"></p>
       <div class="chips" id="presets"></div>
       <div class="inline-chips"><span class="small" data-i18n="pose.hands"></span><div class="chips" id="handsPick"></div></div>
+      <div id="whatIf" class="sliders" hidden>
+        <div class="joint-head"><span class="small" data-i18n="pose.whatIf"></span><button id="wiReset" class="link" data-i18n="pose.whatIfReset"></button></div>
+        <label><span data-i18n="pose.heavier"></span><input id="wiWeight" type="range" min="-1" max="1" step="0.05" value="0"><output id="wiWeightOut"></output></label>
+        <label><span data-i18n="pose.muscle"></span><input id="wiMuscle" type="range" min="-1" max="1" step="0.05" value="0"><output id="wiMuscleOut"></output></label>
+      </div>
       <div id="jointEdit" class="sliders" hidden>
         <div class="joint-head"><strong id="jointName"></strong><button id="jointReset" class="link" data-i18n="pose.resetJoint"></button></div>
         <div id="jointSliders"></div>

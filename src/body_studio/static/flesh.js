@@ -439,6 +439,24 @@ export class SkinField {
   }
 }
 
+// The "what if" sliders' offsets for points near the skin (the body's splats, ink, clothes): the
+// moves of the nearest skin vertices (field: a SkinField over them; moves: 3 numbers per vertex),
+// into a layer's x, y, z (layer 0: weight, layer 1: muscle). Points with no skin near keep 0.
+export function shapeOffsets(layer, field, moves, points, n) {
+  const o = new Float64Array(3);
+  for (let i = 0; i < n; i++) {
+    field.at(points[i * 3], points[i * 3 + 1], points[i * 3 + 2], moves, 3, o);
+    layer[i * 4] = o[0]; layer[i * 4 + 1] = o[1]; layer[i * 4 + 2] = o[2];
+  }
+}
+// kilograms the body gains at the sliders (shape: [weight, muscle]), from the volume each adds
+// (fit.py, fractions of the height cubed), the person heightCm tall, at the body's density
+export const DENSITY = 1010;          // kg/m³
+export function shapeKg(volumes, shape, heightCm) {
+  const m3 = (heightCm / 100) ** 3;
+  return DENSITY * m3 * ((volumes.weight || 0) * shape[0] + (volumes.muscle || 0) * shape[1]);
+}
+
 // ---------------------------------------------------------------- the data a mesh's splats take
 // Fills the five layers the GPU step reads (each 4 floats per splat; fleshgpu.js):
 //   0: weight slider offset (x, y, z), part      1: muscle slider offset, contact at rest
@@ -526,7 +544,8 @@ export class Swing {
 
   // the anchor is at p now, dt seconds after the last call: the offset of what hangs from it
   update(dt, p) {
-    if (!this.y || !(dt > 0)) { this.y = [...p]; this.v = [0, 0, 0]; this.p = [...p]; return [0, 0, 0]; }
+    if (!this.y) { this.y = [...p]; this.v = [0, 0, 0]; this.p = [...p]; return [0, 0, 0]; }
+    if (!(dt > 0)) return [0, 1, 2].map((a) => this.y[a] - p[a]);     // (twice in one frame)
     dt = Math.min(dt, 0.1);
     const steps = Math.ceil(dt / 0.008), h = dt / steps, pv = [0, 1, 2].map((a) => (p[a] - this.p[a]) / dt);
     for (let s = 0; s < steps; s++) {
@@ -554,4 +573,22 @@ export class Swing {
 export function looseness(gap, H) {
   const [a, b] = SWING.loose, t = Math.min(1, Math.max(0, (gap / H - a) / (b - a)));
   return t * t * (3 - 2 * t);
+}
+
+// ---------------------------------------------------------------- ink healed into the skin
+// A healed tattoo sits under the skin: its colours a little greyer and lighter than the design's,
+// its edges soft, and the skin's own colour (freckles, redness, its grain) still showing through.
+// The factor the skin's colour is multiplied by under ink of colour rgb (0..1) laid at `ink`
+// (0..1): PIGMENT is the deep blue-grey black ink reads as. HEALED.skin: how much of the skin's
+// colour comes from the splat right there rather than the area around; soft: how much bigger
+// than the design's dots the ink splats are.
+export const PIGMENT = [0.07, 0.08, 0.10];
+export const HEALED = { desat: 0.2, depth: 0.9, skin: 0.55, soft: 1.2 };
+export function inkFactor(rgb, ink, out = [0, 0, 0]) {
+  const lum = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2], a = ink * HEALED.depth;
+  for (let x = 0; x < 3; x++) {
+    const c = rgb[x] + HEALED.desat * (lum - rgb[x]);
+    out[x] = 1 - a + a * (PIGMENT[x] + 0.88 * c);
+  }
+  return out;
 }

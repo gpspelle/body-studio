@@ -312,7 +312,8 @@ export class Walker {
     sk.place = { q: q.id(), t: [0, 0, 0] };
     sk.solve();
     const feet = this._contacts();
-    if (!this.airborne && this.lastFeet && (this.walking > 1e-4 || this.jump)) {
+    // (a jump from standing crouches and lands on the spot: both feet stay where they are)
+    if (!this.airborne && this.lastFeet && this.walking > 1e-4 && !(this.jump && this.walking < 0.05)) {
       const H = this.H, d = feet.map((f, k) => v3.sub(f, this.lastFeet[k]));
       // which foot is on the floor: by the walk cycle (each foot stands for 60% of it, both at once
       // just after each heel strikes); when standing (the cycle faded out) the lower one

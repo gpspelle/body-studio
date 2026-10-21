@@ -185,6 +185,23 @@ class Fit(unittest.TestCase):
         self.assertEqual(fit.cached(ply), json.loads(json.dumps(r)))
         self.assertTrue(rig.rig_file(ply).is_file())
 
+    def test_what_if_heavier_grows_the_body_outward(self):
+        # the page's sliders: heavier moves the skin out along its normals and adds volume (a few
+        # kilograms at 1), on every body; the moves are posed onto the scan's bones
+        for shape, (ply, r) in self.bodies.items():
+            with self.subTest(shape):
+                w = r["whatif"]
+                self.assertEqual(set(w), {"weight", "muscle", "weight_volume", "muscle_volume"})
+                moves, normals = arr("f", w["weight"]), arr("f", r["normals"])
+                self.assertEqual(len(moves), 3 * r["n_body"])
+                out = sum(moves[i] * normals[i] for i in range(len(moves)))
+                size = sum(abs(moves[i] * normals[i]) for i in range(len(moves)))
+                self.assertGreater(out / size, 0.6)
+                kg = w["weight_volume"] * 1.7 ** 3 * 1010      # at 1.70 m
+                self.assertTrue(2 < kg < 20, kg)
+                biggest = max(math.hypot(*moves[i:i + 3]) for i in range(0, len(moves), 3))
+                self.assertLess(biggest, 0.05 * r["height"])
+
     def test_clothes_sit_on_the_body(self):
         for shape in (None, "heavy"):
             ply, r = self.bodies[shape]

@@ -11,7 +11,8 @@ import { SplatEdit, SplatEditSdf, SplatMesh, SplatSkinning } from "@sparkjsdev/s
 import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, INK_OUT, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
 const q = quat;
 import { Life, Walker } from "/static/walk.js";
-import { bodyCapsules, channelLevels, copyLayers, fillLayers, handFrames, posedCapsules, Swing, SWING, weightGradients } from "/static/flesh.js";
+import { bodyCapsules, channelLevels, copyLayers, fillLayers, HEALED, inkFactor, handFrames, posedCapsules, shapeKg, shapeOffsets, SkinField, Swing, SWING, weightGradients } from "/static/flesh.js";
+import { fitWhatIf } from "/static/dress.js";
 import { Flesh } from "/static/fleshgpu.js";
 
 const $ = (id) => document.getElementById(id);
@@ -161,7 +162,7 @@ function setup(rig, mesh, file) {
         lifeOn: !navigator.webdriver };
   follow.set(0, 0, 0);
   handles.visible = lines.visible = !$("studio").hidden;
-  presetsUI(); handsUI();
+  presetsUI(); handsUI(); whatIfUI();
   applyPose();
   window.tattooStudio.ready = true;
   walking();                                 // (the body comes alive)
@@ -180,6 +181,7 @@ function teardown() {
   S.mesh.edits = null;
   if (S.mesh && S.mesh.skinning === S.skinning) { S.mesh.skinning = null; S.mesh.updateGenerator(); }
   S = null; pending = null; drag = null;
+  whatIfUI();
   window.tattooStudio.ready = false;
   dispatchEvent(new Event("studiogone"));
 }
@@ -378,7 +380,7 @@ function walkFrame(now) {
     } else if (lived || S.swing.moving) drawPose(true);
     if (was && !S.walker.active) save();      // the pose it stands in now (arms down) is kept
   }
-  if (S.walker.busy || held.size || jumpAsked || toggles.length || S.swing.moving || (S.lifeOn && !document.hidden)) walkFrameId = requestAnimationFrame(walkFrame);
+  if (S.walker.busy || held.size || jumpAsked || toggles.length || S.swing.moving || (S.lifeOn && !document.hidden)) walking();   // (one frame at a time)
   else lastFrame = 0;
 }
 let lastLife = 0;
@@ -423,6 +425,47 @@ addEventListener("fitready", (e) => {
   S.mesh.edits = [edit];
   blinkAt(S.transforms);
 });
+
+// ---------------------------------------------------------------- what if: heavier, more muscular
+// Two sliders move the skin the way MakeHuman's weight and muscle targets move the fitted base
+// mesh (fit.py whatif()); every splat takes the moves of the skin nearest it, the ink and the
+// clothes with it (flesh.js shapeOffsets; the GPU step scales them by the sliders). Not saved: a
+// look at what could be, the scan stays as it is.
+const WHATIF_REACH = 0.06;                   // of the height: how far from the skin a splat still follows it
+const WHATIF_GAIN = 2;                       // the sliders' ends: twice MakeHuman's targets (about 12 kg)
+addEventListener("fitready", (e) => {
+  if (!S || e.detail.file !== S.file) return;
+  const fit = e.detail.fit, weight = fitWhatIf(fit, "weight"), muscle = fitWhatIf(fit, "muscle");
+  if (!weight || !muscle) return;
+  const field = new SkinField(e.detail.skin, WHATIF_REACH * S.rig.height);
+  S.whatif = { field, weight, muscle, volume: { weight: fit.whatif.weight_volume, muscle: fit.whatif.muscle_volume } };
+  shapeOffsets(S.flesh.layers[0], field, weight, S.centres, S.n);
+  shapeOffsets(S.flesh.layers[1], field, muscle, S.centres, S.n);
+  S.flesh.upload();
+  for (const tt of S.tattoos) if (tt.flesh && tt.skinOf) { copyLayers(tt.flesh.layers, S.flesh.layers, tt.skinOf, tt.samples.n, [0, 1]); tt.flesh.upload(); }
+  whatIfUI();
+});
+
+function whatIfUI() {
+  $("whatIf").hidden = !(S && S.whatif);
+  if (!S || !S.whatif) return;
+  $("wiWeight").value = S.shape[0] / WHATIF_GAIN; $("wiMuscle").value = S.shape[1] / WHATIF_GAIN;
+  const kg = (k) => {
+    const v = shapeKg(S.whatif.volume, k ? [0, S.shape[1]] : [S.shape[0], 0], S.heightCm);
+    return Math.abs(v) < 0.5 ? "" : t("pose.kg", { kg: (v > 0 ? "+" : "−") + Math.abs(v).toFixed(0) });
+  };
+  $("wiWeightOut").textContent = kg(0); $("wiMuscleOut").textContent = kg(1);
+}
+function setShape(i, v) {
+  if (!S || !S.whatif) return;
+  S.shape = S.shape.slice(); S.shape[i] = WHATIF_GAIN * Math.max(-1, Math.min(1, +v || 0));
+  whatIfUI();
+  drawPose(true);
+}
+$("wiWeight").oninput = (e) => setShape(0, e.target.value);
+$("wiMuscle").oninput = (e) => setShape(1, e.target.value);
+$("wiReset").onclick = () => { setShape(0, 0); setShape(1, 0); };
+addEventListener("langchange", () => whatIfUI());
 
 // loose clothes swing from the hips, hair from the head (flesh.js Swing); the frames go on while
 // they still move
@@ -695,11 +738,11 @@ async function inkImage(file) {
 }
 
 // Ink: splats lying on the skin, about one every millimetre or two of the design, each the
-// colour of the skin under it darkened by the ink (ink sits under the skin: black reads as a deep
-// blue-grey), skinned with the body's weights. The set of splats comes from the image once (so
+// colour of the skin under it darkened by the ink, healed in (flesh.js inkFactor: ink sits under
+// the skin, black reads as a deep blue-grey, and the skin's grain shows through), skinned with the
+// body's weights. The set of splats comes from the image once (so
 // moving or resizing the tattoo only moves them); a splat over no skin is see-through.
 const INK_SPLATS = 40000;
-const PIGMENT = [0.07, 0.08, 0.10];
 const UNDER = 0.006;        // the body's splats this far in or out of the skin under a tattoo take its ink (of the height)
 
 function addTattoo(canvas, anchor, opts = {}) {
@@ -753,7 +796,7 @@ function inkOnSkin(tt) {
   if (!tt.mesh) return;
   const s = tt.samples, g = tt.grid, at = placeInk(g, s, INK_OUT), packed = tt.mesh.packedSplats;
   const width = tt.widthCm * unitsPerCm(), height = width * tt.canvas.height / tt.canvas.width;
-  const r = 0.8 * Math.max(s.spacing[0] * width, s.spacing[1] * height);
+  const r = 0.8 * HEALED.soft * Math.max(s.spacing[0] * width, s.spacing[1] * height);
   const sc = new THREE.Vector3(r, r, 0.15 * r), c = new THREE.Vector3(), qq = new THREE.Quaternion(), col = new THREE.Color();
   const vb = new THREE.Vector4(), vw = new THREE.Vector4(), b = new Uint8Array(4), w = new Uint8Array(4);
   // the skin's colour at each point of the grid
@@ -771,8 +814,6 @@ function inkOnSkin(tt) {
     if (!at.ok[i]) { packed.setSplat(i, c.set(0, 0, 0), sc, qq.identity(), 0, col.setRGB(0, 0, 0)); continue; }
     const p = at.positions.subarray(i * 3, i * 3 + 3), n = at.normals.subarray(i * 3, i * 3 + 3);
     const k = Math.round(s.v[i] * (g.ny - 1)) * g.nx + Math.round(s.u[i] * (g.nx - 1));
-    const ink = tt.ink, pig = (x) => 1 - ink + ink * (PIGMENT[x] + 0.88 * s.rgb[i * 3 + x]);
-    col.setRGB(skinAt[k * 3] * pig(0), skinAt[k * 3 + 1] * pig(1), skinAt[k * 3 + 2] * pig(2));
     qq.fromArray(quat.between([0, 0, 1], Array.from(n)));
     // the body's splat nearest it: where clothes hide that skin, they hide the ink in it
     const cell = S.surface.nearest(p);
@@ -781,6 +822,10 @@ function inkOnSkin(tt) {
       const j = m[k2], d = (C[j * 3] - p[0]) ** 2 + (C[j * 3 + 1] - p[1]) ** 2 + (C[j * 3 + 2] - p[2]) ** 2;
       if (d < nd) { nd = d; near = j; }
     }
+    // the skin there: partly that splat's own colour (its grain shows through), partly the area's
+    const sk = [0, 1, 2].map((x) => near >= 0 ? HEALED.skin * S.colours[near * 3 + x] + (1 - HEALED.skin) * skinAt[k * 3 + x] : skinAt[k * 3 + x]);
+    const fac = inkFactor(s.rgb.subarray(i * 3, i * 3 + 3), tt.ink);
+    col.setRGB(sk[0] * fac[0], sk[1] * fac[1], sk[2] * fac[2]);
     tt.skinOf[i] = near;
     const hidden = S.hiddenSkin.has(near);
     if (!hidden) shown++;
@@ -811,8 +856,8 @@ function tintSkin() {
     const u = tt.under;
     if (!u) continue;
     for (let j = 0; j < u.index.length; j++) {
-      const i = u.index[j], a = u.alpha[j] * tt.ink, f = want.get(i) || [1, 1, 1];
-      for (let x = 0; x < 3; x++) f[x] *= 1 - a + a * (PIGMENT[x] + 0.88 * u.rgb[j * 3 + x]);
+      const i = u.index[j], f = want.get(i) || [1, 1, 1], g = inkFactor(u.rgb.subarray(j * 3, j * 3 + 3), u.alpha[j] * tt.ink);
+      for (let x = 0; x < 3; x++) f[x] *= g[x];
       want.set(i, f);
     }
   }
@@ -953,7 +998,7 @@ $("tatHeight").onchange = () => {
   if (!(v >= 80 && v <= 250)) { $("tatHeight").value = S.heightCm; return; }
   S.heightCm = v;
   for (const tt of S.tattoos) wrapTattoo(tt);
-  tattooList(); save();
+  tattooList(); whatIfUI(); save();
 };
 addEventListener("skinhidden", (e) => {
   if (!S) return;
@@ -1088,6 +1133,9 @@ window.tattooStudio = {
                           blinkReady: !!S.blink },
   // the swing of loose clothes and hair (fractions of the height) and whether it still moves
   swing: () => S && { moving: S.swing.moving, hips: v3.scale(S.fleshState.swing.hips, 1 / S.rig.height), head: v3.scale(S.fleshState.swing.head, 1 / S.rig.height) },
+  // the "what if" sliders ([weight, muscle], -1..1 as on the page; shape: as the GPU takes them)
+  // and the field clothes take their moves from
+  whatIf: (shape) => { if (shape) { setShape(0, shape[0]); setShape(1, shape[1]); } return S && S.whatif ? { shape: S.shape, kg: shapeKg(S.whatif.volume, S.shape, S.heightCm), field: S.whatif.field, weight: S.whatif.weight, muscle: S.whatif.muscle } : null; },
   hands: (v) => { if (v !== undefined) { S.hands = v; handsUI(); drawPose(); save(); } return S.hands; },
   // the flesh step's state (flesh.js): the body's GPU step, the posed capsules and channel levels
   flesh: () => S && { gpu: S.flesh, state: S.fleshState, caps: S.caps },

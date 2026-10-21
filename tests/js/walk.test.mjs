@@ -305,3 +305,14 @@ test("standing, the body breathes, sways a little, blinks and looks at the camer
   for (let i = 0; i < 3 * 60; i++) life.update(DT, { eye: side, walking: 1 });
   assert.ok(Math.abs(life.yaw) < 2, `faces ahead walking (${life.yaw})`);
 });
+
+test("a jump from standing lands where it took off", () => {
+  for (const dt of [DT, 1 / 8]) {
+    const sk = new Skeleton(rig), w = new Walker(sk, rig);
+    const before = w.pos.slice();
+    w.update(dt, { jump: true });
+    for (let i = 0; i < 400 && w.active; i++) w.update(dt, {});
+    assert.ok(!w.active);
+    near(v3.len(v3.sub(w.pos, before)), 0, 0.002 * H, `dt ${dt}`);
+  }
+});
