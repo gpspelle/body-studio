@@ -219,17 +219,20 @@ class Server(unittest.TestCase):
                 return status, d
             time.sleep(0.2)
 
-    def test_anny_is_offered_only_when_installed(self):
+    def test_anny_is_installed_when_first_asked_for(self):
+        """Anny is always offered; the first Anny fit installs PyTorch and Anny, and a failed
+        install is a clear no (code "anny") rather than a hang."""
+        import subprocess
         from body_studio import anny_fit
+        self.assertEqual(self.post("/api/fit/models", None, method="GET"), (200, ["standard", "anny"]))
         write_body(self.d / "data" / "workspace" / "Ana" / "run_1" / "splat" / "standard_30000_object.ply")
         body = "?body=workspace/Ana/run_1/splat/standard_30000_object.ply&model=anny"
         with mock.patch.object(anny_fit, "available", lambda: False), \
-                mock.patch.dict(sys.modules, {"torch": None, "anny": None}):
-            self.assertEqual(self.post("/api/fit/models", None, method="GET"), (200, ["standard"]))
+                mock.patch.object(anny_fit.subprocess, "run",
+                                  side_effect=lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1, "offline")) as run:
             status, d = self.wait("/api/fit" + body)
-            self.assertEqual((status, d["code"]), (422, "anny"))      # the page never asks; a clear no
-        with mock.patch.object(anny_fit, "available", lambda: True):
-            self.assertEqual(self.post("/api/fit/models", None, method="GET"), (200, ["standard", "anny"]))
+        self.assertEqual((status, d["code"]), (422, "anny"))
+        self.assertEqual(run.call_args.args[0][1:4], ["-m", "pip", "install"])
 
     def test_the_anny_fit_is_kept_apart(self):
         """?model=anny asks anny_fit for its own file; the standard fit is left as it is. (Anny itself

@@ -10,8 +10,8 @@
     GET  /api/rig?body=<file>  the body's skeleton, skin weights and surface map (rig.py); 202 while
                            it is being worked out in the background, 422 if the body isn't a person
     GET  /api/fit?body=<file>  MakeHuman's base mesh fitted to the body (fit.py); 202 and 422 the same.
-                           &model=anny: fitted with Anny instead (anny_fit.py, only when installed)
-    GET  /api/fit/models       the body models the fit can use: ["standard"], plus "anny" when installed
+                           &model=anny: fitted with Anny instead (anny_fit.py; installs it the first time)
+    GET  /api/fit/models       the body models the fit can use: ["standard", "anny"]
     GET  /api/wardrobe         the clothes, shoes, hair and hats (wardrobe.py)
     GET  /api/wardrobe/<id>?body=<file>[&model=anny]  one item fitted to the body; 202 while the body is fitted
     GET  /api/wardrobe/<id>/shape        the item as it is made, for the shop around the body
@@ -189,7 +189,7 @@ def make_handler(data: DataDir, runner: Runner):
             if p.startswith("/files/"):
                 return self._file(library.safe_path(data.root, p[len("/files/"):]))
             if p == "/api/fit/models":
-                return self._json(["standard"] + (["anny"] if anny_fit.available() else []))
+                return self._json(["standard", "anny"])
             if p in ("/api/rig", "/api/fit"):
                 state, out = self._built(rigs if p == "/api/rig" else self._fits())
                 return self._file(out) if state == "ready" else None

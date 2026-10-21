@@ -325,7 +325,7 @@ class Viewer(unittest.TestCase):
         # every item is on a rack, a shelf or a stand around the body, and the panel lists none
         shop = page.evaluate("wardrobe.shop()")
         self.assertTrue(shop["shown"])
-        self.assertTrue(page.is_hidden("#wearModel"))          # Anny isn't installed: no choice of model
+        self.assertFalse(page.evaluate("document.getElementById('wearModel').hidden"))   # Anny is always offered
         self.assertEqual(len(shop["racked"]), 29)
         self.assertEqual(page.locator("#wearWorn button").count(), 0)
         # pointing at one names it; clicking it puts it on and takes it off the rack
@@ -419,8 +419,8 @@ class Viewer(unittest.TestCase):
         page.close()
 
     def test_switches_the_body_model(self):
-        """With Anny installed the panel offers both body models; switching fits the clothes worn
-        again on the other. (CI has no PyTorch: a standard fit stands in for Anny's.)"""
+        """The panel offers both body models; switching fits the clothes worn again on the other.
+        (CI has no PyTorch: a standard fit stands in for Anny's, so nothing is installed.)"""
         from unittest import mock
         from body_studio import anny_fit, fit
 
@@ -429,10 +429,9 @@ class Viewer(unittest.TestCase):
             r["model"] = "anny"
             anny_fit.fit_file(ply).write_text(json.dumps(r, separators=(",", ":")))
             return r
-        for p in (mock.patch.object(anny_fit, "available", lambda: True),
-                  mock.patch.object(anny_fit, "build_and_save", fake)):
-            p.start()
-            self.addCleanup(p.stop)
+        p = mock.patch.object(anny_fit, "build_and_save", fake)
+        p.start()
+        self.addCleanup(p.stop)
         page = self.browser.new_page(viewport={"width": 1280, "height": 800})
         self.addCleanup(page.close)
         errors, asked = [], []

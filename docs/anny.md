@@ -13,12 +13,14 @@ for) on a scan, before deciding which to keep:
 
 ## Trying it
 
-```bash
-pip install 'body-studio[anny]'          # PyTorch and Anny, about 5 GB with PyTorch's CUDA libraries
-body-studio ui
-```
+Nothing to type: `body-studio setup` installs PyTorch and Anny with the other tools, and if
+they're not there (an install from before, or setup without a network), the first time Anny is
+picked in the page the app installs them into its own Python (`pip install anny torch`, a few
+minutes once; on a Mac PyTorch is a few hundred MB, on Linux about 5 GB with its CUDA libraries).
+If that fails, the panel says so and the standard fit is still there. `pip install 'body-studio[anny]'`
+does the same by hand.
 
-With Anny installed, the **Try on** panel shows **Body model: Standard / Anny (trial)** under the
+The **Try on** panel shows **Body model: Standard / Anny (trial)** under the
 clothes. Pick one and what is worn comes off and goes on again, fitted to that model. The choice
 is kept in the browser. The first time a body is fitted with Anny it takes about two minutes on
 four CPU cores (and the very first time a minute more, to build Anny's cache in `~/.cache/anny`);
@@ -36,7 +38,7 @@ The file keeps Anny's overall sliders under `"shape"`. The standard fit takes 5â
 
 **Why a control on the page:** comparing the two fits on a real scan is the point of the trial, and
 the same clothes have to be seen on both, from any angle and in any pose. It is two small buttons
-in the Try on panel, shown only when Anny is installed.
+in the Try on panel.
 
 ## How it fits
 
@@ -124,5 +126,6 @@ shoulders come out whole. On the heavy man the two look the same.
   `mps` was not tried).
 - The gender slider picks a side by a short fit from each; a body between the two may land on
   the other side, with the regional sliders making up most of the difference.
-- Anny pulls in PyTorch (CUDA libraries included on Linux) and NVIDIA Warp; that's why it is an
-  extra, and why the app does not use it on its own.
+- Anny pulls in PyTorch (CUDA libraries included on Linux) and NVIDIA Warp; that's why it is
+  installed by setup or on first use rather than with `pip install -e .`, and why the standard fit
+  stays the default.

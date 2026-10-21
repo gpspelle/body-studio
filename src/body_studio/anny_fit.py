@@ -1,11 +1,12 @@
 """Trial: MakeHuman's base mesh fitted to a body with Anny, a PyTorch body model, in place of
 fit.py's shape solve, bone bending and shrinkwrap. Optional and experimental, to compare the two.
 
-    pip install 'body-studio[anny]'          PyTorch and Anny (Apache-2.0 code, CC0 MakeHuman data)
+    body-studio setup                        also installs PyTorch and Anny (Apache-2.0 code, CC0 MakeHuman data)
     body-studio fit-anny BODY.ply [--no-wrap]  writes BODY.anny.fit.json next to BODY.fit.json
 
-When it is installed, the Try on panel offers a switch between the two body models (the page asks
-GET /api/fit?model=anny), and the server makes this file the first time it is asked for.
+The Try on panel offers a switch between the two body models (the page asks GET
+/api/fit?model=anny), and the server makes this file the first time it is asked for. Without
+PyTorch and Anny, that first time installs them into the app's Python (install()): nothing to type.
 
 Anny (https://github.com/naver/anny) is MakeHuman with its shape sliders made differentiable:
 eleven overall ones (gender, age, muscle, weight, height, proportions, cup size, firmness and
@@ -36,7 +37,9 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import subprocess
 import sys
+import threading
 from functools import lru_cache
 from pathlib import Path
 
@@ -59,8 +62,14 @@ POSE_BONES = ("spine01", "spine02", "spine03", "spine04", "spine05", "neck01", "
               "clavicle.R", "shoulder01.R", "upperarm01.R", "lowerarm01.R", "wrist.R")
 
 
+REQUIRES = ("anny>=0.6", "torch>=2.0")      # the same as pyproject's [anny] extra
+
+
 class Missing(RuntimeError):
     code = "anny"
+
+
+_installing = threading.Lock()
 
 
 def available() -> bool:
@@ -69,12 +78,29 @@ def available() -> bool:
     return find_spec("torch") is not None and find_spec("anny") is not None
 
 
+def install(log=None) -> None:
+    """Install PyTorch and Anny into this Python (pip, a few minutes, once): `body-studio setup`
+    does it, and the server does it the first time the page asks for an Anny fit."""
+    with _installing:
+        if available():
+            return
+        if log:
+            log("Installing PyTorch and Anny for the Anny body model (once, a few minutes)...")
+        r = subprocess.run([sys.executable, "-m", "pip", "install", *REQUIRES], text=True,
+                           stdout=None if log else subprocess.PIPE, stderr=subprocess.STDOUT)
+        from importlib import invalidate_caches
+        invalidate_caches()
+        if r.returncode or not available():
+            tail = (r.stdout or "").strip().splitlines()[-3:]
+            raise Missing("couldn't install PyTorch and Anny" + (": " + " ".join(tail) if tail else ""))
+
+
 def _torch():
     try:
         import torch
         import anny
     except ImportError as e:
-        raise Missing("the Anny trial needs PyTorch and Anny: pip install 'body-studio[anny]'") from e
+        raise Missing("the Anny trial needs PyTorch and Anny: body-studio setup installs them") from e
     return torch, anny
 
 
@@ -322,6 +348,7 @@ def current(ply: Path) -> bool:
 
 
 def build_and_save(ply: Path, wrap: bool = True, log=None) -> dict:
+    install(log)
     r = build(ply, wrap, log)
     f = fit_file(ply)
     tmp = f.with_name(f.name + ".tmp")

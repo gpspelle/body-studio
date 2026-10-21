@@ -3,13 +3,13 @@
     body-studio                       open the app (same as `body-studio ui`)
     body-studio ui [--data-dir D] [--port N] [--no-browser]
     body-studio run VIDEO [options]   whole pipeline in the terminal (see `run --help`)
-    body-studio setup                 install ffmpeg, COLMAP and Brush (splat-studio's setup)
+    body-studio setup                 install ffmpeg, COLMAP and Brush (splat-studio's setup), and PyTorch and Anny
     body-studio check                 show which tools are installed
     body-studio measure BODY.ply --sex m --height 178 [--weight 80] [--tape-waist 86]
                                       neck, waist, hips and a body fat estimate (experimental)
     body-studio rig BODY.ply          find the skeleton, for posing and tattoos (experimental)
     body-studio fit BODY.ply          fit the base mesh the wardrobe's clothes are made for (experimental)
-    body-studio fit-anny BODY.ply     the same with Anny, a PyTorch body model (trial: pip install 'body-studio[anny]')
+    body-studio fit-anny BODY.ply     the same with Anny, a PyTorch body model (trial)
     body-studio person NAME --sex m --height 178     add a person whose progress you follow
     body-studio tape NAME --waist 86 [--neck 38] [--hip 98] [--weight 80] [--date 2026-10-12]
     body-studio scan NAME VIDEO/run_DATE_TIME        add a finished body to their history
@@ -69,6 +69,16 @@ def main(argv: list[str] | None = None) -> None:
         return history_main(cmd, rest, DEFAULT_DATA)
     if cmd in ("setup", "check"):
         from splat_studio.__main__ import main as splat_main
+
+        from . import anny_fit
+        if cmd == "check":
+            print(f"  {'✓' if anny_fit.available() else '·'} {'Anny':<9} body model trial in Try on "
+                  "(PyTorch; body-studio setup installs it)")
+        elif not {"--masking", "--dry-run", "-h", "--help"} & set(rest):
+            try:
+                anny_fit.install(print)
+            except anny_fit.Missing as e:      # the app works without it: say so and go on
+                print(f"{e}. The Anny body model is left out; run body-studio setup again to retry.")
         return splat_main([cmd, *rest])
     sys.exit(f"unknown command {cmd!r}. Try: body-studio --help")
 

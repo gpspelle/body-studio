@@ -1,10 +1,11 @@
-"""The Anny trial (anny_fit.py): without PyTorch it says how to install it; with PyTorch and Anny
-installed (pip install '.[anny]') it fits the MakeHuman test body and its file is one the
+"""The Anny trial (anny_fit.py): without PyTorch it installs it (setup, or the first fit), and says
+so when it can't; with PyTorch and Anny installed it fits the MakeHuman test body and its file is one the
 clothes accept. CI has no PyTorch, so the fitting tests run only where it is installed."""
 import contextlib
 import io
 import json
 import math
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -24,16 +25,62 @@ except ImportError:
     HAVE = False
 
 
+def pip_fails(cmd, **kw):
+    return subprocess.CompletedProcess(cmd, 1, "ERROR: No matching distribution found for torch>=2.0\n")
+
+
 class WithoutTorch(unittest.TestCase):
-    def test_says_how_to_install_it(self):
+    def test_says_when_it_cant_install_it(self):
         with tempfile.TemporaryDirectory() as tmp:
             ply = Path(tmp) / "body.ply"
             write_body(ply, n=20000)
-            with mock.patch.dict(sys.modules, {"torch": None, "anny": None}):
+            with mock.patch.object(anny_fit, "available", lambda: False), \
+                    mock.patch.object(anny_fit.subprocess, "run", side_effect=pip_fails) as run:
                 with self.assertRaises(SystemExit) as e:
                     cli.main(["fit-anny", str(ply)])
-            self.assertIn("pip install 'body-studio[anny]'", str(e.exception.code))
+            self.assertIn("couldn't install PyTorch and Anny", str(e.exception.code))
+            self.assertIn("No matching distribution", str(e.exception.code))
+            self.assertEqual(run.call_args.args[0], [sys.executable, "-m", "pip", "install", "anny>=0.6", "torch>=2.0"])
             self.assertFalse(anny_fit.fit_file(ply).exists())
+
+    def test_installs_once_into_this_python(self):
+        """Into the app's own Python, and not again once it's there."""
+        state = {"in": False}
+
+        def pip(cmd, **kw):
+            state["in"] = True
+            return subprocess.CompletedProcess(cmd, 0, "")
+        with mock.patch.object(anny_fit, "available", lambda: state["in"]), \
+                mock.patch.object(anny_fit.subprocess, "run", side_effect=pip) as run:
+            anny_fit.install()
+            anny_fit.install()
+        self.assertEqual(run.call_count, 1)
+        self.assertEqual(run.call_args.args[0][:4], [sys.executable, "-m", "pip", "install"])
+
+    def test_the_extra_and_the_install_agree(self):
+        text = (Path(__file__).resolve().parents[2] / "pyproject.toml").read_text()
+        self.assertIn("anny = " + json.dumps(list(anny_fit.REQUIRES)), text)
+
+    def test_setup_installs_it(self):
+        """`body-studio setup` installs PyTorch and Anny with the other tools; a failure there
+        doesn't stop the rest. `check` lists it."""
+        calls = []
+        splat = mock.MagicMock(side_effect=lambda argv: calls.append(("splat", argv)))
+        with mock.patch.dict(sys.modules, {"splat_studio.__main__": mock.MagicMock(main=splat)}):
+            with mock.patch.object(anny_fit, "install", side_effect=lambda log: calls.append(("anny",))):
+                cli.main(["setup"])
+                cli.main(["setup", "--masking"])
+            self.assertEqual(calls, [("anny",), ("splat", ["setup"]), ("splat", ["setup", "--masking"])])
+            out = io.StringIO()
+            with mock.patch.object(anny_fit, "install", side_effect=anny_fit.Missing("couldn't install PyTorch and Anny")), \
+                    contextlib.redirect_stdout(out):
+                cli.main(["setup"])
+            self.assertIn("left out", out.getvalue())
+            self.assertEqual(splat.call_args.args[0], ["setup"])
+            out = io.StringIO()
+            with mock.patch.object(anny_fit, "available", lambda: False), contextlib.redirect_stdout(out):
+                cli.main(["check"])
+            self.assertIn("· Anny", out.getvalue())
 
     def test_help_needs_no_torch(self):
         out = io.StringIO()
@@ -52,7 +99,7 @@ class WithoutTorch(unittest.TestCase):
             self.assertTrue(anny_fit.body_slider(label), label)
 
 
-@unittest.skipUnless(HAVE, "PyTorch and Anny aren't installed (pip install '.[anny]')")
+@unittest.skipUnless(HAVE, "PyTorch and Anny aren't installed (body-studio setup, or pip install '.[anny]')")
 class WithAnny(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

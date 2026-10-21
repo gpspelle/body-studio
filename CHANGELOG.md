@@ -107,3 +107,6 @@
   model between Standard and Anny, with the same clothes on. The Anny fit is saved as
   `<body>.anny.fit.json`; `body-studio fit-anny BODY.ply [--no-wrap]` makes it in the terminal.
   See `docs/anny.md`.
+- Anny installs itself: `body-studio setup` installs PyTorch and Anny with the other tools, and the
+  first click on **Anny** in the Try on panel installs them if they're missing, so the switch is
+  always there and nothing has to be typed. `body-studio check` lists Anny.
