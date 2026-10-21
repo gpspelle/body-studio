@@ -34,7 +34,7 @@ git clone https://github.com/gpspelle/body-studio.git
 cd body-studio
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
-body-studio setup        # installs ffmpeg, COLMAP, builds Brush, and PyTorch and Anny, once (10–30 min)
+body-studio setup        # installs ffmpeg, COLMAP, builds Brush, PyTorch, Anny and TripoSR, once (10–30 min)
 body-studio              # opens http://localhost:8770
 ```
 
@@ -58,6 +58,7 @@ body-studio run IMG_1234.MOV                     # whole pipeline in the termina
 body-studio run IMG_1234.MOV --quality preview   # quick look
 body-studio run IMG_1234.MOV --start 0:03 --end 2:10
 body-studio room LIVING_ROOM.MOV                 # a room filmed from inside, for the body to stand in
+body-studio decor ARCH.JPG --height 2.2           # a 3D decor item from one photo, for the Decor panel
 ```
 
 The finished body is `workspace/<video>/run_<date_time>/splat/<quality>_<steps>_object.ply`.
@@ -213,6 +214,29 @@ gets up. The camera stays inside the room.
 How it works and the limits (flat floors only, the size is a guess within about 10%):
 [docs/room.md](docs/room.md).
 
+## Decor in a room
+
+With a room round the body, **Decor** in the top bar opens a panel for putting things in it: chairs,
+round and long tables, a flower arch, a pillar, an aisle runner, flowers, candles and lanterns, in
+a few colours, or things made in 3D from a photo. Planning a wedding venue is what it is for: film
+the venue as a room, set it, walk the aisle.
+
+![A round table set with chairs, candles and flowers in the sample living room](docs/images/decor-desktop.png)
+
+- Tap a thing to put it in the room, then drag it along the floor. Flowers and candles go on the
+  table they are dropped on. **Turn** (or `[` `]`), a colour, **Make a row** of up to 12, **Chairs
+  round it** for a table, **Remove** (or Delete).
+- **Add from a photo…**: a photo of one thing (an Instagram picture is fine), its name and its real
+  height in cm. It is made into 3D **on this computer** with TripoSR (MIT) in a minute or two. The
+  first time also installs it and downloads its weights (about 2 GB); `body-studio setup` does that
+  beforehand. The back of the thing is guessed, so it works best on one whole thing on a plain
+  background.
+- Chairs and tables stop the walk; **F** sits on a chair you put there.
+- **Layout**: several arrangements per room (**New**, **Copy**, **Delete**). Everything is kept in
+  `decor/` in the data folder.
+
+How it works and its limits: [docs/decor.md](docs/decor.md).
+
 ## Development
 
 ```bash
@@ -249,7 +273,7 @@ git clone https://github.com/gpspelle/body-studio.git
 cd body-studio
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
-body-studio setup        # instala ffmpeg, COLMAP, compila o Brush e instala PyTorch e Anny, uma vez (10 a 30 min)
+body-studio setup        # instala ffmpeg, COLMAP, compila o Brush e instala PyTorch, Anny e TripoSR, uma vez (10 a 30 min)
 body-studio              # abre http://localhost:8770
 ```
 
@@ -270,6 +294,7 @@ body-studio              # abre http://localhost:8770
 body-studio run IMG_1234.MOV
 body-studio run IMG_1234.MOV --quality preview
 body-studio room SALA.MOV                        # um cômodo filmado por dentro, para o corpo ficar nele
+body-studio decor ARCO.JPG --height 2.2          # um item de decoração em 3D a partir de uma foto
 ```
 
 O corpo pronto fica em `workspace/<vídeo>/run_<data_hora>/splat/<qualidade>_<passos>_object.ply`.
@@ -391,6 +416,26 @@ levanta. A câmera fica dentro do cômodo.
 
 Como funciona e os limites (só chão plano, o tamanho é uma estimativa com cerca de 10% de erro), em
 inglês: [docs/room.md](docs/room.md).
+
+### Decoração no cômodo
+
+Com um cômodo em volta do corpo, **Decoração** na barra de cima abre um painel para colocar coisas
+nele: cadeiras, mesas redondas e compridas, um arco de flores, um pedestal, uma passadeira, flores,
+velas e lanternas, em algumas cores, ou coisas feitas em 3D a partir de uma foto. É para planejar a
+decoração de um casamento: filme o espaço como um cômodo, monte a decoração, ande pelo corredor.
+
+- Toque numa coisa para colocá-la no cômodo e arraste pelo chão. Flores e velas ficam em cima da
+  mesa onde são soltas. **Girar** (ou `[` `]`), uma cor, **Fazer uma fileira** de até 12,
+  **Cadeiras em volta** de uma mesa, **Remover** (ou Delete).
+- **Adicionar de uma foto…**: uma foto de uma coisa só (uma foto do Instagram serve), o nome e a
+  altura real em cm. Ela vira 3D **neste computador** com o TripoSR (MIT) em um ou dois minutos. Na
+  primeira vez também instala e baixa os pesos (cerca de 2 GB); o `body-studio setup` já faz isso
+  antes. A parte de trás é adivinhada, então funciona melhor com uma coisa inteira num fundo liso.
+- Cadeiras e mesas param a caminhada; **F** senta numa cadeira que você colocou.
+- **Arranjo**: vários arranjos por cômodo (**Novo**, **Copiar**, **Apagar**). Tudo fica em `decor/`
+  na pasta de dados.
+
+Como funciona e os limites, em inglês: [docs/decor.md](docs/decor.md).
 
 ### Medidas e gordura corporal (experimental)
 

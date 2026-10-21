@@ -22,6 +22,10 @@ dependencies = [
 # Trial only (`body-studio fit-anny`): fits the clothes' base mesh with Anny, a PyTorch body model
 # (Apache-2.0 code, CC0 MakeHuman data). The app itself stays standard library.
 anny = ["anny>=0.6", "torch>=2.0"]
+# Decor from a photo (photo3d.py, TripoSR): what it needs besides TripoSR's own code, which isn't on
+# PyPI (the app downloads it at a pinned commit). The app installs these itself the first time.
+photo3d = ["torch>=2.0", "transformers>=4.35,<5", "omegaconf>=2.3", "einops", "trimesh>=4",
+           "rembg>=2.0.50", "onnxruntime", "huggingface-hub", "PyMCubes", "Pillow", "imageio", "numpy"]
 
 [project.scripts]
 body-studio = "body_studio.__main__:main"

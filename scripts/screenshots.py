@@ -38,6 +38,7 @@ SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("walk-desktop", 1280, 800, "light", "en", "walk"),
     ("guide-desktop", 1280, 800, "light", "en", "guide"),
     ("room-desktop", 1280, 800, "light", "en", "room"),
+    ("decor-desktop", 1280, 800, "light", "en", "decor"),
 ]
 # a line-art design drawn on white, like a scanned tattoo sketch: a sun with a wave inside
 DESIGN = """(() => {
@@ -121,6 +122,8 @@ def main() -> None:
                     walk_scene(page)
                 if panel == "room":
                     room_scene(page)
+                if panel == "decor":
+                    decor_scene(page)
                 if panel == "guide":
                     page.click("#guideBtn")
                 page.wait_for_function("document.getElementById('version').textContent.length > 0")
@@ -237,6 +240,39 @@ def room_scene(page) -> None:
         V.camera.position.copy(V.holder.localToWorld(T.clone().set(...eye)));
         V.controls.autoRotate = false; V.controls.update(); })()""")
     page.wait_for_function("house.sight() === 1")
+    settle(page)
+
+
+def decor_scene(page) -> None:
+    """Mia dressed in the sample living room set for a dinner: a round table with chairs round it,
+    flowers and candles on it, a flower arch and lanterns, the Decor panel open, the table picked."""
+    dress(page)
+    page.evaluate("house.choose(house.rooms()[0].file)")
+    page.wait_for_function("house.shown() && decor.group()", timeout=300000)
+    page.click("#decorBtn")
+    page.evaluate("""(async () => {
+        const at = house.where(), P = house.placement(), f = P.wayToMap(tattooStudio.walker().facing());
+        const n = Math.hypot(...f), a = [f[0] / n, f[1] / n], s = [a[1], -a[0]];
+        const map = (along, side) => [at[0] + a[0] * along + s[0] * side, at[1] + a[1] * along + s[1] * side];
+        const put = async (id, along, side, turn = 0) => { await decor.add(id); const k = decor.placed().length - 1;
+          decor.move(k, ...map(along, side)); return k; };
+        const t = await put("round_table", -0.2, 1.15);
+        document.getElementById("decorRowN").value = "6"; document.getElementById("decorAround").click();
+        const T = decor.placed()[t];
+        for (const [id, dx, dz] of [["flowers", 0, 0], ["candle", 0.3, 0.1], ["candle", -0.25, -0.2], ["candle", 0.05, 0.35]]) {
+          await decor.add(id); decor.move(decor.placed().length - 1, T.x + dx, T.z + dz); }
+        await put("arch", -0.7, 0);
+        await put("lantern", -0.6, -1.1); await put("lantern", -0.6, 1.0);
+        decor.pick(t);
+        // the camera in front of her, a little to the table's side, at eye height
+        const V = bodyApp.viewer, C = V.controls.target;
+        const xyz = (xz, y) => [xz[0], y, xz[1]];
+        const eye = P.toBody(xyz(map(2.6, 0.4), 1.75)), look = P.toBody(xyz(map(-0.3, 0.55), 1.0));
+        V.holder.updateMatrixWorld();
+        C.copy(V.holder.localToWorld(C.clone().set(...look)));
+        V.camera.position.copy(V.holder.localToWorld(C.clone().set(...eye)));
+        V.controls.autoRotate = false; V.controls.update(); })()""")
+    page.wait_for_function("decor.drawn() >= 14 && !decor.saving")
     settle(page)
 
 

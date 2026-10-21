@@ -27,8 +27,13 @@ export class RoomMap {
     const i = Math.floor((x - this.x0) / this.cell), k = Math.floor((z - this.z0) / this.cell);
     return i >= 0 && k >= 0 && i < this.nx && k < this.nz ? k * this.nx + i : -1;
   }
-  free(x, z) { const c = this._c(x, z); return c >= 0 && this.walk[c] === 1; }
+  free(x, z) { const c = this._c(x, z); return c >= 0 && this.walk[c] === 1 && !(this.blocked && this.blocked(x, z)); }
   tallAt(x, z) { const c = this._c(x, z); return c >= 0 ? this.tall[c] / 100 : 0; }
+  topAt(x, z) { const c = this._c(x, z); return c >= 0 ? this.top[c] / 100 : 0; }
+
+  // what was put in the room (decor.js): blocked(x, z) is true where the body can't stand, and
+  // more places to sit
+  setDecor(blocked, seats = []) { this.blocked = blocked || null; this.decorSeats = seats; }
 
   // free floor all round (x, z) out to r
   clear(x, z, r = ROOM.radius) {
@@ -83,7 +88,7 @@ export class RoomMap {
   // and the way to face, if its front (where the feet go) is within reach.
   seatNear(x, z, reach = ROOM.sitReach) {
     let best = null, bd = reach;
-    for (const s of this.seats) {
+    for (const s of this.decorSeats ? this.seats.concat(this.decorSeats) : this.seats) {
       const fx = s.x + s.dir[0] * 0.35, fz = s.z + s.dir[1] * 0.35, d = Math.hypot(x - fx, z - fz);
       if (d < bd) { best = s; bd = d; }
     }

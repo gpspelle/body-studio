@@ -16,7 +16,7 @@ class I18n(unittest.TestCase):
         self.assertEqual(table("en"), table("pt"))
 
     def test_page_uses_only_known_keys(self):
-        page = "".join((STATIC / f).read_text() for f in ("index.html", "progress.js", "tattoo.js"))
+        page = "".join((STATIC / f).read_text() for f in ("index.html", "progress.js", "tattoo.js", "decorate.js"))
         used = set(re.findall(r'(?:data-i18n(?:-aria-label)?="|\bt\(")([\w.]+)', page))
         used |= set(re.findall(r'"(prog\.\w+)"', page))               # row labels passed to t() later
         used = {k for k in used if not k.endswith(".")}                  # "joint." + name: see below
@@ -54,6 +54,20 @@ class I18n(unittest.TestCase):
         self.assertLessEqual(keys, pt)
         fit = (STATIC.parent / "fit.py").read_text()      # fit errors reuse the rig's advice
         self.assertLessEqual({"rig.err." + c for c in re.findall(r'FitError\(.*, "(\w+)"\)', fit)}, en)
+
+    def test_decor_names_and_errors_are_translated(self):
+        from body_studio import decor
+        en, pt = table("en"), table("pt")
+        page = (STATIC / "decorate.js").read_text()
+        keys = set(re.findall(r'\bt\(\s*"(decor\.\w+)"', page))
+        keys |= {"decor.item." + s["id"] for s in decor.STARTERS} | {"decor.colour." + c for c in decor.COLOURS}
+        src = (STATIC.parent / "decor.py").read_text() + (STATIC.parent / "photo3d.py").read_text()
+        codes = set(re.findall(r'DecorError\(.*, "(\w+)"\)', src)) | set(re.findall(r'code = "(\w+)"', src))
+        codes |= set(re.findall(r'"code": "(\w+)"', (STATIC.parent / "server.py").read_text())) & {"no_room"}
+        self.assertGreaterEqual(codes, {"photo_type", "photo_size", "height", "mesh", "photo3d", "photo3d_install"})
+        keys |= {"decor.err." + c for c in codes}
+        self.assertLessEqual(keys, en)
+        self.assertLessEqual(keys, pt)
 
     def test_every_upload_error_is_translated(self):
         codes = set(re.findall(r'"code": "(\w+)"', (STATIC.parent / "server.py").read_text()))

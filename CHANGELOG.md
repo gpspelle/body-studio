@@ -149,3 +149,14 @@
   from the hips or the head: they trail when she walks off, swing forward once when she stops and
   turn a moment behind her when she turns, without the bounce at every step, the snaps at the end
   of the swing or the hem tearing into lace that the old springs gave.
+
+- **Decor in a room** (see `docs/decor.md`): with a room round the body, **Decor** opens a panel to
+  put chairs, tables, a flower arch, a pillar, an aisle runner, flowers, candles and lanterns in it
+  (in seven colours), drag them along the floor, turn them, make rows, put chairs round a table, and
+  keep several layouts per room (`decor/layouts/` in the data folder). **Add from a photo…** makes a
+  thing in 3D from one photo on this computer with TripoSR (MIT), at the real height given;
+  `body-studio decor PHOTO --height M` does it in the terminal, and `body-studio setup` installs it
+  (the `photo3d` extra, TripoSR's code at a pinned commit, its weights). Chairs and tables stop the
+  walk and **F** sits on a chair. New API under `/api/decor`.
+- Fix: with a room remembered from last time, opening the app could fail to get the body's
+  skeleton (the room asked for it before the body had loaded).

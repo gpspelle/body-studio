@@ -89,6 +89,8 @@ async function load() {
       rig = d;
       break;
     }
+    if (!V.loaded()) await new Promise((ok) => addEventListener("bodyshown", ok, { once: true }));
+    if (V.file() !== file) return;
     const mesh = V.mesh();
     await mesh.initialized;
     if (V.file() !== file) return;

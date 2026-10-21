@@ -54,3 +54,13 @@ assets under CC0 since.
 
 Items from other authors (for example CC-BY packs from the MakeHuman community asset site) will
 be added to this table with their author's name and licence before they ship.
+
+## Decor from a photo
+
+Things made from a photo in the Decor panel are made on your computer by
+[TripoSR](https://github.com/VAST-AI-Research/TripoSR) by Tripo AI and Stability AI, released under
+the **MIT License** (its code and its weights). Body Studio doesn't include it: `body-studio setup`
+(or the first photo) downloads its code at a pinned commit and its weights from Hugging Face
+(`stabilityai/TripoSR`). The thing is cut out of the photo with [rembg](https://github.com/danielgatis/rembg)
+(MIT) and its U²-Net model (Apache 2.0). The starters (chairs, tables, the arch, flowers…) are drawn
+by Body Studio itself.

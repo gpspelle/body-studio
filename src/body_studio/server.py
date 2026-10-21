@@ -27,6 +27,12 @@
     POST /api/people/<id>/tape          {date, weight_kg, waist_cm, neck_cm, hip_cm}
     POST /api/people/<id>/scans         {body, date}: add a finished body; measured in the background
     DELETE /api/people/<id>/entries/<e> remove one tape entry or scan
+    GET  /api/decor                     the decor inventory: starters, then items made from photos (decor.py)
+    POST /api/decor/photo?name=&height= a photo's bytes: a new item, made from it in the background (photo3d.py)
+    GET  /api/decor/<id>/mesh | /photo  a made item's mesh (packed), or its photo
+    POST /api/decor/<id>                {name, height, on}: change an item; .../retry makes a failed one again
+    DELETE /api/decor/<id>              remove an item
+    GET  /api/decor/layout?room=<file>  the room's decor layouts; POST the same to save them
 
 Runs go through splat-studio's own job runner (splat_studio.server.jobs.Runner): one at a time,
 under a pseudo-terminal, with measured time left, lock files, timeline.jsonl and advice in
@@ -46,7 +52,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from splat_studio.server.jobs import Runner, validate_options
 from splat_studio.server.library import DataDir
 
-from . import __version__, anny_fit, fit, history, library, rig, room, sample_room, wardrobe
+from . import __version__, anny_fit, decor, fit, history, library, rig, room, sample_room, wardrobe
 from .pipeline import job_options, room_job_options
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -54,6 +60,7 @@ VIDEO_EXT = {".mov", ".mp4", ".m4v"}
 ROOM_EXT = VIDEO_EXT | {".zip"}             # a room may also be an iPhone capture (Splat Capture): in metres
 MAX_UPLOAD = 8 * 1024 ** 3
 MAX_JSON = 64 * 1024
+MAX_LAYOUT = 2 * 1024 ** 2
 
 
 class Builder:
@@ -140,6 +147,7 @@ def make_handler(data: DataDir, runner: Runner):
     anny_fits = Builder(anny_fit, anny_fit.fit_file, (rig.RigError, fit.FitError, anny_fit.Missing))
     maps = Builder(room, room.map_file, room.RoomError)
     fitted = {}                                # (fit file, its mtime) -> decoded fit, the latest only
+    maker = decor.Maker(data.root)             # decor items made from photos, one at a time
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -232,6 +240,15 @@ def make_handler(data: DataDir, runner: Runner):
                     fitted.clear()
                     fitted[key] = fit.decode(json.loads(out.read_text()))
                 return self._json(wardrobe.fitted(m.group(1), fitted[key]))
+            if p == "/api/decor":
+                return self._json(decor.items(data.root))
+            if p == "/api/decor/layout":
+                f = self._room_file()
+                return f and self._json(decor.load_layouts(data.root, f))
+            m = re.fullmatch(r"/api/decor/([a-z0-9]+)/(mesh|photo)", p)
+            if m:
+                fn = decor.mesh_file if m.group(2) == "mesh" else decor.photo_file
+                return self._file(fn(data.root, m.group(1)))
             if p == "/api/people":
                 return self._json(history.people(data.root))
             m = re.fullmatch(r"/api/people/([^/]+)", p)
@@ -257,6 +274,71 @@ def make_handler(data: DataDir, runner: Runner):
             elif state == "failed":
                 self._json({"error": out[0], "code": out[1]}, 422)
             return state, out
+
+        def _room_file(self):
+            """The room named by ?room= (its splat, as /api/rooms lists it), or None (404 sent)."""
+            rel = parse_qs(urlparse(self.path).query).get("room", [""])[0]
+            ply = library.safe_path(data.root, rel)
+            if not ply or ply.suffix != ".ply":
+                self._json({"error": "no such room", "code": "no_room"}, 404)
+                return None
+            return ply.relative_to(data.root.resolve()).as_posix()
+
+        def _read(self, limit: int) -> bytes | None:
+            size = int(self.headers.get("Content-Length") or 0)
+            if not 0 < size <= limit:
+                return None
+            data_ = self.rfile.read(size)
+            return data_ if len(data_) == size else None
+
+        def _decor_post(self, u):
+            q = parse_qs(u.query)
+            if u.path == "/api/decor/photo":
+                photo = self._read(decor.MAX_PHOTO)
+                if photo is None:
+                    raise decor.DecorError("the photo is empty or too large", "photo_size")
+                name = q.get("name", ["photo.jpg"])[0]
+                item = decor.add_photo(data.root, photo, Path(name).suffix, q.get("label", [Path(name).stem])[0],
+                                       q.get("height", ["0.8"])[0])
+                maker.add(item["id"])
+                return item
+            if u.path == "/api/decor/layout":
+                f = self._room_file()
+                if not f:
+                    return "sent"
+                body = self._read(MAX_LAYOUT)
+                try:
+                    d = json.loads(body) if body else None
+                except ValueError:
+                    d = None
+                return decor.save_layouts(data.root, f, d)
+            m = re.fullmatch(r"/api/decor/([a-z0-9]+)(/retry)?", u.path)
+            if not m:
+                return None
+            if m.group(2):
+                item = decor.load_item(data.root, m.group(1))
+                if item.get("status") == "failed":
+                    item.update(status="working", error=None, code=None)
+                    decor.save_item(data.root, item)
+                    maker.add(item["id"])
+                return item
+            body = self._read(MAX_JSON)
+            try:
+                d = json.loads(body) if body else None
+            except ValueError:
+                d = None
+            if not isinstance(d, dict):
+                raise decor.DecorError("send a small JSON object", "bad_request")
+            return decor.change_item(data.root, m.group(1), d)
+
+        def _decor(self, fn, code: int = 201):
+            try:
+                r = fn()
+            except decor.DecorError as e:
+                return self._json({"error": str(e), "code": e.code}, 404 if e.code == "no_item" else 400)
+            if r == "sent":
+                return None
+            return self._json(r, code) if r is not None else self.send_error(404)
 
         def _history(self, fn, code: int = 200):
             try:
@@ -300,6 +382,9 @@ def make_handler(data: DataDir, runner: Runner):
             return history.progress(history.load(root, pid))
 
         def do_DELETE(self):
+            m = re.fullmatch(r"/api/decor/([a-z0-9]+)", unquote(urlparse(self.path).path))
+            if m:
+                return self._decor(lambda: decor.delete_item(data.root, m.group(1)) or {"deleted": m.group(1)}, 200)
             m = re.fullmatch(r"/api/people/([^/]+)/entries/([^/]+)", unquote(urlparse(self.path).path))
             if not m:
                 return self.send_error(404)
@@ -317,6 +402,8 @@ def make_handler(data: DataDir, runner: Runner):
                 except history.HistoryError as e:
                     return self._json({"error": str(e), "code": e.code}, 404 if e.code == "no_person" else 400)
                 return self._json(r, 201) if r is not None else self.send_error(404)
+            if u.path.startswith("/api/decor/"):
+                return self._decor(lambda: self._decor_post(u))
             if u.path != "/api/upload":
                 return self.send_error(404)
             q = parse_qs(u.query)

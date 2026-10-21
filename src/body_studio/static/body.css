@@ -222,3 +222,16 @@ label.btn { display: inline-block; font-size: 13px; }
   .menu { top: auto; left: 8px; right: 8px; bottom: 8px; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .pill.busy::before { animation: none; } }
+
+/* Decor: the things as chips (a photo's own thumbnail in it), colour swatches, the repeat row. */
+.things button { display: inline-flex; align-items: center; gap: 6px; }
+.things img { width: 20px; height: 20px; object-fit: cover; border-radius: 4px; }
+.things button.busy { opacity: 0.6; }
+.things button.failed { border-color: var(--bad); }
+.swatches button { width: 24px; height: 24px; padding: 0; border-radius: 50%; background: var(--swatch); }
+.swatches button.on { outline: 2px solid var(--text); outline-offset: 2px; }
+.repeat { flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.repeat label { display: flex; align-items: center; gap: 6px; }
+.layouts { align-items: center; }
+.layouts select { flex: 1; min-width: 0; }
+#decorEdit .link { padding-left: 0; margin-right: 12px; }

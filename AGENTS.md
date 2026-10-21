@@ -31,6 +31,12 @@ tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no ex
   F, the camera kept inside) in `static/house.js`. The sample living room (drawn, listed before
   any room is filmed) in `sample_room.py`. The fake room for tests is `tests/fakes/room.py`. See
   `docs/room.md`.
+  Decor in a room: the inventory, items made from photos and the layouts per room in `decor.py`
+  (`decor/` in the data folder), a photo to a mesh with TripoSR in its own process in `photo3d.py`
+  (installed by setup or on first use, never imported by the server), the starters' shapes and where
+  things go as maths in `static/decor.js` (tested by `tests/js/decor.test.mjs`), the Decor panel and
+  dragging in `static/decorate.js`. The stand-in for TripoSR in tests is `tests/fakes/photo3d.py`
+  (`BODY_STUDIO_PHOTO3D`). See `docs/decor.md`.
 - Runs go through splat-studio's job runner (`splat_studio.server.jobs.Runner`): pty, measured
   time left, lock files, timeline.jsonl, advice in seconds of video. Don't write a second runner.
 - three.js and Spark are served from the installed splat-studio package (`/vendor/...`), so

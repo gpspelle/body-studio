@@ -43,6 +43,9 @@ class Viewer(unittest.TestCase):
         sample_room.ensure(data.root)       # made before the page opens, so it isn't made while tests run
         cls.design = Path(cls.tmp.name) / "design.png"
         cls.design.write_bytes(arrow_png())
+        # decor from a photo: tests/fakes/photo3d.py stands in for TripoSR
+        cls._env = {k: os.environ.get(k) for k in ("BODY_STUDIO_PHOTO3D",)}
+        os.environ["BODY_STUDIO_PHOTO3D"] = str(Path(__file__).resolve().parents[1] / "fakes" / "photo3d.py")
         cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
         threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
         cls.url = f"http://127.0.0.1:{cls.httpd.server_address[1]}/"
@@ -58,6 +61,11 @@ class Viewer(unittest.TestCase):
         cls.httpd.shutdown()
         cls.httpd.server_close()
         cls.tmp.cleanup()
+        for k, v in cls._env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
 
     def test_body_loads_upright_without_errors(self):
         for w, h in ((1280, 800), (390, 844)):
@@ -381,6 +389,99 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("!house.shown()")
         self.assertIsNone(page.evaluate("tattooStudio.walker().bound"))
         self.assertEqual(errors, [])
+
+
+    def test_decorates_a_room(self):
+        page = self.browser.new_page(viewport={"width": 1100, "height": 700})
+        self.addCleanup(page.close)
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+        page.goto(self.url)
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        self.assertTrue(page.locator("#decorBtn").is_hidden())          # only in a room
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+        page.click("#roomBtn")
+        page.locator("#roomList button[data-file^='workspace/Living_room/']").click()
+        page.wait_for_function("house.shown() && decor.group()", timeout=300000)
+        page.click("#roomBtn")
+        page.click("#decorBtn")
+        self.assertTrue(page.locator("#decor").is_visible())
+        self.assertEqual(page.locator("#decorItems button").count(), 9)            # the starters
+        # a chair, a step ahead of her, facing her: the walk goes round it
+        page.locator("#decorItems button", has_text="Chair").click()
+        self.assertEqual(page.evaluate("decor.drawn()"), 1)
+        chair = page.evaluate("decor.placed()[0]")
+        self.assertFalse(page.evaluate(f"house.map().free({chair['x']}, {chair['z']})"))
+        self.assertLess(dist([chair["x"], chair["z"]], page.evaluate("house.where()")), 6)
+        page.locator("#decorColours button[data-colour=wood]").click()
+        self.assertEqual(page.evaluate("decor.placed()[0].colour"), "wood")
+        page.select_option("#decorRowN", "5")
+        page.click("#decorRow")
+        self.assertEqual(page.evaluate("decor.placed().length"), 5)
+        # a round table with eight chairs round it, a candle on it
+        page.locator("#decorItems button", has_text="Round table").click()
+        page.select_option("#decorRowN", "8")
+        page.click("#decorAround")
+        self.assertEqual(page.evaluate("decor.placed().length"), 14)
+        page.locator("#decorItems button", has_text="Candle").click()
+        y = page.evaluate("""(() => { const p = decor.placed(), t = p.find((q) => q.item === 'round_table');
+            decor.move(p.length - 1, t.x + 0.3, t.z); return decor.placed()[p.length - 1].y; })()""")
+        self.assertAlmostEqual(y, 0.76, places=3)
+        self.assertEqual(page.evaluate("decor.drawn()"), 15)
+        # dragged along the floor with the mouse: a thing in view, not under the panel
+        page.evaluate("decor.pick(-1); tattooStudio.stepFor(1)")
+        at = page.evaluate("""(() => {
+            const free = document.querySelector('#decor').getBoundingClientRect().left;
+            for (const m of decor.group().children.filter((c) => c.isMesh)) {
+              const v = m.localToWorld(m.position.clone().set(0, 0.5, 0)).project(bodyApp.viewer.camera);
+              const x = (v.x + 1) / 2 * innerWidth, y = (1 - v.y) / 2 * innerHeight;
+              if (v.z < 1 && x > 20 && x < free - 60 && y > 80 && y < innerHeight - 20
+                  && document.elementFromPoint(x, y) === bodyApp.viewer.canvas) return [x, y];
+            }
+            return null; })()""")
+        self.assertIsNotNone(at, "something in view to drag")
+        before = page.evaluate("decor.placed()")
+        page.mouse.move(*at)
+        page.mouse.down()
+        page.mouse.move(at[0] + 40, at[1] + 10, steps=5)
+        page.mouse.up()
+        k = page.evaluate("decor.selected()")
+        self.assertGreaterEqual(k, 0, "the thing under the pointer is picked")
+        after = page.evaluate("decor.placed()")[k]
+        self.assertGreater(dist([after["x"], after["z"]], [before[k]["x"], before[k]["z"]]), 0.05)
+        # kept for the room: there again after a reload
+        page.wait_for_function("!decor.saving")
+        page.reload()
+        page.wait_for_function("window.decor && decor.placed().length === 15", timeout=300000)
+        self.assertEqual(page.evaluate("decor.layouts().layouts.length"), 1)
+        page.click("#decorBtn")
+        page.click("#decorNew")
+        self.assertEqual(page.evaluate("decor.placed().length"), 0)
+        self.assertEqual(page.locator("#decorLayout option").count(), 2)
+        page.select_option("#decorLayout", "0")
+        self.assertEqual(page.evaluate("decor.placed().length"), 15)
+        # a thing made from a photo (the stand-in for TripoSR makes a cone), at its real height
+        page.set_input_files("#decorPick", str(self.design))
+        page.locator("#decorForm [name=label]").fill("Arch from Instagram")
+        page.locator("#decorForm [name=height]").fill("120")
+        page.locator("#decorForm button.btn").click()
+        page.wait_for_function("decor.items().some((i) => i.name === 'Arch from Instagram' && i.status === 'ready')", timeout=60000)
+        page.locator("#decorItems button", has_text="Arch from Instagram").click()
+        page.wait_for_function("decor.drawn() === 16")
+        scale = page.evaluate("decor.group().children.filter((c) => c.isMesh).find((c) => c.userData.index === 15).scale.y")
+        self.assertAlmostEqual(scale, 1.2, places=6)
+        self.assertTrue(page.locator("#decorHeightRow").is_visible())
+        # a chair is somewhere to sit
+        page.evaluate("""(() => { const c = decor.placed()[1], w = tattooStudio.walker(), P = house.placement(), o = tattooStudio.rig().frame.origin;
+            const b = P.toBody([c.x + Math.sin(c.turn) * 0.55, 0, c.z + Math.cos(c.turn) * 0.55]);
+            w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; tattooStudio.redraw(); })()""")
+        self.assertEqual(page.evaluate("house.nearby()"), "sit")
+        self.assertEqual(errors, [])
+        # the room as it was, for the other tests
+        page.evaluate("""fetch('/api/decor/layout?room=' + encodeURIComponent(house.file()),
+            { method: 'POST', body: JSON.stringify({ current: 0, layouts: [{ name: 'Layout 1', items: [] }] }) })""")
 
     def test_clothes_go_on_and_come_off(self):
         page = self.browser.new_page(viewport={"width": 1280, "height": 800})
