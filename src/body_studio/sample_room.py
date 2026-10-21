@@ -16,6 +16,8 @@ import json
 import math
 import random
 import struct
+import subprocess
+import sys
 import threading
 from pathlib import Path
 
@@ -315,10 +317,33 @@ def run_dir(data_dir: Path) -> Path:
 
 
 _lock = threading.Lock()
+_making: dict = {}                  # data folder -> the process making the room there
+
+
+def ready(data_dir: Path) -> bool:
+    d = run_dir(data_dir)
+    try:
+        return (d / "splat" / PLY).is_file() and json.loads((d / "sample.json").read_text()).get("version") == VERSION
+    except (OSError, ValueError):
+        return False
+
+
+def start(data_dir: Path) -> bool:
+    """Whether the sample room is there; if not, start making it in another process (a few seconds
+    of work that would hold up the server's other requests)."""
+    if ready(data_dir):
+        return True
+    with _lock:
+        key = str(Path(data_dir).resolve())
+        proc = _making.get(key)
+        if proc is None or proc.poll() is not None:
+            _making[key] = subprocess.Popen([sys.executable, "-m", "body_studio.sample_room", key],
+                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return False
 
 
 def ensure(data_dir: Path) -> Path:
-    """The sample room's splat in the data folder, made (a few seconds) if it isn't there yet."""
+    """The sample room's splat in the data folder, made here and now if it isn't there yet."""
     with _lock:
         return _ensure(data_dir)
 
@@ -326,14 +351,15 @@ def ensure(data_dir: Path) -> Path:
 def _ensure(data_dir: Path) -> Path:
     d = run_dir(data_dir)
     ply, stamp = d / "splat" / PLY, d / "sample.json"
-    try:
-        if ply.is_file() and json.loads(stamp.read_text()).get("version") == VERSION:
-            return ply
-    except (OSError, ValueError):
-        pass
+    if ready(data_dir):
+        return ply
     d.mkdir(parents=True, exist_ok=True)
     library.mark_room(data_dir, NAME)              # before the splat, so it never shows as a body
     write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(0.7, 0.5), centre=(0.0, -0.3))
     write_ply(ply, splats())
     stamp.write_text(json.dumps({"version": VERSION}))
     return ply
+
+
+if __name__ == "__main__":
+    ensure(Path(sys.argv[1]))

@@ -7,7 +7,7 @@
     GET  /api/jobs         runs: queued, running and finished, newest first
     POST /api/upload?name= raw video bytes; saved to videos/ and queued
                            &kind=room: a room filmed from inside it (an iPhone capture .zip too), kept whole
-    GET  /api/rooms        finished rooms, newest first, then the sample living room (made the first time)
+    GET  /api/rooms        finished rooms, newest first, then the sample living room (started the first time, listed once made)
     GET  /api/room?room=<file>  the room's map: floor, size, walls, furniture and seats (room.py); 202
                            while it is being worked out, 422 if it doesn't look like a room
     GET  /files/<path>     a body's .ply (only files inside workspace/)
@@ -195,7 +195,7 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._json(sorted((job_view(v, rooms) for v in jobs), key=lambda v: v["id"], reverse=True))
             if p == "/api/rooms":
                 try:
-                    sample_room.ensure(data.root)       # the drawn living room, until one is filmed
+                    sample_room.start(data.root)        # the drawn living room: listed once it's made
                 except OSError:
                     pass
                 return self._json(library.rooms(data.root))

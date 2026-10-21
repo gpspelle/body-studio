@@ -19,7 +19,7 @@ from tests.fakes.bodyply import write_body
 from tests.fakes.makehuman import write_body as write_person
 from tests.fakes.room import write_room
 
-from body_studio import library
+from body_studio import library, sample_room
 
 try:
     from playwright.sync_api import sync_playwright
@@ -39,6 +39,7 @@ class Viewer(unittest.TestCase):
         os.utime(data.workspace / "Mia/run_20261011_120000/splat/standard_30000_object.ply", (old, old))
         write_room(data.workspace / "Living_room/run_20261021_120000", n=40000)    # a room filmed from inside
         library.mark_room(data.root, "Living_room")
+        sample_room.ensure(data.root)       # made before the page opens, so it isn't made while tests run
         cls.design = Path(cls.tmp.name) / "design.png"
         cls.design.write_bytes(arrow_png())
         cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
@@ -327,7 +328,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
         self.assertEqual([b.inner_text() for b in page.locator(".shelf button").all()], ["Anna", "Mia"])   # not a body
         page.click("#roomBtn")
-        page.locator("#roomList button", has_text="Living room").click()
+        page.locator('#roomList button[data-file^="workspace/Living_room/"]').click()
         page.wait_for_function("house.shown()", timeout=300000)
         self.assertTrue(page.evaluate("bodyApp.viewer.holder.children.includes(house.mesh())"))
         # standing on free floor in the middle of the room, the camera inside it and seeing her
