@@ -211,6 +211,53 @@ class Server(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertGreater(f["surface_found"], 0.8)
 
+    def wait(self, path, limit=240):
+        deadline = time.time() + limit
+        while True:
+            status, d = self.post(path, None, method="GET")
+            if status != 202 or time.time() > deadline:
+                return status, d
+            time.sleep(0.2)
+
+    def test_anny_is_installed_when_first_asked_for(self):
+        """Anny is always offered; the first Anny fit installs PyTorch and Anny, and a failed
+        install is a clear no (code "anny") rather than a hang."""
+        import subprocess
+        from body_studio import anny_fit
+        self.assertEqual(self.post("/api/fit/models", None, method="GET"), (200, ["standard", "anny"]))
+        write_body(self.d / "data" / "workspace" / "Ana" / "run_1" / "splat" / "standard_30000_object.ply")
+        body = "?body=workspace/Ana/run_1/splat/standard_30000_object.ply&model=anny"
+        with mock.patch.object(anny_fit, "available", lambda: False), \
+                mock.patch.object(anny_fit.subprocess, "run",
+                                  side_effect=lambda cmd, **kw: subprocess.CompletedProcess(cmd, 1, "offline")) as run:
+            status, d = self.wait("/api/fit" + body)
+        self.assertEqual((status, d["code"]), (422, "anny"))
+        self.assertEqual(run.call_args.args[0][1:4], ["-m", "pip", "install"])
+
+    def test_the_anny_fit_is_kept_apart(self):
+        """?model=anny asks anny_fit for its own file; the standard fit is left as it is. (Anny itself
+        isn't installed in CI: a standard fit marked as Anny's stands in for it.)"""
+        from body_studio import anny_fit, fit
+        from tests.fakes.makehuman import write_body as write_person
+        ply = self.d / "data" / "workspace" / "Ana" / "run_1" / "splat" / "standard_30000_object.ply"
+        write_person(ply, n=60000)
+
+        def fake(p):
+            r = fit.build(p)
+            r["model"] = "anny"
+            anny_fit.fit_file(p).write_text(json.dumps(r, separators=(",", ":")))
+            return r
+        body = "?body=workspace/Ana/run_1/splat/standard_30000_object.ply"
+        with mock.patch.object(anny_fit, "build_and_save", fake):
+            status, d = self.wait("/api/wardrobe/tee_jeans" + body + "&model=anny")
+            self.assertEqual((status, d["id"]), (200, "tee_jeans"))
+            self.assertEqual(self.wait("/api/fit" + body + "&model=anny")[1]["model"], "anny")
+            self.assertTrue(anny_fit.current(ply))
+            self.assertFalse(fit.fit_file(ply).exists())                 # not made until asked for
+            status, f = self.wait("/api/fit" + body)
+            self.assertEqual(status, 200)
+            self.assertNotIn("model", f)
+
     def test_shop_shapes(self):
         """The shop around the body: each item as it is made, and the mannequin head, for any body."""
         status, d = self.post("/api/wardrobe/suit/shape", None, method="GET")

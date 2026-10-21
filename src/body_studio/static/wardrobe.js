@@ -4,7 +4,9 @@
 // weights and moved by the same pose, and the body's splats under it are hidden while it is worn.
 // One item per slot (clothes, shoes, hair, hat). The items are shown in a shop around the body (racks.js:
 // a rail, a shoe rack, shelves and stands) while the panel is open; a click on one puts it on, and
-// the panel lists what is worn. Design and sources: docs/wardrobe.md.
+// the panel lists what is worn. When Anny (PyTorch) is installed, a switch in the panel picks which
+// body model the clothes are fitted with (GET /api/fit?model=anny, anny_fit.py). Design and
+// sources: docs/wardrobe.md, docs/anny.md.
 import * as THREE from "three";
 import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
 import { SkinCover, decodeItem, f32, i32, fitNormals, fitSkin, fitVerts, hatOverHair, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
@@ -26,6 +28,7 @@ const HAIR_SPACING = 0.7;        // hair cards are partly see-through: twice as 
 
 let W = null;                    // the body being dressed: rig, weights, its mesh, what is worn…
 let catalog = null;
+let models = ["standard"];       // the body models the server can fit with (GET /api/fit/models)
 const store = {
   get(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
@@ -35,9 +38,13 @@ addEventListener("studioready", async (e) => {
   undressAll();
   const { file, rig, weights, mesh, centres, transforms, caps, hands } = e.detail;
   W = { file, rig, weights, mesh, centres, transforms, caps, hands, worn: new Map(), fit: null, cover: null, hidden: new Map(),
-        tinted: new Map(), busy: 0 };
+        tinted: new Map(), busy: 0, model: "standard" };
   window.wardrobe.ready = false;
-  if (!catalog) catalog = await (await fetch("/api/wardrobe")).json();
+  if (!catalog) {
+    catalog = await (await fetch("/api/wardrobe")).json();
+    models = await (await fetch("/api/fit/models")).json();
+  }
+  if (models.includes(store.get("fitModel"))) W.model = store.get("fitModel");
   ui();
   placeShop(W);
   if (await loadFit(W) && W.file === file) {
@@ -55,10 +62,13 @@ addEventListener("posed", (e) => {
 
 function status(text) { $("wearStatus").textContent = text || ""; }
 
+// the body and the model in a request: ?body=…[&model=anny]
+const fitQuery = (w) => "?body=" + encodeURIComponent(w.file) + (w.model === "standard" ? "" : "&model=" + w.model);
+
 async function loadFit(w) {
-  status(t("wear.fitting"));
+  status(t(w.model === "anny" ? "wear.fittingAnny" : "wear.fitting"));
   for (;;) {
-    const r = await fetch("/api/fit?body=" + encodeURIComponent(w.file));
+    const r = await fetch("/api/fit" + fitQuery(w));
     if (W !== w) return false;
     if (r.status === 202) { await new Promise((ok) => setTimeout(ok, 1000)); continue; }
     const d = await r.json();
@@ -87,10 +97,30 @@ function ui() {
     return b;
   }));
   $("wearNone").hidden = W.worn.size === 0;
+  $("wearModel").hidden = models.length < 2;
+  for (const b of $("wearModel").querySelectorAll("button")) {
+    b.classList.toggle("on", b.dataset.model === W.model);
+    b.setAttribute("aria-pressed", String(b.dataset.model === W.model));
+  }
   $("wearHint").textContent = t(W.fit ? "wear.hint" : "wear.wait");
   showShop();
 }
 addEventListener("langchange", ui);
+// the body model the clothes are fitted with: what is worn comes off and goes on again on the other
+for (const b of $("wearModel").querySelectorAll("button")) b.onclick = () => useModel(b.dataset.model);
+async function useModel(model) {
+  const w = W;
+  if (!w || w.model === model || !models.includes(model)) return;
+  store.set("fitModel", model);
+  const ids = SLOTS.map((s) => w.worn.get(s)?.id).filter(Boolean);
+  undressAll();
+  Object.assign(w, { model, fit: null, cover: null });
+  window.wardrobe.ready = false;
+  ui();
+  if (await loadFit(w)) for (const id of ids) if (W === w && w.model === model) await wear(id, true);
+  if (W === w && w.model === model) window.wardrobe.ready = true;
+}
+
 $("wearNone").onclick = () => {
   if (!W) return;
   for (const slot of [...W.worn.keys()]) takeOff(slot);
@@ -108,7 +138,7 @@ async function wear(id, restoring = false) {
   try {
     let d;
     for (;;) {
-      const r = await fetch(`/api/wardrobe/${id}?body=` + encodeURIComponent(w.file));
+      const r = await fetch(`/api/wardrobe/${id}` + fitQuery(w));
       if (W !== w) return;
       if (r.status === 202) { await new Promise((ok) => setTimeout(ok, 1000)); continue; }
       if (!r.ok) return;
@@ -549,6 +579,10 @@ window.wardrobe = {
   ready: false,
   items: () => catalog,
   wear: (id) => wear(id),
+  // the body model the clothes are fitted with ("standard" or "anny"), the ones offered, and a switch
+  model: () => (W ? W.model : null),
+  models: () => models,
+  useModel: (m) => useModel(m),
   worn: () => (W ? SLOTS.map((s) => W.worn.get(s)?.id).filter(Boolean) : []),
   // the shop: shown or not, how each item is displayed there, and where one is on the screen
   shop: () => (shop ? { shown: shop.group.visible, items: shop.objects.size,

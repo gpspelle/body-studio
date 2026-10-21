@@ -34,7 +34,7 @@ git clone https://github.com/gpspelle/body-studio.git
 cd body-studio
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
-body-studio setup        # installs ffmpeg, COLMAP and builds Brush, once (10–30 min)
+body-studio setup        # installs ffmpeg, COLMAP, builds Brush, and PyTorch and Anny, once (10–30 min)
 body-studio              # opens http://localhost:8770
 ```
 
@@ -173,6 +173,13 @@ and their licences, and the limits: [docs/tattoo.md](docs/tattoo.md).
 next to the body. How the clothes are fitted and drawn, where they come from, and the limits:
 [docs/wardrobe.md](docs/wardrobe.md).
 
+Trial: the Try on panel shows **Body model: Standard / Anny (trial)**, to see the same clothes on a
+body fitted either way ([Anny](https://github.com/naver/anny) is a body model that runs on PyTorch).
+`body-studio setup` installs PyTorch and Anny; if they aren't there, the first click on Anny installs
+them, with nothing to type (a few minutes, once). The Anny fit takes about two minutes the first time
+per body and is saved as `BODY.anny.fit.json`; `body-studio fit-anny BODY.ply` makes it in the
+terminal. PyTorch is only needed for this. Results so far: [docs/anny.md](docs/anny.md).
+
 ## Development
 
 ```bash
@@ -209,7 +216,7 @@ git clone https://github.com/gpspelle/body-studio.git
 cd body-studio
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
-body-studio setup        # instala ffmpeg e COLMAP e compila o Brush, uma vez (10 a 30 min)
+body-studio setup        # instala ffmpeg, COLMAP, compila o Brush e instala PyTorch e Anny, uma vez (10 a 30 min)
 body-studio              # abre http://localhost:8770
 ```
 
@@ -311,6 +318,14 @@ Como funciona, os modelos de corpo considerados e suas licenças, e os limites (
 `body-studio fit CORPO.ply` faz o ajuste das roupas no terminal e salva `CORPO.fit.json` ao lado do
 corpo. Como as roupas são ajustadas e desenhadas, de onde vêm e os limites (em inglês):
 [docs/wardrobe.md](docs/wardrobe.md).
+
+Teste: o painel Provar mostra **Modelo de corpo: Padrão / Anny (teste)**, para ver as mesmas roupas
+num corpo ajustado de um jeito ou de outro (o [Anny](https://github.com/naver/anny) é um modelo de
+corpo que roda no PyTorch). O `body-studio setup` instala o PyTorch e o Anny; se não estiverem lá, o
+primeiro clique em Anny os instala, sem nada para digitar (alguns minutos, uma vez). O ajuste com o Anny leva cerca de dois
+minutos na primeira vez para cada corpo e fica salvo como `CORPO.anny.fit.json`;
+`body-studio fit-anny CORPO.ply` faz o mesmo no terminal. O PyTorch só é preciso para isso.
+Resultados até agora (em inglês): [docs/anny.md](docs/anny.md).
 
 ### Medidas e gordura corporal (experimental)
 

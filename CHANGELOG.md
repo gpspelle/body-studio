@@ -102,6 +102,14 @@
 - Clothes come off without putting something else on: what is worn stays on its rack or stand as a
   pale outline, and clicking it takes it off (as the ✕ in the panel does). **Take everything off**
   in the panel undresses the body at once.
+- Trial: the clothes' body can be fitted with NAVER's Anny (PyTorch, an optional extra:
+  `pip install 'body-studio[anny]'`). When it is installed, the Try on panel switches the body
+  model between Standard and Anny, with the same clothes on. The Anny fit is saved as
+  `<body>.anny.fit.json`; `body-studio fit-anny BODY.ply [--no-wrap]` makes it in the terminal.
+  See `docs/anny.md`.
+- Anny installs itself: `body-studio setup` installs PyTorch and Anny with the other tools, and the
+  first click on **Anny** in the Try on panel installs them if they're missing, so the switch is
+  always there and nothing has to be typed. `body-studio check` lists Anny.
 - A body that looks alive (see `docs/flesh.md`): feet stay planted when walking, the pelvis turns
   and the hips sway; standing still it breathes, sways, blinks and turns its head to the camera.
   Skin darkens where it meets skin, the biceps swells with the bent elbow, skin no longer breaks

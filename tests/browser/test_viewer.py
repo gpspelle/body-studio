@@ -1,6 +1,7 @@
 """The app in a real browser, with synthetic bodies: it loads, stands the body upright and
 keeps it in frame. Needs `pip install playwright` and a Chromium (CI installs both);
 skipped otherwise. Set BODY_STUDIO_CHROMIUM to use a Chromium that's already installed."""
+import json
 import os
 import struct
 import tempfile
@@ -324,6 +325,7 @@ class Viewer(unittest.TestCase):
         # every item is on a rack, a shelf or a stand around the body, and the panel lists none
         shop = page.evaluate("wardrobe.shop()")
         self.assertTrue(shop["shown"])
+        self.assertFalse(page.evaluate("document.getElementById('wearModel').hidden"))   # Anny is always offered
         self.assertEqual(len(shop["racked"]), 29)
         self.assertEqual(page.locator("#wearWorn button").count(), 0)
         # pointing at one names it; clicking it puts it on and takes it off the rack
@@ -416,11 +418,59 @@ class Viewer(unittest.TestCase):
         self.assertEqual(errors, [])
         page.close()
 
+    def test_switches_the_body_model(self):
+        """The panel offers both body models; switching fits the clothes worn again on the other.
+        (CI has no PyTorch: a standard fit stands in for Anny's, so nothing is installed.)"""
+        from unittest import mock
+        from body_studio import anny_fit, fit
+
+        def fake(ply):
+            r = fit.build(ply)
+            r["model"] = "anny"
+            anny_fit.fit_file(ply).write_text(json.dumps(r, separators=(",", ":")))
+            return r
+        p = mock.patch.object(anny_fit, "build_and_save", fake)
+        p.start()
+        self.addCleanup(p.stop)
+        page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        self.addCleanup(page.close)
+        errors, asked = [], []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+        page.on("request", lambda r: "model=anny" in r.url and asked.append(r.url))
+        page.goto(self.url)
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+        page.click("#studioBtn")
+        page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=240000)
+        self.assertTrue(page.is_visible("#wearModel"))
+        self.assertEqual(page.evaluate("wardrobe.model()"), "standard")
+        self.assertEqual(page.locator("#wearModel button.on").inner_text(), "Standard")
+        page.evaluate("wardrobe.wear('tee_jeans')")
+        page.wait_for_function("wardrobe.worn().includes('tee_jeans')", timeout=60000)
+        page.click("#wearModel [data-model=anny]")
+        page.wait_for_function("wardrobe.ready && wardrobe.model() === 'anny' && wardrobe.worn().includes('tee_jeans')"
+                               " && wardrobe.hidden() > 5000", timeout=240000)
+        self.assertEqual(page.locator("#wearModel button.on").inner_text(), "Anny (trial)")
+        self.assertTrue(any("/api/fit?" in u for u in asked) and any("/api/wardrobe/tee_jeans?" in u for u in asked))
+        page.reload()                                       # the choice is remembered
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia')")
+        page.click("#studioBtn")
+        page.wait_for_function("wardrobe.ready && wardrobe.model() === 'anny' && wardrobe.worn().join() === 'tee_jeans'",
+                               timeout=120000)
+        page.click("#wearModel [data-model=standard]")
+        page.wait_for_function("wardrobe.ready && wardrobe.model() === 'standard' && wardrobe.worn().join() === 'tee_jeans'",
+                               timeout=120000)
+        self.assertEqual(errors, [])
+
 
 def pick(page, item):
     """Click an item on the racks around the body, where it shows on the screen."""
-    at = page.evaluate(f"wardrobe.onScreen('{item}')")
-    assert at, f"{item} isn't in view"
+    # (after a reload the camera is still settling on CI when the shop is ready)
+    at = page.wait_for_function(f"wardrobe.onScreen('{item}')", timeout=60000).json_value()
     page.mouse.click(at["x"], at["y"])
 
 
