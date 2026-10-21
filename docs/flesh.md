@@ -41,9 +41,19 @@ skin.
   parts (a skirt out of the thighs, a sleeve out of the side), no deeper than they were in the
   scan's pose. Cloth gathers into wrinkles on the inside of a bent elbow, knee or hip.
 - **Loose things swing**: a skirt's hem, a ponytail and hair over the shoulders lag behind as the
-  body moves, and swing back. There is one damped spring for the hips (clothes) and one for the
-  head (hair). Each splat follows it by how far it hangs off the skin, from not at all within
-  6 mm to fully beyond 5 cm.
+  body moves, and swing back. Each hangs like a pendulum, from the hips (clothes) or the head
+  (hair):
+  - across the floor it swings slowly (about once a second, damped by the air and the body, so a
+    stop gives one swing forward and a smaller one back); up and down it barely gives, as cloth
+    doesn't stretch, and it rises a little as it swings out;
+  - it turns behind the body too: when the hips or the head turn, the hem or the hair catches up a
+    moment later (up to 17° for clothes, 14° for hair);
+  - it answers how the body moves over a few frames (the anchor is followed at 1.5 Hz first), so
+    the surge of each step doesn't shake it; it eases into its limit (2.5% of the height, about
+    4 cm) rather than stopping dead; putting the body back (R) leaves it hanging still;
+  - each splat takes the swing by how far it hangs off the skin, from not at all within 1 cm to
+    fully beyond 5 cm, averaged over the splats within 3 cm of it, so the layers of a hem swing
+    together instead of tearing into lace.
 
 ## The floor and the fabric
 
@@ -70,7 +80,8 @@ use.
 
 - The capsules are rough: contact shading and the push out of the body are about right for limbs,
   less so where the trunk meets the arms.
-- The swing is two springs, not cloth: a skirt sways as a whole, it doesn't ripple.
+- The swing is two pendulums, not cloth: a skirt sways and turns as a whole, it doesn't ripple, and
+  where it spans the legs it still follows each thigh (striding opens it a little).
 - The shadow assumes light from above, whatever lit the scan.
 - The heavier and lighter body follows MakeHuman's targets, which put weight on and off in the
   same places for everyone of a sex.

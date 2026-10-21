@@ -156,7 +156,7 @@ function setup(rig, mesh, file) {
         posed: null, posedOk: false, dq: null, transforms: null, skinColour: new Map(), tinted: new Map(), hiddenSkin: new Set(), handles, handleJoints, lines, pairs, tattoos: [], selected: null,
         joint: null, heightCm: 170, nextId: 1, walker: new Walker(sk, rig), caps, handFrames: hands, flesh, fleshState: null,
         shape: [0, 0], life: { breath: 0, fist: { l: 0, r: 0 } }, hands: 0, alive: new Life(sk, rig), blink: null,
-        swing: { hips: new Swing(rig.height, SWING.hips), head: new Swing(rig.height, SWING.head), at: 0, moving: false },
+        swing: { hips: new Swing(rig.height, SWING.hips, rig.frame.up, rig.frame.front), head: new Swing(rig.height, SWING.head, rig.frame.up, rig.frame.front), at: 0, moving: false },
         // breathing, a sway, a blink, the head to the camera: not for tests and screenshots (a
         // browser driven by a script says so), which want a body that holds still
         lifeOn: !navigator.webdriver };
@@ -470,13 +470,13 @@ addEventListener("langchange", () => whatIfUI());
 // loose clothes swing from the hips, hair from the head (flesh.js Swing); the frames go on while
 // they still move
 function swing() {
-  const W = S.swing, now = performance.now(), dt = W.at ? (now - W.at) / 1000 : 0, H = S.rig.height;
+  const W = S.swing, now = performance.now(), dt = W.fixed || (W.at ? (now - W.at) / 1000 : 0), sk = S.sk;
   W.at = now;
-  const hips = W.hips.update(dt, S.sk.P[S.sk.index("pelvis")]), head = W.head.update(dt, S.sk.P[S.sk.index("head")]);
-  const fast = (w) => Math.hypot(...w.v) > 0.01 * H;
-  W.moving = Math.hypot(...hips) + Math.hypot(...head) > 1e-4 * H || fast(W.hips) || fast(W.head);
+  const at = (name) => { const j = sk.index(name); return [sk.P[j], sk.W[j]]; };
+  const hips = W.hips.update(dt, ...at("pelvis")), head = W.head.update(dt, ...at("head"));
+  W.moving = W.hips.moving() || W.head.moving();
   if (W.moving) walking();
-  return { hips, head };
+  return { hips: { o: hips, at: W.hips.at, up: W.hips.up }, head: { o: head, at: W.head.at, up: W.head.up } };
 }
 
 // the shadow under the body follows the pose (ground.js), in the scene's coordinates
@@ -1144,7 +1144,8 @@ window.tattooStudio = {
   lifeState: () => S && { breath: S.life.breath, blink: S.life.blink || 0, extra: !!S.sk.extra, look: [S.alive.yaw, S.alive.pitch],
                           blinkReady: !!S.blink },
   // the swing of loose clothes and hair (fractions of the height) and whether it still moves
-  swing: () => S && { moving: S.swing.moving, hips: v3.scale(S.fleshState.swing.hips, 1 / S.rig.height), head: v3.scale(S.fleshState.swing.head, 1 / S.rig.height) },
+  swing: () => S && { moving: S.swing.moving, hips: v3.scale(S.fleshState.swing.hips.o, 1 / S.rig.height), head: v3.scale(S.fleshState.swing.head.o, 1 / S.rig.height),
+                     turn: { hips: S.fleshState.swing.hips.o[3], head: S.fleshState.swing.head.o[3] } },
   // the "what if" sliders ([weight, muscle], -1..1 as on the page; shape: as the GPU takes them)
   // and the field clothes take their moves from
   whatIf: (shape) => { if (shape) { setShape(0, shape[0]); setShape(1, shape[1]); } return S && S.whatif ? { shape: S.shape, kg: shapeKg(S.whatif.volume, S.shape, S.heightCm), field: S.whatif.field, weight: S.whatif.weight, muscle: S.whatif.muscle } : null; },
@@ -1156,11 +1157,16 @@ window.tattooStudio = {
                      facing: S.walker.facing() },
   // walk for a while as if the keys (f b l r) were held, in steps of a 60th of a second, and stop
   // there, mid-stride, until a key is pressed (for screenshots)
-  walkFor: (seconds, keys = "f", jump = false) => {
+  // (frames: every step is drawn, so loose clothes and hair swing as they would at 60 a second)
+  walkFor: (seconds, keys = "f", jump = false, frames = false) => {
     held.clear();
     S.hold = true;
     for (const k of keys) held.add(k);
-    for (let i = 0; i < Math.round(seconds * 60); i++) S.walker.update(1 / 60, { move: moveDir(), jump: jump && i === 0 });
+    for (let i = 0; i < Math.round(seconds * 60); i++) {
+      S.walker.update(1 / 60, { move: moveDir(), jump: jump && i === 0 });
+      if (frames) { S.swing.fixed = 1 / 60; drawPose(); }
+    }
+    S.swing.fixed = 0;
     held.clear();
     drawPose(); followBody();
   },

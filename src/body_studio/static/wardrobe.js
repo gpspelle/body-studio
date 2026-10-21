@@ -12,7 +12,7 @@ import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
 import { SkinCover, decodeItem, f32, i32, fitNormals, fitSkin, fitVerts, hatOverHair, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
 import { dualQuats, skinPoint } from "/static/pose.js";
 import { fold, hang, onHead, pair, shopLayout } from "/static/racks.js";
-import { fillLayers, looseness, shapeOffsets } from "/static/flesh.js";
+import { fillLayers, looseness, shapeOffsets, smoothOver, SWING } from "/static/flesh.js";
 import { Flesh } from "/static/fleshgpu.js";
 
 const $ = (id) => document.getElementById(id);
@@ -311,12 +311,15 @@ function skin(mesh, s, w, item, slot) {
   const wi = window.tattooStudio?.whatIf?.();
   if (wi) { shapeOffsets(s.flesh.layers[0], wi.field, wi.weight, s.centres, s.n); shapeOffsets(s.flesh.layers[1], wi.field, wi.muscle, s.centres, s.n); }
   if (loose) {
-    const L = s.flesh.layers[4], C = s.centres, H = w.rig.height, far = w.cover.reach;
+    const L = s.flesh.layers[4], C = s.centres, H = w.rig.height, far = w.cover.reach, l = new Float32Array(s.n);
     for (let i = 0; i < s.n; i++) {
       const x = C[i * 3], y = C[i * 3 + 1], z = C[i * 3 + 2], v = w.cover.nearestSkin(x, y, z);
       const gap = v < 0 ? far : Math.hypot(w.skin[v * 3] - x, w.skin[v * 3 + 1] - y, w.skin[v * 3 + 2] - z);
-      L[i * 4] = looseness(gap, H);
+      l[i] = looseness(gap, H);
     }
+    // (neighbours alike, so the cloth doesn't tear as it swings)
+    const sm = smoothOver(l, C, s.n, SWING.near * H);
+    for (let i = 0; i < s.n; i++) L[i * 4] = sm[i];
   }
   s.flesh.upload();
   return skinning;

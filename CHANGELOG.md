@@ -144,3 +144,8 @@
 
 - **Steady camera while walking**: the camera follows the body at the walk's even pace instead of
   the surge of each step, and the body no longer jolts back a few centimetres as each heel strikes.
+
+- **Clothes and hair swing more naturally**: a skirt's hem and long hair hang like a pendulum
+  from the hips or the head: they trail when she walks off, swing forward once when she stops and
+  turn a moment behind her when she turns, without the bounce at every step, the snaps at the end
+  of the swing or the hem tearing into lace that the old springs gave.

@@ -2,6 +2,7 @@
 keeps it in frame. Needs `pip install playwright` and a Chromium (CI installs both);
 skipped otherwise. Set BODY_STUDIO_CHROMIUM to use a Chromium that's already installed."""
 import json
+import math
 import os
 import struct
 import tempfile
@@ -471,6 +472,21 @@ class Viewer(unittest.TestCase):
                            0.25 * page.evaluate("bodyViewer.size()[1]"))
         page.keyboard.up("w")
         page.wait_for_function("!tattooStudio.walk().active", timeout=60000)   # (slow with clothes and the shop on CI)
+        # a skirt and long hair swing as she walks off and turns, within their limits, and settle
+        page.evaluate("wardrobe.wear('shirt_skirt').then(() => wardrobe.wear('long'))")
+        page.wait_for_function("wardrobe.worn().includes('shirt_skirt') && wardrobe.worn().includes('long')", timeout=120000)
+        page.evaluate("tattooStudio.walkFor(0.6, 'f', false, true)")
+        sw = page.evaluate("tattooStudio.swing()")
+        self.assertTrue(sw["moving"])
+        self.assertGreater(math.hypot(*sw["hips"]), 0.003)
+        self.assertLess(math.hypot(*sw["hips"]), 0.03)
+        page.evaluate("tattooStudio.walkFor(0.5, 'b', false, true)")
+        self.assertGreater(abs(page.evaluate("tattooStudio.swing().turn.hips")), 0.02)   # the hem turns behind
+        page.evaluate("tattooStudio.walkFor(5, '', false, true)")             # standing: it settles
+        self.assertFalse(page.evaluate("tattooStudio.swing().moving"))
+        page.evaluate("tattooStudio.wake()")
+        page.evaluate("wardrobe.wear('shirt_skirt').then(() => wardrobe.wear('long'))")   # taken off again
+        page.wait_for_function("wardrobe.worn().join() === 'white_sneakers'", timeout=60000)
         page.keyboard.press("r")
         page.reload()                                   # remembered for this body
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)

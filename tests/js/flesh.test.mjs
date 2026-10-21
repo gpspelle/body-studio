@@ -6,8 +6,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Skeleton, SkinWeights, SurfaceMap, q, v3 } from "../../src/body_studio/static/pose.js";
+import { Walker } from "../../src/body_studio/static/walk.js";
 import { CH, MAX_CAPSULES, PARTS, SHADE, SWING, BULGE, Swing, bodyCapsules, channelLevels, curl, darknessAt, handFrames,
-         looseness, occlusion, inkFactor, HEALED, PIGMENT, shapeKg, shapeOffsets, SkinField, partsOf, penetration, posedCapsules, pushOut, restOffsets, shadowBlobs, boneParts } from "../../src/body_studio/static/flesh.js";
+         looseness, smoothOver, swingPoint, occlusion, inkFactor, HEALED, PIGMENT, shapeKg, shapeOffsets, SkinField, partsOf, penetration, posedCapsules, pushOut, restOffsets, shadowBlobs, boneParts } from "../../src/body_studio/static/flesh.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { up: U, front: F, left: L } = rig.frame;
@@ -128,27 +129,131 @@ test("the shadow is darkest under the feet and fades as the body leaves the floo
   assert.ok(darknessAt(air, a[0], a[2]) < 0.6 * at("ankle_l"), "fainter from the air");
 });
 
+// the swing of loose clothes: offsets along the floor (front, left) and up, in heights
+const parts = (o) => [v3.dot(o, F) / H, v3.dot(o, L) / H, v3.dot(o, U) / H];
+const along = (x) => v3.scale(F, x * H);
+
 test("loose clothes swing behind the body and settle", () => {
-  const s = new Swing(H, SWING.hips), dt = 1 / 60;
-  assert.deepEqual(s.update(dt, [0, 0, 0]), [0, 0, 0]);
-  for (let i = 0; i < 60; i++) assert.deepEqual(s.update(dt, [0, 0, 0]).map((x) => Math.abs(x)), [0, 0, 0], "still: nothing moves");
-  // walk off along x at 1 m/s-ish (0.6 H a second) for half a second, then stop
-  let x = 0, most = 0, back = 0;
-  for (let i = 0; i < 30; i++) { x += 0.6 * H * dt; const o = s.update(dt, [x, 0, 0]); most = Math.min(most, o[0]); }
-  assert.ok(most < -0.002 * H, `it trails behind (${most / H})`);
-  for (let i = 0; i < 60; i++) back = Math.max(back, s.update(dt, [x, 0, 0])[0]);
-  assert.ok(back > 0.001 * H, `then swings past when the body stops (${back / H})`);
-  let o;
-  for (let i = 0; i < 300; i++) o = s.update(dt, [x, 0, 0]);
-  assert.ok(Math.hypot(...o) < 1e-4 * H, "and settles");
-  // a hard stop: never further than SWING.max
-  const t = new Swing(H, SWING.hips);
-  t.update(dt, [0, 0, 0]);
-  for (let i = 0; i < 10; i++) assert.ok(Math.hypot(...t.update(dt, [(i + 1) * H, 0, 0])) <= SWING.max * H + 1e-9);
+  const s = new Swing(H, SWING.hips, U, F), dt = 1 / 60;
+  assert.deepEqual(s.update(dt, [0, 0, 0]), [0, 0, 0, 0]);
+  for (let i = 0; i < 60; i++) assert.ok(Math.hypot(...s.update(dt, [0, 0, 0])) === 0, "still: nothing moves");
+  assert.equal(s.moving(), false);
+  // walk off forward at about 1 m/s (0.6 H a second) for a second, then stop
+  let x = 0, most = 0, back = 0, o;
+  for (let i = 0; i < 60; i++) { x += 0.6 * dt; most = Math.min(most, parts(s.update(dt, along(x)))[0]); }
+  assert.ok(most < -0.004, `it trails behind (${most})`);
+  assert.ok(most > -SWING.hips.max - 1e-9, `no further than its limit (${most})`);
+  let again = 0;
+  for (let i = 0; i < 40; i++) back = Math.max(back, parts(s.update(dt, along(x)))[0]);
+  for (let i = 0; i < 40; i++) again = Math.min(again, parts(s.update(dt, along(x)))[0]);
+  assert.ok(back > 0.004, `then swings on when the body stops (${back})`);
+  assert.ok(-again < 0.5 * back, `and back less far: it is damped (${again} after ${back})`);
+  for (let i = 0; i < 120; i++) o = s.update(dt, along(x));
+  assert.ok(Math.hypot(...o.slice(0, 3)) < 2e-4 * H, `and settles within 4 s (${Math.hypot(...o) / H})`);
+  assert.equal(s.moving(), false);
   // the same with a slow frame rate: no blow up
-  const u = new Swing(H, SWING.head);
+  const u = new Swing(H, SWING.head, U, F);
   u.update(0.5, [0, 0, 0]);
-  for (let i = 0; i < 20; i++) assert.ok(Number.isFinite(u.update(0.5, [i * 0.1 * H, 0, 0])[0]));
+  for (let i = 0; i < 20; i++) assert.ok(u.update(0.5, along(i * 0.1)).every(Number.isFinite));
+});
+
+test("cloth swings across, not up and down, and eases into its limit", () => {
+  // the hips going up and down 3 cm-ish twice a second (steps): the hem hardly bounces
+  const s = new Swing(H, SWING.hips, U, F), dt = 1 / 60;
+  let up = 0, side = 0;
+  for (let i = 0; i < 240; i++) {
+    const t = i * dt, o = parts(s.update(dt, v3.add(v3.scale(U, 0.02 * H * Math.sin(2 * Math.PI * 2 * t)), v3.scale(L, 0.02 * H * Math.sin(2 * Math.PI * 0.9 * t)))));
+    if (t > 2) { up = Math.max(up, Math.abs(o[2])); side = Math.max(side, Math.abs(o[1])); }
+  }
+  assert.ok(up < 0.003, `up and down: ${up}`);
+  assert.ok(side > 3 * up, `side to side swings more: ${side} vs ${up}`);
+  // thrown hard (running off at 2 H a second, then stopping dead): never past its limit, and smooth
+  const t = new Swing(H, SWING.hips, U, F);
+  t.update(dt, [0, 0, 0]);
+  let last = 0, step = 0, x = 0, most = 0;
+  for (let i = 0; i < 150; i++) {
+    if (i < 60) x += 2 * dt;
+    const o = parts(t.update(dt, along(x)));
+    assert.ok(Math.hypot(o[0], o[1]) <= SWING.hips.max + 1e-9);
+    step = Math.max(step, Math.abs(o[0] - last)); last = o[0]; most = Math.max(most, Math.abs(o[0]));
+  }
+  assert.ok(most > 0.8 * SWING.hips.max, `near its limit (${most})`);
+  assert.ok(step < 0.25 * SWING.hips.max, `no snap from one frame to the next (${step})`);
+  // put somewhere else at once (R, back where it was scanned): it hangs still there
+  const r = new Swing(H, SWING.hips, U, F);
+  r.update(dt, [0, 0, 0]);
+  assert.ok(Math.hypot(...r.update(dt, along(1))) === 0);
+});
+
+test("a jolt of the body doesn't kick the cloth", () => {
+  // walking along at 0.6 H a second, the hips jump back 3% of the height for a frame
+  const s = new Swing(H, SWING.hips, U, F), dt = 1 / 60, x = (i) => 0.6 * i * dt - (i === 120 ? 0.03 : 0);
+  const os = [];
+  for (let i = 0; i < 200; i++) os.push(parts(s.update(dt, along(x(i))))[0]);
+  const jump = Math.max(...[118, 119, 120, 121, 122].map((i) => Math.abs(os[i + 1] - 2 * os[i] + os[i - 1])));
+  assert.ok(jump < 0.0015, `the hem moves on smoothly (${jump})`);
+});
+
+test("cloth and hair turn behind the body", () => {
+  const s = new Swing(H, SWING.hips, U, F), dt = 1 / 60;
+  s.update(dt, [0, 0, 0], q.id());
+  let lag = 0, over = 0, again = 0, o;
+  // a half turn in half a second, then held
+  for (let i = 1; i <= 30; i++) lag = Math.min(lag, s.update(dt, [0, 0, 0], q.axisAngle(U, Math.PI * i / 30 * 0.999))[3]);
+  for (let i = 0; i < 30; i++) over = Math.max(over, s.update(dt, [0, 0, 0], q.axisAngle(U, Math.PI * 0.999))[3]);
+  for (let i = 0; i < 30; i++) again = Math.min(again, s.update(dt, [0, 0, 0], q.axisAngle(U, Math.PI * 0.999))[3]);
+  assert.ok(lag < -0.1, `the hem stays behind as the hips turn (${lag})`);
+  assert.ok(lag >= -SWING.hips.twist.max - 1e-9, "no further than its limit");
+  assert.ok(over > 0.05, `swings on past when the hips stop (${over})`);
+  assert.ok(-again < 0.5 * over, `and back less far (${again} after ${over})`);
+  for (let i = 0; i < 240; i++) o = s.update(dt, [0, 0, 0], q.axisAngle(U, Math.PI * 0.999));
+  assert.ok(Math.abs(o[3]) < 1e-3, `and settles (${o[3]})`);
+  // a splat in front of the anchor, all of it loose, is carried back against the turn (the way
+  // the page draws it)
+  const at = joint("pelvis"), c = v3.add(at, v3.scale(F, 0.1 * H));
+  const turned = swingPoint(c, { o: [0, 0, 0, -0.2], at, up: U }, 1);
+  near(v3.len(v3.sub(turned, at)), 0.1 * H, 1e-9, "turned, not moved off");
+  near(v3.dot(v3.sub(turned, at), q.rot(q.axisAngle(U, -0.2), F)), 0.1 * H, 1e-9, "the way q turns it");
+  assert.deepEqual(swingPoint(c, { o: [1, 2, 3, -0.2], at, up: U }, 0), c, "a tight splat stays");
+});
+
+test("walking, a skirt sways without jitter", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig), dt = 1 / 60, j = sk.index("pelvis");
+  const s = new Swing(H, SWING.hips, U, F), rows = [];
+  for (let i = 0; i < 4 * 60; i++) {
+    w.update(dt, { move: F });
+    const o = s.update(dt, sk.P[j], sk.W[j]);
+    if (i * dt > 1.5) rows.push(parts(o));
+  }
+  const range = (a) => Math.max(...rows.map((r) => r[a])) - Math.min(...rows.map((r) => r[a]));
+  let jerk = 0;
+  for (let i = 2; i < rows.length; i++) for (let a = 0; a < 3; a++) jerk = Math.max(jerk, Math.abs(rows[i][a] - 2 * rows[i - 1][a] + rows[i - 2][a]));
+  assert.ok(range(2) < 0.012, `the hem bobs ${range(2)} of the height`);
+  assert.ok(range(0) < 0.03 && range(1) < 0.03, `sways ${range(0)}, ${range(1)}`);
+  assert.ok(jerk < 0.002, `no jitter from frame to frame (${jerk})`);
+});
+
+test("splats side by side swing alike", () => {
+  // a hem's splats in two layers, one on the skin and one 2 cm out: noisy looseness, made even
+  const n = 2000, C = new Float32Array(n * 3), l = new Float32Array(n);
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < n; i++) {
+    C.set([rnd() * 0.2 * H, rnd() * 0.2 * H, (i % 2) * 0.012 * H], i * 3);
+    l[i] = (i % 2) * 0.6 + 0.4 * C[i * 3 + 1] / (0.2 * H);   // two layers, and a slope down the hem
+  }
+  const sm = smoothOver(l, C, n, SWING.near * H);
+  let jump = 0, slope = 0;
+  for (let i = 1; i < n; i += 2) {             // each outer splat against the inner one under it
+    let best = -1, bd = Infinity;
+    for (let j = 0; j < n; j += 2) { const d = Math.hypot(C[i * 3] - C[j * 3], C[i * 3 + 1] - C[j * 3 + 1]); if (d < bd) { bd = d; best = j; } }
+    jump = Math.max(jump, Math.abs(sm[i] - sm[best]));
+  }
+  for (let i = 0; i < n; i++) slope += (sm[i] - 0.3) * (C[i * 3 + 1] / (0.2 * H) - 0.5);
+  assert.ok(jump < 0.25, `the layers swing nearly together (${jump})`);
+  assert.ok(slope > 0, "the hem still swings more than the top");
+  const same = smoothOver(new Float32Array(n).fill(0.7), C, n, SWING.near * H);
+  assert.ok(same.every((x) => Math.abs(x - 0.7) < 1e-6), "an even field stays as it is");
 });
 
 test("only what hangs away from the skin swings", () => {

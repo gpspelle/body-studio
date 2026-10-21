@@ -57,18 +57,21 @@ export class Flesh {
       shape: U("fleshShape", "vec4", new THREE.Vector4(0, 0, H, 0)),
       // x: contact shading, y: push out of the body, z: grow where stretched, w: swing (layer 4's x)
       flags: U("fleshFlags", "vec4", new THREE.Vector4(+!!kind.shade, +!!kind.collide, +!!kind.stretch, +!!kind.swing)),
-      // the swing's offset for this mesh (flesh.js Swing), in the mesh's coordinates
+      // the swing for this mesh (flesh.js Swing), in the mesh's coordinates: xyz, the offset; w,
+      // the turn (radians) about swingUp through swingAt (its anchor)
       swing: U("fleshSwing", "vec4", new THREE.Vector4()),
+      swingAt: U("fleshSwingAt", "vec4", new THREE.Vector4()),
+      swingUp: U("fleshSwingUp", "vec4", new THREE.Vector4(0, 1, 0, 0)),
     };
     const u = this.u;
     mesh.objectModifier = dyno.dynoBlock({ gsplat: dyno.Gsplat }, { gsplat: dyno.Gsplat }, ({ gsplat }) => {
       const d = dyno.dyno({
         inTypes: { gsplat: dyno.Gsplat, d0: "sampler2DArray", d1: "sampler2DArray", d2: "sampler2DArray", d3: "sampler2DArray",
                    d4: "sampler2DArray", skin: "usampler2DArray", bones: "sampler2D", caps: "vec4", nCaps: "int", chans: "float",
-                   shape: "vec4", flags: "vec4", swing: "vec4" },
+                   shape: "vec4", flags: "vec4", swing: "vec4", swingAt: "vec4", swingUp: "vec4" },
         outTypes: { gsplat: dyno.Gsplat },
         inputs: { gsplat, d0: u.d[0], d1: u.d[1], d2: u.d[2], d3: u.d[3], d4: u.d[4], skin: u.skin, bones: u.bones,
-                  caps: u.caps, nCaps: u.nCaps, chans: u.chans, shape: u.shape, flags: u.flags, swing: u.swing },
+                  caps: u.caps, nCaps: u.nCaps, chans: u.chans, shape: u.shape, flags: u.flags, swing: u.swing, swingAt: u.swingAt, swingUp: u.swingUp },
         globals: () => [GLOBALS],
         statements: ({ inputs: I, outputs: O }) => statements(I, O),
       });
@@ -85,7 +88,12 @@ export class Flesh {
     if (caps) { this.caps.set(caps); this.u.nCaps.value = nCaps; }
     if (chans) this.chans.set(chans);
     if (shape) { this.u.shape.value.x = shape[0]; this.u.shape.value.y = shape[1]; }
-    if (swing) this.u.swing.value.set(swing[0], swing[1], swing[2], 0);
+    if (swing?.o) {                     // (the body and the ink are given both, and take neither)
+      const { o, at, up } = swing;
+      this.u.swing.value.set(o[0], o[1], o[2], o[3] || 0);
+      if (at) this.u.swingAt.value.set(at[0], at[1], at[2], 0);
+      if (up) this.u.swingUp.value.set(up[0], up[1], up[2], 0);
+    }
     this.mesh.updateVersion?.();
   }
 
@@ -145,7 +153,12 @@ function statements(I, O) {
     `  }`,
     `  float part = d0.w;`,
     // loose cloth and hair lag behind (before the push out of the body, which then holds them off it)
-    `  if (${I.flags}.w > 0.5) ${g}.center += ${I.swing}.xyz * d4.x;`,
+    // (turned behind the anchor about its up first, then carried back)
+    `  if (${I.flags}.w > 0.5 && d4.x > 0.0) {`,
+    `    float ang = ${I.swing}.w * d4.x, cs = cos(ang), sn = sin(ang);`,
+    `    vec3 ax = ${I.swingUp}.xyz, r = ${g}.center - ${I.swingAt}.xyz;`,
+    `    ${g}.center = ${I.swingAt}.xyz + r * cs + cross(ax, r) * sn + ax * dot(ax, r) * (1.0 - cs) + ${I.swing}.xyz * d4.x;`,
+    `  }`,
     // clothes: pushed out of other parts of the body, no deeper than at rest (d4.w)
     `  if (${I.flags}.y > 0.5) {`,
     `    for (int k = 0; k < ${MAX_CAPSULES}; k++) {`,

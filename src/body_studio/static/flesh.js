@@ -529,50 +529,167 @@ export function darknessAt(blobs, x, z, stretch = [1, 1]) {
 
 // ---------------------------------------------------------------- loose clothes and hair swing
 // What hangs off the body (a skirt's hem, a ponytail, hair over the shoulders) lags behind as the
-// body moves and swings back: one damped spring per anchor (the hips for clothes, the head for
-// hair) gives an offset, and each splat of an item takes it in proportion to how loose it is, from
-// nothing where the item lies on the skin to all of it this far off it (looseness()). The push out
-// of the body (above) then keeps a swinging skirt out of the legs.
-export const SWING = { hips: { hz: 1.5, damping: 0.22 }, head: { hz: 1.1, damping: 0.18 }, max: 0.04, loose: [0.006, 0.03] };
+// body moves and swings back, as a pendulum hung from an anchor (the hips for clothes, the head for
+// hair). Each splat of an item takes the swing in proportion to how loose it is, from nothing where
+// the item lies on the skin to all of it this far off it (looseness()). The push out of the body
+// (above) then keeps a swinging skirt out of the legs.
+// - Cloth doesn't stretch: across the floor it swings slowly (hz, damping as a fraction of
+//   critical, air and the body's own friction), but up and down it barely gives (vert), and it
+//   rises a little as it swings out (a pendulum's arc).
+// - It turns behind the body too: when the hips or the head turn, the hem or the hair catches up
+//   a moment later (twist, in radians, about the anchor's up).
+// - It answers how the body moves over a few frames, not frame to frame: the anchor is followed
+//   by a critically damped filter at `smooth` Hz first, so a jolt of a step doesn't kick it.
+// - It eases into its limits (max of the height, twist.max radians) rather than stopping dead.
+// - Splats within `near` of the height of each other swing alike (smoothOver).
+export const SWING = {
+  hips: { hz: 0.95, damping: 0.4, vert: { hz: 5, damping: 1 }, twist: { hz: 1.1, damping: 0.55, max: 0.3 }, max: 0.025 },
+  head: { hz: 1.25, damping: 0.38, vert: { hz: 5, damping: 1 }, twist: { hz: 1.4, damping: 0.5, max: 0.25 }, max: 0.025 },
+  smooth: 1.5, jump: 0.15, loose: [0.006, 0.03], near: 0.02,
+};
+const G = 9.81 / 1.7;                    // gravity, in heights a second squared
+
+const springOf = (hz, damping) => { const k = (2 * Math.PI * hz) ** 2; return [k, 2 * damping * Math.sqrt(k)]; };
+const soft = (x, max) => max * Math.tanh(x / max);
 
 export class Swing {
-  // H: the person's height; spring: { hz, damping } (damping as a fraction of critical)
-  constructor(H, spring) {
-    this.H = H; this.k = (2 * Math.PI * spring.hz) ** 2; this.c = 2 * spring.damping * Math.sqrt(this.k);
-    this.y = null; this.v = [0, 0, 0]; this.p = null;
+  // H: the person's height; spring: SWING.hips or SWING.head; up: the body's up (rig.frame.up),
+  // front: its front (for the turn)
+  constructor(H, spring, up = [0, 1, 0], front = [0, 0, 1]) {
+    this.H = H; this.o = spring;
+    const u = Math.hypot(...up); this.up = up.map((x) => x / u);
+    const fu = front[0] * this.up[0] + front[1] * this.up[1] + front[2] * this.up[2];
+    const f = front.map((x, a) => x - fu * this.up[a]), fl = Math.hypot(...f) || 1;
+    this.front = f.map((x) => x / fl);
+    this.side = [this.up[1] * this.front[2] - this.up[2] * this.front[1], this.up[2] * this.front[0] - this.up[0] * this.front[2], this.up[0] * this.front[1] - this.up[1] * this.front[0]];
+    [this.kh, this.ch] = springOf(spring.hz, spring.damping);
+    [this.kv, this.cv] = springOf(spring.vert.hz, spring.vert.damping);
+    [this.kt, this.ct] = springOf(spring.twist.hz, spring.twist.damping);
+    [this.ks, this.cs] = springOf(SWING.smooth, 1);
+    this.L = G / (2 * Math.PI * spring.hz) ** 2;      // the pendulum's length, in heights
+    this.reset();
   }
 
-  // the anchor is at p now, dt seconds after the last call: the offset of what hangs from it
-  update(dt, p) {
-    if (!this.y) { this.y = [...p]; this.v = [0, 0, 0]; this.p = [...p]; return [0, 0, 0]; }
-    if (!(dt > 0)) return [0, 1, 2].map((a) => this.y[a] - p[a]);     // (twice in one frame)
-    dt = Math.min(dt, 0.1);
-    const steps = Math.ceil(dt / 0.008), h = dt / steps, pv = [0, 1, 2].map((a) => (p[a] - this.p[a]) / dt);
-    for (let s = 0; s < steps; s++) {
-      const f = (s + 1) / steps;
-      for (let a = 0; a < 3; a++) {
-        const pa = this.p[a] + f * (p[a] - this.p[a]);
-        this.v[a] += h * (-this.k * (this.y[a] - pa) - this.c * (this.v[a] - pv[a]));
-        this.y[a] += h * this.v[a];
+  // the way the anchor faces about up (radians), from its rotation q (null: no turn)
+  _heading(q) {
+    if (!q) return this.yaw ?? 0;
+    const [x, y, z, w] = q, v = this.front;
+    // q applied to front (q v q*)
+    const tx = 2 * (y * v[2] - z * v[1]), ty = 2 * (z * v[0] - x * v[2]), tz = 2 * (x * v[1] - y * v[0]);
+    const r = [v[0] + w * tx + (y * tz - z * ty), v[1] + w * ty + (z * tx - x * tz), v[2] + w * tz + (x * ty - y * tx)];
+    const a = Math.atan2(r[0] * this.side[0] + r[1] * this.side[1] + r[2] * this.side[2], r[0] * v[0] + r[1] * v[1] + r[2] * v[2]);
+    if (this.yaw === null) return a;
+    return this.yaw + ((a - this.yaw + 3 * Math.PI) % (2 * Math.PI) - Math.PI);   // unwrapped
+  }
+
+  // The anchor is at p now (and turned by the quaternion q), dt seconds after the last call:
+  // [x, y, z, turn], the offset of what hangs from it (in p's units) and how far it turns about up
+  // behind the anchor (radians). this.at is the anchor to turn about.
+  update(dt, p, q = null) {
+    const H = this.H, yaw = this._heading(q);
+    if (!this.f || Math.hypot(p[0] - this.p[0], p[1] - this.p[1], p[2] - this.p[2]) > SWING.jump * H) {
+      // the first frame, or the body put somewhere else (R): it hangs still there
+      const keep = !!this.f;
+      this.f = [...p]; this.fv = [0, 0, 0]; this.p = [...p]; this.yaw = yaw; this.fy = yaw; this.fyv = 0;
+      if (!keep) { this.y = [0, 0, 0]; this.v = [0, 0, 0]; this.tw = 0; this.twv = 0; }
+    }
+    this.at = [...p];
+    if (dt > 0) {
+      dt = Math.min(dt, 0.1);
+      const steps = Math.ceil(dt / 0.004), h = dt / steps, up = this.up;
+      for (let s = 0; s < steps; s++) {
+        const t = (s + 1) / steps;
+        // the anchor, followed smoothly: its acceleration drives the swing
+        const acc = [0, 0, 0];
+        for (let a = 0; a < 3; a++) {
+          const pa = this.p[a] + t * (p[a] - this.p[a]);
+          acc[a] = this.ks * (pa - this.f[a]) - this.cs * this.fv[a];
+          this.fv[a] += h * acc[a]; this.f[a] += h * this.fv[a];
+        }
+        const ya = this.yaw + t * (yaw - this.yaw), yacc = this.ks * (ya - this.fy) - this.cs * this.fyv;
+        this.fyv += h * yacc; this.fy += h * this.fyv;
+        // the offset (y, in heights): a slow pendulum across, stiff up and down
+        const au = (acc[0] * up[0] + acc[1] * up[1] + acc[2] * up[2]) / H, ou = this.y[0] * up[0] + this.y[1] * up[1] + this.y[2] * up[2];
+        const vu = this.v[0] * up[0] + this.v[1] * up[1] + this.v[2] * up[2];
+        for (let a = 0; a < 3; a++) {
+          const ah = acc[a] / H - au * up[a], oh = this.y[a] - ou * up[a], vh = this.v[a] - vu * up[a];
+          const fh = -this.kh * oh - this.ch * vh - ah, fv = -this.kv * ou - this.cv * vu - au;
+          this.v[a] += h * (fh + fv * up[a]);
+        }
+        for (let a = 0; a < 3; a++) this.y[a] += h * this.v[a];
+        this.twv += h * (-this.kt * this.tw - this.ct * this.twv - yacc);
+        this.tw += h * this.twv;
       }
+      this.p = [...p]; this.yaw = yaw;
+      // kept within a few times its limits, however hard it was thrown
+      const m = 3 * this.o.max, len = Math.hypot(...this.y);
+      if (len > m) for (let a = 0; a < 3; a++) { this.y[a] *= m / len; this.v[a] *= m / len; }
+      const tm = 3 * this.o.twist.max;
+      if (Math.abs(this.tw) > tm) { this.tw = Math.sign(this.tw) * tm; this.twv = 0; }
     }
-    this.p = [...p];
-    let o = [0, 1, 2].map((a) => this.y[a] - p[a]);
-    const len = Math.hypot(...o), max = SWING.max * this.H;
-    if (len > max) {                     // a hard stop (and the spring is moved there, so it settles)
-      o = o.map((x) => (x * max) / len);
-      for (let a = 0; a < 3; a++) this.y[a] = p[a] + o[a];
-    }
-    return o;
+    return this.offset();
   }
 
-  reset() { this.y = null; }
+  // what update() last gave
+  offset() {
+    const up = this.up, H = this.H, ou = this.y[0] * up[0] + this.y[1] * up[1] + this.y[2] * up[2];
+    const hz = this.y.map((x, a) => x - ou * up[a]), hl = Math.hypot(...hz), max = this.o.max;
+    const sh = hl > 1e-12 ? soft(hl, max) / hl : 1, rise = (soft(hl, max) ** 2) / (2 * this.L);
+    const vert = soft(ou, 0.25 * max) + rise;
+    return [0, 1, 2].map((a) => H * (hz[a] * sh + vert * up[a])).concat(soft(this.tw, this.o.twist.max));
+  }
+
+  // whether it still moves (or isn't back at rest yet)
+  moving() {
+    return Math.hypot(...this.y) > 1e-4 || Math.hypot(...this.v) > 1e-3 || Math.abs(this.tw) > 1e-3 || Math.abs(this.twv) > 1e-2 ||
+      (this.f && Math.hypot(...this.fv) > 1e-3 * this.H);
+  }
+
+  reset() { this.f = null; this.y = [0, 0, 0]; this.v = [0, 0, 0]; this.tw = 0; this.twv = 0; this.yaw = null; this.at = null; }
+}
+
+// where a splat at c (taking `loose` of the swing, looseness()) goes: turned by the swing's turn
+// about its up through its anchor, then carried by its offset (fleshgpu.js does the same)
+export function swingPoint(c, { o, at, up }, loose) {
+  const a = (o[3] || 0) * loose, cs = Math.cos(a), sn = Math.sin(a), r = [c[0] - at[0], c[1] - at[1], c[2] - at[2]];
+  const d = up[0] * r[0] + up[1] * r[1] + up[2] * r[2];
+  const x = [up[1] * r[2] - up[2] * r[1], up[2] * r[0] - up[0] * r[2], up[0] * r[1] - up[1] * r[0]];
+  return [0, 1, 2].map((k) => at[k] + r[k] * cs + x[k] * sn + up[k] * d * (1 - cs) + o[k] * loose);
 }
 
 // how much of the swing a splat this far (gap) from the skin takes, 0..1
 export function looseness(gap, H) {
   const [a, b] = SWING.loose, t = Math.min(1, Math.max(0, (gap / H - a) / (b - a)));
   return t * t * (3 - 2 * t);
+}
+
+// Splats of one item side by side must swing alike, or the cloth tears into lace as it moves
+// (the splats of a layered hem are at different gaps from the skin). So each splat's looseness is
+// replaced by the average around it: the splats are put in cells r wide, and each takes the means
+// of the cells round its own, weighted by how many splats each holds and how near its middle is.
+export function smoothOver(values, centres, n, r) {
+  const cells = new Map(), ci = new Int32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const c = [0, 1, 2].map((a) => Math.floor(centres[i * 3 + a] / r));
+    ci.set(c, i * 3);
+    const k = c.join();
+    let e = cells.get(k);
+    if (!e) cells.set(k, (e = [0, 0, 0, 0, 0]));
+    e[0] += values[i]; e[1] += centres[i * 3]; e[2] += centres[i * 3 + 1]; e[3] += centres[i * 3 + 2]; e[4]++;
+  }
+  const s2 = 2 * (0.6 * r) ** 2, out = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let sum = 0, wsum = 0;
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const e = cells.get(`${ci[i * 3] + dx},${ci[i * 3 + 1] + dy},${ci[i * 3 + 2] + dz}`);
+      if (!e) continue;
+      const m = e[4], d2 = (e[1] / m - centres[i * 3]) ** 2 + (e[2] / m - centres[i * 3 + 1]) ** 2 + (e[3] / m - centres[i * 3 + 2]) ** 2;
+      const w = m * Math.exp(-d2 / s2);
+      sum += w * e[0] / m; wsum += w;
+    }
+    out[i] = wsum > 0 ? sum / wsum : values[i];
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- ink healed into the skin
