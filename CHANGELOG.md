@@ -102,6 +102,8 @@
 - Clothes come off without putting something else on: what is worn stays on its rack or stand as a
   pale outline, and clicking it takes it off (as the ✕ in the panel does). **Take everything off**
   in the panel undresses the body at once.
-- Trial: `body-studio fit-anny BODY.ply [--no-wrap]` fits the clothes' body with NAVER's Anny
-  (PyTorch, an optional extra: `pip install 'body-studio[anny]'`) and writes the same
-  `<body>.fit.json`, to compare with the plain fit with the same clothes on. See `docs/anny.md`.
+- Trial: the clothes' body can be fitted with NAVER's Anny (PyTorch, an optional extra:
+  `pip install 'body-studio[anny]'`). When it is installed, the Try on panel switches the body
+  model between Standard and Anny, with the same clothes on. The Anny fit is saved as
+  `<body>.anny.fit.json`; `body-studio fit-anny BODY.ply [--no-wrap]` makes it in the terminal.
+  See `docs/anny.md`.

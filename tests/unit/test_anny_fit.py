@@ -33,7 +33,7 @@ class WithoutTorch(unittest.TestCase):
                 with self.assertRaises(SystemExit) as e:
                     cli.main(["fit-anny", str(ply)])
             self.assertIn("pip install 'body-studio[anny]'", str(e.exception.code))
-            self.assertFalse(fit.fit_file(ply).exists())             # the plain fit is left alone
+            self.assertFalse(anny_fit.fit_file(ply).exists())
 
     def test_help_needs_no_torch(self):
         out = io.StringIO()
@@ -94,8 +94,9 @@ class WithAnny(unittest.TestCase):
 
     def test_the_page_takes_the_file(self):
         self.assertEqual(self.r["model"], "anny")
-        self.assertTrue(fit.current(self.ply))                     # same version as fit.py's
-        self.assertEqual(fit.cached(self.ply), json.loads(json.dumps(self.r)))
+        self.assertTrue(anny_fit.current(self.ply))                # fit.py's version, its own file
+        self.assertEqual(json.loads(anny_fit.fit_file(self.ply).read_text()), json.loads(json.dumps(self.r)))
+        self.assertFalse(fit.fit_file(self.ply).exists())          # the standard fit is left alone
         f = fit.decode(self.r)
         self.assertEqual(len(f["verts"]), len(wardrobe.base()["verts"]))
         skin = surface("heavy", yaw=25)

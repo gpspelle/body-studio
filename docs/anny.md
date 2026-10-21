@@ -15,15 +15,28 @@ for) on a scan, before deciding which to keep:
 
 ```bash
 pip install 'body-studio[anny]'          # PyTorch and Anny, about 5 GB with PyTorch's CUDA libraries
-body-studio fit-anny BODY.ply            # writes BODY.fit.json; the page's clothes use it as it is
-body-studio fit-anny BODY.ply --no-wrap  # Anny's skin alone, without the shrinkwrap's close pass
-body-studio fit BODY.ply                 # back to the plain fit
+body-studio ui
 ```
 
-Open the body in the app and put clothes on: they go on whichever fit was written last. The file
-says which (`"model": "anny"`) and keeps Anny's overall sliders under `"shape"`. The first run
-builds Anny's cache (`~/.cache/anny`, about a minute); then a body takes about two minutes on
-four CPU cores. The plain fit takes 5–10 seconds.
+With Anny installed, the **Try on** panel shows **Body model: Standard / Anny (trial)** under the
+clothes. Pick one and what is worn comes off and goes on again, fitted to that model. The choice
+is kept in the browser. The first time a body is fitted with Anny it takes about two minutes on
+four CPU cores (and the very first time a minute more, to build Anny's cache in `~/.cache/anny`);
+after that it is saved next to the body as `BODY.anny.fit.json`, beside the standard
+`BODY.fit.json`, and switching is instant. Without Anny installed the switch isn't shown.
+
+The same in the terminal:
+
+```bash
+body-studio fit-anny BODY.ply            # writes BODY.anny.fit.json (fit.py's format, "model": "anny")
+body-studio fit-anny BODY.ply --no-wrap  # Anny's skin alone, without the shrinkwrap's close pass
+```
+
+The file keeps Anny's overall sliders under `"shape"`. The standard fit takes 5–10 seconds.
+
+**Why a control on the page:** comparing the two fits on a real scan is the point of the trial, and
+the same clothes have to be seen on both, from any angle and in any pose. It is two small buttons
+in the Try on panel, shown only when Anny is installed.
 
 ## How it fits
 

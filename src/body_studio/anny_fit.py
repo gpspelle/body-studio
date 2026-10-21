@@ -2,7 +2,10 @@
 fit.py's shape solve, bone bending and shrinkwrap. Optional and experimental, to compare the two.
 
     pip install 'body-studio[anny]'          PyTorch and Anny (Apache-2.0 code, CC0 MakeHuman data)
-    body-studio fit-anny BODY.ply [--no-wrap]  writes BODY.fit.json, the file the page's clothes use
+    body-studio fit-anny BODY.ply [--no-wrap]  writes BODY.anny.fit.json next to BODY.fit.json
+
+When it is installed, the Try on panel offers a switch between the two body models (the page asks
+GET /api/fit?model=anny), and the server makes this file the first time it is asked for.
 
 Anny (https://github.com/naver/anny) is MakeHuman with its shape sliders made differentiable:
 eleven overall ones (gender, age, muscle, weight, height, proportions, cup size, firmness and
@@ -23,10 +26,10 @@ keeps its binding. Once per body:
 3. The helper geometry clothes and hair are bound to follows the skin under it, as in fit.py
    (Anny's own helpers drift from the skin they hang from).
 
-The result is fit.py's file and version (the page uses it as it is), with "model": "anny" and
-Anny's overall sliders as "shape". Each vertex's turn, for the clothes' offsets, comes from the
-same bone transforms as in fit.py, so only where the skin is differs between the two.
-`body-studio fit BODY.ply` puts the plain fit back. Results: docs/anny.md.
+The result is fit.py's format and version, in its own file, with "model": "anny" and Anny's
+overall sliders as "shape". Each vertex's turn, for the clothes' offsets, comes from the same
+bone transforms as in fit.py, so only where the skin is differs between the two. Results:
+docs/anny.md.
 """
 from __future__ import annotations
 
@@ -57,7 +60,13 @@ POSE_BONES = ("spine01", "spine02", "spine03", "spine04", "spine05", "neck01", "
 
 
 class Missing(RuntimeError):
-    pass
+    code = "anny"
+
+
+def available() -> bool:
+    """Whether PyTorch and Anny are installed (without importing them: that takes seconds)."""
+    from importlib.util import find_spec
+    return find_spec("torch") is not None and find_spec("anny") is not None
 
 
 def _torch():
@@ -296,9 +305,25 @@ def build(ply: Path, wrap: bool = True, log=None) -> dict:
     return out
 
 
+def fit_file(ply: Path) -> Path:
+    return Path(ply).with_name(Path(ply).stem + ".anny.fit.json")
+
+
+def current(ply: Path) -> bool:
+    """Whether the saved Anny fit is newer than the body and of fit.py's version."""
+    f = fit_file(ply)
+    try:
+        if f.stat().st_mtime < Path(ply).stat().st_mtime:
+            return False
+        with open(f, "rb") as fh:
+            return fh.read(32).startswith(b'{"version":%d,' % fit.FIT_VERSION)
+    except OSError:
+        return False
+
+
 def build_and_save(ply: Path, wrap: bool = True, log=None) -> dict:
     r = build(ply, wrap, log)
-    f = fit.fit_file(ply)
+    f = fit_file(ply)
     tmp = f.with_name(f.name + ".tmp")
     tmp.write_text(json.dumps(r, separators=(",", ":")))
     tmp.replace(f)
@@ -309,8 +334,7 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="body-studio fit-anny",
                                  description="Trial: fit MakeHuman's base mesh to a body with Anny (PyTorch) "
                                              "instead of fit.py's bone bending and shrinkwrap. Writes "
-                                             "BODY.fit.json, the file the page's clothes use; `body-studio fit "
-                                             "BODY.ply` puts the plain fit back.")
+                                             "BODY.anny.fit.json; the Try on panel switches between the two.")
     ap.add_argument("ply", type=Path, help="the body: workspace/<video>/run_*/splat/*_object.ply")
     ap.add_argument("--no-wrap", action="store_true",
                     help="leave Anny's skin as it is (no last pass onto the splats, like fit.py's)")
@@ -327,4 +351,4 @@ def main(argv: list[str] | None = None) -> None:
           f"{round(100 * r['surface_found'])}% of the skin." if a.no_wrap else
           f"Fitted with Anny ({sl}), then wrapped: the body's surface was found under "
           f"{round(100 * r['surface_found'])}% of the base mesh.")
-    print(f"Saved {fit.fit_file(a.ply)}")
+    print(f"Saved {fit_file(a.ply)}")

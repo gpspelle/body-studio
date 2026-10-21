@@ -9,9 +9,11 @@
     GET  /files/<path>     a body's .ply (only files inside workspace/)
     GET  /api/rig?body=<file>  the body's skeleton, skin weights and surface map (rig.py); 202 while
                            it is being worked out in the background, 422 if the body isn't a person
-    GET  /api/fit?body=<file>  MakeHuman's base mesh fitted to the body (fit.py); 202 and 422 the same
+    GET  /api/fit?body=<file>  MakeHuman's base mesh fitted to the body (fit.py); 202 and 422 the same.
+                           &model=anny: fitted with Anny instead (anny_fit.py, only when installed)
+    GET  /api/fit/models       the body models the fit can use: ["standard"], plus "anny" when installed
     GET  /api/wardrobe         the clothes, shoes, hair and hats (wardrobe.py)
-    GET  /api/wardrobe/<id>?body=<file>  one item fitted to the body; 202 while the body is fitted
+    GET  /api/wardrobe/<id>?body=<file>[&model=anny]  one item fitted to the body; 202 while the body is fitted
     GET  /api/wardrobe/<id>/shape        the item as it is made, for the shop around the body
     GET  /api/mannequin                  the mannequin head the hair and hats are shown on
 
@@ -40,7 +42,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from splat_studio.server.jobs import Runner, validate_options
 from splat_studio.server.library import DataDir
 
-from . import __version__, fit, history, library, rig, wardrobe
+from . import __version__, anny_fit, fit, history, library, rig, wardrobe
 from .pipeline import job_options
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -128,6 +130,7 @@ def job_view(v: dict) -> dict:
 def make_handler(data: DataDir, runner: Runner):
     rigs = Builder(rig, rig.rig_file, rig.RigError)
     fits = Builder(fit, fit.fit_file, (rig.RigError, fit.FitError))
+    anny_fits = Builder(anny_fit, anny_fit.fit_file, (rig.RigError, fit.FitError, anny_fit.Missing))
     fitted = {}                                # (fit file, its mtime) -> decoded fit, the latest only
 
     class Handler(BaseHTTPRequestHandler):
@@ -185,8 +188,10 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._json({"version": __version__})
             if p.startswith("/files/"):
                 return self._file(library.safe_path(data.root, p[len("/files/"):]))
+            if p == "/api/fit/models":
+                return self._json(["standard"] + (["anny"] if anny_fit.available() else []))
             if p in ("/api/rig", "/api/fit"):
-                state, out = self._built(rigs if p == "/api/rig" else fits)
+                state, out = self._built(rigs if p == "/api/rig" else self._fits())
                 return self._file(out) if state == "ready" else None
             if p == "/api/wardrobe":
                 return self._json(wardrobe.catalog())
@@ -201,7 +206,7 @@ def make_handler(data: DataDir, runner: Runner):
             if m:
                 if m.group(1) not in wardrobe.BY_ID:
                     return self._json({"error": "no such item", "code": "no_item"}, 404)
-                state, out = self._built(fits)
+                state, out = self._built(self._fits())
                 if state != "ready":
                     return None
                 key = (str(out), out.stat().st_mtime)
@@ -215,6 +220,11 @@ def make_handler(data: DataDir, runner: Runner):
             if m:
                 return self._history(lambda: history.progress(history.load(data.root, m.group(1))))
             self.send_error(404)
+
+        def _fits(self):
+            """The fit asked for: the standard one, or Anny's (?model=anny)."""
+            model = parse_qs(urlparse(self.path).query).get("model", ["standard"])[0]
+            return anny_fits if model == "anny" else fits
 
         def _built(self, builder):
             """The body's rig or fit: ('ready', path), or the reply (202 working, 404, 422) already sent."""
