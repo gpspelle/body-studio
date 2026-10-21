@@ -18,6 +18,11 @@ dependencies = [
     "opencv-python-headless",
 ]
 
+[project.optional-dependencies]
+# Trial only (`body-studio fit-anny`): fits the clothes' base mesh with Anny, a PyTorch body model
+# (Apache-2.0 code, CC0 MakeHuman data). The app itself stays standard library.
+anny = ["anny>=0.6", "torch>=2.0"]
+
 [project.scripts]
 body-studio = "body_studio.__main__:main"
 

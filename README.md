@@ -167,6 +167,12 @@ and their licences, and the limits: [docs/tattoo.md](docs/tattoo.md).
 next to the body. How the clothes are fitted and drawn, where they come from, and the limits:
 [docs/wardrobe.md](docs/wardrobe.md).
 
+Trial: after `pip install 'body-studio[anny]'` (PyTorch and [Anny](https://github.com/naver/anny), a
+body model), the Try on panel shows **Body model: Standard / Anny (trial)**, to see the same
+clothes on a body fitted either way. The Anny fit takes about two minutes the first time per body
+and is saved as `BODY.anny.fit.json`; `body-studio fit-anny BODY.ply` makes it in the terminal.
+PyTorch is only needed for this. Results so far: [docs/anny.md](docs/anny.md).
+
 ## Development
 
 ```bash
@@ -299,6 +305,13 @@ Como funciona, os modelos de corpo considerados e suas licenças, e os limites (
 `body-studio fit CORPO.ply` faz o ajuste das roupas no terminal e salva `CORPO.fit.json` ao lado do
 corpo. Como as roupas são ajustadas e desenhadas, de onde vêm e os limites (em inglês):
 [docs/wardrobe.md](docs/wardrobe.md).
+
+Teste: depois de `pip install 'body-studio[anny]'` (PyTorch e o [Anny](https://github.com/naver/anny),
+um modelo de corpo), o painel Provar mostra **Modelo de corpo: Padrão / Anny (teste)**, para ver as
+mesmas roupas num corpo ajustado de um jeito ou de outro. O ajuste com o Anny leva cerca de dois
+minutos na primeira vez para cada corpo e fica salvo como `CORPO.anny.fit.json`;
+`body-studio fit-anny CORPO.ply` faz o mesmo no terminal. O PyTorch só é preciso para isso.
+Resultados até agora (em inglês): [docs/anny.md](docs/anny.md).
 
 ### Medidas e gordura corporal (experimental)
 
