@@ -513,9 +513,10 @@ function blinkAt(tr) {
   S.mesh.updateVersion?.();
 }
 
-// the camera keeps its view of the body as it walks (not as it jumps: the floor stays put)
+// the camera keeps its view of the body as it walks (not as it jumps: the floor stays put), at
+// the walk's even pace rather than the surge of each step (walk.js, Walker.view)
 function followBody() {
-  const p = S.walker.pos, now = new THREE.Vector3(p[0], p[1], p[2]).applyQuaternion(V.holder.quaternion);
+  const p = S.walker.view, now = new THREE.Vector3(p[0], p[1], p[2]).applyQuaternion(V.holder.quaternion);
   const d = now.clone().sub(follow);
   V.camera.position.add(d);
   V.controls.target.add(d);
@@ -1096,7 +1097,8 @@ window.tattooStudio = {
   ensure: async () => { if (!S || S.file !== V.file()) await load(); },
   walker: () => S && S.walker,
   rig: () => S && S.rig,
-  redraw: () => { if (S) { drawPose(); followBody(); } },
+  // (after the body was put somewhere else: the camera goes there with it at once)
+  redraw: () => { if (S) { S.walker.view = S.walker.pos.slice(); drawPose(); followBody(); } },
   wake: () => { if (S) { S.hold = false; walking(); } },
   pose: () => S.sk.pose(),
   setPose: (p) => { still(); S.sk.setPose(p); applyPose(); },

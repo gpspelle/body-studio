@@ -141,3 +141,6 @@
   data folder (in its own process) the first time the rooms are listed. Room maps are now squared with the walls
   (the sharpest rows of splats along the floor) instead of the splats' main axis; maps made
   before are made again.
+
+- **Steady camera while walking**: the camera follows the body at the walk's even pace instead of
+  the surge of each step, and the body no longer jolts back a few centimetres as each heel strikes.

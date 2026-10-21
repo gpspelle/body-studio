@@ -47,8 +47,9 @@ const RAISED = {
   knee: { hip: { flex: 95, side: 2, twist: 0 }, knee: { flex: 100, twist: 0 }, ankle: { flex: -10 } },
 };             // what gait() swings the hip between
 
-// sizes in the person's heights (H) and seconds: 1.2 m/s for someone 1.75 m tall, a jump of 35 cm
-export const WALK = { speed: 0.7, accel: 6, turn: 7, gravity: 9.81 / 1.75, jump: 0.2, crouch: 0.22, land: 0.24 };
+// sizes in the person's heights (H) and seconds: 1.2 m/s for someone 1.75 m tall, a jump of 35 cm;
+// view: how long (s) the camera takes to catch up with where the feet have carried the body
+export const WALK = { speed: 0.7, accel: 6, turn: 7, gravity: 9.81 / 1.75, jump: 0.2, crouch: 0.22, land: 0.24, view: 0.6 };
 
 export class Walker {
   // sk: the Skeleton; rig: its rig (frame, height)
@@ -68,6 +69,7 @@ export class Walker {
     this.stride = 2 * leg * (Math.sin(HIP_RANGE[1] * Math.PI / 180) - Math.sin(HIP_RANGE[0] * Math.PI / 180));
     this.armSide = this._armSide();
     this.pos = [0, 0, 0];                       // on the floor, from where the body was scanned
+    this.view = [0, 0, 0];                      // what the camera follows: pos without the surge of each step
     this.heading = 0;                           // radians about up, from the way the scan faces
     this.speed = 0;                             // in H per second
     this.phase = 0;
@@ -105,16 +107,28 @@ export class Walker {
     return side;
   }
 
-  // where each foot touches the floor, with the body at its root (no place): the lower of its
-  // ankle and its toe
+  // where each foot touches the floor, with the body at its root (no place): its heel and toe
+  // (footPoints) and how much it stands on the toe, k (0: on the heel), the lower of the two
   _contacts() {
     return ["l", "r"].map((s) => {
       const [a, t] = this.footPoints(s);
-      if (!a) return [0, 0, 0];
-      if (!t) return a.slice();
+      if (!a) return { a: [0, 0, 0], t: [0, 0, 0], k: 0 };
+      if (!t) return { a: a.slice(), t: a.slice(), k: 0 };
       const up = this.up, ha = v3.dot(a, up), ht = v3.dot(t, up), k = 1 / (1 + Math.exp((ht - ha) / (0.0015 * this.H)));
-      return v3.add(v3.scale(t, k), v3.scale(a, 1 - k));
+      return { a: a.slice(), t: t.slice(), k };
     });
+  }
+
+  // The camera's point (view) goes on at the walk's even pace (vel: the speed the walk is set to
+  // go, along the way the body faces) and is drawn to where the feet have carried the body (pos) over o.view seconds. The feet carry it
+  // in surges, fast as one leg pushes off and slow as the other takes the weight, and a camera
+  // that followed them shook back and forth with every step.
+  _follow(dt, vel) {
+    const from = this.view;
+    let to = v3.add(from, v3.scale(vel, dt));
+    if (this.bound) to = this.bound(from, to);
+    this.view = v3.add(to, v3.scale(v3.sub(this.pos, to), dt > 0 ? 1 - Math.exp(-dt / this.o.view) : 0));
+    if (!this._behind()) this.view = this.pos.slice();
   }
 
   // the heel (the floor under the ankle at rest, carried by the ankle) and the tip of the toes of
@@ -130,12 +144,14 @@ export class Walker {
   get active() { return !!this.base; }
   // whether the next frames still change the body (walking, jumping, an arm or knee on its way)
   get busy() {
-    return this.speed > 1e-4 || this.walking > 1e-3 || !!this.jump || this._easing() || (!!this.rest && !this.rest.still);
+    return this.speed > 1e-4 || this.walking > 1e-3 || !!this.jump || this._easing() || (!!this.rest && !this.rest.still) || this._behind();
   }
   _easing() {
     return LIMBS.some((n) => Math.abs(this.limbs[n].v - +this.limbs[n].on) > 1e-3) ||
       (!!this.base && this.relaxing.length > 0 && this.relax < 0.999);
   }
+  // whether the camera's point is still on its way to the body
+  _behind() { return v3.len(v3.sub(this.view, this.pos)) > 1e-3 * this.H; }
   _limbsUp() { return LIMBS.some((n) => this.limbs[n].on || this.limbs[n].v > 1e-3); }
 
   // raise an arm or a knee, or lower it if it is up; one knee at a time (the body stands on the
@@ -194,7 +210,7 @@ export class Walker {
   settle() {
     const was = !!this.base;
     if (this.rest) { this.pos = this.rest.from.slice(); this.heading = this.rest.fromHeading; this.rest = null; }
-    this.speed = 0; this.walking = 0; this.jump = null;
+    this.speed = 0; this.walking = 0; this.jump = null; this.view = this.pos.slice();
     if (this.base) this._leave();
     this.sk.place = { q: this.sk.place.q, t: this.pos.slice() };
     this.sk.solve();
@@ -203,7 +219,7 @@ export class Walker {
 
   // back where the body was scanned, facing the same way, in the panel's pose
   home() {
-    this.pos = [0, 0, 0]; this.heading = 0; this.speed = 0; this.jump = null; this.walking = 0; this.rest = null;
+    this.pos = [0, 0, 0]; this.view = [0, 0, 0]; this.heading = 0; this.speed = 0; this.jump = null; this.walking = 0; this.rest = null;
     if (this.base) this._leave();
     this.sk.place = { q: q.id(), t: [0, 0, 0] };
     this.sk.solve();
@@ -223,7 +239,11 @@ export class Walker {
     }
     if (want > 1e-3) { this.limbs.knee_l.on = false; this.limbs.knee_r.on = false; }   // knees come down to walk
     const quiet = !want && !this.jump && this.speed < 1e-4 && this.walking < 1e-4 && !this._easing();
-    if (quiet && (!this.base ? !this._limbsUp() : this._limbsUp())) return false;   // nothing changes
+    if (quiet && (!this.base ? !this._limbsUp() : this._limbsUp())) {   // nothing changes, but the camera's point
+      if (!this._behind()) return false;                                // may still be on its way to the body
+      this._follow(dt, [0, 0, 0]);
+      return true;
+    }
     if (!this.base) {
       this.base = this.sk.angles.map((a) => (a ? { ...a } : null));
       // arms still held out as in the scan come down beside the body, and stay down
@@ -320,11 +340,15 @@ export class Walker {
     const feet = this._contacts();
     // (a jump from standing crouches and lands on the spot: both feet stay where they are)
     if (!this.airborne && this.lastFeet && this.walking > 1e-4 && !(this.jump && this.walking < 0.05)) {
-      const H = this.H, d = feet.map((f, k) => v3.sub(f, this.lastFeet[k]));
+      // how far each foot moved: its heel and toe, weighed as it stands now (a foot rolling from
+      // heel to toe in one frame moves its point of contact, not the body: the camera saw that
+      // as a jolt back at every heel strike)
+      const H = this.H, at = (f) => v3.add(v3.scale(f.t, f.k), v3.scale(f.a, 1 - f.k));
+      const d = feet.map((f, i) => { const l = this.lastFeet[i]; return v3.add(v3.scale(v3.sub(f.t, l.t), f.k), v3.scale(v3.sub(f.a, l.a), 1 - f.k)); });
       // which foot is on the floor: by the walk cycle (each foot stands for 60% of it, both at once
       // just after each heel strikes); when standing (the cycle faded out) the lower one
       const sl = this.walking > 0.05 ? stance(this.phase) / (stance(this.phase) + stance((this.phase + 0.5) % 1))
-        : 1 / (1 + Math.exp((v3.dot(feet[0], up) - v3.dot(feet[1], up)) / (0.004 * H)));
+        : 1 / (1 + Math.exp((v3.dot(at(feet[0]), up) - v3.dot(at(feet[1]), up)) / (0.004 * H)));
       let step = v3.add(v3.scale(d[0], sl), v3.scale(d[1], 1 - sl));
       step = v3.sub(step, v3.scale(up, v3.dot(step, up)));
       // while the walk blends in or out the feet come together from the scan's wider stance (or go
@@ -336,6 +360,7 @@ export class Walker {
     this.lastFeet = feet;
     // walls and furniture in the way (in a room): the body goes along them instead
     if (this.bound) this.pos = this.bound(from, this.pos);
+    this._follow(dt, v3.scale(facing, v * this.H * (grounded ? this.walking : 1)));
     // the lowest foot stays on the floor (the body bobs and crouches with the legs), except in the
     // air, where the body rises and falls as anything thrown does
     sk.place = { q: q.axisAngle(up, this.heading), t: this.pos };
@@ -443,7 +468,9 @@ export class Walker {
     const go = smooth(Math.min(1, R.v / 0.6)), down = smooth(Math.max(0, (R.v - 0.25) / 0.75));
     let d = ((R.heading - R.fromHeading + 3 * Math.PI) % TAU) - Math.PI;
     this.heading = R.fromHeading + d * go;
+    const was = this.pos;
     this.pos = v3.add(R.from, v3.scale(v3.sub(R.to, R.from), go));
+    this._follow(dt, dt > 0 ? v3.scale(v3.sub(this.pos, was), 1 / dt) : [0, 0, 0]);
     sk.angles = this._posed(R.pose, down);
     // (tilted back as it goes down: on the wall, or on the seat's back)
     const tilted = q.mul(q.axisAngle(v3.cross(up, q.rot(q.axisAngle(up, R.heading), this.front)), -R.tilt * down),
@@ -453,10 +480,10 @@ export class Walker {
     const drop = this.ground - Math.min(...this.feet.map((j) => v3.dot(sk.P[j], up)));
     sk.place = { q: tilted, t: v3.add(this.pos, v3.scale(up, this.feet.length ? drop : 0)) };
     sk.solve();
-    if (R.on && R.v === 1) R.still = true;
+    if (R.on && R.v === 1) { R.still = true; this.view = this.pos.slice(); }
     if (!R.on && R.v === 0) {                    // up again: the panel's pose, where it stood
       this.rest = null;
-      this.pos = R.from.slice(); this.heading = R.fromHeading;
+      this.pos = R.from.slice(); this.view = this.pos.slice(); this.heading = R.fromHeading;
       this._leave();
       sk.place = { q: q.axisAngle(up, this.heading), t: this.pos.slice() };
       sk.solve();

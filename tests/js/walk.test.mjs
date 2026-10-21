@@ -120,6 +120,45 @@ test("feet don't slide as the walk starts and stops: the body only moves as far 
   assert.ok(coast >= 0 && coast < 0.25 * H, `after letting go it steps on ${coast / H} H`);
 });
 
+test("the body never jolts back as a heel strikes: the walk only moves it on", () => {
+  // (a foot rolling from toe to heel moved its point of contact, and the body went back with it)
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  run(w, 1, { move: F });
+  let prev = w.pos.slice(), least = Infinity;
+  run(w, 3, { move: F }, () => { least = Math.min(least, v3.dot(v3.sub(w.pos, prev), F) / DT / H); prev = w.pos.slice(); });
+  assert.ok(least > -0.1, `the body went back at ${least} H/s`);
+});
+
+test("the camera's point goes on evenly while the feet carry the body in surges, and ends on it", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  run(w, 2, { move: F });
+  const speeds = (key) => {
+    const out = [];
+    let prev = w[key].slice();
+    return { out, step: () => { out.push(v3.dot(v3.sub(w[key], prev), F) / DT / H); prev = w[key].slice(); } };
+  };
+  const body = speeds("pos"), view = speeds("view");
+  let far = 0, wobble = 0, prevSide = v3.dot(w.view, L);
+  run(w, 3, { move: F }, () => {
+    body.step(); view.step();
+    far = Math.max(far, v3.len(v3.sub(w.view, w.pos)));
+    wobble = Math.max(wobble, Math.abs(v3.dot(w.view, L) - prevSide) / DT / H); prevSide = v3.dot(w.view, L);
+  });
+  const spread = (a) => Math.max(...a) - Math.min(...a);
+  assert.ok(spread(view.out) < 0.25 * spread(body.out), `the camera's pace varies ${spread(view.out)} H/s, the body's ${spread(body.out)}`);
+  assert.ok(spread(view.out) < 0.15, `the camera's pace varies ${spread(view.out)} H/s`);
+  assert.ok(wobble < 0.05, `the camera moves sideways at up to ${wobble} H/s`);
+  assert.ok(far < 0.12 * H, `the camera's point is ${far / H} H from the body`);
+  // let go: the camera settles on the body, and then nothing moves
+  let n = 0;
+  while (w.update(DT, {}) && n < 600) n++;
+  assert.ok(n < 600, "the walker stops");
+  assert.equal(w.busy, false);
+  assert.deepEqual(w.view, w.pos);
+  w.home();
+  assert.deepEqual(w.view, [0, 0, 0]);
+});
+
 test("walking, the pelvis turns and the weight shifts over the standing foot", () => {
   const sk = new Skeleton(rig), w = new Walker(sk, rig);
   run(w, 1.5, { move: F });

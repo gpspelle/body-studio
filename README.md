@@ -149,7 +149,8 @@ panel sits at the left edge (at the bottom on a phone).
   sliders.
   The tattoo moves with the skin.
 - **Walk it around**: press **W A S D** (or the arrow keys) and the body walks across the floor,
-  away from you, toward you or to the sides, turning to face the way it goes; the camera follows.
+  away from you, toward you or to the sides, turning to face the way it goes; the camera follows
+  at an even pace, without bobbing with each step.
   **Space** jumps. **Q** / **E** raise the left / right arm and **Z** / **C** the left / right
   knee (the body's own left and right); they stay up until pressed again. Clothes, hair, shoes and
   tattoos go along. Let go and it stands where it got to, in the pose from the panel, with arms
@@ -329,7 +330,8 @@ fica. O painel fica na borda esquerda (embaixo, no celular).
   e para os lados e o antebraço gira a mão. O braço para no corpo em vez de entrar nele. Escolha uma
   articulação para ajustar os ângulos com controles deslizantes. A tatuagem acompanha a pele.
 - **Saia andando**: aperte **W A S D** (ou as setas) e o corpo anda pelo chão, para longe de você,
-  na sua direção ou para os lados, virando para onde vai; a câmera acompanha. **Espaço** pula.
+  na sua direção ou para os lados, virando para onde vai; a câmera acompanha em ritmo constante (sem
+  balançar a cada passo). **Espaço** pula.
   **Q** / **E** levantam o braço esquerdo / direito e **Z** / **C** o joelho esquerdo / direito (a
   esquerda e a direita do próprio corpo); ficam levantados até você apertar de novo. Roupas, cabelo,
   sapatos e tatuagens vão junto. Solte e ele fica onde chegou, na pose do painel, com os braços que

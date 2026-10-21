@@ -8,8 +8,12 @@ page; nothing is saved but the hands' setting.
 
 - **Feet stay planted** (`static/walk.js`). While a foot is in its stance, the body moves by how
   far that foot would have slid, so the foot stays where it touched the floor. The heel and the
-  toe both count, whichever is lower. The pelvis turns against the chest at each step and the hips
-  sway over the standing leg.
+  toe both count, whichever is lower (as the foot rolls from one to the other, only how far each
+  point moved counts, not the change of point, or the body jolts back at every heel strike). The
+  pelvis turns against the chest at each step and the hips sway over the standing leg. So the body
+  goes in surges, fast as one leg pushes off and slow as the other takes the weight; the camera
+  follows `Walker.view` instead, which goes on at the walk's even pace and is drawn to the body
+  over 0.6 s (`WALK.view`), so it doesn't shake with each step.
 - **Alive when still** (`walk.js` `Life`): breathing (14 a minute, the chest rises and the
   shoulders lift a little), a slow sway of the pelvis and spine, a blink every 2 to 6 seconds, and
   the head turning to the camera (up to 40° to the side, 15° up or down, the neck taking 40% of it).
