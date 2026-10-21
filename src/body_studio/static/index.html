@@ -136,6 +136,12 @@
       <h2 data-i18n="pose.title"></h2>
       <p class="small" data-i18n="pose.hint"></p>
       <div class="chips" id="presets"></div>
+      <div class="inline-chips"><span class="small" data-i18n="pose.hands"></span><div class="chips" id="handsPick"></div></div>
+      <div id="whatIf" class="sliders" hidden>
+        <div class="joint-head"><span class="small" data-i18n="pose.whatIf"></span><button id="wiReset" class="link" data-i18n="pose.whatIfReset"></button></div>
+        <label><span data-i18n="pose.heavier"></span><input id="wiWeight" type="range" min="-1" max="1" step="0.05" value="0"><output id="wiWeightOut"></output></label>
+        <label><span data-i18n="pose.muscle"></span><input id="wiMuscle" type="range" min="-1" max="1" step="0.05" value="0"><output id="wiMuscleOut"></output></label>
+      </div>
       <div id="jointEdit" class="sliders" hidden>
         <div class="joint-head"><strong id="jointName"></strong><button id="jointReset" class="link" data-i18n="pose.resetJoint"></button></div>
         <div id="jointSliders"></div>
@@ -189,6 +195,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+import { Ground } from "/static/ground.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -216,6 +223,7 @@ const spark = new SparkRenderer({ renderer });
 scene.add(spark);
 const holder = new THREE.Group();            // orientation lives here; the splat stays untouched
 scene.add(holder);
+const ground = new Ground(scene);           // the body's shadow on the floor (ground.js)
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
@@ -323,6 +331,7 @@ async function show(body) {
   holder.add(mesh);
   await mesh.initialized;
   fit = measure(mesh);
+  ground.place(fit.center, fit.center.y - fit.size.y / 2, fit.size.y, fit.size.x, fit.size.z);
   frame();
   controls.autoRotate = true;
   $("loading").hidden = true;
@@ -421,7 +430,7 @@ window.bodyApp = {
   show: (id) => { const b = bodyList.find((x) => x.id === id); if (b) show(b); },
   reframe: () => { if (fit) frame(); },
   // for the tattoo and pose panel (tattoo.js)
-  viewer: { scene, spark, holder, camera, controls, renderer, canvas, mesh: () => mesh, file: () => current },
+  viewer: { scene, spark, holder, ground, camera, controls, renderer, canvas, mesh: () => mesh, file: () => current },
 };
 refreshBodies(); refreshJobs();
 setInterval(refreshJobs, 2000);

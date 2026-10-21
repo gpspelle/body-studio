@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { BodyVolume, Skeleton, SkinWeights, SurfaceMap, dualQuats, skinPoint, q, v3 } from "../../src/body_studio/static/pose.js";
-import { Walker, WALK, LIMBS, gait } from "../../src/body_studio/static/walk.js";
+import { Life, LIFE, Walker, WALK, LIMBS, gait, stance } from "../../src/body_studio/static/walk.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { left: L, up: U, front: F } = rig.frame;
@@ -94,16 +94,47 @@ test("the foot on the floor stays put while the body walks over it", () => {
   run(w, 1.5, { move: F });
   let slid = 0, travelled = 0, prev = null;
   run(w, 2, { move: F }, () => {
-    const feet = ["ankle_l", "ankle_r"].map((n) => at(sk, n));
-    const now = { foot: feet.map((p) => v3.dot(p, U)), p: feet, pelvis: at(sk, "pelvis").slice() };
-    if (prev) {
-      const k = now.foot[0] < now.foot[1] ? 0 : 1;          // the foot lower down carries the body
-      slid += v3.len(flat(v3.sub(now.p[k], prev.p[k])));
+    // the foot the walk cycle stands on, at its lowest point: the heel, then the toes as it rolls
+    const k = stance(w.phase) > stance((w.phase + 0.5) % 1) ? 0 : 1, s = ["l", "r"][k];
+    const low = w.footPoints(s).reduce((a, b) => (v3.dot(b, U) < v3.dot(a, U) ? b : a)).slice();
+    const now = { k, low, pelvis: at(sk, "pelvis").slice() };
+    if (prev && prev.k === k) {
+      slid += v3.len(flat(v3.sub(now.low, prev.low)));
       travelled += v3.len(flat(v3.sub(now.pelvis, prev.pelvis)));
     }
-    prev = { ...now, p: now.p.map((x) => x.slice()) };
+    prev = now;
   });
-  assert.ok(slid < 0.4 * travelled, `the standing foot slid ${(slid / travelled * 100).toFixed(0)}% of the way walked`);
+  assert.ok(slid < 0.12 * travelled, `the standing foot slid ${(slid / travelled * 100).toFixed(0)}% of the way walked`);
+});
+
+test("feet don't slide as the walk starts and stops: the body only moves as far as they step", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  const start = at(sk, "pelvis").slice();
+  w.update(DT, { move: F });
+  const first = v3.dot(v3.sub(at(sk, "pelvis"), start), F);
+  assert.ok(first < 0.003 * H, `a first frame's ${first / H} H`);
+  run(w, 2, { move: F });
+  const there = v3.dot(at(sk, "pelvis"), F);
+  run(w, 2);
+  const coast = v3.dot(at(sk, "pelvis"), F) - there;
+  assert.ok(coast >= 0 && coast < 0.25 * H, `after letting go it steps on ${coast / H} H`);
+});
+
+test("walking, the pelvis turns and the weight shifts over the standing foot", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig);
+  run(w, 1.5, { move: F });
+  const turn = [], side = [], foot = [];
+  run(w, 2, { move: F }, () => {
+    const hips = v3.sub(at(sk, "hip_l"), at(sk, "hip_r"));
+    turn.push(v3.dot(hips, F) / v3.len(hips));               // the left hip ahead of the right
+    side.push(v3.dot(at(sk, "pelvis"), L));
+    foot.push(stance(w.phase) - stance((w.phase + 0.5) % 1));
+  });
+  const turned = Math.max(...turn) - Math.min(...turn);       // (sin 5° is 0.087 each way)
+  assert.ok(turned > 0.12 && turned < 0.3, `the pelvis turns each way: ${turned}`);
+  assert.ok(corr(side, foot) > 0.3, "it moves toward the foot it stands on");
+  const sway = Math.max(...side) - Math.min(...side);
+  assert.ok(sway > 0.01 * H && sway < 0.05 * H, `sways ${sway / H} H`);
 });
 
 test("A and D turn the body and walk it that way", () => {
@@ -247,4 +278,41 @@ test("Z / C raise a knee, standing on the other foot; one at a time; walking low
   assert.deepEqual(w.raised(), [], "walking puts the knee down");
   run(w, 2);
   assert.equal(w.active, false);
+});
+
+test("standing, the body breathes, sways a little, blinks and looks at the camera", () => {
+  let seed = 7;
+  const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const sk = new Skeleton(rig), life = new Life(sk, rig, rand);
+  const head = sk.P[sk.index("head")], side = v3.add(head, v3.add(v3.scale(L, 2 * H), v3.scale(F, 0.5 * H)));
+  let peaks = 0, last = 0, rising = false, blinks = 0, shut = 0, longest = 0, r;
+  for (let i = 0; i < 30 * 60; i++) {
+    r = life.update(DT, { eye: side });
+    if (r.breath > last) rising = true; else if (rising) { peaks++; rising = false; }
+    last = r.breath;
+    if (r.blink > 0) { if (!shut) blinks++; shut += DT; longest = Math.max(longest, shut); } else shut = 0;
+    assert.ok(r.breath >= 0 && r.breath <= 1);
+  }
+  near(peaks, 30 * LIFE.breaths, 1.5, "breaths in 30 s");
+  assert.ok(blinks >= 30 / LIFE.blink[1] - 1 && blinks <= 30 / LIFE.blink[0] + 1, `${blinks} blinks in 30 s`);
+  assert.ok(longest < 0.25, `a blink is quick (${longest} s)`);
+  // the head turned toward the camera at the side, no further than a neck goes
+  assert.ok(life.yaw > 0.8 * LIFE.look.yaw && life.yaw <= LIFE.look.yaw + 1e-9, `looks to the side (${life.yaw})`);
+  // all of it small: the pelvis sways a degree or so, the chest moves with the breath
+  const pel = r.extra[sk.index("pelvis")];
+  assert.ok(Math.abs(pel.side) <= 1 && Math.abs(pel.twist) <= 1);
+  // walking, the head looks where it goes
+  for (let i = 0; i < 3 * 60; i++) life.update(DT, { eye: side, walking: 1 });
+  assert.ok(Math.abs(life.yaw) < 2, `faces ahead walking (${life.yaw})`);
+});
+
+test("a jump from standing lands where it took off", () => {
+  for (const dt of [DT, 1 / 8]) {
+    const sk = new Skeleton(rig), w = new Walker(sk, rig);
+    const before = w.pos.slice();
+    w.update(dt, { jump: true });
+    for (let i = 0; i < 400 && w.active; i++) w.update(dt, {});
+    assert.ok(!w.active);
+    near(v3.len(v3.sub(w.pos, before)), 0, 0.002 * H, `dt ${dt}`);
+  }
 });

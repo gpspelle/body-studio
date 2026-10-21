@@ -20,6 +20,10 @@
 (its layout and how each item is hung, folded or shown on a mannequin head in `static/racks.js`,
 tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no extra splats). Only CC0 or CC-BY items,
   each listed in `CREDITS.md`. See `docs/wardrobe.md`.
+  Life and flesh: breathing, blinks, head look and planted feet in `static/walk.js`; what skin does
+  beyond the bones (contact shading, bulges, stretch, clothes out of the body, swing, "what if"
+  sliders) as maths in `static/flesh.js` (tested by `tests/js/flesh.test.mjs`) and as one Spark
+  object modifier in `static/fleshgpu.js`; the floor shadow in `static/ground.js`. See `docs/flesh.md`.
 - Runs go through splat-studio's job runner (`splat_studio.server.jobs.Runner`): pty, measured
   time left, lock files, timeline.jsonl, advice in seconds of video. Don't write a second runner.
 - three.js and Spark are served from the installed splat-studio package (`/vendor/...`), so

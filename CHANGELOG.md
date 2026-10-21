@@ -110,3 +110,15 @@
 - Anny installs itself: `body-studio setup` installs PyTorch and Anny with the other tools, and the
   first click on **Anny** in the Try on panel installs them if they're missing, so the switch is
   always there and nothing has to be typed. `body-studio check` lists Anny.
+- A body that looks alive (see `docs/flesh.md`): feet stay planted when walking, the pelvis turns
+  and the hips sway; standing still it breathes, sways, blinks and turns its head to the camera.
+  Skin darkens where it meets skin, the biceps swells with the bent elbow, skin no longer breaks
+  into flakes in the armpit with the arms up, clothes are pushed out of the body and crease at bent
+  joints, and a skirt's hem and long hair swing. A soft shadow on the floor follows the pose.
+- **Hands** in the pose panel: as scanned, relaxed or a fist (kept with the pose).
+- Clothes look like fabric: the texture is averaged over each splat (no shimmering dots) and the
+  model's folds, pockets and seams are darker. Tattoos look healed in: softer, a little greyer, the
+  skin's grain showing through.
+- **What if** sliders in the pose panel: lighter or heavier (about ±12 kg) and less or more
+  muscle, with the kilograms shown; not saved. `<body>.fit.json` is version 4 (with `whatif`);
+  older fits are remade on first use.

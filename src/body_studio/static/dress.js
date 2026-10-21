@@ -19,6 +19,15 @@ export function decodeItem(d) {
 export function fitSkin(fit) {
   return toModel(f32(fit.verts), fit.n_body, fit.frame, fit.frame.origin);
 }
+// every vertex of the fitted base mesh (the skin, then the helpers: eyes, tights, skirt, hair cap…)
+export function fitVerts(fit) {
+  const v = f32(fit.verts);
+  return toModel(v, v.length / 3, fit.frame, fit.frame.origin);
+}
+// a "what if" slider's moves (fit.py whatif(): weight, muscle) per skin vertex, in the PLY's coordinates
+export function fitWhatIf(fit, key) {
+  return fit.whatif && fit.whatif[key] ? toModel(f32(fit.whatif[key]), fit.n_body, fit.frame, [0, 0, 0]) : null;
+}
 export function fitNormals(fit) {
   return toModel(f32(fit.normals), fit.n_body, fit.frame, [0, 0, 0]);
 }
@@ -120,6 +129,56 @@ function outwardNormals(V, T, frame) {
 const LAYER = 8;                 // how close (in splat spacings) a layer over a splat hides it
 const R2 = [0.7548776662466927, 0.5698402909980532];     // a low-discrepancy sequence (Roberts' R2)
 
+// Fabric, not noise: a splat takes the texture's colour averaged over the patch of texture it
+// covers (a weave finer than the splats shimmered as random dots), from a pyramid of the texture
+// halved again and again (a box filter each time). tex: { width, height, data (RGBA bytes) }.
+export function texturePyramid(tex) {
+  if (tex.pyramid) return tex.pyramid;
+  const out = [{ w: tex.width, h: tex.height, d: tex.data }];
+  for (;;) {
+    const a = out[out.length - 1];
+    if (a.w <= 1 && a.h <= 1) break;
+    const w = Math.max(1, a.w >> 1), h = Math.max(1, a.h >> 1), d = new Uint8ClampedArray(w * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) for (let k = 0; k < 4; k++) {
+      const x0 = Math.min(a.w - 1, 2 * x), x1 = Math.min(a.w - 1, 2 * x + 1), y0 = Math.min(a.h - 1, 2 * y), y1 = Math.min(a.h - 1, 2 * y + 1);
+      d[(y * w + x) * 4 + k] = (a.d[(y0 * a.w + x0) * 4 + k] + a.d[(y0 * a.w + x1) * 4 + k] + a.d[(y1 * a.w + x0) * 4 + k] + a.d[(y1 * a.w + x1) * 4 + k] + 2) >> 2;
+    }
+    out.push({ w, h, d });
+  }
+  tex.pyramid = out;
+  return out;
+}
+// the texture at (u, v) (wrapping) averaged over about `texels` texels: [r, g, b, a] bytes
+export function textureAt(tex, u, v, texels = 1) {
+  const P = texturePyramid(tex), L = P[Math.max(0, Math.min(P.length - 1, Math.floor(Math.log2(Math.max(1, texels)))))];
+  const x = Math.min(L.w - 1, Math.max(0, Math.floor((u - Math.floor(u)) * L.w)));
+  const y = Math.min(L.h - 1, Math.max(0, Math.floor((1 - (v - Math.floor(v))) * L.h)));
+  const k = (y * L.w + x) * 4;
+  return [L.d[k], L.d[k + 1], L.d[k + 2], L.d[k + 3]];
+}
+
+// Folds: per vertex of an item, how much the surface around it is a valley (its neighbours stand
+// out over it along its normal), from -1 to 1, smoothed over two rings. Cloth is darker in its
+// folds, where less light reaches.
+export function cavities(V, T, VN) {
+  const nv = V.length / 3, sum = new Float32Array(nv), cnt = new Float32Array(nv);
+  for (let t = 0; t < T.length / 3; t++) for (let m = 0; m < 3; m++) for (let o = 1; o < 3; o++) {
+    const a = T[t * 3 + m], b = T[t * 3 + (m + o) % 3];
+    const dx = V[b * 3] - V[a * 3], dy = V[b * 3 + 1] - V[a * 3 + 1], dz = V[b * 3 + 2] - V[a * 3 + 2], l = Math.hypot(dx, dy, dz);
+    const nl = Math.hypot(VN[a * 3], VN[a * 3 + 1], VN[a * 3 + 2]);
+    if (l < 1e-12 || nl < 1e-12) continue;
+    sum[a] += (dx * VN[a * 3] + dy * VN[a * 3 + 1] + dz * VN[a * 3 + 2]) / (l * nl); cnt[a]++;
+  }
+  let c = Float32Array.from(sum, (x, i) => (cnt[i] ? x / cnt[i] : 0));
+  for (let pass = 0; pass < 2; pass++) {
+    const next = new Float32Array(nv), k = new Float32Array(nv);
+    for (let t = 0; t < T.length / 3; t++) for (let m = 0; m < 3; m++) for (let o = 0; o < 3; o++) { next[T[t * 3 + m]] += c[T[t * 3 + o]]; k[T[t * 3 + m]]++; }
+    c = Float32Array.from(next, (x, i) => (k[i] ? x / k[i] : 0));
+  }
+  return c;
+}
+export const FOLD = { depth: 2.2, dark: 0.8, light: 1.04 };
+
 // Splats for an item: about one per `spacing` squared of its surface, spread evenly over each
 // triangle, coloured from the texture (tex: {width, height, data: RGBA bytes}). Parts of the
 // texture that are see-through (hair cards) get no splats. Each splat is a flat disc in the
@@ -131,6 +190,7 @@ export function itemSplats(item, tex, spacing, frame) {
   const centres = [], anchors = [], quats = [], colours = [], opacity = [], tri = [], bary = [];
   const N = outwardNormals(V, T, frame), VN = new Float32Array(V.length);
   for (let t = 0; t < T.length / 3; t++) for (let m = 0; m < 3; m++) for (let k = 0; k < 3; k++) VN[T[t * 3 + m] * 3 + k] += N[t * 3 + k];
+  const cav = cavities(V, T, VN);
   const shadeAt = (nx, ny, nz) => {
     const l = Math.hypot(nx, ny, nz) || 1, n = [nx / l, ny / l, nz / l];
     return 0.74 + 0.3 * Math.max(0, v3.dot(n, light)) - 0.08 * Math.max(0, -v3.dot(n, frame.up));
@@ -160,15 +220,18 @@ export function itemSplats(item, tex, spacing, frame) {
     const count = Math.floor(carry);
     carry -= count;
     const ua = TU[t * 3], ub = TU[t * 3 + 1], uc = TU[t * 3 + 2];
+    // how many texels one splat spacing spans on this triangle
+    const uvArea = Math.abs((UV[ub * 2] - UV[ua * 2]) * (UV[uc * 2 + 1] - UV[ua * 2 + 1]) - (UV[uc * 2] - UV[ua * 2]) * (UV[ub * 2 + 1] - UV[ua * 2 + 1])) / 2;
+    const texels = spacing * Math.sqrt(uvArea * tex.width * tex.height / area);
     for (let s = 0; s < count; s++) {
       let r1 = ((t * 0.618034 + (s + 0.5) * R2[0]) % 1), r2 = ((t * 0.414214 + (s + 0.5) * R2[1]) % 1);
       if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; }
       const u = UV[ua * 2] + r1 * (UV[ub * 2] - UV[ua * 2]) + r2 * (UV[uc * 2] - UV[ua * 2]);
       const w = UV[ua * 2 + 1] + r1 * (UV[ub * 2 + 1] - UV[ua * 2 + 1]) + r2 * (UV[uc * 2 + 1] - UV[ua * 2 + 1]);
+      // the alpha (hair cards' strands) as it is; the colour averaged over the splat
       const px = Math.min(tex.width - 1, Math.max(0, Math.floor((u - Math.floor(u)) * tex.width)));
       const py = Math.min(tex.height - 1, Math.max(0, Math.floor((1 - (w - Math.floor(w))) * tex.height)));
-      const k = (py * tex.width + px) * 4;
-      const alpha = tex.data[k + 3] / 255;
+      const alpha = tex.data[(py * tex.width + px) * 4 + 3] / 255;
       if (item.alpha && alpha < 0.2) continue;
       const p = [pa[0] + r1 * e1[0] + r2 * e2[0], pa[1] + r1 * e1[1] + r2 * e2[1], pa[2] + r1 * e1[2] + r2 * e2[2]];
       if (layers && layers.ray(p, n, 0.1 * spacing, LAYER * spacing, (u) => apart(t, u)) >= 0) { under++; continue; }
@@ -178,9 +241,13 @@ export function itemSplats(item, tex, spacing, frame) {
       quats.push(...rot);
       // shaded by the normal smoothed over the item's surface: flat-shaded triangles showed as
       // grey facets on a white shirt
-      const r0 = 1 - r1 - r2, shade = shadeAt(r0 * VN[a * 3] + r1 * VN[b * 3] + r2 * VN[c * 3],
-        r0 * VN[a * 3 + 1] + r1 * VN[b * 3 + 1] + r2 * VN[c * 3 + 1], r0 * VN[a * 3 + 2] + r1 * VN[b * 3 + 2] + r2 * VN[c * 3 + 2]);
-      colours.push(Math.min(1, tex.data[k] / 255 * shade), Math.min(1, tex.data[k + 1] / 255 * shade), Math.min(1, tex.data[k + 2] / 255 * shade));
+      const r0 = 1 - r1 - r2, fold = r0 * cav[a] + r1 * cav[b] + r2 * cav[c];
+      const shade = shadeAt(r0 * VN[a * 3] + r1 * VN[b * 3] + r2 * VN[c * 3],
+        r0 * VN[a * 3 + 1] + r1 * VN[b * 3 + 1] + r2 * VN[c * 3 + 1], r0 * VN[a * 3 + 2] + r1 * VN[b * 3 + 2] + r2 * VN[c * 3 + 2]) *
+        Math.min(FOLD.light, Math.max(FOLD.dark, 1 - FOLD.depth * fold));
+      const col = item.alpha ? [tex.data[(py * tex.width + px) * 4], tex.data[(py * tex.width + px) * 4 + 1], tex.data[(py * tex.width + px) * 4 + 2]]
+                             : textureAt(tex, u, w, texels);
+      colours.push(Math.min(1, col[0] / 255 * shade), Math.min(1, col[1] / 255 * shade), Math.min(1, col[2] / 255 * shade));
       opacity.push(item.alpha ? 0.95 * alpha : 1);
     }
   }

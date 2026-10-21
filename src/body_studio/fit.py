@@ -38,7 +38,8 @@ from pathlib import Path
 
 from . import rig, wardrobe
 
-FIT_VERSION = 3         # 2: the skin's normals, for finding the skin under clothes; 3: body shape
+FIT_VERSION = 4         # 2: the skin's normals, for finding the skin under clothes; 3: body shape;
+                        # 4: the "what if" sliders (whatif())
 SAMPLES = 100000        # points on the base mesh for its skeleton and weights
 PASSES = (0.06, 0.025)  # how far (fraction of stature) a vertex looks along its normal, per pass
 LATERAL = 0.006         # splats this close to the normal's line count (fraction of stature)
@@ -427,6 +428,54 @@ def shrinkwrap(P, tris, nb, nbrs, pts, hsh, H, reach):
     return [rig._add(P[i], rig._mul(N[i], max(-R, min(R, d[i])))) for i in range(nb)], sum(conf) / nb
 
 
+# The page's "what if" sliders: the body heavier or more muscular, as MakeHuman's universal
+# targets for it (its sex as the shape solve found it), on top of the fitted shape.
+WHATIF = {"weight": "averagemuscle-maxweight", "muscle": "maxmuscle-averageweight"}
+
+
+def _volume(P, tris) -> float:
+    return sum(rig._dot(P[tris[t]], _cross(P[tris[t + 1]], P[tris[t + 2]])) for t in range(0, len(tris), 3)) / 6.0
+
+
+def _cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def whatif(alpha, T, skin) -> dict:
+    """Per slider: how far each skin vertex moves at 1 (body coordinates, posed onto the scan's
+    bones) and how much the body's volume grows (fraction of the height, cubed)."""
+    base = base_rig()
+    W, nb, S, H = base["W"], base["n_body"], shapes(), T[next(iter(T))]["g"]
+    idx = {n: i for i, n in enumerate(SHAPES)}
+    sex = {g: sum(alpha[idx[f"macrodetails/{r}-{g}-young"]] for r in ("african", "asian", "caucasian"))
+           for g in ("female", "male")}
+    tot = sex["female"] + sex["male"]
+    share = {g: (sex[g] / tot if tot > 0 else 0.5) for g in sex}
+    tris = [i for t in range(0, len(base["tris"]), 3) for i in base["tris"][t:t + 3]
+            if max(base["tris"][t:t + 3]) < nb]
+    v0 = _volume(skin, tris)
+    out = {}
+    for key, target in WHATIF.items():
+        d = [[0.0, 0.0, 0.0] for _ in range(nb)]
+        for g, w in share.items():
+            for i, m in S[idx[f"macrodetails/universal-{g}-young-{target}"]].items():
+                if i < nb:
+                    for k in range(3):
+                        d[i][k] += w * m[k]
+        moved = []
+        for i in range(nb):
+            x = [0.0, 0.0, 0.0]
+            for b, w in W[i]:
+                y = _linear(T[b], tuple(d[i]))
+                for k in range(3):
+                    x[k] += w * y[k]
+            moved.append(tuple(x))
+        out[key] = moved
+        Hs = H * base["H"]
+        out[key + "_volume"] = (_volume([rig._add(skin[i], moved[i]) for i in range(nb)], tris) - v0) / Hs ** 3
+    return out
+
+
 def fit_splats(rig_json: dict, xs, ys, zs, opacity, shape: bool = True) -> dict:
     """The fitted base mesh for a body whose rig is `rig_json` (rig.py's file) and whose splat
     centres and opacities are given (PLY coordinates). shape=False leaves the sliders at 0."""
@@ -465,7 +514,7 @@ def fit_splats(rig_json: dict, xs, ys, zs, opacity, shape: bool = True) -> dict:
                 move[k] += f * (skin[j][k] - lbs[j][k])
         out.append(rig._add(lbs[i], move))
     return {"verts": out, "rot": Q, "axes": base["axes"], "frame": fr, "height": Hs, "n_body": nb,
-            "normals": _normals(skin, base["tris"], nb), "surface_found": round(hit, 3),
+            "normals": _normals(skin, base["tris"], nb), "surface_found": round(hit, 3), "whatif": whatif(alpha, T, skin),
             "shape": {n: round(a, 3) for n, a in zip(SHAPES, alpha) if a > 0.0005}}
 
 
@@ -487,7 +536,9 @@ def encode(f: dict) -> dict:
             "axes": f["axes"], "surface_found": f["surface_found"], "shape": f.get("shape", {}),
             "verts": _b64(array("f", (c for p in f["verts"] for c in p))),
             "rot": _b64(array("f", (c for q in f["rot"] for c in q))),
-            "normals": _b64(array("f", (c for n in f["normals"] for c in n)))}
+            "normals": _b64(array("f", (c for n in f["normals"] for c in n))),
+            "whatif": {k: (round(v, 6) if k.endswith("_volume") else _b64(array("f", (c for p in v for c in p))))
+                       for k, v in f.get("whatif", {}).items()}}
 
 
 def decode(d: dict) -> dict:

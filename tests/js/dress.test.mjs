@@ -3,6 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SkinCover, itemSplats, itemWeights, fitSkin, fitNormals, hatOverHair, skinUnder } from "../../src/body_studio/static/dress.js";
+import { cavities, textureAt, texturePyramid } from "../../src/body_studio/static/dress.js";
 
 const frame = { origin: [0, 0, 0], left: [1, 0, 0], up: [0, 1, 0], front: [0, 0, 1] };
 const b64 = (a) => Buffer.from(a.buffer).toString("base64");
@@ -136,4 +137,34 @@ test("a hat is enlarged just enough to go over the hair", () => {
   const { item, scale } = hatOverHair(hat, tall, up, 0.005);
   assert.ok(Math.abs(scale - 0.07 / 0.05) < 0.01, `scale ${scale}`);
   for (let i = 0; i < 8; i++) assert.ok(item.verts[i * 3 + 1] >= -1e-6, "the brim stays where it was");
+});
+
+test("a splat takes the texture averaged over what it covers", () => {
+  // a 1-texel checkerboard: one texel is black or white, a patch of them is grey
+  const W = 64, data = new Uint8ClampedArray(W * W * 4);
+  for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) data.set([(x + y) % 2 ? 255 : 0, 0, 0, 255], (y * W + x) * 4);
+  const tex = { width: W, height: W, data };
+  assert.ok([0, 255].includes(textureAt(tex, 0.3, 0.3, 1)[0]));
+  const grey = textureAt(tex, 0.3, 0.3, 8)[0];
+  assert.ok(Math.abs(grey - 128) < 3, `grey from far (${grey})`);
+  assert.equal(texturePyramid(tex).at(-1).w, 1);
+  assert.equal(textureAt(tex, 1.3, -0.7, 8)[3], 255, "wraps");
+});
+
+test("folds are valleys, the outside of a tube isn't", () => {
+  // a tube along z (convex outside), normals outward: no fold anywhere
+  const V = [], T = [], N = [], ring = 16, rows = 6;
+  for (let j = 0; j < rows; j++) for (let i = 0; i < ring; i++) {
+    const a = (2 * Math.PI * i) / ring;
+    V.push(Math.cos(a), Math.sin(a), j * 0.4); N.push(Math.cos(a), Math.sin(a), 0);
+  }
+  for (let j = 0; j < rows - 1; j++) for (let i = 0; i < ring; i++) {
+    const a = j * ring + i, b = j * ring + ((i + 1) % ring), c = a + ring, d = b + ring;
+    T.push(a, b, c, b, d, c);
+  }
+  const tube = cavities(Float32Array.from(V), Int32Array.from(T), Float32Array.from(N));
+  assert.ok(Math.max(...tube) <= 0, "convex: never darker");
+  // the same normals turned inward (the inside of the tube, a valley)
+  const inside = cavities(Float32Array.from(V), Int32Array.from(T), Float32Array.from(N.map((x) => -x)));
+  assert.ok(Math.min(...inside) > 0.05, "concave: darker");
 });

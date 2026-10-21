@@ -175,7 +175,7 @@ def wardrobe_scene(page) -> None:
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
     page.evaluate("bodyApp.viewer.controls.autoRotate = false")
     for item in ("tee_jeans_f", "white_sneakers", "bob_dark"):
-        at = page.evaluate(f"wardrobe.onScreen('{item}')")      # on the racks around her
+        at = page.wait_for_function(f"wardrobe.onScreen('{item}')", timeout=120000).json_value()   # on the racks around her
         page.mouse.click(at["x"], at["y"])
         page.wait_for_function(f"wardrobe.worn().includes('{item}')", timeout=120000)
     page.locator("#presets button").nth(3).click()                 # walking
@@ -198,12 +198,17 @@ def walk_scene(page) -> None:
     page.click("#studioBtn")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
     for item in ("tee_jeans_f", "white_sneakers", "bob_dark"):
-        at = page.evaluate(f"wardrobe.onScreen('{item}')")      # on the racks around her
+        at = page.wait_for_function(f"wardrobe.onScreen('{item}')", timeout=120000).json_value()   # on the racks around her
         page.mouse.click(at["x"], at["y"])
         page.wait_for_function(f"wardrobe.worn().includes('{item}')", timeout=120000)
     page.click("#closeStudio")
     page.evaluate("bodyApp.viewer.controls.autoRotate = false")
     page.evaluate("tattooStudio.walkFor(1.45, 'r')")
+    # in software rendering Spark may still be building a mesh's program when the pose changes,
+    # and shows that mesh as it was: the splats are made again for a few seconds of frames
+    page.evaluate("""new Promise((done) => { const t0 = performance.now(); (function f() {
+      for (const m of bodyApp.viewer.holder.children) m.updateVersion?.();
+      if (performance.now() - t0 < 8000) requestAnimationFrame(f); else done(); })(); })""")
     page.wait_for_function("""(() => { const s = bodyApp.viewer.spark;
       return s.display === s.current && s.display.numSplats > bodyViewer.numSplats() + 1000; })()""", timeout=300000)
     page.wait_for_timeout(30000)

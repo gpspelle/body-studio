@@ -156,3 +156,5 @@ then run the script.
 
 See `roadmap-wardrobe.md` in the project files: CC-BY packs, layering, then garments made
 from a picture or a pattern (GarmentCode, TRELLIS.2).
+
+How clothes stay out of the body, crease, swing and look like fabric: [flesh.md](flesh.md).

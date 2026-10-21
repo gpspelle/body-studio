@@ -9,9 +9,11 @@
 // sources: docs/wardrobe.md, docs/anny.md.
 import * as THREE from "three";
 import { SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
-import { SkinCover, decodeItem, f32, i32, fitNormals, fitSkin, hatOverHair, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
+import { SkinCover, decodeItem, f32, i32, fitNormals, fitSkin, fitVerts, hatOverHair, itemSplats, itemWeights, skinUnder } from "/static/dress.js";
 import { dualQuats, skinPoint } from "/static/pose.js";
 import { fold, hang, onHead, pair, shopLayout } from "/static/racks.js";
+import { fillLayers, looseness, shapeOffsets } from "/static/flesh.js";
+import { Flesh } from "/static/fleshgpu.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -34,8 +36,8 @@ const store = {
 
 addEventListener("studioready", async (e) => {
   undressAll();
-  const { file, rig, weights, mesh, centres, transforms } = e.detail;
-  W = { file, rig, weights, mesh, centres, transforms, worn: new Map(), fit: null, cover: null, hidden: new Map(),
+  const { file, rig, weights, mesh, centres, transforms, caps, hands } = e.detail;
+  W = { file, rig, weights, mesh, centres, transforms, caps, hands, worn: new Map(), fit: null, cover: null, hidden: new Map(),
         tinted: new Map(), busy: 0, model: "standard" };
   window.wardrobe.ready = false;
   if (!catalog) {
@@ -55,7 +57,7 @@ addEventListener("posed", (e) => {
   if (!W) return;
   W.transforms = e.detail;
   for (const w of W.worn.values()) pose(w);
-  refit();
+  if (!e.idle) refit();
 });
 
 function status(text) { $("wearStatus").textContent = text || ""; }
@@ -75,6 +77,7 @@ async function loadFit(w) {
     w.skin = fitSkin(d);
     w.normals = fitNormals(d);
     w.cover = new SkinCover(w.skin, w.centres, REACH * w.rig.height);
+    dispatchEvent(new CustomEvent("fitready", { detail: { file: w.file, fit: d, verts: fitVerts(d), skin: w.skin } }));
     status("");
     ui();
     return true;
@@ -151,7 +154,7 @@ async function wear(id, restoring = false) {
     const s = itemSplats(d, tex, SPACING * H * (hair ? HAIR_SPACING : 1), w.rig.frame);
     const mesh = await splatMesh(s);
     if (W !== w) { mesh.dispose?.(); return; }
-    const skinning = skin(mesh, s, w, d);
+    const skinning = skin(mesh, s, w, d, it.slot);
     takeOff(it.slot);
     const entry = { id, slot: it.slot, mesh, skinning, n: s.n, splats: s, nbr: neighbours(s, H),
                     grow: new Uint8Array(s.n).fill(GROW_STEPS), hatScale };
@@ -184,6 +187,7 @@ function takeOff(slot) {
   const e = W && W.worn.get(slot);
   if (!e) return;
   V.holder.remove(e.mesh);
+  e.splats.flesh?.dispose();
   e.mesh.dispose?.();
   W.worn.delete(slot);
 }
@@ -276,7 +280,7 @@ async function splatMesh(s) {
 // skin vertex nearest each anchor, smoothed over the item. Not the weights where the splats are:
 // off the skin, beside the chest under the armpit, the nearest bone is the upper arm, and a
 // shirt's sides flew out with the arms when they were raised.
-function skin(mesh, s, w, item) {
+function skin(mesh, s, w, item, slot) {
   const nb = w.rig.joints.length;
   const skinning = new SplatSkinning({ mesh, numSplats: s.n, numBones: nb });
   const sk = w.skin, vb = new THREE.Vector4(), vw = new THREE.Vector4();
@@ -297,6 +301,24 @@ function skin(mesh, s, w, item) {
   for (let b = 0; b < nb; b++) skinning.setRestQuatPos(b, qi, zero);
   mesh.skinning = skinning;
   mesh.updateGenerator();
+  // pushed out of the body where a pose would take it through (a skirt into a thigh), shaded where
+  // the body comes close, creased at bent joints, and swelling with the skin under it (flesh.js)
+  // and what hangs loose swings (clothes from the hips, hair from the head; not shoes or a hat)
+  const loose = slot === "outfit" || slot === "hair";
+  s.flesh = new Flesh(mesh, skinning, s.n, w.rig.height, { shade: true, collide: true, swing: loose });
+  fillLayers(s.flesh.layers, w.rig, w.caps, s.centres, bones, weights, s.n, { cloth: true, hands: w.hands });
+  // the "what if" sliders move it with the skin under it
+  const wi = window.tattooStudio?.whatIf?.();
+  if (wi) { shapeOffsets(s.flesh.layers[0], wi.field, wi.weight, s.centres, s.n); shapeOffsets(s.flesh.layers[1], wi.field, wi.muscle, s.centres, s.n); }
+  if (loose) {
+    const L = s.flesh.layers[4], C = s.centres, H = w.rig.height, far = w.cover.reach;
+    for (let i = 0; i < s.n; i++) {
+      const x = C[i * 3], y = C[i * 3 + 1], z = C[i * 3 + 2], v = w.cover.nearestSkin(x, y, z);
+      const gap = v < 0 ? far : Math.hypot(w.skin[v * 3] - x, w.skin[v * 3 + 1] - y, w.skin[v * 3 + 2] - z);
+      L[i * 4] = looseness(gap, H);
+    }
+  }
+  s.flesh.upload();
   return skinning;
 }
 
@@ -305,6 +327,8 @@ function pose(e) {
   const qv = new THREE.Quaternion(), tv = new THREE.Vector3();
   W.transforms.forEach(({ q, t: tt }, b) => e.skinning.setBoneQuatPos(b, qv.set(q[0], q[1], q[2], q[3]), tv.set(tt[0], tt[1], tt[2])));
   e.skinning.updateBones();
+  const st = window.tattooStudio?.flesh?.()?.state;
+  if (st) e.splats.flesh.set({ ...st, swing: st.swing?.[e.slot === "hair" ? "head" : "hips"] });
 }
 
 // A pose stretches cloth where it passes from one bone to the next (under a raised arm, the
@@ -567,6 +591,8 @@ window.wardrobe = {
   onScreen,
   itemAt: (x, y) => shopItemAt(x, y),
   splats: (id) => [...(W ? W.worn.values() : [])].find((e) => e.id === id)?.n || 0,
+  // a worn item's splats (centres, skin, flesh layers), for tests
+  item: (id) => [...(W ? W.worn.values() : [])].find((e) => e.id === id)?.splats || null,
   hidden: () => (W ? W.hidden.size : 0),
   // how much the hat was enlarged to go over the hair (1: no hair, or it fits as it is)
   hatScale: () => (W && W.worn.get("hat")?.hatScale) || 0,

@@ -1,4 +1,4 @@
-"""Runs tests/js/pose.test.mjs (the posing and tattoo maths the page uses) with Node against the
+"""Runs tests/js/pose.test.mjs, walk.test.mjs and flesh.test.mjs (the posing, walking, tattoo and skin maths the page uses) with Node against the
 MakeHuman body and the rig built from it. Skipped when Node isn't installed."""
 import json
 import os
@@ -26,7 +26,8 @@ class PoseJs(unittest.TestCase):
             normals = Path(tmp) / "normals.json"            # the mesh's own: what the skin's should agree with
             normals.write_text(json.dumps(skin_normals()))
             r = subprocess.run([NODE, "--test", str(ROOT / "tests" / "js" / "pose.test.mjs"),
-                                str(ROOT / "tests" / "js" / "walk.test.mjs")],
+                                str(ROOT / "tests" / "js" / "walk.test.mjs"),
+                                str(ROOT / "tests" / "js" / "flesh.test.mjs")],
                                env={**os.environ, "RIG_JSON": str(rig.rig_file(ply)), "BODY_PLY": str(ply),
                                     "SKIN_NORMALS": str(normals)},
                                capture_output=True, text=True, timeout=600)
