@@ -54,7 +54,7 @@ skin.
 
 ## What if
 
-Two sliders in the pose panel, **Lighter · heavier** and **Less · more muscle**. They move the skin
+Two sliders in the pose panel, **Weight** (lighter to the left, heavier to the right) and **Muscle**. They move the skin
 the way MakeHuman's universal weight and muscle targets move the fitted base mesh for this
 person's sex, on top of their fitted shape. Every splat, the ink and the clothes take the moves of
 the skin nearest them. The kilograms shown are the change in the body's volume at 1010 kg/m³,

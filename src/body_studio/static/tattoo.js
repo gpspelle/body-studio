@@ -358,7 +358,7 @@ function walkFrame(now) {
   if (!S) return;
   const dt = lastFrame ? (now - lastFrame) / 1000 : 1 / 60;
   lastFrame = now;
-  if (S.restored) {
+  if (S.restored && !S.hold) {
     const was = S.walker.active;
     for (const limb of toggles) S.walker.toggle(limb);
     toggles = [];
@@ -530,6 +530,7 @@ addEventListener("keydown", async (e) => {
     return;
   }
   const k = KEYS[e.code];
+  if (S) S.hold = false;
   if (k) held.add(k);
   else if (e.code === "Space") { if (!e.repeat) jumpAsked = true; }
   else if (LIMB_KEYS[e.code]) { if (!e.repeat) toggles.push(LIMB_KEYS[e.code]); }
@@ -1143,9 +1144,10 @@ window.tattooStudio = {
   walk: () => S && { active: S.walker.active, busy: S.walker.busy, airborne: S.walker.airborne, raised: S.walker.raised(), pos: v3.scale(S.walker.pos, 1 / S.rig.height),
                      facing: S.walker.facing() },
   // walk for a while as if the keys (f b l r) were held, in steps of a 60th of a second, and stop
-  // there, mid-stride (for screenshots)
+  // there, mid-stride, until a key is pressed (for screenshots)
   walkFor: (seconds, keys = "f", jump = false) => {
     held.clear();
+    S.hold = true;
     for (const k of keys) held.add(k);
     for (let i = 0; i < Math.round(seconds * 60); i++) S.walker.update(1 / 60, { move: moveDir(), jump: jump && i === 0 });
     held.clear();
