@@ -469,8 +469,8 @@ class Viewer(unittest.TestCase):
 
 def pick(page, item):
     """Click an item on the racks around the body, where it shows on the screen."""
-    at = page.evaluate(f"wardrobe.onScreen('{item}')")
-    assert at, f"{item} isn't in view"
+    # (after a reload the camera is still settling on CI when the shop is ready)
+    at = page.wait_for_function(f"wardrobe.onScreen('{item}')", timeout=60000).json_value()
     page.mouse.click(at["x"], at["y"])
 
 
