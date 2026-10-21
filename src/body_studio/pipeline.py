@@ -6,6 +6,9 @@
 Everything heavy is splat-studio's `run`: frames (ffmpeg), camera poses (COLMAP), training
 (Brush), then fog removal. Body Studio always adds background removal as well, so the floor
 and the room are gone and only the person is left: NAME_object.ply. That is not an option.
+When the computer can find a person in a frame by itself (Apple's Vision on a Mac, or SAM 2),
+the run also asks for splat-studio's person masks (`--person`), so the person is cut out of every
+frame before training and nothing of the room is learnt.
 
 Paths are relative to the data folder, laid out exactly as splat-studio lays it out
 (videos/, frames/<name>/, workspace/<name>/run_<date_time>/), so either app can open a run.
@@ -25,12 +28,24 @@ QUALITY = ("preview", "standard", "high")
 DEFAULT_FRAMES = 300
 
 
+def person_masks() -> bool:
+    """Whether splat-studio can find the person in the frames by itself (masks.person_backend)."""
+    try:
+        from splat_studio.masks import person_backend
+    except ImportError:
+        return False
+    return person_backend() is not None
+
+
 def splat_run_args(video: Path, quality: str = "standard", frames: int = DEFAULT_FRAMES,
-                   start: str | None = None, end: str | None = None) -> list[str]:
-    """Arguments for `splat-studio run`. Background removal is always on (project decision)."""
+                   start: str | None = None, end: str | None = None, person: bool | None = None) -> list[str]:
+    """Arguments for `splat-studio run`. Background removal is always on (project decision);
+    person masks whenever they can be made (person=None asks person_masks())."""
     if quality not in QUALITY:
         raise ValueError(f"unknown quality {quality!r}; use one of {', '.join(QUALITY)}")
     args = [str(video), "--quality", quality, "--frames", str(frames), "--remove-background"]
+    if person_masks() if person is None else person:
+        args.append("--person")
     if start:
         args += ["--start", start]
     if end:
@@ -38,11 +53,14 @@ def splat_run_args(video: Path, quality: str = "standard", frames: int = DEFAULT
     return args
 
 
-def job_options(quality: str = "standard", frames: int = DEFAULT_FRAMES) -> dict:
+def job_options(quality: str = "standard", frames: int = DEFAULT_FRAMES, person: bool | None = None) -> dict:
     """Options for a splat-studio "video" job (the web app's runs). Same defaults as the CLI."""
     if quality not in QUALITY:
         raise ValueError(f"unknown quality {quality!r}; use one of {', '.join(QUALITY)}")
-    return {"quality": quality, "frames": frames, "remove_background": True}
+    opts = {"quality": quality, "frames": frames, "remove_background": True}
+    if person_masks() if person is None else person:
+        opts["person"] = True
+    return opts
 
 
 def splat_command(args: list[str]) -> list[str]:

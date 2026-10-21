@@ -61,6 +61,9 @@ body-studio run IMG_1234.MOV --start 0:03 --end 2:10
 
 The finished body is `workspace/<video>/run_<date_time>/splat/<quality>_<steps>_object.ply`.
 Background removal always runs; the untouched splat and the fog-free copy are kept next to it.
+On a Mac (with Apple's Vision) or with SAM 2 installed, the person is also cut out of every
+frame before training (splat-studio's `--person`), so nothing of the room is learnt; the masks
+are kept in `frames/<video>/masks/`.
 
 While a video is processed, the top bar shows the stage and the time left, measured from the
 run itself. If a run fails, it says why in terms of the video (for example, which seconds to film again).
@@ -239,6 +242,9 @@ body-studio run IMG_1234.MOV --quality preview
 ```
 
 O corpo pronto fica em `workspace/<vídeo>/run_<data_hora>/splat/<qualidade>_<passos>_object.ply`.
+Num Mac (com o Vision da Apple) ou com o SAM 2 instalado, a pessoa também é recortada de cada
+quadro antes do treino (o `--person` do splat-studio), então nada da sala é aprendido; as máscaras
+ficam em `frames/<vídeo>/masks/`.
 
 ### Acompanhar uma pessoa ao longo do tempo
 

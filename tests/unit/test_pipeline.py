@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 
-from body_studio.pipeline import body_from_log, splat_run_args
+from body_studio.pipeline import body_from_log, job_options, splat_run_args
 
 
 class RunArgs(unittest.TestCase):
@@ -24,6 +24,25 @@ class RunArgs(unittest.TestCase):
         a = build_parser().parse_args(splat_run_args(Path("v.mov"), "high", 320, "0:01", "0:59"))
         self.assertTrue(a.remove_background)
         self.assertEqual((a.quality, a.frames, a.start, a.end), ("high", 320, "0:01", "0:59"))
+        self.assertTrue(build_parser().parse_args(splat_run_args(Path("v.mov"), person=True)).person)
+
+    def test_person_masks_when_they_can_be_made(self):
+        self.assertIn("--person", splat_run_args(Path("v.mov"), person=True))
+        self.assertNotIn("--person", splat_run_args(Path("v.mov"), person=False))
+        self.assertTrue(job_options(person=True)["person"])
+        self.assertNotIn("person", job_options(person=False))
+        self.assertTrue(job_options(person=False)["remove_background"])
+
+    def test_splat_studio_runner_accepts_our_job_options(self):
+        """Contract with the pinned splat-studio's job runner: the web runs ask for the same."""
+        from splat_studio.server.jobs import Job, build_cmd, validate_options
+        opts = validate_options(job_options(person=True))
+        self.assertEqual(opts.get("person"), True)
+        self.assertTrue(opts.get("remove_background"))
+        cmd = build_cmd(Job(Path("/tmp/none"), id="j", type="video", video="v.mov", options=opts))
+        self.assertIn("--person", cmd)
+        self.assertIn("--remove-background", cmd)
+
 
 
 class BodyFromLog(unittest.TestCase):

@@ -28,6 +28,7 @@ class EndToEnd(unittest.TestCase):
         self.env = mock.patch.dict(os.environ, {
             "PATH": f"{FAKE_BIN}{os.pathsep}{os.environ['PATH']}",
             "SPLAT_IN_CONTAINER": "1",                 # skip the macOS installer step
+            "SPLAT_STUDIO_PERSON_BACKEND": "disc",     # person masks from the stand-in, not Vision or SAM 2
             "SPLAT_STUDIO_BRUSH": str(FAKE_BIN / "brush"),
             "SPLAT_STUDIO_TIMINGS": str(d / "timings.json"), "SPLAT_STUDIO_RATES": str(d / "rates.json"),
             "SPLAT_STUDIO_TOOLS": str(d / "tools"), "HOME": str(d / "home")})
@@ -67,6 +68,8 @@ class EndToEnd(unittest.TestCase):
                 break
             time.sleep(0.05)
         self.assertEqual(job["status"], "done", job)
+        done = list((Path(self.tmp.name) / "data" / "frames").glob("*/masks/done.json"))
+        self.assertEqual(len(done), 1, "the person is cut out of every frame (--person)")
         self.assertTrue(job["body"].endswith("_object.ply"), job["body"])
         self.assertLessEqual({2, 3}, stages)
         bodies = self.get("/api/bodies")
