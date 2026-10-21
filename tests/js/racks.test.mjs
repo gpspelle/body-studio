@@ -32,7 +32,7 @@ function stretch(before, after, tris) {
 const q = (a, f) => a[Math.min(a.length - 1, Math.floor(f * a.length))];
 
 test("the catalogue came along", { skip: !DIR }, () => {
-  assert.equal(catalog.length, 29);
+  assert.equal(catalog.length, 46);
 });
 
 test("on a hanger: arms down by the sides, legs together, the shoulders just under the hook", { skip: !DIR }, () => {
@@ -74,7 +74,7 @@ test("shoes as a pair: side by side on their soles, toes to the front", { skip: 
 test("hair and hats sit on the mannequin head where they sit on the body", { skip: !DIR }, () => {
   const hb = bounds(onHead(head, head));
   assert.ok(Math.abs(hb.lo[1]) < 1e-6 && Math.abs(hb.lo[0] + hb.hi[0]) < 1e-4);
-  for (const c of catalog.filter((c) => c.slot === "hair" || c.slot === "hat")) {
+  for (const c of catalog.filter((c) => c.slot === "hair" || (c.slot === "hat" && c.id !== "headband"))) {
     const b = bounds(onHead(items[c.id].verts, head));
     assert.ok(b.hi[1] > hb.hi[1] - 0.01, `${c.id} covers the crown`);
     assert.ok(b.lo[0] < hb.lo[0] + 0.03 && b.hi[0] > hb.hi[0] - 0.03, `${c.id} around the head`);
@@ -83,8 +83,9 @@ test("hair and hats sit on the mannequin head where they sit on the body", { ski
 
 test("the shop: every item in its place, none in another's, none on the body, all on what holds them", { skip: !DIR }, () => {
   const { places, parts, half } = shopLayout(catalog);
-  assert.deepEqual(Object.keys(places).sort(), catalog.map((c) => c.id).sort());
-  const boxes = catalog.map((c) => {
+  const shown = catalog.filter((c) => c.display !== "none");             // (necklaces: only in the panel)
+  assert.deepEqual(Object.keys(places).sort(), shown.map((c) => c.id).sort());
+  const boxes = shown.map((c) => {
     const p = places[c.id];
     assert.equal(p.kind, c.display, c.id);
     const b = bounds(shaped(c.id, p.kind)), t = p.tilt || 0;
@@ -118,8 +119,8 @@ test("the shop: every item in its place, none in another's, none on the body, al
   for (const a of boxes.filter((a) => a.kind === "stand" || a.kind === "hat")) assert.ok(a.lo[1] > 0.2, a.id);
   // hung garments hang clear of the floor
   for (const a of boxes.filter((a) => a.kind === "hang")) assert.ok(a.lo[1] > 0.1, a.id);
-  // and the whole shop is within what the camera is told to take in, under 1.8 heights to each side
-  assert.ok(half < 1.8, `${half}`);
+  // and the whole shop is within what the camera is told to take in, under 2.4 heights to each side
+  assert.ok(half < 2.4, `${half}`);
   for (const a of boxes) assert.ok(Math.abs(a.lo[0]) < half && Math.abs(a.hi[0]) < half, a.id);
   assert.ok(boxes.every((a) => a.hi[2] < SHOP.back + 0.5));
 });

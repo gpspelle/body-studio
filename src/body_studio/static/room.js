@@ -95,36 +95,49 @@ export class RoomMap {
     return best;
   }
 
-  // The wall nearest (x, z) within reach: the point on it and the way out of it (toward the body).
+  // The wall nearest (x, z) within reach that a back can go against: the point on its face and the
+  // way out of it (toward the body). A wall with something in front of it at the body's height (a
+  // TV on its console, a shelf) isn't one: the floor just out from its face has to be free.
   wallNear(x, z, reach = ROOM.leanReach) {
-    const s = this.cell, n = Math.ceil(reach / s);
-    let best = null, bd = reach;
+    const s = this.cell, n = Math.ceil(reach / s), cands = [];
     for (let dk = -n; dk <= n; dk++)
       for (let di = -n; di <= n; di++) {
         const px = x + di * s, pz = z + dk * s, d = Math.hypot(di * s, dk * s);
-        if (d >= bd || d < 1e-9 || this.tallAt(px, pz) < ROOM.wall) continue;
-        best = [px, pz]; bd = d;
+        if (d < reach && d > 1e-9 && this.tallAt(px, pz) >= ROOM.wall) cands.push([d, px, pz]);
       }
-    if (!best) return null;
+    cands.sort((a, b) => a[0] - b[0]);
+    for (const [d, px, pz] of cands) {
+      const w = this._face(px, pz, x, z);
+      // free floor right out from the face, and room there for the back and the heels
+      if (w && this.free(w.at[0] + w.n[0] * s, w.at[1] + w.n[1] * s) &&
+          this.clear(w.at[0] + w.n[0] * 0.25, w.at[1] + w.n[1] * 0.25, 0.12)) return { ...w, dist: d };
+    }
+    return null;
+  }
+
+  // the face of the wall at (px, pz) and the way out of it, seen from (x, z)
+  _face(px, pz, x, z) {
+    const s = this.cell;
     // the way out: from the wall cells round that point to the free ones
     let ox = 0, oz = 0;
     for (let dk = -3; dk <= 3; dk++)
       for (let di = -3; di <= 3; di++) {
-        const px = best[0] + di * s, pz = best[1] + dk * s;
-        const w = this.tallAt(px, pz) >= ROOM.wall ? -1 : this.free(px, pz) ? 1 : 0;
+        const qx = px + di * s, qz = pz + dk * s;
+        const w = this.tallAt(qx, qz) >= ROOM.wall ? -1 : this.free(qx, qz) ? 1 : 0;
         ox += w * di; oz += w * dk;
       }
     let L = Math.hypot(ox, oz);
-    if (L < 1e-6) { ox = x - best[0]; oz = z - best[1]; L = Math.hypot(ox, oz) || 1; }
+    if (L < 1e-6) { ox = x - px; oz = z - pz; L = Math.hypot(ox, oz) || 1; }
     const nrm = [ox / L, oz / L];
+    if (nrm[0] * (x - px) + nrm[1] * (z - pz) <= 0) return null;          // its back, seen from the body
     // the wall's face: the last wall cell along the way out
-    let face = best;
+    let face = [px, pz];
     for (let k = 1; k <= 8; k++) {
-      const p = [best[0] + nrm[0] * k * s * 0.5, best[1] + nrm[1] * k * s * 0.5];
+      const p = [px + nrm[0] * k * s * 0.5, pz + nrm[1] * k * s * 0.5];
       if (this.tallAt(p[0], p[1]) < ROOM.wall) break;
       face = p;
     }
-    return { at: [face[0] + nrm[0] * 0.5 * s, face[1] + nrm[1] * 0.5 * s], n: nrm, dist: bd };
+    return { at: [face[0] + nrm[0] * 0.5 * s, face[1] + nrm[1] * 0.5 * s], n: nrm };
   }
 
   // How much of the way from `target` to `eye` (both [x, y, z]) is clear of walls, furniture and

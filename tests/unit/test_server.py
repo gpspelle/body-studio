@@ -237,7 +237,7 @@ class Server(unittest.TestCase):
         write_person(ply, n=60000)
         status, cat = self.post("/api/wardrobe", None, method="GET")
         self.assertEqual(status, 200)
-        self.assertEqual({c["slot"] for c in cat}, {"outfit", "shoes", "hair", "hat"})
+        self.assertEqual({c["slot"] for c in cat}, {"outfit", "shoes", "hair", "hat", "glasses", "neck"})
         body = "?body=workspace/Ana/run_20261012_120000/splat/standard_30000_object.ply"
         self.assertEqual(self.post("/api/wardrobe/no_such_thing" + body, None, method="GET"),
                          (404, {"error": "no such item", "code": "no_item"}))

@@ -195,7 +195,8 @@ def main() -> None:
     pack_base(obj)
     pack_shapes(data)
     for item in CATALOG:
-        pack_item(data, item)
+        if item["author"] == "makehuman_system":        # (ours are made by wardrobe_styles.py)
+            pack_item(data, item)
 
 
 if __name__ == "__main__":

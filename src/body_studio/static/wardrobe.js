@@ -18,7 +18,8 @@ import { Flesh } from "/static/fleshgpu.js";
 const $ = (id) => document.getElementById(id);
 const t = window.t;
 const V = window.bodyApp.viewer;
-const SLOTS = ["outfit", "shoes", "hair", "hat"];
+const SLOTS = ["outfit", "shoes", "hair", "hat", "glasses", "neck"];
+const STYLES = ["all", "casual", "smart", "hippie", "rock", "indie", "punk"];
 const SPACING = 0.0032;          // splat spacing on an item, fraction of the person's height (about 6 mm)
 const REACH = 0.03;              // a body splat is under an item if its nearest skin vertex is (within this)
 const HANG = 0.04;               // how far out from the skin an item still covers it (a skirt over the thighs)
@@ -103,7 +104,41 @@ function ui() {
     b.setAttribute("aria-pressed", String(b.dataset.model === W.model));
   }
   $("wearHint").textContent = t(W.fit ? "wear.hint" : "wear.wait");
+  pickList();
   showShop();
+}
+
+// Everything to put on, in the panel, by kind, for the style picked: the same as the racks around
+// the body, and the way to dress where the racks aren't shown (in a room)
+function pickList() {
+  const style = STYLES.includes(store.get("wearStyle")) ? store.get("wearStyle") : "all";
+  $("wearStyles").replaceChildren(...STYLES.filter((st) => st === "all" || catalog.some((i) => i.styles?.includes(st))).map((st) => {
+    const b = document.createElement("button");
+    b.textContent = t("wear.style." + st);
+    b.dataset.style = st;
+    b.classList.toggle("on", st === style);
+    b.setAttribute("aria-pressed", String(st === style));
+    b.onclick = () => { store.set("wearStyle", st); pickList(); };
+    return b;
+  }));
+  const shown = catalog.filter((i) => style === "all" || i.styles?.includes(style));
+  $("wearPick").replaceChildren(...SLOTS.filter((slot) => shown.some((i) => i.slot === slot)).map((slot) => {
+    const box = document.createElement("div"), h = document.createElement("h3"), chips = document.createElement("div");
+    h.textContent = t("wear.slot." + slot);
+    chips.className = "chips";
+    chips.append(...shown.filter((i) => i.slot === slot).map((i) => {
+      const b = document.createElement("button");
+      b.textContent = t("wear.item." + i.id);
+      b.dataset.item = i.id;
+      b.classList.toggle("on", isWorn(i.id));
+      b.setAttribute("aria-pressed", String(isWorn(i.id)));
+      b.disabled = !W.fit;
+      b.onclick = () => wear(i.id);
+      return b;
+    }));
+    box.append(h, chips);
+    return box;
+  }));
 }
 addEventListener("langchange", ui);
 // the body model the clothes are fitted with: what is worn comes off and goes on again on the other
@@ -163,7 +198,9 @@ async function wear(id, restoring = false) {
       entry.tint = skinUnder(d, w.skin, w.normals, SCALP * H);
       entry.colour = meanColour(s);
     } else {
-      entry.covers = Int32Array.from(new Set([...d.delete, ...skinUnder(d, w.skin, w.normals, HANG * H)]));
+      // (glasses or a necklace hide none of the skin round them)
+      const reach = it.reach ?? HANG;
+      entry.covers = Int32Array.from(new Set([...d.delete, ...(reach > 0 ? skinUnder(d, w.skin, w.normals, reach * H) : [])]));
     }
     w.worn.set(it.slot, entry);
     V.holder.add(mesh);
@@ -460,7 +497,7 @@ async function loadShop() {
     group.add(m);
   }
   const loader = new THREE.TextureLoader(), objects = new Map(), pickable = [];
-  await Promise.all(list.map(async (it) => {
+  await Promise.all(list.filter((it) => it.display !== "none").map(async (it) => {
     const place = places[it.id];
     const d = await (await fetch(`/api/wardrobe/${it.id}/shape`)).json();
     const tex = await loader.loadAsync("/static/wardrobe/" + d.texture);

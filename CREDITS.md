@@ -64,3 +64,29 @@ the **MIT License** (its code and its weights). Body Studio doesn't include it: 
 (`stabilityai/TripoSR`). The thing is cut out of the photo with [rembg](https://github.com/danielgatis/rembg)
 (MIT) and its U²-Net model (Apache 2.0). The starters (chairs, tables, the arch, flowers…) are drawn
 by Body Studio itself.
+
+## Styled outfits and accessories
+
+Made for Body Studio by `scripts/wardrobe_styles.py` and released under **CC0 1.0** like the
+rest: the outfits are MakeHuman's (above) with new textures painted from theirs, the accessories
+are built from MakeHuman's base mesh.
+
+| Item | Kind | Made from | Licence |
+|---|---|---|---|
+| Tie-dye T-shirt and jeans | Outfit | Loose T-shirt and jeans | CC0 1.0 |
+| Flower shirt and long skirt | Outfit | Striped shirt and skirt | CC0 1.0 |
+| Black leather jacket and jeans | Outfit | Jacket and jeans | CC0 1.0 |
+| Band T-shirt and black jeans | Outfit | White T-shirt and jeans | CC0 1.0 |
+| Black top and tartan skirt | Outfit | Striped shirt and skirt | CC0 1.0 |
+| Black top and tartan trousers | Outfit | Long-sleeve top and jeans | CC0 1.0 |
+| Flannel shirt and jeans | Outfit | Denim shirt and jeans | CC0 1.0 |
+| Breton stripes and jeans | Outfit | T-shirt and jeans | CC0 1.0 |
+| Mustard beanie | Hat | the base mesh's head | CC0 1.0 |
+| Black beanie | Hat | the base mesh's head | CC0 1.0 |
+| Woven headband | Hat | the base mesh's head | CC0 1.0 |
+| Round glasses | Glasses | rings and rods by the base mesh's eyes | CC0 1.0 |
+| Round tinted shades | Glasses | rings and rods by the base mesh's eyes | CC0 1.0 |
+| Black sunglasses | Glasses | rings and rods by the base mesh's eyes | CC0 1.0 |
+| Bead necklace | Necklace | beads round the base mesh's neck | CC0 1.0 |
+| Silver chain | Necklace | a rod round the base mesh's neck | CC0 1.0 |
+| Studded choker | Necklace | a band round the base mesh's neck | CC0 1.0 |

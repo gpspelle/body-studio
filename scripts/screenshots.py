@@ -108,6 +108,8 @@ def main() -> None:
                     continue
                 page = browser.new_page(viewport={"width": w, "height": h}, color_scheme=scheme)
                 page.add_init_script(f"localStorage.setItem('lang', '{lang}')")
+                # the Try on panel opens when it is asked for (on a computer it opens by itself the first time)
+                page.add_init_script("localStorage.setItem('studio:open', '0')")
                 if panel == "progress":
                     page.add_init_script("localStorage.setItem('progress:open', '1')")
                 page.goto(url)
@@ -142,10 +144,11 @@ def tattoo_scene(page, tmp: Path) -> None:
     design.write_bytes(base64.b64decode(page.evaluate(DESIGN).split(",", 1)[1]))
     page.locator(".shelf button", has_text="Mia").click()
     page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
-    page.click("#studioBtn")
+    page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
     page.wait_for_function("tattooStudio.ready", timeout=300000)
     page.evaluate("bodyApp.viewer.controls.autoRotate = false")
-    page.locator("#presets button").nth(2).click()                 # flex
+    page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)   # (frames are slow while it loads)
+    page.locator("#presets button").nth(2).click(timeout=120000)   # flex
     page.set_input_files("#tatPick", str(design))
     page.wait_for_function("document.getElementById('tatHint').textContent.length > 0")
     elbow, wrist = page.evaluate("[tattooStudio.joint('elbow_l'), tattooStudio.joint('wrist_l')]")
@@ -178,7 +181,7 @@ def wardrobe_scene(page) -> None:
     """Mia walking in a T-shirt, jeans, sneakers and a bob, in the shop of clothes around her."""
     page.locator(".shelf button", has_text="Mia").click()
     page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
-    page.click("#studioBtn")
+    page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
     page.evaluate("bodyApp.viewer.controls.autoRotate = false")
     for item in ("tee_jeans_f", "white_sneakers", "bob_dark"):
@@ -202,7 +205,7 @@ def dress(page, items=("tee_jeans_f", "white_sneakers", "bob_dark")) -> None:
     """Mia, dressed from the racks around her."""
     page.locator(".shelf button", has_text="Mia").click()
     page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
-    page.click("#studioBtn")
+    page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
     for item in items:
         at = page.wait_for_function(f"wardrobe.onScreen('{item}')", timeout=120000).json_value()   # on the racks around her

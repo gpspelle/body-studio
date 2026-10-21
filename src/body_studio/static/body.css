@@ -168,6 +168,9 @@ figure { margin: 12px 0 0; }
 .panel h3 { font-size: 12px; font-weight: 600; color: var(--muted); margin: 10px 0 6px; }
 #wearWorn button { color: var(--text); border-color: var(--text); }
 #wearWorn:empty { display: none; }
+#wearStyles button.on { background: var(--text); color: var(--bg); }
+#wearPick h3 { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--quiet); margin: 6px 0 4px; }
+#wearPick .chips { margin-bottom: 4px; }
 /* the name of the item on the racks under the pointer */
 .tip {
   position: fixed; z-index: 30; pointer-events: none; font-size: 12px; color: var(--text);

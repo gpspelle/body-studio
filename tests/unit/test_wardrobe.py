@@ -4,6 +4,7 @@ its skin really is (by distance to that surface: the PLY is a mirror image of Ma
 so a vertex's number names the other side)."""
 import base64
 import json
+import re
 import math
 import sys
 import tempfile
@@ -64,7 +65,7 @@ class Catalog(unittest.TestCase):
             d = shown[c["id"]]
             self.assertIn(d, wardrobe.DISPLAYS)
             self.assertIn(d, {"outfit": {"hang", "fold"}, "shoes": {"shoes"}, "hair": {"head", "stand"},
-                              "hat": {"hat"}}[c["slot"]], c["id"])
+                              "hat": {"hat", "head"}, "glasses": {"head"}, "neck": {"none"}}[c["slot"]], c["id"])
         self.assertEqual({"hang", "fold"}, {shown[c["id"]] for c in wardrobe.CATALOG if c["slot"] == "outfit"})
 
     def test_shapes_are_the_items_as_made(self):
@@ -81,8 +82,15 @@ class Catalog(unittest.TestCase):
             lo_y[c["id"]] = min(ys)
             if c["slot"] == "shoes":
                 self.assertLess(abs(min(ys) + 8.25), 0.25, c["id"])
-            if c["slot"] in ("hair", "hat"):
-                self.assertGreater(max(ys), 8.4, c["id"])
+            if c["slot"] == "hair" or c["id"] in ("fedora", "beanie", "black_beanie"):
+                self.assertGreater(max(ys), 8.4, c["id"])                 # over the crown
+            if c["id"] == "headband":
+                self.assertTrue(7.1 < min(ys) and max(ys) < 8.0, c["id"])  # round the forehead
+            if c["slot"] == "glasses":                                    # at the eyes, in front of them
+                zs = v[2::3]
+                self.assertTrue(7.0 < min(ys) and max(ys) < 7.6 and max(zs) > 1.5, c["id"])
+            if c["slot"] == "neck":                                       # round the neck, down to the chest
+                self.assertTrue(4.5 < min(ys) and max(ys) < 6.3, c["id"])
         neck = json.loads(wardrobe.mannequin())["neck"]
         long = {c["id"] for c in wardrobe.CATALOG if c["slot"] == "hair" and lo_y[c["id"]] < neck - 1.0}
         self.assertEqual(long, wardrobe.LONG_HAIR)
@@ -95,7 +103,12 @@ class Catalog(unittest.TestCase):
         credits = (ROOT / "CREDITS.md").read_text()
         for c in wardrobe.CATALOG:
             self.assertEqual(c["license"], "CC0-1.0")
-            self.assertIn(c["mhclo"], credits)
+            self.assertIn(c["mhclo"] if "mhclo" in c else f"| {EN_NAMES[c['id']]} |", credits)
+
+
+EN_NAMES = {}
+for _k, _v in re.findall(r'"wear\.item\.([a-z_]+)": "([^"]+)"', (ROOT / "src/body_studio/static/i18n.js").read_text()):
+    EN_NAMES.setdefault(_k, _v)                                   # (English comes first)
 
 
 class Fit(unittest.TestCase):

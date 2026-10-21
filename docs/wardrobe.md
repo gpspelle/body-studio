@@ -1,11 +1,13 @@
 # Wardrobe
 
-Clothes, shoes, hair and a hat to try on a scanned body, from a shop of racks and shelves around it
-while the **Try on** panel is open. Experimental.
+Clothes, shoes, hair, hats, glasses and necklaces to try on a scanned body, from the list in the
+**Try on** panel or a shop of racks and shelves around the body while the panel is open.
+Experimental.
 
 ## What you can try on
 
-29 items, all MakeHuman's own assets (CC0, listed in [CREDITS.md](../CREDITS.md)):
+46 items, all CC0 (listed in [CREDITS.md](../CREDITS.md)): 29 of MakeHuman's own assets, and 17
+made from them for Body Studio in hippie, rock, indie and punk styles (below):
 
 | Kind | Items |
 |---|---|
@@ -15,13 +17,46 @@ while the **Try on** panel is open. Experimental.
 | Shoes | brown shoes, leather shoes, dress shoes, white sneakers, blue sneakers, worn sneakers |
 | Hair | short dark, short brown, side part, slicked back, afro, dark bob, blonde bob, long, ponytail, braid |
 | Hat | fedora |
+| Outfits in a style | tie-dye T-shirt and jeans, flower shirt and long skirt (hippie); black leather jacket, band T-shirt and black jeans (rock); black top with a tartan skirt or tartan trousers (punk); flannel shirt and jeans, Breton stripes and jeans (indie) |
+| Hats in a style | mustard beanie, black beanie, woven headband |
+| Glasses | round glasses, round tinted shades, black sunglasses |
+| Necklaces | bead necklace, silver chain, studded choker |
 
 Every item is fitted to the body it is put on, so anything can be worn by anyone ("Women's" and
 "Men's" only say who the outfit was cut for). One item per kind is worn at a time.
 
+## The list in the panel
+
+The panel lists every item by kind (Outfits, Shoes, Hair, Hats, Glasses, Necklaces) under a
+**Style** filter: All, Casual, Smart, Hippie, Rock, Indie, Punk (an item can be in more than one;
+`STYLES` and `_STYLE` in `wardrobe.py`, the last style picked kept in the browser). Click an item to
+put it on, again to take it off. It is the way to dress the body in a room (`docs/room.md`), where
+the shop isn't shown. On a computer the panel is open when the page opens, as it was last left.
+
+## The styled items
+
+Made by `scripts/wardrobe_styles.py` (ffmpeg for the images), our own work, CC0:
+
+- **An outfit in a style** is one of MakeHuman's outfits (`like` in the catalogue: the same shape,
+  served from its packed file) with a new texture. Each piece of cloth (an island of the UV map) is
+  the top or the bottom by its height on the base mesh, and every texel is painted with the
+  style's print where it is on the body (a tie-dye spiral round the chest, tartan and a flannel
+  check across and down, Breton stripes round, a star on a band T-shirt, scattered flowers), in
+  the light and shade of the original texture (its brightness against the piece's average), so
+  folds and seams still read. The jeans stay MakeHuman's where a style keeps them.
+- **An accessory** is built on the base mesh and bound to it as MakeHuman's clothes are (each
+  vertex: a skin vertex plus an offset, scaled by the head's or the torso's size), so it is
+  fitted to any body the same way. A beanie and the headband are the head's skin moved out (with
+  a knitted or woven texture); glasses are rims, a bridge and arms as thin rods in front of the
+  eyes and back to the ears (dark lenses for the shades); the beads and the chain follow a loop
+  round the base of the neck that hangs lower in front, held just off the skin; the choker is a
+  band round the neck. Glasses and necklaces hide no skin (`reach` 0); the beanies and the
+  headband go over the hair like the fedora.
+- Necklaces aren't in the shop (they would float under a mannequin head): only in the list.
+
 ## The shop around the body
 
-While the Try on panel is open the items are shown around the body, not listed in the panel:
+While the Try on panel is open the items are also shown around the body:
 
 | Where | What | How it is shown |
 |---|---|---|
@@ -29,6 +64,7 @@ While the Try on panel is open the items are shown around the body, not listed i
 | Shoe rack, in front of the rail | the 6 pairs | the two shoes side by side, toes a little down toward you |
 | Shelves, behind on the right | T-shirts, long-sleeve top, crop top with jeans, shorts or leggings | folded: legs folded together along the inside seam, sleeves folded back, then folded in zigzags from the collar into a flat stack, chest on top |
 | Shelves, above | 7 short hairstyles | on a mannequin head (MakeHuman's own head and neck) |
+| Shelves, above (more of them) | beanies, the headband, the glasses | on a mannequin head, like short hair |
 | Stands, at the right | long hair, ponytail, braid, the fedora | on a mannequin head on a pole (too long for a shelf) |
 
 How each outfit is shown is chosen in `wardrobe.py` (`FOLDED`, `LONG_HAIR`): what a shop folds
@@ -44,7 +80,7 @@ no two items in each other's place, none in the body's, each on its shelf and un
 - **The items are shown as they are made**, on MakeHuman's base mesh (`GET /api/wardrobe/<id>/shape`,
   the same for every body), sized to the person's height. They are fitted only when worn.
 - **Plain meshes, not splats.** Spark sorts every splat it draws each time the view turns: a body
-  is 150–300k splats and what it wears adds tens of thousands. The 29 items as splats would add
+  is 150–300k splats and what it wears adds tens of thousands. The 46 items as splats would add
   about as many again as the body. The racks and items are ordinary three.js meshes with their
   textures, lit by two lights of their own. They stand apart from the body, so none of them cuts
   through its splats (the reason clothes on the body are splats).
@@ -150,7 +186,7 @@ python3 scripts/wardrobe_pack.py MAKEHUMAN_DATA BASE_OBJ
 `usr/share/makehuman/data`), `BASE_OBJ` is `makehuman/data/3dobjs/base.obj` from the MakeHuman
 repository. Needs ffmpeg for the textures. To add an item: add a line to `CATALOG` in
 `wardrobe.py`, its names to `static/i18n.js` (English and Portuguese) and a row to `CREDITS.md`,
-then run the script.
+then run the script. The styled items: `python3 scripts/wardrobe_styles.py [ID...]`.
 
 ## What comes next
 

@@ -54,8 +54,55 @@ CATALOG = [
 ]
 for _item in CATALOG:
     _item.update(author=_M, license="CC0-1.0")
+
+# Our own (CC0, scripts/wardrobe_styles.py): outfits in new prints and colours, each one of the
+# outfits above (`like`: its shape) with a new texture, and accessories made from the base mesh.
+# reach: how far out from the skin an item hides it (a fraction of the height; None: the page's
+# own, for clothes); 0 for what sits on the skin without covering much of it.
+_OWN = "body-studio (scripts/wardrobe_styles.py)"
+CATALOG += [
+    {"id": "tiedye_tee_jeans", "slot": "outfit", "cut": "unisex", "like": "tee_jeans"},
+    {"id": "floral_shirt_skirt", "slot": "outfit", "cut": "women", "like": "shirt_skirt"},
+    {"id": "leather_jacket", "slot": "outfit", "cut": "unisex", "like": "jacket_jeans"},
+    {"id": "band_tee", "slot": "outfit", "cut": "unisex", "like": "white_tee_jeans"},
+    {"id": "tartan_skirt", "slot": "outfit", "cut": "women", "like": "shirt_skirt"},
+    {"id": "tartan_trousers", "slot": "outfit", "cut": "unisex", "like": "longsleeve_jeans"},
+    {"id": "flannel_shirt", "slot": "outfit", "cut": "men", "like": "denim_shirt_jeans"},
+    {"id": "breton_tee", "slot": "outfit", "cut": "women", "like": "tee_jeans_f"},
+    {"id": "beanie", "slot": "hat", "cut": "unisex"},
+    {"id": "black_beanie", "slot": "hat", "cut": "unisex"},
+    {"id": "headband", "slot": "hat", "cut": "unisex"},
+    {"id": "round_glasses", "slot": "glasses", "cut": "unisex", "reach": 0},
+    {"id": "hippie_shades", "slot": "glasses", "cut": "unisex", "reach": 0},
+    {"id": "sunglasses", "slot": "glasses", "cut": "unisex", "reach": 0},
+    {"id": "beads", "slot": "neck", "cut": "unisex", "reach": 0},
+    {"id": "chain", "slot": "neck", "cut": "unisex", "reach": 0},
+    {"id": "choker", "slot": "neck", "cut": "unisex", "reach": 0},
+]
+for _item in CATALOG:
+    if "author" not in _item:
+        _item.update(author=_OWN, license="CC0-1.0",
+                     source=f"made from MakeHuman's {_item['like']}" if "like" in _item else "made from the base mesh")
+
+# The styles the page filters by (an item may be in several). Casual for everything not listed.
+STYLES = ["casual", "smart", "hippie", "rock", "indie", "punk"]
+_STYLE = {
+    "suit": ["smart"], "shirt_skirt": ["smart"], "overalls": ["casual", "indie"],
+    "striped_shirt_jeans": ["casual", "indie"], "jacket_jeans": ["casual", "rock"],
+    "worn_sneakers": ["casual", "punk", "indie"], "white_sneakers": ["casual", "indie"],
+    "brown_shoes": ["casual", "hippie"], "leather_shoes": ["smart", "rock"], "dress_shoes": ["smart"],
+    "afro": ["casual", "hippie"], "long": ["casual", "hippie", "rock"], "braid": ["casual", "hippie"],
+    "slicked": ["smart", "rock"], "short_dark": ["casual", "punk"], "bob_dark": ["casual", "indie"],
+    "fedora": ["smart", "indie"],
+    "tiedye_tee_jeans": ["hippie"], "floral_shirt_skirt": ["hippie"], "leather_jacket": ["rock"],
+    "band_tee": ["rock", "punk"], "tartan_skirt": ["punk"], "tartan_trousers": ["punk"],
+    "flannel_shirt": ["indie", "rock"], "breton_tee": ["indie"], "beanie": ["indie"],
+    "black_beanie": ["punk", "rock"], "headband": ["hippie"], "round_glasses": ["indie"],
+    "hippie_shades": ["hippie"], "sunglasses": ["rock"], "beads": ["hippie"], "chain": ["rock", "punk"],
+    "choker": ["punk"],
+}
 BY_ID = {item["id"]: item for item in CATALOG}
-SLOTS = ["outfit", "shoes", "hair", "hat"]
+SLOTS = ["outfit", "shoes", "hair", "hat", "glasses", "neck"]
 
 # How the shop around the body shows each item (static/racks.js): outfits on hangers on the rail
 # ("hang") or folded on the shelves ("fold"), shoes in pairs on the shoe rack, hair on mannequin
@@ -64,13 +111,20 @@ SLOTS = ["outfit", "shoes", "hair", "hat"]
 # jeans or shorts); hung: what has a collar, a jacket, a skirt or bibs.
 FOLDED = {"tee_jeans_f", "tee_shorts", "crop_leggings", "longsleeve_jeans", "tee_jeans", "white_tee_jeans"}
 LONG_HAIR = {"long", "ponytail", "braid"}       # reaches below the shoulders (tests/unit/test_wardrobe.py)
-DISPLAYS = {"hang", "fold", "shoes", "head", "stand", "hat"}
+DISPLAYS = {"hang", "fold", "shoes", "head", "stand", "hat", "none"}
 
 
 def display(item_id: str) -> str:
+    """How the shop shows it; a necklace isn't in the shop ("none": it would hang in the air under
+    a mannequin head), only in the panel's list."""
     slot = BY_ID[item_id]["slot"]
+    item_id = BY_ID[item_id].get("like", item_id)
     if slot == "outfit":
         return "fold" if item_id in FOLDED else "hang"
+    if slot == "neck":
+        return "none"
+    if slot == "glasses" or (slot == "hat" and item_id != "fedora"):
+        return "head"
     if slot == "hair":
         return "stand" if item_id in LONG_HAIR else "head"
     return slot
@@ -96,20 +150,24 @@ def base() -> dict:
 
 @lru_cache(maxsize=8)
 def item(item_id: str) -> dict:
-    d = json.loads(gzip.decompress((DATA / "items" / (item_id + ".json.gz")).read_bytes()))
+    like = BY_ID.get(item_id, {}).get("like")
+    d = json.loads(gzip.decompress((DATA / "items" / ((like or item_id) + ".json.gz")).read_bytes()))
+    if like:                                  # the same shape in a new texture
+        d["id"], d["texture"] = item_id, _texture(item_id)
     for key, code in (("ref", "i"), ("w", "f"), ("off", "f"), ("tris", "i"), ("tuv", "i"), ("uv", "f"),
                       ("delete", "i")):
         d[key] = _arr(code, d[key])
     return d
 
 
+def _texture(item_id: str) -> str | None:
+    return next((p.name for p in (DATA.parent / "static" / "wardrobe").glob(item_id + ".*")), None)
+
+
 def catalog() -> list:
-    """What the page lists: id, slot, cut and texture of every item (names are in i18n.js)."""
-    out = []
-    for c in CATALOG:
-        tex = next((p.name for p in (DATA.parent / "static" / "wardrobe").glob(c["id"] + ".*")), None)
-        out.append({"id": c["id"], "slot": c["slot"], "cut": c["cut"], "texture": tex, "display": display(c["id"])})
-    return out
+    """What the page lists: id, slot, cut, styles and texture of every item (names are in i18n.js)."""
+    return [{"id": c["id"], "slot": c["slot"], "cut": c["cut"], "texture": _texture(c["id"]), "display": display(c["id"]),
+             "styles": _STYLE.get(c["id"], ["casual"]), "reach": c.get("reach")} for c in CATALOG]
 
 
 @lru_cache(maxsize=None)

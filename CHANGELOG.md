@@ -160,3 +160,15 @@
   walk and **F** sits on a chair. New API under `/api/decor`.
 - Fix: with a room remembered from last time, opening the app could fail to get the body's
   skeleton (the room asked for it before the body had loaded).
+- **Styles and a clothes list**: 17 new items in hippie, rock, indie and punk styles, all CC0 and
+  made by `scripts/wardrobe_styles.py` (MakeHuman outfits repainted: tie-dye, flowers, black
+  leather, a band T-shirt, tartan, flannel, Breton stripes; and accessories built on the base
+  mesh: two beanies, a headband, three pairs of glasses, beads, a chain, a studded choker). Two
+  new kinds, **Glasses** and **Necklaces**. The Try on panel lists every item by kind with a
+  **Style** filter, so the body can be dressed in a room too; on a computer the panel is open
+  when the page opens (as it was last left). The shop around the body is wider to hold them.
+- **Sitting and leaning in a room**: the thighs lie along the seat and the hips are put on it
+  (on a seat high for the legs the feet hang a little, toes pointed), instead of the feet on the
+  floor and the thighs through the cushion. **F** no longer leans the body on a wall with
+  furniture in front of it (a TV on its console, a shelf): the floor just out from the wall has
+  to be free.

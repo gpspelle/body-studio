@@ -135,9 +135,13 @@ test("sitting on the sofa: hips on the seat, feet on the floor, facing the room;
   near(m[1], seat.y + 0.05 * 1.75, 0.05, "hips above the seat");
   const foot = Math.min(...["ankle_l", "ankle_r", "toe_end_l", "toe_end_r"].map((j) => P.toMap(sk.P[sk.index(j)])[1]));
   const lowestRest = Math.min(...["ankle_l", "ankle_r", "toe_end_l", "toe_end_r"].map((j) => P.toMap(sk.rest[sk.index(j)])[1]));
-  near(foot, lowestRest, 0.01, "feet on the floor");
+  assert.ok(foot > lowestRest - 0.01 && foot < lowestRest + 0.04, `feet on the floor or just off it: ${foot} vs ${lowestRest}`);
   const facing = P.wayToMap(q.rot(sk.W[0], rig.frame.front));
   assert.ok((facing[0] * seat.dir[0] + facing[1] * seat.dir[1]) / Math.hypot(...facing) > 0.9, "facing the room");
+  // the thighs lie along the seat: the knees not below the hips (into the seat's front)
+  const up = (j) => P.toMap(sk.P[sk.index(j)])[1];
+  const kneeUp = Math.min(up("knee_l"), up("knee_r")), hipUp = Math.max(up("hip_l"), up("hip_r"));
+  assert.ok(kneeUp > hipUp - 0.035, `thighs along the seat: knees ${kneeUp}, hips ${hipUp}`);
   const knee = sk.angles[sk.index("knee_l")].flex, hip = sk.angles[sk.index("hip_l")].flex;
   assert.ok(knee > 50 && hip > 55, `knees and hips bent: ${hip} ${knee}`);
   // a key to walk: up first, back where it stood
@@ -161,4 +165,25 @@ test("leaning on a wall: the back on it, tilted, the feet out from it", () => {
   near(out("chest") - 0.075 * 1.75, 0, 0.03, "the back of the chest on the wall");
   assert.ok(out("ankle_l") > out("chest") + 0.1, "the feet out from the wall");
   assert.ok(out("head") > 0.02, "the head isn't in the wall");
+});
+
+test("no leaning on a wall with something in front of it (a TV on its console)", () => {
+  // 3 x 3 m, 5 cm cells: a wall along z = 0; in front of its left half, a console 40 cm deep, 76 cm
+  // high, with the TV on it as tall as a wall
+  const n = 60, cell = 0.05, walk = new Uint8Array(n * n), top = new Uint8Array(n * n), tall = new Uint8Array(n * n);
+  for (let k = 0; k < n; k++)
+    for (let i = 0; i < n; i++) {
+      const c = k * n + i;
+      if (k < 2) tall[c] = 250;                                 // the wall
+      else if (i < 30 && k < 10) { tall[c] = k < 4 ? 172 : 76; top[c] = 76; }   // TV, console
+      else walk[c] = 1;
+    }
+  const b64 = (a) => Buffer.from(a).toString("base64");
+  const r = new RoomMap({ cell, nx: n, nz: n, x0: 0, z0: 0, walk: b64(walk), top: b64(top), tall: b64(tall),
+                          seats: [], start: [1.5, 1.5], ceiling: 2.5 });
+  assert.equal(r.wallNear(0.7, 0.85), null, "the TV isn't a wall to lean on");
+  const w = r.wallNear(2.2, 0.45);
+  assert.ok(w, "the bare wall is");
+  near(w.at[1], 0.1, 0.03, "on its face");
+  assert.ok(w.n[1] > 0.95);
 });

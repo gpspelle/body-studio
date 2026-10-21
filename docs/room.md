@@ -43,11 +43,15 @@ its floor, walking round the furniture, sitting on the sofa or leaning on a wall
      can't step through anything thin; walking into a wall at a slant slides along it.
    - **F**: sits down on the seat whose front is within 90 cm, else leans on a wall within 70 cm,
      else nothing. Sitting turns the body to face away from the seat, steps it over and bends the
-     hips and knees so the hips land on the seat (the hip joint about 9 cm above it) with the feet
-     on the floor; the angles are searched for the seat's height. With a back, the body leans back
-     6°. Leaning: the back of the chest on the wall, the body tilted back 8° from its feet, knees a
-     little bent. **F** again, or a key to walk, gets up, back where it stood. The walk hint says
-     what F does where the body is.
+     hips, knees and ankles; the angles are searched so that the thighs lie along the seat (the
+     knees no lower than the hips, or they would go through the seat's front) and the feet reach
+     the floor, toes pointed if they must. The hips are then put on the seat (the hip joint about
+     9 cm above it), so on a seat high for the legs the feet hang a little, as they do. With a
+     back, the body leans back 6°. Leaning: the back of the chest on the wall, the body tilted
+     back 8° from its feet, knees a little bent. Only a wall with free floor right out from its
+     face counts: a TV on its console or a bookshelf is tall like a wall, but the body would go
+     into what stands in front of it. **F** again, or a key to walk, gets up, back where it
+     stood. The walk hint says what F does where the body is.
    - **The camera stays inside**: on choosing a room the camera goes where it sees the most of
      the room with the body in it (at eye height, in front of the body when it can). Each frame,
      a camera behind a wall or above the ceiling is drawn from the last place it sees the body

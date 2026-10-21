@@ -15,7 +15,8 @@
   model with a non-commercial licence (SMPL and its family). See `docs/tattoo.md`.
   Clothes: MakeHuman's base mesh fitted to the body in `fit.py` (once per body, `<body>.fit.json`),
   the catalogue and each item's fit in `wardrobe.py` (data packed by `scripts/wardrobe_pack.py` into
-  `wardrobe/` and `static/wardrobe/`), items as splats in `static/dress.js` (tested by
+  `wardrobe/` and `static/wardrobe/`; the styled outfits and accessories, our own, by
+  `scripts/wardrobe_styles.py`), items as splats in `static/dress.js` (tested by
   `tests/js/dress.test.mjs`), the Clothes section and the shop around the body in `static/wardrobe.js`
 (its layout and how each item is hung, folded or shown on a mannequin head in `static/racks.js`,
 tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no extra splats). Only CC0 or CC-BY items,

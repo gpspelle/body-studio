@@ -50,7 +50,8 @@ let drag = null;
 
 // ---------------------------------------------------------------- panel
 const isPhone = () => innerWidth <= 600;
-function setOpen(open) {
+function setOpen(open, remember = true) {
+  if (remember) { try { localStorage.setItem("studio:open", open ? "1" : "0"); } catch {} }
   $("studio").hidden = !open;
   $("studioBtn").setAttribute("aria-expanded", String(open));
   document.body.classList.toggle("with-studio", open);
@@ -64,6 +65,14 @@ function setOpen(open) {
   app.reframe();
 }
 $("studioBtn").onclick = () => setOpen($("studio").hidden);
+// The panel (clothes, tattoos, pose) is open from the start, as it was left; on a computer it is
+// open the first time too, so the clothes are there when the page opens (not on a phone: the body
+// would be too small)
+addEventListener("bodyshown", () => {
+  let was = null;
+  try { was = localStorage.getItem("studio:open"); } catch {}
+  if ($("studio").hidden && (was === "1" || (was === null && !isPhone()))) setOpen(true, false);
+});
 $("closeStudio").onclick = () => setOpen(false);
 addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("studio").hidden) setOpen(false); });
 addEventListener("panelopen", (e) => { if (e.detail !== "studio" && isPhone() && !$("studio").hidden) setOpen(false); });

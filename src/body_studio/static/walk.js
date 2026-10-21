@@ -418,6 +418,7 @@ export class Walker {
     const flat = (v) => v3.sub(v, v3.scale(this.up, v3.dot(v, this.up)));
     sk.angles = keep; sk.place = place; sk.solve();
     this.rest = { kind: target.kind, pose, tilt, on: true, v: 0, still: false,
+                  hipUp: target.kind === "sit" ? target.height + REST.hipOverSeat * this.H : null,
                   from: this.pos.slice(), fromHeading: this.heading, heading,
                   to: flat(v3.sub(hips, sk.rest[pel])) };
     return true;
@@ -430,19 +431,32 @@ export class Walker {
   // so the thighs lie on the seat with the feet on the floor; hands on the thighs
   _sitPose(height, back) {
     const sk = this.sk, keep = sk.angles, place = sk.place, pel = sk.index("pelvis");
-    // the hip joint is about 9 cm above what it sits on (for someone 1.75 m tall)
+    const knees = ["knee_l", "knee_r"].map((n) => sk.index(n)).filter((j) => j >= 0);
+    const hips = ["hip_l", "hip_r"].map((n) => sk.index(n)).filter((j) => j >= 0);
+    // the hip joint is about 9 cm above what it sits on (for someone 1.75 m tall), and the thighs
+    // lie along the seat: the knees no lower than the hips (else they go through the seat's front)
+    // and not much higher (a low seat brings the knees up, but then the hips bend more). The feet
+    // reach for the floor, toes pointed if they must; on a seat too high for the legs they hang
+    // (the hips are put on the seat, not the feet on the floor), never through the floor.
     const want = height + REST.hipOverSeat * this.H;
     let best = null, bd = Infinity;
-    for (let hip = 60; hip <= 105; hip += 5)
-      for (let knee = 30; knee <= 120; knee += 5) {
-        const pose = sitPose(hip, knee, back);
-        sk.angles = this._posed(pose, 1);
-        sk.place = { q: q.id(), t: [0, 0, 0] };
-        sk.solve();
-        const foot = Math.min(...this.feet.map((j) => v3.dot(sk.P[j], this.up)));
-        const d = Math.abs(v3.dot(sk.P[pel], this.up) - foot - want) + 0.002 * this.H * Math.abs(hip - 90) / 5;
-        if (d < bd) { bd = d; best = pose; }
-      }
+    for (let hip = 60; hip <= 120; hip += 5)
+      for (let knee = 30; knee <= 130; knee += 5)
+        for (const ankle of [null, -30, -15, 15, 30]) {
+          const pose = sitPose(hip, knee, back, ankle);
+          sk.angles = this._posed(pose, 1);
+          sk.place = { q: q.id(), t: [0, 0, 0] };
+          sk.solve();
+          const foot = Math.min(...this.feet.map((j) => v3.dot(sk.P[j], this.up)));
+          const hipUp = v3.dot(sk.P[pel], this.up) - foot;
+          const kneeUp = knees.length ? Math.min(...knees.map((j) => v3.dot(sk.P[j], this.up))) - foot : 0;
+          const thighUp = hips.length && knees.length ? Math.max(...hips.map((j) => v3.dot(sk.P[j], this.up))) - foot : kneeUp;
+          const sag = Math.max(0, thighUp - kneeUp - 0.01 * this.H), lift = Math.max(0, kneeUp - thighUp - 0.06 * this.H);
+          const gap = want - hipUp;                // > 0: the feet hang that far off the floor
+          const d = (gap < 0 ? -5 * gap : 0.6 * gap) + 2 * sag + 0.5 * lift +
+                    0.002 * this.H * (Math.abs(hip - 90) / 5 + (ankle === null ? 0 : Math.abs(ankle) / 15));
+          if (d < bd) { bd = d; best = pose; }
+        }
     sk.angles = keep; sk.place = place; sk.solve();
     return best;
   }
@@ -477,8 +491,12 @@ export class Walker {
                          q.axisAngle(up, this.heading));
     sk.place = { q: tilted, t: this.pos };
     sk.solve();
-    const drop = this.ground - Math.min(...this.feet.map((j) => v3.dot(sk.P[j], up)));
-    sk.place = { q: tilted, t: v3.add(this.pos, v3.scale(up, this.feet.length ? drop : 0)) };
+    let drop = this.feet.length ? this.ground - Math.min(...this.feet.map((j) => v3.dot(sk.P[j], up))) : 0;
+    if (R.hipUp !== null) {                      // sitting: the hips go on the seat (feet may hang)
+      const onSeat = this.ground + R.hipUp - v3.dot(sk.P[sk.index("pelvis")], up);
+      drop += (Math.max(onSeat, drop) - drop) * down;
+    }
+    sk.place = { q: tilted, t: v3.add(this.pos, v3.scale(up, drop)) };
     sk.solve();
     if (R.on && R.v === 1) { R.still = true; this.view = this.pos.slice(); }
     if (!R.on && R.v === 0) {                    // up again: the panel's pose, where it stood
@@ -496,10 +514,10 @@ export class Walker {
 // a foot or so out from it, tilted back 8 degrees, the back on the wall, a knee a little bent.
 export const REST = { rate: 3, hipOverSeat: 0.05, sitBack: 6, leanTilt: 8,
                       back: { chest: 0.075, spine: 0.07, pelvis: 0.085 } };
-function sitPose(hip, knee, back) {
+function sitPose(hip, knee, back, ankle = null) {
   const both = (j, a) => ({ [j + "_l"]: a, [j + "_r"]: a });
   const pose = { ...both("hip", { flex: hip, side: 5, twist: 0 }), ...both("knee", { flex: knee, twist: 0 }),
-                 ...both("ankle", { flex: Math.max(-15, Math.min(15, knee - hip)), side: 0 }),
+                 ...both("ankle", { flex: ankle ?? Math.max(-15, Math.min(15, knee - hip)), side: 0 }),
                  ...both("shoulder", { flex: 12, side: 12, twist: 0 }), ...both("elbow", { flex: 48 }),
                  spine: { flex: back ? -4 : 6, side: 0, twist: 0 }, chest: { flex: back ? -2 : 3, side: 0, twist: 0 } };
   return pose;

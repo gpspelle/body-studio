@@ -54,6 +54,13 @@ class Viewer(unittest.TestCase):
             executable_path=os.environ.get("BODY_STUDIO_CHROMIUM") or None,
             args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
 
+    def new_page(self, **kw):
+        """A page with the Try on panel closed at first (each test opens it when it needs it; on a
+        computer it would open by itself, which test_clothes_go_on_and_come_off checks)."""
+        page = self.browser.new_page(**kw)
+        page.add_init_script("localStorage.getItem('studio:open') === null && localStorage.setItem('studio:open', '0')")
+        return page
+
     @classmethod
     def tearDownClass(cls):
         cls.browser.close()
@@ -69,7 +76,7 @@ class Viewer(unittest.TestCase):
 
     def test_body_loads_upright_without_errors(self):
         for w, h in ((1280, 800), (390, 844)):
-            page = self.browser.new_page(viewport={"width": w, "height": h})
+            page = self.new_page(viewport={"width": w, "height": h})
             errors = []
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.on("console", lambda m: m.type == "error" and errors.append(m.text))
@@ -83,7 +90,7 @@ class Viewer(unittest.TestCase):
             page.close()
 
     def test_progress_panel_follows_a_person(self):
-        page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        page = self.new_page(viewport={"width": 1280, "height": 800})
         self.addCleanup(page.close)              # (a failed test leaves no page rendering behind)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -124,7 +131,7 @@ class Viewer(unittest.TestCase):
         page.close()
 
     def test_tattoo_follows_the_body_as_it_moves(self):
-        page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        page = self.new_page(viewport={"width": 1280, "height": 800})
         self.addCleanup(page.close)              # (a failed test leaves no page rendering behind)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -133,7 +140,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
         page.locator(".shelf button", has_text="Mia").click()
         page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
-        page.click("#studioBtn")
+        page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
         page.wait_for_function("tattooStudio.ready", timeout=180000)
         page.evaluate("bodyApp.viewer.controls.autoRotate = false")
 
@@ -212,7 +219,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
         page.locator(".shelf button", has_text="Mia").click()
         page.wait_for_function("bodyViewer.file().includes('Mia')")
-        page.click("#studioBtn")
+        page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
         page.wait_for_function("tattooStudio.ready && tattooStudio.tattoos().length === 1", timeout=60000)
         self.assertEqual(page.evaluate("tattooStudio.pose()"), pose)
         self.assertEqual(page.evaluate("tattooStudio.tattoos()[0].widthCm"), 6)
@@ -237,7 +244,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
         page.locator(".shelf button", has_text="Mia").click()
         page.wait_for_function("bodyViewer.file().includes('Mia')")
-        page.click("#studioBtn")
+        page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
         page.wait_for_function("tattooStudio.ready && tattooStudio.tattoos().length === 1", timeout=60000)
         self.assertLess(dist(page.evaluate("tattooStudio.tattoos()[0].centre"), centre), 0.02)
         self.assertEqual(errors, [])
@@ -245,7 +252,7 @@ class Viewer(unittest.TestCase):
 
 
     def test_walks_and_jumps_with_the_keyboard(self):
-        page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        page = self.new_page(viewport={"width": 1280, "height": 800})
         self.addCleanup(page.close)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -319,14 +326,14 @@ class Viewer(unittest.TestCase):
         page.keyboard.press("Escape")
         self.assertFalse(page.evaluate("document.getElementById('guide').open"))
         # typing in a field doesn't walk
-        page.click("#studioBtn")
+        page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
         page.focus("#tatHeight")
         page.keyboard.press("w")
         self.assertFalse(page.evaluate("tattooStudio.walk().active"))
         self.assertEqual(errors, [])
 
     def test_stands_walks_and_sits_in_a_room(self):
-        page = self.browser.new_page(viewport={"width": 960, "height": 600})
+        page = self.new_page(viewport={"width": 960, "height": 600})
         self.addCleanup(page.close)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -484,22 +491,37 @@ class Viewer(unittest.TestCase):
             { method: 'POST', body: JSON.stringify({ current: 0, layouts: [{ name: 'Layout 1', items: [] }] }) })""")
 
     def test_clothes_go_on_and_come_off(self):
-        page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        page = self.new_page(viewport={"width": 1280, "height": 800})
         self.addCleanup(page.close)              # (a failed test leaves no page rendering behind)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: m.type == "error" and errors.append(m.text))
         page.goto(self.url)
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        # the first time on a computer, the panel opens by itself when a body is shown
+        page.evaluate("localStorage.removeItem('studio:open')")
         page.locator(".shelf button", has_text="Mia").click()
         page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
-        page.click("#studioBtn")
+        page.wait_for_function("!document.getElementById('studio').hidden", timeout=60000)
         page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=240000)
-        # every item is on a rack, a shelf or a stand around the body, and the panel lists none
+        # the panel lists everything by kind, filtered by style
+        self.assertEqual(page.locator("#wearPick button").count(), len(page.evaluate("wardrobe.items()")))
+        page.locator("#wearStyles button", has_text="Punk").click()
+        punk = page.evaluate("[...document.querySelectorAll('#wearPick button')].map((b) => b.dataset.item)")
+        self.assertIn("tartan_skirt", punk)
+        self.assertIn("choker", punk)
+        self.assertNotIn("tee_jeans", punk)
+        page.locator('#wearPick button[data-item="choker"]').click()
+        page.wait_for_function("wardrobe.worn().includes('choker')", timeout=120000)
+        self.assertGreater(page.evaluate("wardrobe.splats('choker')"), 100)
+        page.locator('#wearPick button[data-item="choker"]').click()          # again: off
+        page.wait_for_function("!wardrobe.worn().includes('choker')", timeout=60000)
+        page.locator("#wearStyles button", has_text="All").click()
+        # every item but the necklaces is on a rack, a shelf or a stand around the body
         shop = page.evaluate("wardrobe.shop()")
         self.assertTrue(shop["shown"])
         self.assertFalse(page.evaluate("document.getElementById('wearModel').hidden"))   # Anny is always offered
-        self.assertEqual(len(shop["racked"]), 29)
+        self.assertEqual(len(shop["racked"]), len([i for i in page.evaluate("wardrobe.items()") if i["display"] != "none"]))
         self.assertEqual(page.locator("#wearWorn button").count(), 0)
         # pointing at one names it; clicking it puts it on and takes it off the rack
         at = page.evaluate("wardrobe.onScreen('tee_jeans')")
@@ -593,7 +615,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
         page.locator(".shelf button", has_text="Mia").click()
         page.wait_for_function("bodyViewer.file().includes('Mia')")
-        page.click("#studioBtn")
+        page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
         page.wait_for_function("wardrobe.ready && wardrobe.worn().join() === 'white_sneakers'", timeout=120000)
         self.assertEqual(page.evaluate("tattooStudio.tattoos().length"), 1)
         # undressed without putting anything else on
@@ -620,7 +642,7 @@ class Viewer(unittest.TestCase):
         p = mock.patch.object(anny_fit, "build_and_save", fake)
         p.start()
         self.addCleanup(p.stop)
-        page = self.browser.new_page(viewport={"width": 1280, "height": 800})
+        page = self.new_page(viewport={"width": 1280, "height": 800})
         self.addCleanup(page.close)
         errors, asked = [], []
         page.on("pageerror", lambda e: errors.append(str(e)))
@@ -630,7 +652,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
         page.locator(".shelf button", has_text="Mia").click()
         page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
-        page.click("#studioBtn")
+        page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
         page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=240000)
         self.assertTrue(page.is_visible("#wearModel"))
         self.assertEqual(page.evaluate("wardrobe.model()"), "standard")
@@ -646,7 +668,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
         page.locator(".shelf button", has_text="Mia").click()
         page.wait_for_function("bodyViewer.file().includes('Mia')")
-        page.click("#studioBtn")
+        page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
         page.wait_for_function("wardrobe.ready && wardrobe.model() === 'anny' && wardrobe.worn().join() === 'tee_jeans'",
                                timeout=120000)
         page.click("#wearModel [data-model=standard]")
@@ -657,8 +679,15 @@ class Viewer(unittest.TestCase):
 
 def pick(page, item):
     """Click an item on the racks around the body, where it shows on the screen."""
-    # (after a reload the camera is still settling on CI when the shop is ready)
-    at = page.wait_for_function(f"wardrobe.onScreen('{item}')", timeout=60000).json_value()
+    # (after a reload the camera may still be moving to frame the shop: wait until the item stays
+    # put over a few frames)
+    page.wait_for_function(f"""(() => {{
+        const a = wardrobe.onScreen('{item}'), v = bodyApp.viewer.spark.current.version, b = window._pickAt;
+        if (!a) return false;
+        if (!b || Math.hypot(a.x - b.x, a.y - b.y) > 2) {{ window._pickAt = {{ ...a, v }}; return false; }}
+        return v >= b.v + 3;
+    }})()""", timeout=120000)
+    at = page.evaluate(f"wardrobe.onScreen('{item}')")
     page.mouse.click(at["x"], at["y"])
 
 
@@ -672,7 +701,18 @@ def settled(page):
 
 def ink_pixels(page, at, r=40):
     """How many pixels around point `at` (body coordinates) the first tattoo's ink changes: the
-    page with the ink as it is, against the page with the faintest ink."""
+    page with the ink as it is, against the page with the faintest ink. The camera goes halfway
+    to what it looks at meanwhile, so the arm is as large on screen whatever the shop round it."""
+    page.evaluate("""(() => { const { camera, controls } = bodyApp.viewer;
+        window._was = camera.position.clone(); camera.position.lerp(controls.target, 0.5); controls.update(); })()""")
+    try:
+        return _ink_pixels(page, at, r)
+    finally:
+        page.evaluate("""(() => { const { camera, controls } = bodyApp.viewer;
+            camera.position.copy(window._was); controls.update(); })()""")
+
+
+def _ink_pixels(page, at, r):
     x, y = page.evaluate(f"tattooStudio.screen({at})")
     clip = {"x": max(0, x - r), "y": max(0, y - r), "width": 2 * r, "height": 2 * r}
     before = page.evaluate("tattooStudio.ink(0)")
