@@ -573,7 +573,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("tattooStudio.tattoos().length === 1")
         page.wait_for_function("tattooStudio.tattoos()[0].inked")
         page.evaluate("bodyApp.viewer.controls.autoRotate = false")
-        self.assertGreater(ink_pixels(page, at), 30)       # the ink shows on the bare arm
+        self.assertGreater(ink_pixels(page, at), 12)       # the ink shows on the bare arm (the shop round her makes it small)
         pick(page, "longsleeve_jeans")
         page.wait_for_function("wardrobe.worn().includes('longsleeve_jeans')", timeout=60000)
         # the skin under the sleeve is hidden, and the ink in it with it
@@ -584,7 +584,7 @@ class Viewer(unittest.TestCase):
         self.assertIn("longsleeve_jeans", page.evaluate("wardrobe.shop().racked"))   # back on its shelf
         page.click("#wearWorn [data-item=suit]")          # taken off
         page.wait_for_function("wardrobe.worn().join() === 'white_sneakers'")
-        self.assertGreater(ink_pixels(page, at), 30)
+        self.assertGreater(ink_pixels(page, at), 12)
         page.evaluate("tattooStudio.preset('walk')")    # moves with the body, no errors
         # walking: the shoes stay on the feet, the tattoo goes along on the arm
         ink, shoes = page.evaluate("[tattooStudio.tattoos()[0].centre, wardrobe.gap('white_sneakers')]")
@@ -705,19 +705,7 @@ def settled(page):
 
 def ink_pixels(page, at, r=40):
     """How many pixels around point `at` (body coordinates) the first tattoo's ink changes: the
-    page with the ink as it is, against the page with the faintest ink. The camera goes 30% closer
-    meanwhile, so the arm is as large on screen as before the shop round it grew (not more: the
-    closer, the slower software rendering draws a frame)."""
-    page.evaluate("""(() => { const { camera, controls } = bodyApp.viewer;
-        window._was = camera.position.clone(); camera.position.lerp(controls.target, 0.3); controls.update(); })()""")
-    try:
-        return _ink_pixels(page, at, r)
-    finally:
-        page.evaluate("""(() => { const { camera, controls } = bodyApp.viewer;
-            camera.position.copy(window._was); controls.update(); })()""")
-
-
-def _ink_pixels(page, at, r):
+    page with the ink as it is, against the page with the faintest ink."""
     x, y = page.evaluate(f"tattooStudio.screen({at})")
     clip = {"x": max(0, x - r), "y": max(0, y - r), "width": 2 * r, "height": 2 * r}
     before = page.evaluate("tattooStudio.ink(0)")
