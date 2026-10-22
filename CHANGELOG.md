@@ -150,6 +150,11 @@
   turn a moment behind her when she turns, without the bounce at every step, the snaps at the end
   of the swing or the hem tearing into lace that the old springs gave.
 
+- **A tidier Decor panel, with handles**: two tabs, **Add** and **In the room** (everything placed,
+  by kind, to pick or take away with ✕; the layouts are there too). The picked thing sits on top
+  with **Done**. Handles on it like the body's joints: a ring round it turns it, a knob over it
+  raises or lowers it (**Raised**, kept as `lift` in the layout). The body's panel steps aside
+  while Decor is open. What games do about this is in `docs/decor.md`.
 - **More wedding decor**: about 30 more starters, shown by kind (Tables, On the table, Ceremony,
   Bar, Lights, Lounge, and From photos): cross-back chairs, benches, square, cocktail and
   sweetheart tables, place settings, centrepieces, candelabras, bud vases, table numbers, a cake, a

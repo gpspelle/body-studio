@@ -5,12 +5,14 @@ made in 3D from a photo (an Instagram picture of a centrepiece, a shop's photo o
 first use is planning a wedding venue: the venue is filmed as a room, the decor is placed in it,
 and the body can walk the aisle and sit at the tables.
 
-![A wedding set in the sample living room: a table set for eight under string lights, the bar, flowers](images/decor-desktop.png)
+![A wedding table in the sample living room under string lights, picked, with the list of what is in the room](images/decor-desktop.png)
 
 ## The panel
 
 **Decor** appears in the top bar while a room is round the body (Room menu). It opens a panel at
-the right edge:
+the right edge; the body's own panel (Try on) and its joints step aside while it is open, and come
+back when it is closed. The panel has the picked thing on top, then two tabs, **Add** and **In the
+room**:
 
 - **Things**, by kind (Tables, On the table, Ceremony, Bar, Lights, Lounge, and From photos once
   there is one; the kind shown is remembered). Tap one to put it in the room, on
@@ -26,12 +28,39 @@ the right edge:
   colour), **Set the table** (a place setting in front of each chair or bench seat at it, just
   inside its edge, facing the guest; a place that is set already is left), **Remove** (or Delete). A thing made
   from a photo can also be deleted from the things.
-- **Layout**: several arrangements per room (**New**, **Copy**, **Delete**), kept in the data folder.
+- **In the room**: everything placed, by kind, numbered within a name (Chair 1, Chair 2...). Tap a
+  line to pick it, ✕ to take it away. The tab says how many there are.
+- **Handles** on the picked thing, like the body's joints: a ring on the floor round it, with a
+  knob where its front faces (drag: turn, in 15° steps, Shift for any angle), and a knob on a stalk
+  over it (drag: raise or lower, 0–5 m; **Raised** in the panel does the same). Drag the thing
+  itself to move it. The handles are drawn over everything, so the thing never hides them.
+- **Layout** (in **In the room**): several arrangements per room (**New**, **Copy**, **Delete**),
+  kept in the data folder.
 
 Chairs and tables stop the walk like the room's furniture does (an arch only at its posts, so the
 body walks through it; a runner, a rug, the dance floor, candles and lanterns are walked over or
 past), and **F** sits on a chair, a bench (three places), a sofa (two), an armchair or a bar
 stool that was put in the room.
+
+## What games do
+
+How games that are about placing things deal with a long catalogue, finding what is already placed
+and editing it, and what we took:
+
+- **The Sims (build and buy mode)**: the catalogue in a bar by room and kind; a picked object
+  follows the pointer, turns with keys or a right drag in 45° steps (free with a key held), can be
+  raised; the rest of the interface (the Sim's needs, the career) is put away in build mode. Taken:
+  the kinds as tabs, turning in steps with free turning held, the body's panel out of the way.
+- **Animal Crossing: New Horizons (decorating mode)**: a separate mode with its own simple
+  controls; pick a thing, then move, turn, put it away; a storage list of what is not placed.
+  Taken: one panel at a time, a list to take things away from.
+- **Planet Zoo / Planet Coaster**: handles on the picked object, a ring to turn it and an arrow to
+  raise it, drawn over the scene; height and turn snapping that can be switched off. Taken: the ring
+  and the lift knob.
+- **House Flipper**: turning with the mouse wheel while holding the thing, the thing glowing when
+  it can't go there. Not taken yet (the wheel moves the camera here).
+- **Editors (Blender's outliner, Unity's hierarchy)**: a list of everything in the scene, picked
+  by a click, in sync with the 3D view. Taken: In the room, kept in step with what is picked.
 
 ## Starters
 
@@ -92,7 +121,7 @@ that matter (the arch you saw, the centrepiece, a sign).
 decor/items/<id>/item.json    {id, name, height (m), on (floor, top), status (working, ready, failed), error, code}
 decor/items/<id>/photo.<ext>  the photo
 decor/items/<id>/mesh.json    the mesh: positions int16 over lo..hi, colours bytes, faces uint32, base64
-decor/layouts/<room>.json     {current, layouts: [{name, items: [{item, x, y, z, turn, colour}]}]}
+decor/layouts/<room>.json     {current, layouts: [{name, items: [{item, x, y, z, turn, colour, lift}]}]}
 ```
 
 Layouts are in the room map's metres (`room.py`: x and z along the floor, y up), so they stay put

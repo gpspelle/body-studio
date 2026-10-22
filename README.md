@@ -247,10 +247,13 @@ glow) and **Lounge** (a sofa, armchairs, a coffee table, a rug, a dance floor), 
 3D from a photo. Planning a wedding venue is what it is for: film the venue as a room, set it,
 walk the aisle.
 
-![A wedding set in the sample living room: a table set for eight under string lights, the bar, flowers](docs/images/decor-desktop.png)
+![A wedding table in the sample living room under string lights, picked, with the list of what is in the room](docs/images/decor-desktop.png)
 
-- Tap a thing to put it in the room, then drag it along the floor. Flowers and candles go on the
-  table they are dropped on. **Turn** (or `[` `]`), a colour, **Make a row** of up to 12, **Chairs
+- **Add** lists the things; tap one to put it in the room, then drag it along the floor. Flowers
+  and candles go on the table they are dropped on. **In the room** lists everything placed, by
+  kind: tap a line to pick it, ✕ to take it away. While Decor is open, the body's panel steps aside.
+- The picked thing has handles, like the body's joints: drag the ring round it to turn it (Shift
+  for any angle), the knob over it to raise or lower it (**Raised** does the same). **Turn** (or `[` `]`), a colour, **Make a row** of up to 12, **Chairs
   round it** for a table, **Set the table** (a place setting in front of each chair), **Remove**
   (or Delete).
 - **Add from a photo…**: a photo of one thing (an Instagram picture is fine), its name and its real
@@ -477,8 +480,12 @@ luzes, luzes de chão, lanternas; elas brilham) e **Lounge** (sofá, poltronas, 
 tapete, pista de dança), ou coisas feitas em 3D a partir de uma foto. É para planejar a
 decoração de um casamento: filme o espaço como um cômodo, monte a decoração, ande pelo corredor.
 
-- Toque numa coisa para colocá-la no cômodo e arraste pelo chão. Flores e velas ficam em cima da
-  mesa onde são soltas. **Girar** (ou `[` `]`), uma cor, **Fazer uma fileira** de até 12,
+- **Adicionar** lista as coisas; toque numa para colocá-la no cômodo e arraste pelo chão. Flores e
+  velas ficam em cima da mesa onde são soltas. **No cômodo** lista tudo o que foi colocado, por
+  tipo: toque numa linha para escolher, ✕ para tirar. Com a Decoração aberta, o painel do corpo sai
+  da frente.
+- A coisa escolhida tem alças, como as juntas do corpo: arraste o anel em volta para girar (Shift
+  para qualquer ângulo) e o botão em cima para erguer ou baixar (**Erguido** faz o mesmo). **Girar** (ou `[` `]`), uma cor, **Fazer uma fileira** de até 12,
   **Cadeiras em volta** de uma mesa, **Pôr a mesa** (um lugar posto na frente de cada cadeira),
   **Remover** (ou Delete).
 - **Adicionar de uma foto…**: uma foto de uma coisa só (uma foto do Instagram serve), o nome e a

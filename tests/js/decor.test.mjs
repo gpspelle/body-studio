@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { COLOURS, GROUPS, STARTERS, around, blocker, covers, dropY, freeSpot, itemDef, mapMatrix, row, seats, setTable, starterShape, unpack, wrap } from "../../src/body_studio/static/decor.js";
+import { COLOURS, GROUPS, STARTERS, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap } from "../../src/body_studio/static/decor.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
 const env = (k) => process.env[k] && JSON.parse(fs.readFileSync(process.env[k], "utf8"));
@@ -208,4 +208,56 @@ test("setting the table puts a place in front of each chair, on the table, facin
   const bench = { item: "bench", x: 0, y: 0, z: 0.75, turn: Math.PI }, lt = { item: "long_table", x: 0, y: 0, z: 0, turn: 0 };
   assert.equal(setTable(defs("long_table"), lt, [lt, bench], defs).length, 3, "three on a bench");
   assert.deepEqual(setTable(defs("chair"), { item: "chair", x: 0, z: 0 }, [], defs), []);
+});
+
+test("the handles sit on the picked thing: a ring round it, a knob where it faces, one over it", () => {
+  for (const [id, turn] of [["round_table", 0], ["long_table", 1.1], ["chair", -2]]) {
+    const def = defs(id), p = { item: id, x: 2, y: 0.3, z: -1, turn }, h = handles(def, p);
+    near(Math.hypot(h.turn[0] - p.x, h.turn[2] - p.z), h.ring.r, 1e-9, id + ": the knob on the ring");
+    // outside the thing, so it can be grabbed
+    assert.ok(!covers(def, p, h.turn[0], h.turn[2]), id + ": the ring clears it");
+    const f = [Math.sin(turn), Math.cos(turn)], to = [h.turn[0] - p.x, h.turn[2] - p.z];
+    near((f[0] * to[0] + f[1] * to[1]) / h.ring.r, 1, 1e-9, id + ": the knob where its front faces");
+    assert.ok(h.lift[1] > p.y + def.height, id + ": the lift knob over it");
+    near(h.lift[0], p.x, 1e-9); near(h.lift[2], p.z, 1e-9);
+  }
+  // a string of lights is hung 2.8 m up: its knob not out of sight at the ceiling
+  assert.ok(handles(defs("chandelier"), { x: 0, z: 0, y: 0 }).lift[1] <= 3.3);
+});
+
+test("turning by the ring follows the pointer, in 15 degree steps unless free", () => {
+  const p = { x: 1, z: 1, turn: 0 };
+  near(turnToward(p, 2, 1), Math.PI / 2, 1e-9, "to its right");
+  near(Math.abs(turnToward(p, 1, 0)), Math.PI, 1e-9, "behind");
+  near(turnToward(p, 1 + Math.sin(0.3), 1 + Math.cos(0.3)), Math.PI / 12, 1e-9, "snapped");
+  near(turnToward(p, 1 + Math.sin(0.3), 1 + Math.cos(0.3), true), 0.3, 1e-9, "free");
+  for (let k = 0; k < 40; k++) { const a = turnToward(p, Math.cos(k), Math.sin(k * 1.7)); assert.ok(Math.abs(a) <= Math.PI + 1e-9); }
+});
+
+test("raising follows the pointer up the thing's upright line", () => {
+  const p = { x: 2, z: 3 };
+  // a ray from a camera 4 m away at eye height, aimed at 1.2 m up the line
+  const o = [2, 1.6, 7], at = [2, 1.2, 3], d = [at[0] - o[0], at[1] - o[1], at[2] - o[2]];
+  near(heightOnRay(p, o, d), 1.2, 1e-9, "where it aims");
+  // aimed beside the line, still the height it passes at
+  near(heightOnRay(p, [5, 1, 3], [-1, 0.25, 0.5]), 1.6, 1e-9, "closest to the line");
+  assert.equal(heightOnRay(p, [2, 5, 3], [0, -1, 0]), null, "straight down the line");
+  assert.equal(clampLift(-0.3), 0); assert.equal(clampLift(9), MAX_LIFT); near(clampLift(0.4567), 0.46, 1e-9);
+});
+
+test("a raised thing stands its lift over where it would be dropped", () => {
+  const t = { item: "round_table", x: 0, y: 0, z: 0, turn: 0 }, c = { item: "candle", x: 0.2, y: 0, z: 0, turn: 0, lift: 0.3 };
+  near(standY(defs("candle"), [t, c], defs, c), 0.76 + 0.3, 1e-9, "on the table, raised");
+  near(standY(defs("chair"), [t], defs, { item: "chair", x: 5, z: 5, lift: 0.5 }), 0.5, 1e-9, "on the floor, raised");
+  near(standY(defs("chair"), [t], defs, { item: "chair", x: 5, z: 5 }), 0, 1e-9);
+});
+
+test("the list of what is in the room goes by kind, numbered within a name", () => {
+  const placed = [{ item: "candle" }, { item: "chair" }, { item: "round_table" }, { item: "chair" }, { item: "pabc1234" }, { item: "string_lights" }];
+  const name = (id) => ({ candle: "Candle", chair: "Chair", round_table: "Round table", string_lights: "String lights" }[id] || "Arch");
+  const group = (id) => STARTERS[id]?.group || "mine";
+  const rows = listing(placed, name, group);
+  assert.deepEqual(rows.map((r) => r.name), ["Chair 1", "Chair 2", "Round table", "Candle", "String lights", "Arch"]);
+  assert.deepEqual(rows.map((r) => r.k), [1, 3, 2, 0, 5, 4]);
+  assert.deepEqual(listing([], name, group), []);
 });

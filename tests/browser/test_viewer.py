@@ -509,8 +509,11 @@ class Viewer(unittest.TestCase):
             self.url + "api/decor/layout?room=" + urllib.parse.quote(room), method="POST",
             data=json.dumps({"current": 0, "layouts": [{"name": "Layout 1", "items": []}]}).encode())).read())
         page.click("#roomBtn")
+        page.evaluate("document.getElementById('studio').hidden || document.getElementById('closeStudio').click()")
+        page.click("#studioBtn")                                                   # the body's panel open...
         page.click("#decorBtn")
         self.assertTrue(page.locator("#decor").is_visible())
+        self.assertTrue(page.locator("#studio").is_hidden())                       # ...steps aside for decor
         # the starters, by kind: tables and chairs first
         page.evaluate("decor.shelf('tables')")
         self.assertEqual(page.locator("#decorGroups button").count(), 6)
@@ -553,6 +556,33 @@ class Viewer(unittest.TestCase):
         page.locator("#decorGroups button", has_text="Lights").click()
         page.locator("#decorItems button[data-item=string_lights]").click()
         self.assertEqual(page.evaluate("decor.glowing()"), glowing + 1)
+        # handles on the picked thing, like the body's joints: the knob over the candle raises it,
+        # the ring's knob turns it
+        k = page.evaluate("decor.placed().findIndex((q) => q.item === 'candle')")
+        page.evaluate(f"decor.pick({k})")
+        page.wait_for_function("decor.handles() !== null")
+        h = page.evaluate("decor.handles()")
+        y0 = page.evaluate(f"decor.placed()[{k}].y")
+        page.mouse.move(*h["lift"])
+        page.mouse.down()
+        page.mouse.move(h["lift"][0], h["lift"][1] - 40, steps=4)
+        page.mouse.up()
+        candle = page.evaluate(f"decor.placed()[{k}]")
+        self.assertGreater(candle["lift"], 0.03)
+        self.assertAlmostEqual(candle["y"], y0 + candle["lift"], places=6)
+        self.assertEqual(page.input_value("#decorLift"), str(round(candle["lift"] * 100)))
+        page.locator("#decorLift").fill("0")                                        # back down by the slider
+        self.assertNotIn("lift", page.evaluate(f"decor.placed()[{k}]"))
+        h = page.evaluate("decor.handles()")
+        turn0 = candle["turn"]
+        page.mouse.move(*h["turn"])
+        page.mouse.down()
+        # round to the other side of the ring: about half a turn
+        page.mouse.move(2 * h["ring"][0] - h["turn"][0], 2 * h["ring"][1] - h["turn"][1], steps=8)
+        page.mouse.up()
+        turn1 = page.evaluate(f"decor.placed()[{k}].turn")
+        self.assertGreater(abs(math.remainder(turn1 - turn0, 2 * math.pi)), 2)
+        self.assertAlmostEqual(turn1 / (math.pi / 12), round(turn1 / (math.pi / 12)), places=6)   # in steps
         # dragged along the floor with the mouse: a thing in view, not under the panel
         page.evaluate("decor.pick(-1); tattooStudio.stepFor(1)")
         at = page.evaluate("""(() => {
@@ -580,12 +610,14 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("window.decor && decor.placed().length === 24", timeout=300000)
         self.assertEqual(page.evaluate("decor.layouts().layouts.length"), 1)
         page.click("#decorBtn")
+        page.click("#decorRoomTab")                                                # the layouts are with what is in the room
         page.click("#decorNew")
         self.assertEqual(page.evaluate("decor.placed().length"), 0)
         self.assertEqual(page.locator("#decorLayout option").count(), 2)
         page.select_option("#decorLayout", "0")
         self.assertEqual(page.evaluate("decor.placed().length"), 24)
         # a thing made from a photo (the stand-in for TripoSR makes a cone), at its real height
+        page.click("#decorAddTab")
         page.set_input_files("#decorPick", str(self.design))
         page.locator("#decorForm [name=label]").fill("Arch from Instagram")
         page.locator("#decorForm [name=height]").fill("120")
@@ -602,6 +634,19 @@ class Viewer(unittest.TestCase):
             const b = P.toBody([c.x + Math.sin(c.turn) * 0.55, 0, c.z + Math.cos(c.turn) * 0.55]);
             w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; tattooStudio.redraw(); })()""")
         self.assertEqual(page.evaluate("house.nearby()"), "sit")
+        # what is in the room, listed by kind: a line picks it, its x takes it away
+        page.evaluate("decor.open()")
+        page.click("#decorRoomTab")
+        self.assertIn("(25)", page.text_content("#decorRoomTab"))
+        rows = page.locator("#decorList li:not(.group)")
+        self.assertEqual(rows.count(), 25)
+        self.assertEqual(page.locator("#decorList li.group").first.text_content(), "Tables")
+        page.locator("#decorList li .name", has_text="Arch from Instagram").click()
+        self.assertEqual(page.evaluate("decor.placed()[decor.selected()].item"), page.evaluate("decor.placed()[24].item"))
+        page.locator("#decorList li", has_text="Round table").locator(".x").click()
+        self.assertEqual(page.evaluate("decor.placed().filter((q) => q.item === 'round_table').length"), 0)
+        self.assertEqual(rows.count(), 24)
+        self.assertIn("(24)", page.text_content("#decorRoomTab"))
         self.assertEqual(errors, [])
 
     def test_clothes_go_on_and_come_off(self):
@@ -717,8 +762,8 @@ class Viewer(unittest.TestCase):
         self.assertTrue(sw["moving"])
         self.assertGreater(math.hypot(*sw["hips"]), 0.003)
         self.assertLess(math.hypot(*sw["hips"]), 0.03)
-        page.evaluate("tattooStudio.walkFor(0.5, 'b', false, true)")
-        self.assertGreater(abs(page.evaluate("tattooStudio.swing().turn.hips")), 0.02)   # the hem turns behind
+        most = page.evaluate("tattooStudio.walkFor(0.5, 'b', false, true)")
+        self.assertGreater(most["turn"]["hips"], 0.02)                       # the hem turns behind as she turns
         page.evaluate("tattooStudio.walkFor(5, '', false, true)")             # standing: it settles
         self.assertFalse(page.evaluate("tattooStudio.swing().moving"))
         page.evaluate("tattooStudio.wake()")

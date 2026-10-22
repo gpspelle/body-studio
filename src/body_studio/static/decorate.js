@@ -1,10 +1,12 @@
-// Decor in a scanned room: the Decor panel (shown while a room is round the body), the things in it
-// drawn as plain three.js meshes (so Spark sorts no extra splats), dragged along the floor, turned,
-// repeated in rows and round tables, kept per room in layouts (GET/POST /api/decor/layout). Things
+// Decor in a scanned room: the Decor panel (shown while a room is round the body; the body's own
+// panel steps aside while it is open), the things in it drawn as plain three.js meshes (so Spark
+// sorts no extra splats), listed under "In the room", dragged along the floor, turned and raised by
+// handles on the picked one, repeated in rows and round tables, kept per room in layouts (GET/POST /api/decor/layout). Things
 // come from the starters (decor.js draws them) or are made from a photo on this computer (POST
 // /api/decor/photo, decor.py and photo3d.py). The maths is decor.js's; the room is house.js's.
 import * as THREE from "three";
-import { COLOURS, GROUPS, STARTERS, around, blocker, dropY, freeSpot, itemDef, mapMatrix, row, seats, setTable, starterShape, unpack, wrap } from "/static/decor.js";
+import { COLOURS, GROUPS, MAX_LIFT, STARTERS, around, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
+         setTable, standY, starterShape, turnToward, unpack, wrap } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -51,7 +53,21 @@ function setOpen(open) {
 $("decorBtn").onclick = () => setOpen($("decor").hidden);
 $("closeDecor").onclick = () => setOpen(false);
 $("progressBtn").addEventListener("click", () => { if (!$("decor").hidden) setOpen(false); });
-addEventListener("panelopen", (e) => { if (e.detail !== "decor" && isPhone() && !$("decor").hidden) setOpen(false); });
+// one panel at a time with the body's (Try on): decorating and dressing are two different moments
+addEventListener("panelopen", (e) => { if (e.detail !== "decor" && (isPhone() || e.detail === "studio") && !$("decor").hidden) setOpen(false); });
+
+// the tabs: things to add, and what is in the room
+let tab = "add";
+function setTab(which) {
+  tab = which;
+  $("decorAddTab").setAttribute("aria-selected", String(which === "add"));
+  $("decorRoomTab").setAttribute("aria-selected", String(which === "room"));
+  $("decorAdd").hidden = which !== "add";
+  $("decorRoom").hidden = which !== "room";
+  if (which === "room") list();
+}
+$("decorAddTab").onclick = () => setTab("add");
+$("decorRoomTab").onclick = () => setTab("room");
 addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("decor").hidden && !$("guide").open) { if (sel >= 0) pick(-1); else setOpen(false); } });
 function say(text) { $("decorStatus").textContent = text || ""; }
 
@@ -146,7 +162,35 @@ function layoutsUI() {
   }));
   if (L) s.value = String(L.current);
   $("decorDelete").disabled = !L || L.layouts.length < 2;
-  $("decorCount").textContent = L ? t("decor.countThings", { n: placed().length }) : "";
+  $("decorRoomTab").textContent = t("decor.tabRoom", { n: L ? placed().length : 0 });
+  if (tab === "room") list();
+}
+
+// what is in the room, by kind: tap a line to pick it, x to take it away
+function list() {
+  const rows = listing(placed(), (id) => nameOf(itemOf(id) || { id }), (id) => STARTERS[id]?.group || "mine");
+  const out = [];
+  let g = null;
+  for (const r of rows) {
+    if (r.group !== g) {
+      g = r.group;
+      const h = document.createElement("li");
+      h.className = "group"; h.textContent = t("decor.group." + g);
+      out.push(h);
+    }
+    const li = document.createElement("li"), b = document.createElement("button"), x = document.createElement("button");
+    li.dataset.index = String(r.k);
+    li.classList.toggle("on", r.k === sel);
+    b.className = "name"; b.textContent = r.name;
+    b.onclick = () => pick(r.k);
+    x.className = "x"; x.textContent = "✕";
+    x.setAttribute("aria-label", t("decor.removeOne", { name: r.name }));
+    x.onclick = () => { placed().splice(r.k, 1); pick(-1); changed(); };
+    li.append(b, x);
+    out.push(li);
+  }
+  $("decorList").replaceChildren(...out);
+  $("decorEmpty").hidden = rows.length > 0;
 }
 $("decorLayout").onchange = (e) => { L.current = +e.target.value; pick(-1); changed(); };
 function newLayout(items) {
@@ -215,7 +259,7 @@ async function add(id) {
   if (it.kind === "photo" && shelf !== "mine") { shelf = "mine"; inventory(); }
   const d = defs(id), { x, z, turn } = landing(d);
   const p = { item: id, x, y: 0, z, turn };
-  p.y = dropY(d, placed(), defs, x, z, roomTop);
+  p.y = standY(d, placed(), defs, p, roomTop);
   if (d.starter && STARTERS[id].colour) p.colour = STARTERS[id].colour;
   placed().push(p);
   pick(placed().length - 1);
@@ -231,6 +275,8 @@ function pick(k) {
     $("decorName").textContent = nameOf(it);
     $("decorTurn").value = String(Math.round(((p.turn * 180 / Math.PI) % 360 + 540) % 360 - 180));
     $("decorTurnOut").textContent = $("decorTurn").value + "°";
+    $("decorLift").value = String(Math.round((p.lift || 0) * 100));
+    $("decorLiftOut").textContent = $("decorLift").value + " cm";
     $("decorColours").hidden = !d.starter;
     for (const b of $("decorColours").children) b.classList.toggle("on", b.dataset.colour === (p.colour || STARTERS[p.item]?.colour));
     const table = d.top !== undefined && d.size && p.item.endsWith("table");
@@ -240,8 +286,20 @@ function pick(k) {
     if (!d.starter) $("decorHeight").value = String(Math.round(it.height * 100));
     $("decorForget").hidden = d.starter;
   }
+  for (const li of $("decorList").children) li.classList.toggle("on", li.dataset.index === String(k));
   draw();
 }
+$("decorDone").onclick = () => pick(-1);
+$("decorLift").max = String(MAX_LIFT * 100);
+$("decorLift").oninput = (e) => {
+  const p = placed()[sel];
+  if (!p) return;
+  p.lift = clampLift(+e.target.value / 100);
+  if (!p.lift) delete p.lift;
+  p.y = standY(defs(p.item), placed(), defs, p, roomTop);
+  $("decorLiftOut").textContent = e.target.value + " cm";
+  changed();
+};
 
 function colourChips() {
   $("decorColours").replaceChildren(...Object.keys(COLOURS).map((c) => {
@@ -274,7 +332,7 @@ $("decorHeight").onchange = async (e) => {
 $("decorRow").onclick = () => {
   const p = placed()[sel], n = +$("decorRowN").value;
   if (!p) return;
-  for (const q of row(defs(p.item), p, n)) { q.y = dropY(defs(p.item), placed(), defs, q.x, q.z, roomTop); placed().push(q); }
+  for (const q of row(defs(p.item), p, n)) { q.y = standY(defs(p.item), placed(), defs, q, roomTop); placed().push(q); }
   changed();
 };
 $("decorAround").onclick = () => {
@@ -382,8 +440,48 @@ function draw() {
     m.userData.index = k;
     group.add(m);
   });
+  placeGizmo();
   const map = H()?.map();
   if (map) map.setDecor(blocker(placed(), defs), seats(placed(), defs));
+}
+
+// ---------------------------------------------------------------- the handles on the picked thing
+// A ring on the floor round it with a knob where its front faces (drag: turn it, in 15° steps,
+// Shift for any angle) and a knob on a stalk over it (drag: raise or lower it), drawn over
+// everything so they are never hidden by the thing. Each knob has a bigger, unseen ball round it
+// to grab.
+let gizmo = null;
+const HANDLE = new THREE.MeshBasicMaterial({ color: 0x2f6fd6, depthTest: false, transparent: true, opacity: 0.9, toneMapped: false });
+const GRAB = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthTest: false, depthWrite: false });
+function makeGizmo() {
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.012, 6, 64), HANDLE);
+  ring.rotation.x = Math.PI / 2; ring.name = "ring";
+  const knob = (name) => {
+    const k = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 12), HANDLE);
+    k.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), GRAB), { name: name + "Grab" }));
+    k.name = name;
+    return k;
+  };
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 1, 6), HANDLE);
+  stalk.name = "stalk";
+  g.add(ring, knob("turn"), knob("lift"), stalk);
+  g.traverse((o) => { o.renderOrder = 10; o.userData.handle = o.name.replace("Grab", ""); });
+  return g;
+}
+function placeGizmo() {
+  if (!group) return;
+  if (!gizmo) gizmo = makeGizmo();
+  if (gizmo.parent !== group) group.add(gizmo);
+  const p = placed()[sel];
+  gizmo.visible = !!p && !$("decor").hidden;
+  if (!gizmo.visible) return;
+  const h = handles(defs(p.item), p), ring = gizmo.getObjectByName("ring"), stalk = gizmo.getObjectByName("stalk");
+  ring.scale.setScalar(h.ring.r); ring.position.set(p.x, h.ring.y, p.z);
+  gizmo.getObjectByName("turn").position.set(...h.turn);
+  gizmo.getObjectByName("lift").position.set(...h.lift);
+  const low = (p.y || 0) + Math.min(defs(p.item).height, 3);
+  stalk.scale.y = Math.max(0.01, h.lift[1] - low); stalk.position.set(p.x, (low + h.lift[1]) / 2, p.z);
 }
 
 function show() {
@@ -412,11 +510,28 @@ V.frameHooks.push((before) => {
 
 // ---------------------------------------------------------------- dragging along the floor
 const ray = new THREE.Raycaster();
-function hit(e) {
+function aim(e) {
   const r = V.canvas.getBoundingClientRect();
   ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), V.camera);
+}
+function hit(e) {
+  aim(e);
   const h = ray.intersectObjects(group.children.filter((c) => c.isMesh), false)[0];
   return h ? h.object.userData.index : -1;
+}
+// the handle under the pointer: "turn" (the ring or its knob), "lift", or null
+function handleAt(e) {
+  if (!gizmo || !gizmo.visible) return null;
+  aim(e);
+  const h = ray.intersectObject(gizmo, true)[0];
+  return h ? (h.object.userData.handle === "ring" ? "turn" : h.object.userData.handle) : null;
+}
+// the pointer's ray in the map's metres
+function rayInMap(e) {
+  aim(e);
+  group.updateMatrixWorld(true);
+  const inv = group.matrixWorld.clone().invert();
+  return [ray.ray.origin.clone().applyMatrix4(inv).toArray(), ray.ray.direction.clone().transformDirection(inv).toArray()];
 }
 function floorAt(e, y) {
   const r = V.canvas.getBoundingClientRect();
@@ -430,6 +545,16 @@ function floorAt(e, y) {
 }
 addEventListener("pointerdown", (e) => {
   if (!group || $("decor").hidden || e.target !== V.canvas || e.button !== 0) return;
+  const handle = handleAt(e);
+  if (handle) {
+    const p = placed()[sel], base = (p.y || 0) - (p.lift || 0);
+    const [o, d] = rayInMap(e), y = heightOnRay(p, o, d);
+    drag = { k: sel, handle, base, off: y === null ? 0 : y - (p.lift || 0) };
+    e.stopImmediatePropagation(); e.preventDefault();
+    V.controls.enabled = false;
+    V.canvas.setPointerCapture?.(e.pointerId);
+    return;
+  }
   const k = hit(e);
   if (k < 0) return;                            // the camera turns as usual
   pick(k);
@@ -442,16 +567,36 @@ addEventListener("pointerdown", (e) => {
 addEventListener("pointermove", (e) => {
   if (!drag) return;
   e.stopImmediatePropagation();
+  if (drag.handle) {
+    const p = placed()[drag.k];
+    if (!p) return;
+    if (drag.handle === "turn") {
+      const at = floorAt(e, p.y || 0);
+      if (at) p.turn = turnToward(p, at[0], at[1], e.shiftKey);
+    } else {
+      const [o, d] = rayInMap(e), y = heightOnRay(p, o, d);
+      if (y !== null) { p.lift = clampLift(y - drag.off); p.y = drag.base + p.lift; }
+    }
+    const m = group.children.find((c) => c.userData.index === drag.k);
+    if (m) { m.position.set(p.x, p.y, p.z); m.rotation.y = p.turn; }
+    placeGizmo();
+    return;
+  }
   const at = floorAt(e, drag.y), p = placed()[drag.k];
   if (!at || !p) return;
   p.x = at[0] + drag.off[0]; p.z = at[1] + drag.off[1];
-  p.y = dropY(defs(p.item), placed(), defs, p.x, p.z, roomTop, p);
+  p.y = standY(defs(p.item), placed(), defs, p, roomTop);
   const m = group.children.find((c) => c.userData.index === drag.k);
   if (m) m.position.set(p.x, p.y, p.z);
+  placeGizmo();
 }, { capture: true });
 function up() {
   if (!drag) return;
+  const p = placed()[drag.k];
+  if (p && p.lift === 0) delete p.lift;
+  const handle = drag.handle;
   drag = null;
+  if (handle) pick(sel);
   V.controls.enabled = true;
   changed();
 }
@@ -489,7 +634,13 @@ window.decor = {
   open: () => setOpen(true),
   drawn: () => (group ? group.children.filter((c) => c.isMesh).length : 0),
   group: () => group,
-  move: (k, x, z) => { const p = placed()[k]; p.x = x; p.z = z; p.y = dropY(defs(p.item), placed(), defs, x, z, roomTop, p); changed(); },
+  move: (k, x, z) => { const p = placed()[k]; p.x = x; p.z = z; p.y = standY(defs(p.item), placed(), defs, p, roomTop); changed(); },
+  tab: (which) => { if (which) setTab(which); return tab; },
+  handles: () => (gizmo && gizmo.visible ? Object.fromEntries(["turn", "lift", "ring"].map((h) => {
+    const m = gizmo.getObjectByName(h);
+    const v = m.getWorldPosition(new THREE.Vector3()).project(V.camera);
+    return [h, [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]];
+  })) : null),
   refresh: refreshItems,
   shelf: (g) => { if (g) { shelf = g; inventory(); } return shelf; },
   glowing: () => (group ? group.children.filter((c) => c.isMesh && c.geometry.groups.length > 1).length : 0),

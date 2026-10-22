@@ -77,7 +77,11 @@ addEventListener("bodyshown", () => {
 });
 $("closeStudio").onclick = () => setOpen(false);
 addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("studio").hidden) setOpen(false); });
-addEventListener("panelopen", (e) => { if (e.detail !== "studio" && isPhone() && !$("studio").hidden) setOpen(false); });
+// on a phone one panel at a time; and while decorating (Decor) the body's panel and joints step
+// aside everywhere, without forgetting that it was open
+addEventListener("panelopen", (e) => {
+  if (e.detail !== "studio" && (isPhone() || e.detail === "decor") && !$("studio").hidden) setOpen(false, e.detail !== "decor");
+});
 $("progressBtn").addEventListener("click", () => { if (isPhone() && !$("progress").hidden) setOpen(false); });
 
 function status(text) { $("studioStatus").textContent = text || ""; }
@@ -1209,18 +1213,25 @@ window.tattooStudio = {
                      facing: S.walker.facing() },
   // walk for a while as if the keys (f b l r) were held, in steps of a 60th of a second, and stop
   // there, mid-stride, until a key is pressed (for screenshots)
-  // (frames: every step is drawn, so loose clothes and hair swing as they would at 60 a second)
+  // (frames: every step is drawn, so loose clothes and hair swing as they would at 60 a second;
+  // it returns the most they turned on the way, which doesn't hang on how settled they were at the
+  // end)
   walkFor: (seconds, keys = "f", jump = false, frames = false) => {
     held.clear();
     S.hold = true;
     for (const k of keys) held.add(k);
+    const most = { hips: 0, head: 0 };
     for (let i = 0; i < Math.round(seconds * 60); i++) {
       S.walker.update(1 / 60, { move: moveDir(), jump: jump && i === 0 });
-      if (frames) { S.swing.fixed = 1 / 60; drawPose(); }
+      if (frames) {
+        S.swing.fixed = 1 / 60; drawPose();
+        for (const k of ["hips", "head"]) most[k] = Math.max(most[k], Math.abs(S.fleshState.swing[k].o[3]));
+      }
     }
     S.swing.fixed = 0;
     held.clear();
     drawPose(); followBody();
+    return frames ? { turn: most } : undefined;
   },
   // let the walker go on for a while (sitting down, getting up…) in steps of a 60th of a second
   stepFor: (seconds) => {

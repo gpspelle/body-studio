@@ -823,3 +823,60 @@ export function freeSpot(def, placed, defs, x, z, floorFree = () => true) {
     }
   return [x, z];
 }
+
+// ---------------------------------------------------------------- handles on the picked thing
+// Like the body's joints: grab a handle on the thing itself. A ring on the floor round it turns
+// it (its knob shows the way its front faces), a knob over it raises and lowers it, and the thing
+// itself moves along the floor. `lift` is how far it is raised above where it would stand.
+const STEP_TURN = Math.PI / 12, STEP_LIFT = 0.01;
+export const MAX_LIFT = 5;
+
+// where the handles go for a placed p: the ring's radius and height, the turn knob, the lift knob
+export function handles(def, p) {
+  const sz = def.size, r = (sz.r !== undefined ? sz.r : Math.hypot(sz.w, sz.d) / 2) + 0.12;
+  const base = p.y || 0, t = p.turn || 0;
+  return {
+    ring: { r, y: base + 0.01 },
+    turn: [p.x + r * Math.sin(t), base + 0.01, p.z + r * Math.cos(t)],
+    lift: [p.x, base + Math.min(def.height, 3) + 0.25, p.z],
+  };
+}
+
+// the turn that points p's front at the floor point (x, z): in 15° steps, or free
+export function turnToward(p, x, z, free = false) {
+  const a = Math.atan2(x - p.x, z - p.z);
+  return wrap(free ? a : Math.round(a / STEP_TURN) * STEP_TURN);
+}
+
+// The height on the upright line through p that a pointer ray (origin o, direction d, in the
+// map's metres) passes closest to; null when the ray runs along the line.
+export function heightOnRay(p, o, d) {
+  const w = [o[0] - p.x, o[1], o[2] - p.z];
+  const a = d[0] * d[0] + d[1] * d[1] + d[2] * d[2], denom = a - d[1] * d[1];
+  if (denom < 1e-9) return null;
+  const dw = d[0] * w[0] + d[1] * w[1] + d[2] * w[2];
+  return (a * w[1] - d[1] * dw) / denom;
+}
+
+// a lift kept to 0..MAX_LIFT, in centimetres
+export const clampLift = (v) => Math.round(Math.min(MAX_LIFT, Math.max(0, v)) / STEP_LIFT) * STEP_LIFT;
+
+// The height p stands at: where it would be dropped (the floor, a table) plus its lift.
+export function standY(def, placed, defs, p, roomTop = () => 0) {
+  return dropY(def, placed, defs, p.x, p.z, roomTop, p) + (p.lift || 0);
+}
+
+// ---------------------------------------------------------------- the list of what is in the room
+// One line per placed thing, in kinds (its group, then made from photos), numbered within its name
+// when there is more than one: [{ k (its index in placed), name, n, group }]
+export function listing(placed, nameOf, groupOf) {
+  const count = new Map(), seen = new Map();
+  for (const p of placed) count.set(p.item, (count.get(p.item) || 0) + 1);
+  const rows = placed.map((p, k) => {
+    const n = (seen.get(p.item) || 0) + 1;
+    seen.set(p.item, n);
+    return { k, item: p.item, name: nameOf(p.item) + (count.get(p.item) > 1 ? " " + n : ""), group: groupOf(p.item) };
+  });
+  const order = (g) => { const i = GROUPS.indexOf(g); return i < 0 ? GROUPS.length : i; };
+  return rows.sort((a, b) => order(a.group) - order(b.group) || a.item.localeCompare(b.item) || a.k - b.k);
+}

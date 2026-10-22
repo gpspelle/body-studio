@@ -408,6 +408,8 @@ def clean_layouts(d) -> dict:
             q = {"item": item, "x": _num(p.get("x"), -1e4, 1e4, "x"), "y": _num(p.get("y", 0), -10, 50, "y"),
                  "z": _num(p.get("z"), -1e4, 1e4, "z"),
                  "turn": round(math.remainder(_num(p.get("turn", 0), -1e3, 1e3, "turn"), 2 * math.pi), 4)}
+            if p.get("lift"):
+                q["lift"] = round(_num(p["lift"], 0, 5, "lift"), 3)
             if p.get("colour") is not None:
                 if p["colour"] not in COLOURS:
                     raise DecorError("no such colour", "bad_request")

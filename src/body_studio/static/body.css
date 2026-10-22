@@ -278,3 +278,20 @@ label.btn { display: inline-block; font-size: 13px; }
 .layouts { align-items: center; }
 .layouts select { flex: 1; min-width: 0; }
 #decorEdit .link { padding-left: 0; margin-right: 12px; }
+/* Decor: two tabs (Add, In the room), the list of what is in the room, the picked thing on top */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 4px 0 10px; }
+.tabs button {
+  font: inherit; font-size: 13px; color: var(--muted); background: none; border: 0; cursor: pointer;
+  padding: 6px 10px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
+.placed-list { list-style: none; margin: 0 0 10px; padding: 0; max-height: 40vh; overflow-y: auto; }
+.placed-list li { display: flex; align-items: center; border-radius: 8px; }
+.placed-list li.on { background: var(--line); }
+.placed-list .name { flex: 1; text-align: left; font: inherit; font-size: 13px; color: var(--text); background: none; border: 0; padding: 5px 8px; cursor: pointer; }
+.placed-list .group { font-size: 11px; color: var(--muted); margin: 8px 8px 2px; }
+.placed-list .x { font: inherit; color: var(--muted); background: none; border: 0; padding: 4px 8px; cursor: pointer; }
+.placed-list .x:hover { color: var(--bad); }
+#decorEdit { border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 4px; }
+#decorEdit .picked { align-items: center; }
+#decorEdit .picked h2 { margin: 0; }

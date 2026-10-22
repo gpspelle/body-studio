@@ -172,10 +172,11 @@ class Inventory(unittest.TestCase):
         room = "workspace/Hall/run_1/splat/standard_30000_clean.ply"
         self.assertEqual(decor.load_layouts(self.d, room)["layouts"][0]["items"], [])
         saved = decor.save_layouts(self.d, room, {"current": 1, "layouts": [
-            {"name": "Rustic", "items": [{"item": "chair", "x": 1, "z": 2, "turn": 0.5, "colour": "wood"}]},
+            {"name": "Rustic", "items": [{"item": "chair", "x": 1, "z": 2, "turn": 0.5, "colour": "wood", "lift": 0.3}]},
             {"name": "", "items": [{"item": "pabc1234", "x": 0, "y": 0.76, "z": 0}]}]})
         self.assertEqual(saved["current"], 1)
         self.assertEqual(saved["layouts"][1]["name"], "Layout")
+        self.assertEqual(saved["layouts"][0]["items"][0]["lift"], 0.3)          # raised by its handle
         self.assertEqual(decor.load_layouts(self.d, room), saved)
         turned = decor.clean_layouts({"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "turn": 10.4}]}]})
         self.assertAlmostEqual(turned["layouts"][0]["items"][0]["turn"], 10.4 - 4 * 3.141592653589793, places=3)
@@ -183,7 +184,8 @@ class Inventory(unittest.TestCase):
         for bad in (None, {"layouts": []}, {"layouts": [{"items": [{"item": "spaceship", "x": 0, "z": 0}]}]},
                     {"layouts": [{"items": [{"item": "chair", "x": "a", "z": 0}]}]},
                     {"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "colour": "plaid"}]}]},
-                    {"layouts": [{"items": [{"item": "chair", "x": 1e9, "z": 0}]}]}):
+                    {"layouts": [{"items": [{"item": "chair", "x": 1e9, "z": 0}]}]},
+                    {"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "lift": 9}]}]}):
             with self.assertRaises(decor.DecorError):
                 decor.save_layouts(self.d, room, bad)
 
