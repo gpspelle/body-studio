@@ -701,10 +701,11 @@ def settled(page):
 
 def ink_pixels(page, at, r=40):
     """How many pixels around point `at` (body coordinates) the first tattoo's ink changes: the
-    page with the ink as it is, against the page with the faintest ink. The camera goes halfway
-    to what it looks at meanwhile, so the arm is as large on screen whatever the shop round it."""
+    page with the ink as it is, against the page with the faintest ink. The camera goes 30% closer
+    meanwhile, so the arm is as large on screen as before the shop round it grew (not more: the
+    closer, the slower software rendering draws a frame)."""
     page.evaluate("""(() => { const { camera, controls } = bodyApp.viewer;
-        window._was = camera.position.clone(); camera.position.lerp(controls.target, 0.5); controls.update(); })()""")
+        window._was = camera.position.clone(); camera.position.lerp(controls.target, 0.3); controls.update(); })()""")
     try:
         return _ink_pixels(page, at, r)
     finally:
