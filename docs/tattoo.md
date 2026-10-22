@@ -136,6 +136,26 @@ The splats are moved by **dual quaternion skinning** (Kavan et al., 2007), which
 for splats (`SplatSkinning`). Unlike plain linear blending it doesn't collapse a bent elbow or a
 twisted forearm into a "candy wrapper".
 
+**A twist spreads along the limb.** Skinning alone turns a limb's skin with the bone it is weighted
+to: turning the hand (the wrist's twist) turned only the hand and the wrist's end of the forearm, so
+a tattoo across the forearm sheared at the wrist. In a real forearm the radius rolls over the ulna,
+so the skin turns more the nearer it is to the hand. One GPU step after skinning (flesh.js, `TWIST`)
+turns each splat of the forearm about the forearm's axis by the hand's twist times how far along the
+forearm it is (none at the elbow, all of it at the wrist). The upper arm and the thigh take a smaller
+share of the shoulder's and the hip's twist the other way round: most at the joint, fading out by
+45 % of the bone, so a twisted arm doesn't turn its skin as one block at the shoulder.
+
+**The shoulder follows a raised arm.** Past 30° up, the shoulder blade and the collarbone turn with
+the arm (the scapulohumeral rhythm, about one degree for every six of the arm: `RHYTHM` in pose.js,
+up to 20°). The arm keeps pointing where it was put; the shoulder rises with it, so an arm straight
+up doesn't stick out of a flat shoulder line, and the skin over the deltoid and the chest stretches
+less. Arms folded across the chest take less of it.
+
+**Skin folds where a joint bends.** At a bent elbow, knee or hip, skin of the two parts meets: the
+forearm's into the upper arm, the calf's into the thigh, the belly's into the thighs. Each splat is
+pushed out of the next part's capsule (flesh.js, `FOLD`), no deeper than it already was at rest, so
+the fold presses together instead of passing through.
+
 ## The tattoo
 
 - **Size**: real centimetres, from the person's height (the panel asks; it uses the height of the
@@ -190,6 +210,39 @@ twisted forearm into a "candy wrapper".
 - **Skinning**: the outline shown while editing is the border of the grid, moved on the CPU by the
   same dual quaternion blend as Spark's shader.
 
+## The tattoo studio
+
+**Sample tattoo studio** in the Room menu is a tattoo parlour drawn by the app
+(`sample_studio.py`): a black tattoo bed, a reclining tattoo chair with an arm rest each side, the
+artist's stool and tray, a flash wall of cork, a full-length mirror, a counter by the door and a pink
+"TATTOO" neon. Next to its splat it writes `<name>.fixtures.json`, which says where the bed, the
+chair and its rests, the flash wall and the mirror are; the room's map (room.py) carries them in
+the map's metres. A room with fixtures for a flash wall is a studio (parlour.js):
+
+- **The flash wall.** Sheets of flash hang on it: the body's own tattoos first, then twelve starter
+  designs drawn for the app (`static/flash/`, CC0: rose, swallow, anchor, heart, dagger, snake, moth,
+  mandala, geometric, wave, sun, lightning). A tap on a sheet picks its design, the panel opens and
+  the next tap on the body lays it there, named after the sheet, as an image from a file is.
+- **Where it is made.** **F** by the bed or the chair takes the body to where a tattoo at that spot
+  is made (`stationFor`, from the bone it lies on and the way its skin faces at rest): an arm in the
+  chair, that arm on its rest with the forearm turned so the tattoo faces up; the neck, the
+  collarbones and the upper chest in the chair, leaning back; the back of the trunk or of a leg
+  lying face down; the belly, the hips and the front of a leg lying face up; the ribs and the flank
+  lying face up with that arm over the head. By the other piece of furniture, or with no tattoo yet,
+  the body just lies face up or sits.
+- **Clothes come off.** The worn items over the tattoo's skin come off at the bed or the chair and
+  go back on when the body gets up. Clothes are separate splats fitted to the body, so they can; what
+  the body was filmed in is part of the scan and stays.
+- **Views.** Small chips under the body: **Room** (the room's view), **Artist** (close over the
+  tattoo, from a little toward the head) and **Mirror** (from the mirror's glass, drawn mirrored;
+  a drag on the body leaves it).
+
+Lying down: the body turns to lie along the bed, its head at the head end, face up or down, and is
+put down so the lowest point of its skin (from the surface maps round each bone) rests on the bed's
+top; it lies down and gets up in an arc. The reclining chair tilts the body back by its recline and
+opens the hips as much, so the thighs stay on the seat. The arm on a rest is found by a search over
+the shoulder and the elbow for the pose that puts the middle of the forearm on the rest, level.
+
 ## Walking and jumping
 
 **W A S D** (or the arrows) walk the body across the floor and **Space** jumps (`static/walk.js`,
@@ -229,15 +282,17 @@ weights) go along on their own.
 
 Limits: one walking speed, no running; a foot slides a little at the start and end of a walk (the
 legs blend in and out rather than taking a first and last step); with the panel's pose far from
-standing (sitting) the walk is still a walk. The hips don't turn (the rig has no pelvis joint), so
-the steps look a little stiff.
+standing (sitting) the walk is still a walk. The pelvis turns about 5° each way with the step and
+rocks over the planted foot, but the spine doesn't counter it beyond the chest's turn, so the steps
+look a little stiff.
 
 ## Limits
 
 - **A-pose capture needed.** Arms touching the body or legs together make the skeleton fail (with
   advice) or the weights leak between the touching parts.
-- **Skin doesn't bulge or crease.** Bending the elbow doesn't swell the biceps; skin at a sharply bent
-  knee or hip folds into itself. Real deformation needs a model learned from moving people.
+- **Skin bulges and folds by rule, not by learning.** The biceps, deltoid, forearm and calf swell and
+  bent skin presses together (see above and [flesh.md](flesh.md)), but muscles don't slide under the
+  skin and a crease doesn't wrinkle. Real deformation needs a model learned from moving people.
 - **Clothing moves like skin.** A loose shirt bends with the arm as if it were skin.
 - **Hands and feet are one piece each.** No fingers or toes.
 - **Lighting is baked in.** The tattoo picks up the skin colour under it, including baked-in shadows,

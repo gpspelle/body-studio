@@ -189,3 +189,14 @@
   floor and the thighs through the cushion. **F** no longer leans the body on a wall with
   furniture in front of it (a TV on its console, a shelf): the floor just out from the wall has
   to be free.
+- **Tattoo studio**: a second sample room, **Sample tattoo studio**, with a tattoo bed, a
+  reclining chair with arm rests, a flash wall and a mirror. Tap a design on the flash wall (twelve
+  starters drawn for the app, plus the body's own tattoos) to lay it on the body. **F** by the bed
+  or the chair goes where that tattoo is made (lying face up or down, the arm over the head for the
+  ribs, or in the chair with the arm on its rest), with the clothes over it off until the body gets
+  up. **Room / Artist / Mirror** views under the body. A room's run can carry
+  `NAME_clean.fixtures.json` (where its furniture is), which the room's map keeps.
+- **Joints**: a turned hand turns the forearm's skin along its length (no more shear at the wrist),
+  the upper arm and the thigh share the shoulder's and the hip's twist; the shoulder rises with a
+  raised arm; skin at a bent elbow, knee or hip presses together instead of passing through; the
+  deltoid, forearm and calf bulge too.

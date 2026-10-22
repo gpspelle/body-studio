@@ -4,7 +4,8 @@ It is drawn here, not filmed: boxes, cylinders and leaves covered in small flat 
 the way a room run leaves its splat (workspace/<name>/run_*/splat/NAME_clean.ply, y-down like
 Brush's, with COLMAP's images.bin for a camera path held at 1.45 m), so room.py maps it like any
 scanned room and the page shows it like one. It is made the first time the rooms are listed and
-kept in the data folder; a new VERSION makes it again.
+kept in the data folder; a new VERSION makes it again. The sample tattoo studio (sample_studio.py)
+is made the same way, beside it.
 
 The room is 5.5 m by 4.5 m and 2.6 m high, in metres, y up, the floor at 0 (the file is y-down):
 a sofa along the back wall (seat 45 cm) with a picture above it, an armchair by the window, a
@@ -312,26 +313,39 @@ def _quat(R):
     return (R[1][0] - R[0][1]) / s, (R[0][2] + R[2][0]) / s, (R[1][2] + R[2][1]) / s, 0.25 * s
 
 
-def run_dir(data_dir: Path) -> Path:
-    return Path(data_dir) / "workspace" / NAME / RUN
+def _make_living_room(d: Path) -> Path:
+    write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(0.7, 0.5), centre=(0.0, -0.3))
+    return write_ply(d / "splat" / PLY, splats())
+
+
+def _samples() -> dict:
+    """Each sample room's folder name: (its VERSION, its splat's name, what makes it in a run folder)."""
+    from . import sample_studio
+    return {NAME: (VERSION, PLY, _make_living_room),
+            library.STUDIO: (sample_studio.VERSION, sample_studio.PLY, sample_studio.make)}
+
+
+def run_dir(data_dir: Path, name: str = NAME) -> Path:
+    return Path(data_dir) / "workspace" / name / RUN
 
 
 _lock = threading.Lock()
-_making: dict = {}                  # data folder -> the process making the room there
+_making: dict = {}                  # data folder -> the process making the rooms there
 
 
-def ready(data_dir: Path) -> bool:
-    d = run_dir(data_dir)
+def ready(data_dir: Path, name: str = NAME) -> bool:
+    version, ply, _ = _samples()[name]
+    d = run_dir(data_dir, name)
     try:
-        return (d / "splat" / PLY).is_file() and json.loads((d / "sample.json").read_text()).get("version") == VERSION
+        return (d / "splat" / ply).is_file() and json.loads((d / "sample.json").read_text()).get("version") == version
     except (OSError, ValueError):
         return False
 
 
 def start(data_dir: Path) -> bool:
-    """Whether the sample room is there; if not, start making it in another process (a few seconds
-    of work that would hold up the server's other requests)."""
-    if ready(data_dir):
+    """Whether the sample rooms are there; if not, start making them in another process (a few
+    seconds of work that would hold up the server's other requests)."""
+    if all(ready(data_dir, name) for name in _samples()):
         return True
     with _lock:
         key = str(Path(data_dir).resolve())
@@ -342,24 +356,29 @@ def start(data_dir: Path) -> bool:
     return False
 
 
-def ensure(data_dir: Path) -> Path:
-    """The sample room's splat in the data folder, made here and now if it isn't there yet."""
+def ensure(data_dir: Path, name: str = NAME) -> Path:
+    """A sample room's splat in the data folder (the living room unless named), made here and now
+    if it isn't there yet."""
     with _lock:
-        return _ensure(data_dir)
+        return _ensure(data_dir, name)
 
 
-def _ensure(data_dir: Path) -> Path:
-    d = run_dir(data_dir)
-    ply, stamp = d / "splat" / PLY, d / "sample.json"
-    if ready(data_dir):
-        return ply
+def ensure_all(data_dir: Path) -> list:
+    return [ensure(data_dir, name) for name in _samples()]
+
+
+def _ensure(data_dir: Path, name: str) -> Path:
+    version, ply, make = _samples()[name]
+    d = run_dir(data_dir, name)
+    stamp = d / "sample.json"
+    if ready(data_dir, name):
+        return d / "splat" / ply
     d.mkdir(parents=True, exist_ok=True)
-    library.mark_room(data_dir, NAME)              # before the splat, so it never shows as a body
-    write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(0.7, 0.5), centre=(0.0, -0.3))
-    write_ply(ply, splats())
-    stamp.write_text(json.dumps({"version": VERSION}))
-    return ply
+    library.mark_room(data_dir, name)              # before the splat, so it never shows as a body
+    out = make(d)
+    stamp.write_text(json.dumps({"version": version}))
+    return out
 
 
 if __name__ == "__main__":
-    ensure(Path(sys.argv[1]))
+    ensure_all(Path(sys.argv[1]))

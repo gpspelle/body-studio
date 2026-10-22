@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, placeInk, INK_OUT, skinPoint, q, v3, DOF } from "../../src/body_studio/static/pose.js";
+import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, placeInk, INK_OUT, skinPoint, q, v3, DOF, RHYTHM } from "../../src/body_studio/static/pose.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { left: L, up: U, front: F } = rig.frame;
@@ -789,4 +789,21 @@ test("quality sweep: ink anywhere on the body, in any pose, stays on the skin an
       assert.ok(c >= 0, `${where}: splat ${i} under the ink is on the skin`);
     }
   }
+});
+
+test("the collarbone goes up with the arm; the arm points where it was set", () => {
+  const up = rig.frame.up, sk = new Skeleton(rig), bare = new Skeleton(rig, { rhythm: false });
+  const at = (k, name) => k.P[k.index(name)];
+  // at rest nothing moves
+  for (const name of ["shoulder_l", "elbow_r", "wrist_l"]) near(v3.len(v3.sub(at(sk, name), at(bare, name))), 0, 1e-9, name);
+  for (const k of [sk, bare]) { k.set("shoulder_l", { flex: 0, side: 170 }); k.solve(); }
+  const rise = v3.dot(v3.sub(at(sk, "shoulder_l"), at(bare, "shoulder_l")), up);
+  assert.ok(rise > 0.008 * rig.height, `the shoulder rises with the arm up (${rise / rig.height})`);
+  assert.ok(rise < 0.05 * rig.height, `by a few centimetres (${rise / rig.height})`);
+  const dir = (k) => v3.unit(v3.sub(at(k, "elbow_l"), at(k, "shoulder_l")));
+  assert.ok(v3.dot(dir(sk), dir(bare)) > 0.9999, "the arm points the same way");
+  // the other side and a lowered arm hardly move
+  near(v3.len(v3.sub(at(sk, "shoulder_r"), at(bare, "shoulder_r"))), 0, 1e-9, "the other shoulder");
+  for (const k of [sk, bare]) { k.set("shoulder_l", { flex: 0, side: RHYTHM.from - 5 }); k.solve(); }
+  assert.ok(v3.len(v3.sub(at(sk, "shoulder_l"), at(bare, "shoulder_l"))) < 0.004 * rig.height, "arm down: the shoulder about where it was");
 });

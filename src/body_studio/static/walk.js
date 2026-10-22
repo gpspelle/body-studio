@@ -3,7 +3,7 @@
 // the skeleton: joint angles for a walk cycle or a jump, blended over the pose set in the panel,
 // and the whole body's place (Skeleton.place). Everything skinned with the body's weights (the
 // body, clothes, hair, shoes, tattoos) follows the bones, so it all moves together.
-import { q, v3 } from "./pose.js";
+import { SurfaceMap, q, v3 } from "./pose.js";
 
 const TAU = 2 * Math.PI;
 // a bump of height 1 at phase c, about w wide, on a cycle (the phase wraps at 1)
@@ -83,7 +83,8 @@ export class Walker {
     // in a room (room.js, the page's house.js): (from, to) -> where the body may go instead of to,
     // both places of the body (pos); null: the floor goes on for ever
     this.bound = null;
-    this.rest = null;                           // sitting or leaning (restAt), while it lasts
+    this.rest = null;                           // sitting, leaning or lying (restAt), while it lasts
+    this.map = rig.maps ? new SurfaceMap(rig) : null;   // the body's surface, to lie it on a bed
   }
 
   // the arms swing nearer the body than the A-pose holds them, but not into it: the smallest
@@ -383,23 +384,32 @@ export class Walker {
     return true;
   }
 
-  // ---------------------------------------------------------------- sitting and leaning
+  // ---------------------------------------------------------------- sitting, leaning, lying
   // Sit down or lean on a wall: target = { kind: "sit", at, facing, height, back } (at: where the
   // hips go, on the seat; facing: the way to face, along the floor; height: the seat's, over the
   // floor; back: whether there is one to lean back on) or { kind: "lean", at, facing } (at: a point
-  // on the wall's face; facing: out of the wall). All in the body's coordinates and units. The body
-  // turns and steps there as it sits down or leans; moving or jumping gets it up again. Whether it
-  // can (not in the air).
+  // on the wall's face; facing: out of the wall). All in the body's coordinates and units. A seat
+  // can recline (recline: degrees its back leans, as a tattoo chair's does) and have an arm rest
+  // (arm: { side, at, face }: the arm on that side lies on the rest's top at `at`, the forearm
+  // turned so the skin facing `face` (a direction at rest, on bone face.bone) looks up). Or lie on a
+  // bed: { kind: "lie", at, head, face, raise } (at: the middle of the bed's top; head: the way to
+  // its head end, along the floor; face: "up" or "down"; raise: "l" or "r", that arm up over the head). The body turns and steps there as it sits
+  // down or leans, or lies down on the bed; moving or jumping gets it up again. Whether it can (not
+  // in the air).
   restAt(target) {
     if (this.airborne) return false;
     if (this.rest) this.settle();
     if (!this.base) this.base = this.sk.angles.map((a) => (a ? { ...a } : null));
     this.speed = 0; this.walking = 0; this.jump = null; this.lastFeet = null;
     for (const n of LIMBS) this.limbs[n].on = false;
+    if (target.kind === "lie") return this._lieAt(target);
     const f = v3.unit(v3.sub(target.facing, v3.scale(this.up, v3.dot(target.facing, this.up))));
     const heading = Math.atan2(v3.dot(f, this.side), v3.dot(f, this.front));
     const pose = target.kind === "sit" ? this._sitPose(target.height, target.back) : leanPose();
-    const tilt = target.kind === "lean" ? REST.leanTilt * RAD : target.back ? REST.sitBack * RAD : 0;
+    // a reclining back tilts the whole body back, the hips opening as much so the thighs stay on the seat
+    const recline = target.kind === "sit" && target.recline ? target.recline : 0;
+    if (recline) for (const s of ["l", "r"]) if (pose["hip_" + s]) pose["hip_" + s] = { ...pose["hip_" + s], flex: pose["hip_" + s].flex - recline };
+    const tilt = target.kind === "lean" ? REST.leanTilt * RAD : recline ? recline * RAD : target.back ? REST.sitBack * RAD : 0;
     const turn = q.mul(q.axisAngle(v3.cross(this.up, f), -tilt), q.axisAngle(this.up, heading));
     // where the hips go: on the seat, or as near the wall as the back lets them
     const sk = this.sk, keep = sk.angles, place = sk.place, pel = sk.index("pelvis");
@@ -421,9 +431,121 @@ export class Walker {
                   hipUp: target.kind === "sit" ? target.height + REST.hipOverSeat * this.H : null,
                   from: this.pos.slice(), fromHeading: this.heading, heading,
                   to: flat(v3.sub(hips, sk.rest[pel])) };
+    if (target.arm) this._armOnRest(target.arm);
     return true;
   }
   get resting() { return this.rest && this.rest.on ? this.rest.kind : null; }
+
+  // where the body is while sitting or leaning, `go` of the way turned and stepped over and `down`
+  // of the way down (0..1 each): sets the skeleton there; the heading and the place on the floor
+  _restPlace(R, go, down) {
+    const sk = this.sk, up = this.up;
+    const d = ((R.heading - R.fromHeading + 3 * Math.PI) % TAU) - Math.PI;
+    const heading = R.fromHeading + d * go, pos = v3.add(R.from, v3.scale(v3.sub(R.to, R.from), go));
+    sk.angles = this._posed(R.pose, down);
+    // (tilted back as it goes down: on the wall, or on the seat's back)
+    const tilted = q.mul(q.axisAngle(v3.cross(up, q.rot(q.axisAngle(up, R.heading), this.front)), -R.tilt * down),
+                         q.axisAngle(up, heading));
+    sk.place = { q: tilted, t: pos };
+    sk.solve();
+    let drop = this.feet.length ? this.ground - Math.min(...this.feet.map((j) => v3.dot(sk.P[j], up))) : 0;
+    if (R.hipUp !== null) {                      // sitting: the hips go on the seat (feet may hang)
+      const onSeat = this.ground + R.hipUp - v3.dot(sk.P[sk.index("pelvis")], up);
+      drop += (Math.max(onSeat, drop) - drop) * down;
+    }
+    sk.place = { q: tilted, t: v3.add(pos, v3.scale(up, drop)) };
+    sk.solve();
+    return { heading, pos };
+  }
+
+  // An arm laid on an arm rest (sitting down there): the shoulder and elbow angles that put the
+  // middle of the forearm on the rest, the forearm level and the elbow not below it; then the
+  // forearm turned so the tattoo on it faces up (to the artist and the light). Into the rest's pose.
+  _armOnRest(arm) {
+    const R = this.rest, sk = this.sk, up = this.up, keep = sk.angles, place = sk.place;
+    const s = arm.side, names = ["shoulder_" + s, "elbow_" + s, "wrist_" + s], [sh, el, wr] = names.map((n) => sk.index(n));
+    if (sh < 0 || el < 0 || wr < 0) return;
+    this._restPlace(R, 1, 1);
+    const base = sk.angles.map((a) => (a ? { ...a } : null));
+    const r = REST.forearm * this.H, want = v3.add(arm.at, v3.scale(up, r)), len = v3.len(v3.sub(sk.rest[wr], sk.rest[el]));
+    let best = null, bd = Infinity;
+    for (let flex = -40; flex <= 100; flex += 10)
+      for (let side = 0; side <= 80; side += 10)
+        for (let bend = 0; bend <= 120; bend += 10) {
+          sk.angles = base.map((a) => (a ? { ...a } : null));
+          sk.angles[sh] = sk.clamp(sh, { flex, side, twist: 0 });
+          sk.angles[el] = sk.clamp(el, { ...sk.angles[el], flex: bend });
+          sk.solve();
+          const mid = v3.scale(v3.add(sk.P[el], sk.P[wr]), 0.5), dir = v3.unit(v3.sub(sk.P[wr], sk.P[el]));
+          const low = Math.min(v3.dot(sk.P[el], up), v3.dot(sk.P[wr], up)) - v3.dot(want, up);
+          const d = v3.len(v3.sub(mid, want)) + 0.5 * len * Math.abs(v3.dot(dir, up)) + 4 * Math.max(0, -low - 0.01 * this.H);
+          if (d < bd) { bd = d; best = { flex, side, bend }; }
+        }
+    R.pose[names[0]] = { flex: best.flex, side: best.side, twist: 0 };
+    R.pose[names[1]] = { flex: best.bend };
+    // the forearm turned (the wrist's twist) so the skin with the tattoo faces up
+    if (arm.face && sk.index(arm.face.bone) >= 0) {
+      const b = sk.index(arm.face.bone);
+      let bt = 0, bu = -Infinity;
+      for (let twist = -80; twist <= 80; twist += 20) {
+        sk.angles = this._posed(R.pose, 1);
+        sk.angles[wr] = sk.clamp(wr, { ...sk.angles[wr], twist });
+        sk.solve();
+        const u = v3.dot(q.rot(sk.W[b], arm.face.normal), up) - 0.002 * Math.abs(twist);
+        if (u > bu) { bu = u; bt = twist; }
+      }
+      R.pose[names[2]] = { twist: bt };
+    }
+    sk.angles = keep; sk.place = place; sk.solve();
+  }
+
+  // Lying on a bed (restAt): the body turned to lie along it, face up or down, its middle over the
+  // bed's middle and the lowest point of its skin (the surface map round each bone) on its top
+  _lieAt(target) {
+    const sk = this.sk, up = this.up, keep = sk.angles, place = { q: sk.place.q, t: sk.place.t.slice() };
+    const flat = (v) => v3.sub(v, v3.scale(up, v3.dot(v, up)));
+    const head = v3.unit(flat(target.head)), down = target.face === "down";
+    const pose = liePose(down, target.raise);
+    sk.angles = this._posed(pose, 1);
+    // the body's up along the bed to its head end, its front to the ceiling (or the bed)
+    const q1 = q.between(up, head), f1 = q.rot(q1, this.front), want = v3.scale(up, down ? -1 : 1);
+    const Q = q.norm(q.mul(q.axisAngle(head, Math.atan2(v3.dot(v3.cross(f1, want), head), v3.dot(f1, want))), q1));
+    sk.place = { q: Q, t: [0, 0, 0] };
+    sk.solve();
+    const at = (n) => sk.P[sk.index(n)] || sk.P[0];
+    const mid = v3.scale(v3.add(at("head_end"), v3.scale(v3.add(at("ankle_l"), at("ankle_r")), 0.5)), 0.5);
+    const t = v3.add(flat(v3.sub(target.at, mid)), v3.scale(up, v3.dot(target.at, up) - this.lowest()));
+    sk.angles = keep; sk.place = place; sk.solve();
+    this.rest = { kind: "lie", pose, tilt: 0, on: true, v: 0, still: false, hipUp: null,
+                  from: this.pos.slice(), fromHeading: this.heading, heading: this.heading, to: flat(t),
+                  lie: { q0: place.q, t0: place.t, q: Q, t } };
+    return true;
+  }
+
+  // the height (along up) of the lowest point of the body's skin, posed as the skeleton is now:
+  // round each bone, the surface map's radius toward the floor
+  lowest() {
+    const sk = this.sk, up = this.up, down = v3.scale(up, -1);
+    let low = Infinity;
+    for (let b = 0; b < sk.n; b++) {
+      const m = this.map && this.map.maps[sk.names[b]];
+      if (!m || !sk.W[b]) {
+        if (sk.P[b]) low = Math.min(low, v3.dot(sk.P[b], up));
+        continue;
+      }
+      const d = q.rot(q.conj(sk.W[b]), down), perp = v3.sub(d, v3.scale(m.axis, v3.dot(d, m.axis)));
+      const theta = Math.atan2(v3.dot(d, m.e1), v3.dot(d, m.e0)), k = v3.len(perp);
+      // (along the bone itself: past its ends the map has the next part's skin, which that part's bone moves)
+      for (let i = 0; i <= 8; i++) {
+        const tt = m.length * (-0.1 + 1.1 * i / 8), r = this.map.radius(sk.names[b], tt, theta);
+        if (Number.isNaN(r)) continue;
+        const p = v3.add(m.origin, v3.scale(m.axis, tt));
+        const posed = v3.add(sk.P[b], q.rot(sk.W[b], v3.sub(p, sk.rest[b])));
+        low = Math.min(low, v3.dot(posed, up) - r * k);
+      }
+    }
+    return low;
+  }
   // get up (from sitting or leaning): back where the body stood before
   standUp() { if (this.rest) { this.rest.on = false; this.rest.still = false; } }
 
@@ -478,26 +600,20 @@ export class Walker {
     if (R.still && R.on) return false;
     R.v = ease(R.v, R.on ? 1 : 0, REST.rate, dt);
     if (Math.abs(R.v - (R.on ? 1 : 0)) < 2e-3) R.v = R.on ? 1 : 0;
-    // the body turns and steps over first, then goes down (or comes up, then steps back)
-    const go = smooth(Math.min(1, R.v / 0.6)), down = smooth(Math.max(0, (R.v - 0.25) / 0.75));
-    let d = ((R.heading - R.fromHeading + 3 * Math.PI) % TAU) - Math.PI;
-    this.heading = R.fromHeading + d * go;
     const was = this.pos;
-    this.pos = v3.add(R.from, v3.scale(v3.sub(R.to, R.from), go));
-    this._follow(dt, dt > 0 ? v3.scale(v3.sub(this.pos, was), 1 / dt) : [0, 0, 0]);
-    sk.angles = this._posed(R.pose, down);
-    // (tilted back as it goes down: on the wall, or on the seat's back)
-    const tilted = q.mul(q.axisAngle(v3.cross(up, q.rot(q.axisAngle(up, R.heading), this.front)), -R.tilt * down),
-                         q.axisAngle(up, this.heading));
-    sk.place = { q: tilted, t: this.pos };
-    sk.solve();
-    let drop = this.feet.length ? this.ground - Math.min(...this.feet.map((j) => v3.dot(sk.P[j], up))) : 0;
-    if (R.hipUp !== null) {                      // sitting: the hips go on the seat (feet may hang)
-      const onSeat = this.ground + R.hipUp - v3.dot(sk.P[sk.index("pelvis")], up);
-      drop += (Math.max(onSeat, drop) - drop) * down;
+    if (R.lie) {
+      // lying down: turned over onto the bed in one move, lifted over its edge on the way
+      const L = R.lie, f = smooth(R.v);
+      sk.angles = this._posed(R.pose, f);
+      sk.place = { q: slerp(L.q0, L.q, f), t: v3.add(v3.add(L.t0, v3.scale(v3.sub(L.t, L.t0), f)), v3.scale(up, REST.lieArc * this.H * Math.sin(Math.PI * f))) };
+      sk.solve();
+      this.pos = v3.add(R.from, v3.scale(v3.sub(R.to, R.from), f));
+    } else {
+      // the body turns and steps over first, then goes down (or comes up, then steps back)
+      const go = smooth(Math.min(1, R.v / 0.6)), down = smooth(Math.max(0, (R.v - 0.25) / 0.75));
+      ({ heading: this.heading, pos: this.pos } = this._restPlace(R, go, down));
     }
-    sk.place = { q: tilted, t: v3.add(this.pos, v3.scale(up, drop)) };
-    sk.solve();
+    this._follow(dt, dt > 0 ? v3.scale(v3.sub(this.pos, was), 1 / dt) : [0, 0, 0]);
     if (R.on && R.v === 1) { R.still = true; this.view = this.pos.slice(); }
     if (!R.on && R.v === 0) {                    // up again: the panel's pose, where it stood
       this.rest = null;
@@ -510,10 +626,33 @@ export class Walker {
   }
 }
 
-// Sitting and leaning: degrees and fractions of the height. Leaning on a wall, the body stands
-// a foot or so out from it, tilted back 8 degrees, the back on the wall, a knee a little bent.
-export const REST = { rate: 3, hipOverSeat: 0.05, sitBack: 6, leanTilt: 8,
+// Sitting, leaning and lying: degrees and fractions of the height. Leaning on a wall, the body
+// stands a foot or so out from it, tilted back 8 degrees, the back on the wall, a knee a little
+// bent. forearm: the forearm's half thickness (on an arm rest); lieArc: how high the body is
+// lifted on its way onto a bed.
+export const REST = { rate: 3, hipOverSeat: 0.05, sitBack: 6, leanTilt: 8, forearm: 0.022, lieArc: 0.12,
                       back: { chest: 0.075, spine: 0.07, pelvis: 0.085 } };
+function slerp(a, b, t) {
+  let d = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+  const c = d < 0 ? b.map((x) => -x) : b;
+  d = Math.abs(d);
+  if (d > 0.9995) return q.norm(a.map((x, i) => x + (c[i] - x) * t));
+  const th = Math.acos(d), s = Math.sin(th);
+  return a.map((x, i) => (x * Math.sin((1 - t) * th) + c[i] * Math.sin(t * th)) / s);
+}
+// Lying on a bed: straight, the arms by the sides with the hands flat; face down, the head turned
+// to one side (neck and head together, about 70 degrees) and the toes pointed back along the bed;
+// for the ribs, one arm up over the head (raise: its side)
+function liePose(faceDown, raise = null) {
+  const both = (j, a) => ({ [j + "_l"]: a, [j + "_r"]: a });
+  const up = raise ? { ["shoulder_" + raise]: { flex: 0, side: 165, twist: 0 }, ["elbow_" + raise]: { flex: 20 } } : {};
+  return { ...both("hip", { flex: 2, side: 4, twist: 0 }), ...both("knee", { flex: faceDown ? 4 : 8, twist: 0 }),
+           ...both("ankle", { flex: faceDown ? -40 : -10, side: 0 }),
+           ...both("shoulder", { flex: 0, side: 14, twist: 0 }), ...both("elbow", { flex: 10 }),
+           spine: { flex: 0, side: 0, twist: 0 }, chest: { flex: 0, side: 0, twist: 0 },
+           neck: { flex: 0, side: 0, twist: faceDown ? 40 : 0 }, head: { flex: faceDown ? 0 : 5, side: 0, twist: faceDown ? 32 : 0 },
+           ...up };
+}
 function sitPose(hip, knee, back, ankle = null) {
   const both = (j, a) => ({ [j + "_l"]: a, [j + "_r"]: a });
   const pose = { ...both("hip", { flex: hip, side: 5, twist: 0 }), ...both("knee", { flex: knee, twist: 0 }),

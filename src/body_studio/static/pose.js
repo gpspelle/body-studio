@@ -100,6 +100,9 @@ export const DOF = {
   ankle_l:    { n: F, a1: L, a2: U, k: [-1, 1, -1], flex: [-50, 20], side: [-10, 10], twist: [-15, 30], labels: ["foot", "side", "tilt"] },
 };
 const MAX_SWING = 175;
+// the collarbone's raise with the arm: from this elevation of the arm (degrees), this many degrees
+// per degree, at most this many (Skeleton._rhythm)
+export const RHYTHM = { from: 30, ratio: 0.15, max: 20 };
 
 // the furthest elevation of a cone in plane p (degrees), between the planes it lists
 function coneAt(cone, p) {
@@ -137,6 +140,7 @@ export class Skeleton {
   // the trunk and the head.
   constructor(rig, opts = {}) {
     this.body = opts.body || null;
+    this.rhythm = opts.rhythm !== false;        // the collarbone goes up with the arm (_rhythm)
     this.names = rig.joints.map((j) => j.name);
     this.parents = rig.joints.map((j) => j.parent);
     this.rest = rig.joints.map((j) => j.pos.slice());
@@ -282,20 +286,52 @@ export class Skeleton {
 
   // world rotation (W) and position (P) of every joint for the current angles
   solve() {
-    this.W = []; this.P = [];
+    this.W = []; this.P = []; this.WP = [];
+    const lift = this.rhythm ? this._rhythm() : null, plain = [];
+    const delta = (j, a) => q.mul(q.mul(this.C[j], q.mul(this.rotation(j, a), q.conj(this.restA[j]))), q.conj(this.C[j]));
     for (let j = 0; j < this.n; j++) {
       const p = this.parents[j];
-      let delta = q.id();
+      let d = q.id();
       if (this.angles[j]) {
-        const e = this.extra && this.extra[j], a = this.angles[j];
-        const A = this.rotation(j, e ? { flex: a.flex + (e.flex || 0), side: a.side + (e.side || 0), twist: a.twist + (e.twist || 0) } : a);
-        delta = q.mul(q.mul(this.C[j], q.mul(A, q.conj(this.restA[j]))), q.conj(this.C[j]));
+        const e = this.extra && this.extra[j], a0 = this.angles[j];
+        const a = e ? { flex: a0.flex + (e.flex || 0), side: a0.side + (e.side || 0), twist: a0.twist + (e.twist || 0) } : a0;
+        d = delta(j, a);
+        if (lift && lift[j]) {                   // a collarbone lifted with its arm
+          plain[j] = q.norm(q.mul(this.W[p], d));
+          d = delta(j, { ...a, flex: a.flex + lift[j] });
+        }
       }
-      if (p < 0) { this.W[j] = q.norm(q.mul(this.place.q, delta)); this.P[j] = v3.add(this.rest[j], this.place.t); continue; }
-      this.W[j] = q.norm(q.mul(this.W[p], delta));
+      if (p < 0) { this.WP[j] = this.place.q; this.W[j] = q.norm(q.mul(this.place.q, d)); this.P[j] = v3.add(this.rest[j], this.place.t); continue; }
+      // (the arm keeps the way it was set to point; only where it starts goes up with the collarbone)
+      this.WP[j] = plain[p] || this.W[p];
+      this.W[j] = q.norm(q.mul(this.WP[j], d));
       this.P[j] = v3.add(this.P[p], q.rot(this.W[p], v3.sub(this.rest[j], this.rest[p])));
     }
     return this;
+  }
+
+  // the rotation joint j's own turn is applied after (its parent's, or the collarbone's before it
+  // was lifted with the arm)
+  parentW(j) { return this.WP[j] || q.id(); }
+
+  // The shoulder blade and the collarbone go up with the arm: past about 30 degrees, for every
+  // degree the arm rises the collarbone rises a fraction of one (the scapulohumeral rhythm, about
+  // 1 of shoulder blade to 2 of arm; Inman et al. 1944, McClure et al. 2001), so the top of the
+  // shoulder lifts and the skin over it isn't crushed into the neck. Measured from the scan's pose,
+  // which stays as it is. {collarbone index: degrees of raise}
+  _rhythm() {
+    // (across the front of the body the shoulder blade slides forward more than it turns up)
+    const out = {}, f = (a) => {
+      const plane = Math.atan2(a.flex, a.side) / RAD, across = plane > 90 ? Math.max(0, (180 - plane) / 90) : 1;
+      return across * Math.min(RHYTHM.max, Math.max(0, (Math.hypot(a.flex, a.side) - RHYTHM.from) * RHYTHM.ratio));
+    };
+    for (const s of ["l", "r"]) {
+      const sh = this.index("shoulder_" + s), cl = this.index("clavicle_" + s);
+      if (sh < 0 || cl < 0 || !this.angles[sh] || !this.angles[cl] || !this.restAngles[sh]) continue;
+      const lift = f(this.angles[sh]) - f(this.restAngles[sh]);
+      if (Math.abs(lift) > 1e-6) out[cl] = lift;
+    }
+    return out;
   }
 
   // turn joint j so its bone points along `dir` (posed, PLY coordinates), keeping its twist

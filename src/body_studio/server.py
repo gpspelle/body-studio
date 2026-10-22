@@ -203,7 +203,7 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._json(sorted((job_view(v, rooms) for v in jobs), key=lambda v: v["id"], reverse=True))
             if p == "/api/rooms":
                 try:
-                    sample_room.start(data.root)        # the drawn living room: listed once it's made
+                    sample_room.start(data.root)        # the drawn living room and tattoo studio: listed once made
                 except OSError:
                     pass
                 return self._json(library.rooms(data.root))

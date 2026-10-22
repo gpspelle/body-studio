@@ -653,6 +653,23 @@ window.wardrobe = {
   // a worn item's splats (centres, skin, flesh layers), for tests
   item: (id) => [...(W ? W.worn.values() : [])].find((e) => e.id === id)?.splats || null,
   hidden: () => (W ? W.hidden.size : 0),
+  // the worn items over some of the body's splats (a tattoo's skin): their ids
+  covering: (splats) => {
+    if (!W || !W.cover) return [];
+    const near = W.cover.nearest;
+    return [...W.worn.values()].filter((e) => {
+      if (!e.covers) return false;
+      e.coverSet ??= new Set(e.covers);
+      return splats.some((i) => e.coverSet.has(near[i]));
+    }).map((e) => e.id);
+  },
+  // items off for a while (at the tattoo bed) without forgetting they are worn, and on again
+  lend: (ids) => {
+    if (!W) return;
+    for (const [slot, e] of [...W.worn]) if (ids.includes(e.id)) takeOff(slot);
+    dressSkin(); ui();
+  },
+  giveBack: async (ids) => { for (const id of ids) if (!isWorn(id)) await wear(id, true); if (W) changed(); },
   // how much the hat was enlarged to go over the hair (1: no hair, or it fits as it is)
   hatScale: () => (W && W.worn.get("hat")?.hatScale) || 0,
   tinted: () => (W ? W.tinted.size : 0),

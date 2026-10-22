@@ -5,10 +5,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { Skeleton, SkinWeights, SurfaceMap, q, v3 } from "../../src/body_studio/static/pose.js";
+import { Skeleton, SkinWeights, SurfaceMap, dualQuats, skinPoint, q, v3 } from "../../src/body_studio/static/pose.js";
 import { Walker } from "../../src/body_studio/static/walk.js";
 import { CH, MAX_CAPSULES, PARTS, SHADE, SWING, BULGE, Swing, bodyCapsules, channelLevels, curl, darknessAt, handFrames,
-         looseness, smoothOver, swingPoint, occlusion, inkFactor, HEALED, PIGMENT, shapeKg, shapeOffsets, SkinField, partsOf, penetration, posedCapsules, pushOut, restOffsets, shadowBlobs, boneParts } from "../../src/body_studio/static/flesh.js";
+         looseness, smoothOver, swingPoint, occlusion, inkFactor, HEALED, PIGMENT, shapeKg, shapeOffsets, SkinField, partsOf, penetration, posedCapsules, pushOut, restOffsets, shadowBlobs, boneParts,
+         FOLD, TWIST, foldNeighbours, twistFractions, twistState, twistPoint } from "../../src/body_studio/static/flesh.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { up: U, front: F, left: L } = rig.frame;
@@ -284,4 +285,102 @@ test("healed ink: darker than the skin, greyer than the design, never black", ()
   for (let x = 0; x < 3; x++) assert.ok(black[x] > PIGMENT[x] && black[x] < 0.25, "black ink lets a little skin through");
   // red stays red, but less so than the design: its channels closer together
   assert.ok(red[0] > red[1] && red[0] - red[1] < 0.88 * HEALED.depth * 0.8);
+});
+
+// the MakeHuman body's splats with their skin, once
+let skinned = null;
+function body() {
+  if (skinned) return skinned;
+  const pts = readPly(process.env.BODY_PLY), n = pts.length / 3, w = new SkinWeights(rig);
+  const bones = new Uint8Array(n * 4), weights = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) w.at(pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2], bones, weights, i);
+  return (skinned = { pts, n, bones, weights, parts: partsOf(bones, weights, n, boneParts(rig)) });
+}
+
+test("more bulges: the deltoid with the arm up, the forearm with a fist, the calf with the toes pointed", () => {
+  const { pts, n, parts } = body();
+  const { A, B } = restOffsets(rig, pts, parts, handFrames(rig), n);
+  const count = (chs) => { let c = 0; for (let i = 0; i < n; i++) if (chs.includes(A[i * 4 + 3]) || chs.includes(B[i * 4 + 3])) c++; return c; };
+  for (const [name, chs] of [["deltoid", [CH.raise_l, CH.raise_r]], ["forearm", [CH.grip_l, CH.grip_r]], ["calf", [CH.point_l, CH.point_r]]])
+    assert.ok(count(chs) > 0.004 * n, `${name} swells (${count(chs)} of ${n})`);
+  // and their channels follow the pose
+  const sk = new Skeleton(rig);
+  const rest = channelLevels(sk);
+  sk.set("shoulder_l", { flex: 0, side: 160 }); sk.set("ankle_r", { flex: -45 }); sk.solve();
+  const c = channelLevels(sk, { fist: { l: 1, r: 0 } });
+  assert.ok(c[CH.raise_l] > 0.9 && c[CH.raise_l] > rest[CH.raise_l] + 0.5, `arm up ${c[CH.raise_l]}`);
+  assert.ok(c[CH.point_r] > 0.9, `toes pointed ${c[CH.point_r]}`);
+  near(c[CH.grip_l], 1, 1e-6); near(c[CH.grip_r], 0, 1e-6);
+});
+
+test("the forearm's skin turns with the hand: all of it at the wrist, none at the elbow", () => {
+  const { pts, n, bones, weights, parts } = body();
+  const T = twistFractions(rig, pts, bones, weights, parts, n), fore = PARTS.indexOf("forearm_l");
+  const el = joint("elbow_l"), wr = joint("wrist_l"), ax = v3.sub(wr, el), len2 = v3.dot(ax, ax);
+  const k = TWIST.limbs.findIndex((L) => L.part === "forearm_l");
+  let nearElbow = [], nearWrist = [];
+  for (let i = 0; i < n; i++) {
+    if (parts[i] !== fore) continue;
+    const t = v3.dot(v3.sub([pts[i * 3], pts[i * 3 + 1], pts[i * 3 + 2]], el), ax) / len2;
+    assert.equal(T[i * 4 + 1], T[i * 4] ? k : -1);
+    if (t < 0.15) nearElbow.push(T[i * 4]);
+    if (t > 0.6 && t < 0.8) nearWrist.push(T[i * 4]);
+  }
+  const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+  assert.ok(mean(nearElbow) < 0.12, `near the elbow it hardly turns (${mean(nearElbow)})`);
+  assert.ok(mean(nearWrist) > 0.5, `near the wrist most of the way (${mean(nearWrist)})`);
+  // the twist is the wrist's turn, and a point taking all of it goes where the hand takes it
+  const sk = new Skeleton(rig), j = sk.index("wrist_l"), r = sk.restAngles[j];
+  sk.angles[j] = sk.clamp(j, { ...r, twist: r.twist + 60 });
+  sk.solve();
+  const S = twistState(sk);
+  near(Math.abs(S[k * 8 + 3]) * 180 / Math.PI, 60, 2, "the forearm's twist");
+  const dq = dualQuats(sk.transforms()), p = v3.add(v3.scale(el, 0.2), v3.scale(wr, 0.8));
+  const side = v3.scale(v3.unit(v3.cross(ax, F)), 0.03 * H), on = v3.add(p, side);
+  const byHand = skinPoint(on, [j, 0, 0, 0], [255, 0, 0, 0], dq);
+  const byElbow = twistPoint(skinPoint(on, [sk.index("elbow_l"), 0, 0, 0], [255, 0, 0, 0], dq), S, k, 1);
+  // (the hand's bone pivots at the wrist, the twist about the forearm's axis: the same turn about the same line)
+  near(v3.len(v3.sub(byHand, byElbow)), 0, 0.002 * H, "frac 1 is the hand's turn");
+  // no twist: nothing turns
+  const S0 = twistState(new Skeleton(rig));
+  for (let m = 0; m < TWIST.limbs.length; m++) near(S0[m * 8 + 3], 0, 1e-6);
+});
+
+test("the upper arm's and the thigh's skin lags near the trunk", () => {
+  const { pts, n, bones, weights, parts } = body();
+  const T = twistFractions(rig, pts, bones, weights, parts, n);
+  for (const name of ["arm_r", "thigh_l"]) {
+    const k = TWIST.limbs.findIndex((L) => L.part === name), part = PARTS.indexOf(name);
+    let lag = 0, most = 0;
+    for (let i = 0; i < n; i++) if (parts[i] === part && T[i * 4 + 1] === k) { lag++; most = Math.min(most, T[i * 4]); }
+    assert.ok(lag > 100, `${name}: ${lag} splats lag`);
+    assert.ok(most >= -TWIST.lag - 1e-6 && most < -0.1, `${name}: at most ${TWIST.lag} behind (${most})`);
+  }
+  const sk = new Skeleton(rig), j = sk.index("hip_l"), r = sk.restAngles[j];
+  sk.angles[j] = sk.clamp(j, { ...r, twist: r.twist + 30 });
+  sk.solve();
+  const k = TWIST.limbs.findIndex((L) => L.part === "thigh_l");
+  near(Math.abs(twistState(sk)[k * 8 + 3]) * 180 / Math.PI, 30, 2, "the thigh's twist");
+});
+
+test("a bent elbow or knee folds the skin instead of passing through", () => {
+  const nb = foldNeighbours(), I = (p) => PARTS.indexOf(p);
+  for (const s of ["l", "r"]) for (const [a, b] of FOLD.pairs) {
+    const pa = I(a === "trunk" ? a : a + "_" + s), pb = I(b + "_" + s);
+    assert.ok((nb[pa] >> pb) & 1 && (nb[pb] >> pa) & 1, `${a} and ${b} fold against each other`);
+  }
+  assert.equal((nb[I("arm_l")] >> I("trunk")) & 1, 0, "an arm doesn't fold against the trunk");
+  const sk = new Skeleton(rig);
+  sk.set("knee_l", { flex: 140 }); sk.solve();
+  const C = posedCapsules(caps, sk.transforms()), shinCap = caps.findIndex((c) => PARTS[c.part] === "shin_l");
+  // the back of the calf, near the knee, where the bend has brought it into the thigh
+  const c0 = caps[shinCap], back = v3.scale(F, -1);
+  const dq = dualQuats(sk.transforms()), kn = sk.index("knee_l");
+  const atRest = v3.add(v3.add(c0.a, v3.scale(v3.sub(c0.b, c0.a), 0.15)), v3.scale(back, 0.8 * c0.r));
+  const p = skinPoint(atRest, [kn, 0, 0, 0], [255, 0, 0, 0], dq), shin = I("shin_l");
+  const deep = penetration(p, shin, C, caps.length, H, FOLD.margin, nb[shin]);
+  assert.ok(deep > 0.005 * H, `the calf goes into the thigh by ${deep / H}`);
+  const out = pushOut(p, shin, C, caps.length, H, 0, FOLD.margin, nb[shin]);
+  assert.ok(penetration(out, shin, C, caps.length, H, FOLD.margin, nb[shin]) < 1e-6 * H, "pushed out of it");
+  assert.ok(v3.len(v3.sub(out, p)) < 0.08 * H, "by a few centimetres");
 });

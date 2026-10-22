@@ -34,7 +34,13 @@ skin.
 - **Contact shading**: skin is darker where another part of the body comes close (an arm down by
   the side, the thighs together, the inside of a bent elbow), compared with how close it already
   was in the scan, whose own shading is in its colours.
-- **Bulges**: the biceps swells as the elbow bends, the chest and belly rise with a breath.
+- **Bulges**: the biceps swells as the elbow bends, the deltoid as the arm rises, the forearm as
+  the hand makes a fist and the calf as the foot points; the chest and belly rise with a breath.
+- **Twist along the limb**: turning the hand turns the forearm's skin more the nearer the hand
+  (all of it at the wrist, none at the elbow); the upper arm and the thigh take a share of the
+  shoulder's and the hip's twist near the joint. See [tattoo.md](tattoo.md).
+- **Skin folds**: at a bent elbow, knee or hip, skin of one part is pushed out of the next part's
+  capsule, no deeper than it was at rest, so the calf presses on the thigh instead of going into it.
 - **Skin that stays closed**: where a pose pulls the skin apart between two bones (the armpit with
   the arms up), its splats grow along the skin, so it doesn't break into flakes.
 - **Clothes stay out of the body**: an item's splats are pushed out of the capsules of other

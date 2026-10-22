@@ -25,7 +25,7 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 from splat_studio.server.jobs import Runner  # noqa: E402
 from splat_studio.server.library import DataDir  # noqa: E402
 
-from body_studio import history, sample_room, server  # noqa: E402
+from body_studio import history, library, sample_room, server  # noqa: E402
 
 SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("desktop-light", 1280, 800, "light", "en", None),
@@ -39,6 +39,7 @@ SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("guide-desktop", 1280, 800, "light", "en", "guide"),
     ("room-desktop", 1280, 800, "light", "en", "room"),
     ("decor-desktop", 1280, 800, "light", "en", "decor"),
+    ("studio-desktop", 1280, 800, "light", "en", "studio"),
     ("loading-desktop", 1280, 800, "light", "en", "loading"),
 ]
 # a line-art design drawn on white, like a scanned tattoo sketch: a sun with a wave inside
@@ -98,6 +99,7 @@ def main() -> None:
         os.utime(p, (1_990_000_000, 1_990_000_000))
         seed_person(data)
         sample_room.ensure(data.root)                   # the sample living room, for the room shot
+        sample_room.ensure(data.root, library.STUDIO)   # and the tattoo studio
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
         url = f"http://127.0.0.1:{httpd.server_address[1]}/"
@@ -127,6 +129,8 @@ def main() -> None:
                     room_scene(page)
                 if panel == "decor":
                     decor_scene(page)
+                if panel == "studio":
+                    studio_scene(page)
                 if panel == "guide":
                     page.click("#guideBtn")
                 page.wait_for_function("document.getElementById('busy').hidden", timeout=180000)
@@ -154,7 +158,7 @@ def tattoo_scene(page, tmp: Path) -> None:
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)   # (frames are slow while it loads)
     page.locator("#presets button").nth(2).click(timeout=120000)   # flex
     page.set_input_files("#tatPick", str(design))
-    page.wait_for_function("document.getElementById('tatHint').textContent.length > 0")
+    page.wait_for_function("document.getElementById('tatHint').textContent.length > 0", timeout=120000)
     elbow, wrist = page.evaluate("[tattooStudio.joint('elbow_l'), tattooStudio.joint('wrist_l')]")
     at = [0.5 * a + 0.5 * b for a, b in zip(elbow, wrist)]
     page.mouse.click(*page.evaluate(f"tattooStudio.screen({at})"))
@@ -286,6 +290,35 @@ def decor_scene(page) -> None:
         V.camera.position.copy(V.holder.localToWorld(C.clone().set(...eye)));
         V.controls.autoRotate = false; V.controls.update(); })()""")
     page.wait_for_function("decor.drawn() >= 18 && !decor.saving")
+    settle(page)
+
+
+def studio_scene(page) -> None:
+    """Mia in the sample tattoo studio, in the tattoo chair with her left arm on its rest and a
+    rose from the flash wall on the forearm, the clothes over it off, the flash wall behind."""
+    dress(page, items=("tee_jeans_f", "white_sneakers", "bob_dark"))
+    page.evaluate("house.choose(house.rooms().find((r) => r.name === '_sample_studio').file)")
+    page.wait_for_function("house.shown() && window.parlour && parlour.shown() && parlour.sheets().every((s) => s.ready)", timeout=300000)
+    page.wait_for_function("document.getElementById('busy').hidden", timeout=180000)
+    page.evaluate("parlour.pick(0)")                                # the rose
+    page.wait_for_function("tattooStudio.pending()")
+    page.evaluate("house.view()")
+    elbow, wrist = page.evaluate("[tattooStudio.joint('elbow_l'), tattooStudio.joint('wrist_l')]")
+    page.mouse.click(*page.evaluate(f"tattooStudio.screen({[0.45 * a + 0.55 * b for a, b in zip(elbow, wrist)]})"))
+    page.wait_for_function("tattooStudio.tattoos().length === 1 && tattooStudio.tattoos()[0].inked", timeout=120000)
+    page.evaluate("(() => { const e = document.getElementById('tatSize'); e.value = '7'; e.dispatchEvent(new Event('input')); })()")
+    page.evaluate("document.getElementById('closeStudio').click()")
+    page.evaluate("""(() => { const fx = house.fixtures(), c = fx.chair, w = tattooStudio.walker(), P = house.placement(), o = tattooStudio.rig().frame.origin;
+        const b = P.toBody([c.at[0] + c.facing[0] * 0.7, 0, c.at[2] + c.facing[2] * 0.7]);
+        w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; tattooStudio.redraw(); house.rest(); tattooStudio.stepFor(3);
+        // the camera in front of the chair, to the side away from the flash wall, looking at her and the wall
+        const V = bodyApp.viewer, T = V.controls.target;
+        const eye = P.toBody([c.at[0] - 1.9, 1.5, c.at[2] - 1.5]), at = P.toBody([c.at[0] - 0.5, 0.95, c.at[2] + 0.3]);
+        V.holder.updateMatrixWorld();
+        T.copy(V.holder.localToWorld(T.clone().set(...at)));
+        V.camera.position.copy(V.holder.localToWorld(T.clone().set(...eye)));
+        V.controls.autoRotate = false; V.controls.update(); })()""")
+    page.wait_for_function("house.sight() === 1 && tattooStudio.walker().resting === 'sit'")
     settle(page)
 
 

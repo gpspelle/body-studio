@@ -50,18 +50,21 @@ def _runs(data_dir: Path):
 
 
 SAMPLE = "_sample_room"           # the drawn living room (sample_room.py): listed last, never a body
+STUDIO = "_sample_studio"         # the drawn tattoo studio (sample_studio.py): after it
+SAMPLES = (SAMPLE, STUDIO)
 
 
 def rooms(data_dir: Path) -> list[dict]:
-    names, out = room_names(data_dir) | {SAMPLE}, []
+    names, out = room_names(data_dir) | set(SAMPLES), []
     for run_dir in _runs(data_dir):
         f = run_dir.parent.name in names and room_file(run_dir)
         if not f:
             continue
         out.append({"id": f"{run_dir.parent.name}/{run_dir.name}", "name": run_dir.parent.name,
                     "file": f.relative_to(data_dir).as_posix(), "updated": f.stat().st_mtime,
-                    "sample": run_dir.parent.name == SAMPLE})
-    return sorted(out, key=lambda b: (not b["sample"], b["updated"]), reverse=True)
+                    "sample": run_dir.parent.name in SAMPLES})
+    # filmed rooms newest first, then the samples in their order
+    return sorted(out, key=lambda b: (SAMPLES.index(b["name"]) if b["sample"] else -1, -b["updated"]))
 
 
 def body_file(run_dir: Path) -> Path | None:
@@ -78,7 +81,7 @@ def body_file(run_dir: Path) -> Path | None:
 
 
 def bodies(data_dir: Path) -> list[dict]:
-    out, names = [], room_names(data_dir) | {SAMPLE}
+    out, names = [], room_names(data_dir) | set(SAMPLES)
     for run_dir in _runs(data_dir):
         if run_dir.parent.name in names:
             continue

@@ -50,6 +50,11 @@
 
 <div class="bottom">
   <p id="walkHint" class="walk-hint" role="status" hidden></p>
+  <div id="studioViews" class="chips views" role="group" data-i18n-aria-label="studio.views" hidden>
+    <button type="button" data-view="room" class="on" data-i18n="studio.viewRoom"></button>
+    <button type="button" data-view="artist" data-i18n="studio.viewArtist"></button>
+    <button type="button" data-view="mirror" data-i18n="studio.viewMirror"></button>
+  </div>
   <nav id="shelf" class="shelf" data-i18n-aria-label="app.bodies"></nav>
   <footer class="foot">
     <span id="version"></span> ·
@@ -548,6 +553,7 @@ setInterval(refreshJobs, 2000);
 <script type="module" src="/static/wardrobe.js"></script>
 <script type="module" src="/static/tattoo.js"></script>
 <script type="module" src="/static/house.js"></script>
+<script type="module" src="/static/parlour.js"></script>
 <script type="module" src="/static/decorate.js"></script>
 </body>
 </html>

@@ -173,7 +173,8 @@ opens (it stays as you last left it), so the clothes are there from the start.
   ![The Guide](docs/images/guide-desktop.png)
 - **It looks alive**: standing still, the body breathes, sways a little, blinks and turns its head
   to you. Walking, its feet stay planted. Skin darkens where it meets skin, the biceps swells as
-  the arm bends, a skirt or a ponytail trails behind as it walks and turns and swings on when it
+  the arm bends, a turned hand turns the whole forearm's skin (so a tattoo on it turns too), the
+  shoulder rises with a raised arm, bent skin presses together instead of passing through, a skirt or a ponytail trails behind as it walks and turns and swings on when it
   stops, and a soft shadow on the floor follows it. Pick
   **Hands**: as scanned, relaxed or a fist. **What if** sliders show the person lighter or heavier
   (about ±12 kg) and with less or more muscle; they aren't saved. How it works:
@@ -212,6 +213,15 @@ gets up. The camera stays inside the room.
 - **Sample living room** is always in the list, so you can try it before filming anything: a
   furnished room drawn by the app (sofa, armchair, bookshelf, TV, dining table, plant), made in
   the data folder the first time the list opens (`workspace/_sample_room/`).
+- **Sample tattoo studio** is there too: a tattoo bed, a reclining chair with arm rests, a flash
+  wall of designs and a mirror (`workspace/_sample_studio/`). Tap a design on the flash wall to
+  pick it, then tap the body to lay it there. **F** by the bed or the chair goes where that tattoo
+  is made: in the chair with the arm on its rest for an arm, lying face down for the back, face up
+  for the belly or a leg, with the arm over the head for the ribs. The clothes over the tattoo
+  come off there and go back on when the body gets up. **Room**, **Artist** and **Mirror** under
+  the body change the view. More: [docs/tattoo.md](docs/tattoo.md#the-tattoo-studio).
+
+  ![The body in the tattoo chair of the sample tattoo studio](docs/images/studio-desktop.png)
 - Filming a room: walk slowly round it with the phone at chest height, pointing at the walls, and
   get the floor (and the ceiling, if you can) in view. One take, 1–3 minutes; for a house, walk
   from room to room without stopping.
@@ -394,7 +404,8 @@ quando a página abre (fica como você deixou da última vez), então as roupas 
   todos os controles.
 - **Parece vivo**: parado, o corpo respira, balança um pouco, pisca e vira a cabeça para você.
   Andando, os pés ficam firmes no chão. A pele escurece onde encosta em pele, o bíceps cresce
-  quando o braço dobra, a saia ou o rabo de cavalo ficam um pouco para trás ao andar e virar e
+  quando o braço dobra, a mão que gira gira a pele do antebraço todo (e a tatuagem nele junto), o
+  ombro sobe com o braço levantado, a pele dobrada se aperta em vez de atravessar, a saia ou o rabo de cavalo ficam um pouco para trás ao andar e virar e
   balançam quando ele para, e uma sombra suave no chão acompanha
   o corpo. Escolha **Mãos**: como escaneadas, relaxadas ou punho fechado. Os controles **E se**
   mostram a pessoa mais leve ou mais pesada (cerca de ±12 kg) e com menos ou mais músculo; não são
@@ -433,6 +444,14 @@ levanta. A câmera fica dentro do cômodo.
 - **Sala de exemplo** está sempre na lista, para experimentar antes de filmar qualquer coisa: uma
   sala mobiliada desenhada pelo app (sofá, poltrona, estante, TV, mesa de jantar, planta), criada
   na pasta de dados na primeira vez que a lista abre (`workspace/_sample_room/`).
+- **Estúdio de tatuagem de exemplo** também está lá: uma maca, uma cadeira reclinável com apoios
+  de braço, uma parede de flash com desenhos e um espelho (`workspace/_sample_studio/`). Toque num
+  desenho da parede para escolhê-lo e depois no corpo para colocá-lo ali. **F** perto da maca ou da
+  cadeira vai para onde essa tatuagem é feita: na cadeira com o braço no apoio, para um braço;
+  deitado de bruços, para as costas; de barriga para cima, para a barriga ou uma perna; com o braço
+  sobre a cabeça, para as costelas. As roupas sobre a tatuagem saem ali e voltam quando o corpo
+  levanta. **Estúdio**, **Tatuador** e **Espelho**, embaixo do corpo, mudam a vista. Mais (em
+  inglês): [docs/tattoo.md](docs/tattoo.md#the-tattoo-studio).
 - Para filmar um cômodo: ande devagar em volta, com o celular na altura do peito, apontando para as
   paredes, e pegue o chão (e o teto, se der). Uma tomada só, de 1 a 3 minutos; para a casa, vá de
   um cômodo ao outro sem parar.

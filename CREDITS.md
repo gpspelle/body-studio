@@ -90,3 +90,9 @@ are built from MakeHuman's base mesh.
 | Bead necklace | Necklace | beads round the base mesh's neck | CC0 1.0 |
 | Silver chain | Necklace | a rod round the base mesh's neck | CC0 1.0 |
 | Studded choker | Necklace | a band round the base mesh's neck | CC0 1.0 |
+
+## The tattoo studio
+
+The sample tattoo studio (`sample_studio.py`) and the twelve starter designs on its flash wall
+(`src/body_studio/static/flash/`: rose, swallow, anchor, heart, dagger, snake, moth, mandala,
+geometric, wave, sun, lightning) are drawn by Body Studio itself and released under **CC0 1.0**.

@@ -69,6 +69,16 @@ camera loop 1.45 m up), so it is mapped and shown like a filmed room, and listed
 the first time the rooms are listed (a few seconds, 26 MB) and again only when its `VERSION`
 changes.
 
+## The sample tattoo studio
+
+Also in the menu, after the living room: **Sample tattoo studio** (`sample_studio.py`), 5 × 4.2 m,
+2.7 m high: a tattoo bed, a reclining chair with two arm rests, a stool, the artist's tray, a flash
+wall of cork, a mirror, a counter and a neon sign, in
+`workspace/_sample_studio/run_sample/splat/tattoo_studio_clean.ply`. Beside it,
+`tattoo_studio_clean.fixtures.json` says where the furniture is, in the studio's metres; room.py
+turns it into the map's metres (`fixtures` in the map), and the page uses it to hang designs on the
+flash wall and to put the body on the bed or in the chair. What happens there: [tattoo.md](tattoo.md#the-tattoo-studio).
+
 ## Filming a room
 
 - Walk slowly round the room, the phone at chest height, pointing at the walls; turn slowly. Get
@@ -87,8 +97,9 @@ changes.
 - **No lighting match**: the body keeps the light it was filmed in. Relighting needs the room's
   light, which a splat doesn't separate from its colours.
 - **Seats are flat tops.** A bed or a low wall counts if it is 30–65 cm high; an armchair's
-  arms or a sloping back cushion aren't modelled. Lying down (on a bed or the sofa) and putting
-  a hand on a table are the next poses to add.
+  arms or a sloping back cushion aren't modelled. Lying down is only on the studio's bed (it
+  knows where the bed is from its fixtures); lying on a filmed bed or the sofa and putting a hand
+  on a table are the next poses to add.
 - **The body doesn't hide behind furniture by depth.** Splats of the body and the room are sorted
   together, which is right when they don't overlap; a body sitting deep in a fluffy cushion can
   show through it.

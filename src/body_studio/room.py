@@ -17,6 +17,10 @@ and the furniture. The map is made once per room, from where its opaque splats a
 - seats are flat surfaces 30 to 65 cm high, big enough to sit on, next to free floor: where to sit
   on each, which way to face (to the free floor) and whether there is a back behind.
 
+A room drawn by the app (the sample tattoo studio) also says where its furniture is, in a
+`ROOM.fixtures.json` next to it (the bed, the chair, the flash wall…); the map carries it as
+`fixtures`, in the map's metres. A filmed room has none.
+
 Positions in the map are in metres, in the room's own frame: x and z along the floor (z = x × up),
 y up from the floor; `frame` turns the PLY's coordinates into it. Standard library only.
 """
@@ -49,6 +53,12 @@ CEILING = 2.5               # m: a ceiling, when nothing else tells the size
 MAX_CELLS = 400             # cells along a side; a bigger place takes bigger cells
 MAX_SPLATS = 1_500_000      # opaque splats looked at (spread evenly over the file)
 OPAQUE = 0.5
+
+
+# what each key of a fixture is, to turn it from the PLY's coordinates into the map's: a point, a
+# direction or a length; anything else (an angle, a name) is kept as it is
+FIXTURE_KEYS = {"at": "point", "centre": "point", "head": "dir", "facing": "dir", "normal": "dir", "right": "dir",
+                "length": "length", "width": "length", "height": "length"}
 
 
 class RoomError(ValueError):
@@ -239,7 +249,39 @@ def build(path: Path, run_dir: Path | None = None) -> dict:
                    [((_dot(c, X)) * mpu, (_dot(c, Z)) * mpu) for c in cams])
     if start is None:
         raise RoomError("no free floor to stand on", "floor")
-    return encode(fr, floor, ceiling, mpu, source, cell, nx, nz, x0, z0, walk, top, tall, seats, start, len(op))
+    out = encode(fr, floor, ceiling, mpu, source, cell, nx, nz, x0, z0, walk, top, tall, seats, start, len(op))
+    fx = read_fixtures(path, fr, floor, mpu)
+    if fx:
+        out["fixtures"] = fx
+    return out
+
+
+def fixtures_file(ply: Path) -> Path:
+    return Path(ply).with_name(Path(ply).stem + ".fixtures.json")
+
+
+def read_fixtures(ply: Path, fr: dict, floor: float, mpu: float) -> dict | None:
+    """The room's fixtures (fixtures_file), turned into the map's metres; None when it has none."""
+    try:
+        raw = json.loads(fixtures_file(ply).read_text())
+    except (OSError, ValueError):
+        return None
+    X, U, Z = fr["x"], fr["up"], fr["z"]
+
+    def conv(v, key=None):
+        if isinstance(v, dict):
+            return {k: conv(x, k) for k, x in v.items()}
+        if isinstance(v, list) and v and isinstance(v[0], dict):
+            return [conv(x) for x in v]
+        kind = FIXTURE_KEYS.get(key)
+        if kind == "point":
+            return [round(_dot(v, X) * mpu, 4), round((_dot(v, U) - floor) * mpu, 4), round(_dot(v, Z) * mpu, 4)]
+        if kind == "dir":
+            return _r(_unit((_dot(v, X), _dot(v, U), _dot(v, Z))))
+        if kind == "length":
+            return round(v * mpu, 4)
+        return v
+    return conv(raw) if isinstance(raw, dict) else None
 
 
 def _blur(count, nx, nz, nb):

@@ -34,6 +34,12 @@ tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no ex
   F, the camera kept inside) in `static/house.js`. The sample living room (drawn, listed before
   any room is filmed) in `sample_room.py`. The fake room for tests is `tests/fakes/room.py`. See
   `docs/room.md`.
+  The tattoo studio: the sample studio and its fixtures (where the bed, chair, rests, flash wall
+  and mirror are; room.py puts them in the map) in `sample_studio.py`, the flash wall's layout,
+  where a tattoo is made and the camera's views as maths in `static/flash.js` (tested by
+  `tests/js/flash.test.mjs`), lying on the bed and the chair's recline and arm rest in
+  `static/walk.js`, the page side (sheets, F at the bed or chair, clothes off, Room/Artist/Mirror) in
+  `static/parlour.js`. Starter designs in `static/flash/` (ours, CC0). See `docs/tattoo.md`.
   Decor in a room: the inventory, items made from photos and the layouts per room in `decor.py`
   (`decor/` in the data folder), a photo to a mesh with TripoSR in its own process in `photo3d.py`
   (installed by setup or on first use, never imported by the server), the starters' shapes and where

@@ -11,9 +11,10 @@ import { SplatEdit, SplatEditSdf, SplatMesh, SplatSkinning } from "@sparkjsdev/s
 import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, INK_OUT, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
 const q = quat;
 import { Life, Walker } from "/static/walk.js";
-import { bodyCapsules, channelLevels, copyLayers, fillLayers, HEALED, inkFactor, handFrames, posedCapsules, shapeKg, shapeOffsets, SkinField, Swing, SWING, weightGradients } from "/static/flesh.js";
+import { bodyCapsules, channelLevels, copyLayers, fillLayers, HEALED, inkFactor, handFrames, posedCapsules, shapeKg, shapeOffsets, SkinField, Swing, SWING, twistState, weightGradients } from "/static/flesh.js";
 import { fitWhatIf } from "/static/dress.js";
 import { Flesh } from "/static/fleshgpu.js";
+import { alongTrunk, gridNormal, nearestOnBones } from "/static/flash.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -46,6 +47,7 @@ const HIT_PX = matchMedia("(pointer: coarse)").matches ? 26 : 16;
 let S = null;            // the body being posed: rig, skeleton, weights, splats, tattoos…
 let loading = null;      // body file whose rig is on its way
 let pending = null;      // a tattoo image waiting for a tap on the body
+let pendingName = "";    // and its name (a design picked from the flash wall, parlour.js)
 let drag = null;
 
 // ---------------------------------------------------------------- panel
@@ -148,8 +150,8 @@ function setup(rig, mesh, file) {
   mesh.updateGenerator();
   // what skin does that bones don't (flesh.js): bulges, contact shading, skin that stays closed
   const caps = bodyCapsules(rig, map), hands = handFrames(rig, palms);
-  const flesh = new Flesh(mesh, skinning, n, rig.height, { shade: true, stretch: true });
-  fillLayers(flesh.layers, rig, caps, centres, bones, w, n, { hands, stretch: weightGradients(centres, bones, w, n, 0.012 * rig.height) });
+  const flesh = new Flesh(mesh, skinning, n, rig.height, { shade: true, stretch: true, fold: true });
+  fillLayers(flesh.layers, rig, caps, centres, bones, w, n, { hands, fold: true, stretch: weightGradients(centres, bones, w, n, 0.012 * rig.height) });
   flesh.upload();
 
   const handleJoints = Object.keys(HANDLES).filter((h) => sk.index(h) >= 0);
@@ -235,7 +237,8 @@ function drawPose(idle = false) {
   skinning.updateBones();
   const walk = S.walker.walking, fist = Math.max(S.hands, 0.3 * walk);   // hands relax a little to walk
   S.life.fist = { l: fist, r: fist };
-  S.fleshState = { caps: posedCapsules(S.caps, tr), nCaps: S.caps.length, chans: channelLevels(sk, S.life), shape: S.shape, swing: swing() };
+  S.fleshState = { caps: posedCapsules(S.caps, tr), nCaps: S.caps.length, chans: channelLevels(sk, S.life), shape: S.shape, swing: swing(),
+                   twists: twistState(sk) };
   S.flesh.set(S.fleshState);
   shadow();
   blinkAt(tr);
@@ -644,8 +647,8 @@ function onDown(e) {
   if (pending) {
     hit = hitBody(e);
     if (!hit) return;
-    const tt = addTattoo(pending, anchorAt(hit.rest));
-    pending = null;
+    const tt = addTattoo(pending, anchorAt(hit.rest), { name: pendingName });
+    pending = null; pendingName = "";
     select(tt);
     drag = { kind: "tattoo", tattoo: tt };
   } else {
@@ -788,7 +791,7 @@ async function inkMesh(tt) {
   tt.skinning = new SplatSkinning({ mesh, numSplats: s.n, numBones: nb });
   for (let b = 0; b < nb; b++) tt.skinning.setRestQuatPos(b, qi, zero);
   mesh.skinning = tt.skinning;
-  tt.flesh = new Flesh(mesh, tt.skinning, s.n, S.rig.height, { shade: true });
+  tt.flesh = new Flesh(mesh, tt.skinning, s.n, S.rig.height, { shade: true, fold: true });
   tt.mesh = mesh;
   V.holder.add(mesh);
   inkOnSkin(tt);
@@ -992,6 +995,7 @@ $("tatPick").onchange = async (e) => {
   if (!f || !S) return;
   try {
     pending = await inkImage(f);
+    pendingName = "";
     select(null);
   } catch {
     $("tatHint").textContent = t("tat.badImage");
@@ -1102,11 +1106,44 @@ async function personHeight() {
   return null;
 }
 
+// Where tattoo i is (parlour.js: where it is made, the artist's view): the bone or region it lies
+// on, how far up the trunk it is (0 at the hips, 1 at the neck), the skin's outward normal at rest,
+// and its middle and that normal where the body is now (the body's coordinates)
+function spotOf(tt) {
+  const g = tt.grid, c = (g.ny >> 1) * NX + (NX >> 1), sk = S.sk;
+  const segs = (P) => sk.parents.map((p, j) => (p >= 0 ? [P[p], P[j]] : null)).filter(Boolean);
+  const mid = (pos) => [pos[c * 3], pos[c * 3 + 1], pos[c * 3 + 2]];
+  const rest = mid(tt.restPos), now = mid(tt.posedPos);
+  const n0 = g.valid[c] ? gridNormal(tt.restPos, NX, c, g.valid, nearestOnBones(rest, segs(sk.rest))) : null;
+  const n1 = g.valid[c] ? gridNormal(tt.posedPos, NX, c, g.valid, nearestOnBones(now, segs(sk.P))) : null;
+  return { bone: tt.bone, along: alongTrunk(rest, sk.rest[sk.index("pelvis")], sk.rest[sk.index("neck")]),
+           normal: n0 || S.rig.frame.front, centre: g.valid[c] ? now : sk.P[sk.index(tt.bone)] || sk.P[0], facing: n1 || S.rig.frame.front };
+}
+
 // ---------------------------------------------------------------- for tests and scripts
 window.tattooStudio = {
   ready: false,
   saving: false,                            // a change not yet in IndexedDB
   open: () => setOpen(true),
+  // a design to lay on the body (an image's URL or a canvas, and its name): the panel opens and the
+  // next tap on the body puts it there, as an image picked from a file does
+  design: async (image, name = "") => {
+    if (!S) return false;
+    try { pending = image instanceof HTMLCanvasElement ? image : await inkImage(image); }
+    catch { $("tatHint").textContent = t("tat.badImage"); return false; }
+    pendingName = name;
+    setOpen(true);
+    select(null);
+    return true;
+  },
+  pending: () => !!pending,
+  // the tattoo being worked on (the selected one, else the last), and where it is (spotOf)
+  current: () => (S && (S.selected ? S.tattoos.indexOf(S.selected) : S.tattoos.length - 1)) ?? -1,
+  spot: (i) => (S && S.tattoos[i] && S.tattoos[i].grid ? spotOf(S.tattoos[i]) : null),
+  // the body's splats under tattoo i's ink (clothes over them come off at the tattoo bed)
+  skinUnder: (i) => { const tt = S && S.tattoos[i]; return tt && tt.skinOf ? [...new Set(tt.skinOf)].filter((k) => k >= 0) : []; },
+  // the images of the body's tattoos (each once), with their names: hung on the flash wall too
+  designs: () => (S ? S.tattoos.map((tt) => ({ canvas: tt.canvas, name: tt.name })) : []),
   // for the room around the body (house.js): the skeleton ready (loaded if need be), the walker,
   // the rig, a frame drawn now, frames drawn while the walker still moves the body
   ensure: async () => { if (!S || S.file !== V.file()) await load(); },

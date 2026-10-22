@@ -22,6 +22,7 @@ let R = null;               // the room shown: { file, map, room (RoomMap), mesh
 let want = store.get("room:last");   // the room asked for (kept while the body or its rig loads)
 let busy = null;            // the room on its way
 let hint = "";              // what the walk hint says about sitting or leaning, if anything
+let station = null;         // the room's own places to go with F (parlour.js: the tattoo bed and chair), checked first
 
 // ---------------------------------------------------------------- the menu
 function setMenu(open) {
@@ -44,7 +45,7 @@ function list() {
   none.onclick = pick(null);
   $("roomList").replaceChildren(none, ...rooms.map((r) => {
     const b = document.createElement("button");
-    b.textContent = r.sample ? t("room.sample") : r.name.replace(/_/g, " ");
+    b.textContent = r.sample ? t(r.name === "_sample_studio" ? "room.sampleStudio" : "room.sample") : r.name.replace(/_/g, " ");
     b.dataset.file = r.file;
     b.classList.toggle("on", r.file === want);
     b.onclick = pick(r.file);
@@ -137,6 +138,7 @@ function place() {
   // a body standing in a wall or the sofa (the room was resized, or put round it) steps out
   const at = R.toMap(w.pos), free = R.room.nearestFree(...at);
   if (free && (free[0] !== at[0] || free[1] !== at[1])) { w.pos = R.toPos(free); studio.redraw(); }
+  dispatchEvent(new Event("roomplaced"));       // (parlour.js hangs the flash again)
 }
 
 // The camera where it sees most of the room with the body in it: from the side of the body with
@@ -201,6 +203,8 @@ function nearby() {
   const w = window.tattooStudio?.walker?.();
   if (!R || !R.P || !w) return null;
   const at = R.toMap(w.pos);
+  const own = station && station(at);
+  if (own) return { kind: "station", ...own };
   const seat = R.room.seatNear(...at);
   if (seat) return { kind: "sit", seat };
   const wall = R.room.wallNear(...at);
@@ -213,6 +217,7 @@ function restNow() {
   const n = nearby();
   if (!n) return false;
   const P = R.P;
+  if (n.kind === "station") return n.go();
   const ok = n.kind === "sit"
     ? w.restAt({ kind: "sit", at: P.toBody([n.seat.x, n.seat.y, n.seat.z]), facing: P.wayToBody(n.seat.dir),
                  height: n.seat.y * P.k, back: n.seat.back })
@@ -242,7 +247,7 @@ function hintNow() {
   if (!R || !w) return setHint("");
   if (w.resting) return setHint(t("room.up"));
   const n = !w.busy && nearby();
-  setHint(n ? t(n.kind === "sit" ? "room.sit" : "room.lean") : "");
+  setHint(n ? (n.kind === "station" ? n.hint : t(n.kind === "sit" ? "room.sit" : "room.lean")) : "");
 }
 addEventListener("langchange", () => { hint = ""; hintNow(); });
 
@@ -283,6 +288,10 @@ window.house = {
   nearby: () => { const n = nearby(); return n && n.kind; },
   rest: () => restNow(),
   hint: () => hint,
+  // what the room's file says is where (sample_studio.py: the tattoo bed, chair, flash wall and
+  // mirror), in map metres; and a room's own places for F: fn(at) -> { hint, go } or null
+  fixtures: () => (R && R.map.fixtures) || null,
+  station: (fn) => { station = fn; },
   // whether the camera's view of the body is clear (1) or something is in the way (less)
   sight: () => {
     if (!R || !R.P) return null;
