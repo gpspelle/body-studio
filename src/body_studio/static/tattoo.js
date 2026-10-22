@@ -87,7 +87,7 @@ async function load() {
   loading = file;
   $("studioBody").hidden = true;
   status(t("studio.finding"));
-  // (and the spinner over the body, index.html, until it can move)
+  // (and the loading screen, index.html, until it can move)
   app.busy(file, t("studio.finding"), { slow: t("load.slowRig") });
   try {
     let rig = null;

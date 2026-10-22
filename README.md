@@ -5,9 +5,10 @@
 **Turn a phone video of a person into a 3D body you can orbit, on your own Mac.**
 
 One screen: the body stands in the middle and turns slowly; drag to look around, pick another
-body from the row at the bottom, or drop a new video anywhere on the page. While a body is
-loading, or getting ready to move, a small spinner over it says what it is doing (and, if it
-takes a while, why), so a body you can't pose yet never looks stuck.
+body from the row at the bottom, or drop a new video anywhere on the page. Until everything is
+ready to use (the body, its skeleton, the clothes fitted and put back on, the shop around it, a
+room), a loading screen shows the logo turning and a line on what is happening (and, if it takes
+a while, why), so you never see a body you can't move yet.
 
 ![Body Studio on a laptop](docs/images/desktop-light.png)
 
@@ -270,10 +271,11 @@ See [AGENTS.md](AGENTS.md) for conventions and [docs/plan.md](docs/plan.md) for 
 **Transforme um vídeo de uma pessoa, feito no celular, em um corpo 3D que você pode girar, no seu próprio Mac.**
 
 Uma tela só: o corpo fica no centro e gira devagar. Arraste para olhar em volta, escolha outro
-corpo na fileira de baixo ou solte um vídeo novo em qualquer lugar da página. Enquanto um corpo
-carrega, ou se prepara para se mexer, um pequeno indicador girando sobre ele diz o que está
-acontecendo (e, se demorar, por quê), então um corpo que ainda não pode ser posado nunca parece
-travado. Tudo roda no seu
+corpo na fileira de baixo ou solte um vídeo novo em qualquer lugar da página. Até tudo estar
+pronto para usar (o corpo, o esqueleto, as roupas ajustadas e vestidas de novo, a loja em volta,
+um cômodo), uma tela de carregamento mostra o logo girando e uma linha dizendo o que está
+acontecendo (e, se demorar, por quê), então você nunca vê um corpo que ainda não pode mexer.
+Tudo roda no seu
 computador, sem upload, sem conta e sem GPU na nuvem. O processamento é o do
 [Splat Studio](https://github.com/gpspelle/splat-studio), instalado como dependência. A remoção
 do fundo, do chão e da névoa sempre acontece.

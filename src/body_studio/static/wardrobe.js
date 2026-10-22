@@ -41,17 +41,34 @@ addEventListener("studioready", async (e) => {
   W = { file, rig, weights, mesh, centres, transforms, caps, hands, worn: new Map(), fit: null, cover: null, hidden: new Map(),
         tinted: new Map(), busy: 0, model: "standard" };
   window.wardrobe.ready = false;
-  if (!catalog) {
-    catalog = await (await fetch("/api/wardrobe")).json();
-    models = await (await fetch("/api/fit/models")).json();
+  // the loading screen (index.html) stays until the clothes are fitted, what was worn is back on
+  // and the shop stands round the body
+  const app = window.bodyApp, step = "wear:" + file, shopStep = "shop:" + file;
+  app.busy(step, t("wear.fitting"), { slow: t("load.slowRig") });
+  app.busy(shopStep, t("wear.shop"));
+  try {
+    if (!catalog) {
+      catalog = await (await fetch("/api/wardrobe")).json();
+      models = await (await fetch("/api/fit/models")).json();
+    }
+    if (models.includes(store.get("fitModel"))) W.model = store.get("fitModel");
+    ui();
+    placeShop(W).finally(() => app.busy(shopStep, null));
+    if (W.model === "anny") app.busy(step, t("wear.fittingAnny"), { slow: t("load.slowRig") });
+    if (await loadFit(W) && W.file === file) {
+      for (const id of store.get("wear:" + file) || []) {
+        if (!W || W.file !== file) break;
+        app.busy(step, t("wear.loading", { name: t("wear.item." + id) }), { slow: t("load.slowRig") });
+        await wear(id, true);
+      }
+    }
+    if (W && W.file === file) window.wardrobe.ready = true;
+  } catch (err) {
+    app.busy(shopStep, null);
+    throw err;
+  } finally {
+    app.busy(step, null);
   }
-  if (models.includes(store.get("fitModel"))) W.model = store.get("fitModel");
-  ui();
-  placeShop(W);
-  if (await loadFit(W) && W.file === file) {
-    for (const id of store.get("wear:" + file) || []) if (W && W.file === file) await wear(id, true);
-  }
-  if (W && W.file === file) window.wardrobe.ready = true;
 });
 addEventListener("studiogone", () => { undressAll(); W = null; showShop(); });
 addEventListener("posed", (e) => {

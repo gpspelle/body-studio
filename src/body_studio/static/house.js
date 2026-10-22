@@ -80,11 +80,13 @@ async function choose(file) {
   const studio = window.tattooStudio;
   if (!V.file()) return;
   busy = file;
+  // (and the loading screen, index.html, until the body stands in the room)
+  const step = (text) => { say(text); app.busy("room", text); };
   try {
-    say(t("room.body"));
+    step(t("room.body"));
     await studio.ensure();                      // the body's skeleton: its height, its feet, the walk
     if (!studio.ready || want !== file) return;
-    say(t("room.mapping"));
+    step(t("room.mapping"));
     let map;
     for (;;) {
       const r = await fetch("/api/room?room=" + encodeURIComponent(file));
@@ -95,7 +97,7 @@ async function choose(file) {
       map = d;
       break;
     }
-    say(t("room.loading"));
+    step(t("room.loading"));
     const res = await fetch("/files/" + file.split("/").map(encodeURIComponent).join("/"));
     if (!res.ok || want !== file) { if (want === file) say(t("room.failed", { advice: "" })); return; }
     const bytes = new Uint8Array(await res.arrayBuffer());
@@ -116,6 +118,7 @@ async function choose(file) {
     if (!$("roomMenu").hidden) list();
   } finally {
     if (busy === file) busy = null;
+    if (!busy) app.busy("room", null);
   }
 }
 

@@ -63,28 +63,39 @@ body {
 }
 .center[hidden], .drop[hidden], .pill[hidden] { display: none; }
 
-/* the spinner over the body while it can't be used yet (busy.js): over the body's middle, between
-   the panels, clicks pass through; spun by the compositor, so it keeps turning while the page works */
-.busy { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 5; }
-.busy[hidden] { display: none; }
-.busy-card {
-  display: grid; justify-items: center; gap: 8px; max-width: min(280px, calc(100% - 32px));
-  padding: 14px 18px; border-radius: 14px; background: var(--chip); border: 1px solid var(--line);
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  text-align: center; font-size: 13px; animation: busy-in 0.2s ease-out;
+/* the loading screen until the body can really be used (busy.js): the logo turning on a turntable,
+   like the body does, a line saying what is happening, faded out once everything is ready. Turned
+   by the compositor, so it keeps turning while the page works; clicks pass through it */
+.loader {
+  position: fixed; inset: 0; z-index: 50; display: grid; place-content: center; justify-items: center;
+  gap: 6px; padding: 16px; text-align: center; background: var(--bg); pointer-events: none;
+  animation: busy-in 0.25s ease-out; transition: opacity 0.35s ease-in;
 }
-.busy-card .small:empty { display: none; }
-.spinner {
-  width: 26px; height: 26px; border-radius: 50%; will-change: transform;
-  border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.9s linear infinite;
+.loader[hidden] { display: none; }
+.loader.leaving { opacity: 0; }
+.loader p { margin: 0; }
+.loader .small:empty { display: none; }
+.busy-logo { position: relative; width: 84px; height: 104px; margin-bottom: 12px; perspective: 300px; }
+.busy-figure {
+  position: absolute; left: 23px; top: 0; width: 38px; height: 92px; fill: var(--text); opacity: 0.82;
+  will-change: transform; animation: busy-turn 2.6s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.busy-floor {
+  position: absolute; left: 12px; right: 12px; bottom: 0; height: 10px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.22), transparent);
+  will-change: transform; animation: busy-floor 1.3s cubic-bezier(0.65, 0, 0.35, 1) infinite alternate;
+}
+.busy-name { font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
+#busyText { font-size: 13px; min-height: 1.4em; }
+@keyframes busy-turn { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+@keyframes busy-floor { from { transform: scaleX(1); } to { transform: scaleX(0.55); } }
 @keyframes busy-in { from { opacity: 0; } }
+@keyframes busy-breathe { 50% { opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) {
-  .spinner { animation-duration: 2.4s; }
-  .busy-card { animation: none; }
+  .busy-figure { animation: busy-breathe 2.4s ease-in-out infinite; }
+  .busy-floor { animation: none; }
 }
-body.is-busy #stage { cursor: progress; }
+body.is-busy, body.is-busy * { cursor: progress !important; }
 .big { font-size: 22px; font-weight: 500; margin: 0 0 8px; }
 .quiet { color: var(--muted); max-width: 34em; margin: 0 auto; }
 

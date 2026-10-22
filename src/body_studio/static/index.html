@@ -38,9 +38,15 @@
   <p class="quiet" data-i18n="empty.how"></p>
 </div>
 <div id="loading" class="center" hidden><p class="quiet" id="loadingText"></p></div>
-<div id="busy" class="busy" hidden><div class="busy-card" role="status" aria-live="polite">
-  <span class="spinner" aria-hidden="true"></span><span id="busyText"></span><span id="busySlow" class="small"></span>
-</div></div>
+<div id="busy" class="loader" role="status" aria-live="polite">
+  <div class="busy-logo" aria-hidden="true">
+    <svg class="busy-figure" viewBox="4.5 0.5 7 15"><circle cx="8" cy="3.5" r="2.5"/><rect x="5" y="7" width="6" height="8" rx="3"/></svg>
+    <span class="busy-floor"></span>
+  </div>
+  <p class="busy-name">Body Studio</p>
+  <p id="busyText" class="quiet"></p>
+  <p id="busySlow" class="small"></p>
+</div>
 
 <div class="bottom">
   <p id="walkHint" class="walk-hint" role="status" hidden></p>
@@ -392,17 +398,19 @@ function frame() {
 
 let mesh = null, fit = null, current = null, meshFile = null;
 
-// One spinner over the body while it can't be used yet (busy.js): loading it here, its skeleton
-// and getting it ready to move in tattoo.js (bodyApp.busy). Centred where the body is, between the
-// panels; the page under it still takes clicks and drags.
-const busy = new Busy(({ shown, text, slow }) => {
-  const cover = covered();
-  $("busy").style.inset = `${cover.top}px ${cover.right}px ${cover.bottom}px ${cover.left}px`;
+// One loading screen, the logo turning, until the body can really be used (busy.js): from the page
+// opening, the body loading here, then its skeleton and its pose and tattoos (tattoo.js), the
+// clothes fitted and what was worn put back on, the shop around it (wardrobe.js), a room
+// (house.js), each a step through bodyApp.busy. A step starts before the one it follows ends,
+// so the screen stays up across them; it fades out when the last one is done.
+const busy = new Busy(({ shown, waiting, text, slow }) => {
   $("busyText").textContent = text;
   $("busySlow").textContent = slow;
   $("busy").hidden = !shown;
-  document.body.classList.toggle("is-busy", shown);
+  $("busy").classList.toggle("leaving", shown && !waiting);
+  document.body.classList.toggle("is-busy", waiting);
 });
+busy.set("start", t("load.starting"), { now: true });         // (shown from the first paint)
 
 async function show(body) {
   if (current === body.file) return;
@@ -427,10 +435,10 @@ async function show(body) {
   ground.place(fit.center, fit.center.y - fit.size.y / 2, fit.size.y, fit.size.x, fit.size.z);
   frame();
   controls.autoRotate = true;
-  busy.set("body", null);
   window.bodyViewer = { numSplats: () => mesh.numSplats || 0, size: () => fit.size.toArray(), file: () => current };
   $("studioBtn").hidden = false;
-  dispatchEvent(new Event("bodyshown"));
+  dispatchEvent(new Event("bodyshown"));       // (what follows starts its steps meanwhile)
+  busy.set("body", null);
 }
 
 // ---------------------------------------------------------------- library and runs
@@ -451,6 +459,7 @@ async function refreshBodies() {
   }
   $("empty").hidden = bodies.length > 0 || !!mesh;
   if (!mesh && bodies.length) show(bodies.find((b) => b.file === store.get("body:last")) || bodies[0]);
+  busy.set("start", null);
   return bodies;
 }
 

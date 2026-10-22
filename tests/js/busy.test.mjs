@@ -1,8 +1,8 @@
-// The spinner over the body while the page gets it ready (src/body_studio/static/busy.js), on a
+// The loading screen while the page gets the body ready (src/body_studio/static/busy.js), on a
 // clock the test moves. Run by tests/unit/test_busy_js.py.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { Busy, KEEP_FOR, SHOW_AFTER, SLOW_AFTER } from "../../src/body_studio/static/busy.js";
+import { Busy, FADE, KEEP_FOR, SHOW_AFTER, SLOW_AFTER } from "../../src/body_studio/static/busy.js";
 
 // a clock and timers the test moves by hand, and every render
 function rig() {
@@ -34,13 +34,15 @@ test("a step over in a moment shows nothing", () => {
   assert.ok(seen.every((s) => !s.shown));
 });
 
-test("a longer step shows the spinner and what it is doing, then goes", () => {
+test("a longer step shows the loading screen and what it is doing, then fades out", () => {
   const { busy, wait, last } = rig();
   busy.set("body", "Loading Mia…");
   wait(SHOW_AFTER + 10);
-  assert.deepEqual(last(), { shown: true, text: "Loading Mia…", slow: "" });
+  assert.deepEqual(last(), { shown: true, waiting: true, text: "Loading Mia…", slow: "" });
   wait(2000);
   busy.set("body", null);
+  assert.deepEqual(last(), { shown: true, waiting: false, text: "Loading Mia…", slow: "" });   // (fading out)
+  wait(FADE);
   assert.equal(last().shown, false);
 });
 
@@ -49,7 +51,7 @@ test("once shown it stays long enough to see, with its last words", () => {
   busy.set("rig", "Finding the skeleton…");
   wait(SHOW_AFTER);
   busy.set("rig", null);
-  assert.deepEqual(last(), { shown: true, text: "Finding the skeleton…", slow: "" });
+  assert.deepEqual(last(), { shown: true, waiting: false, text: "Finding the skeleton…", slow: "" });
   wait(KEEP_FOR - 10);
   assert.equal(last().shown, true);
   wait(20);
@@ -62,11 +64,11 @@ test("steps one after another: one spinner, no gap, the latest step's words", ()
   wait(SHOW_AFTER + 100);
   busy.set("rig", "Finding the skeleton…");
   busy.set("body", null);
-  assert.deepEqual(last(), { shown: true, text: "Finding the skeleton…", slow: "" });
+  assert.deepEqual(last(), { shown: true, waiting: true, text: "Finding the skeleton…", slow: "" });
   busy.set("rig", "Getting the body ready to move…");
   wait(300);
   busy.set("rig", null);
-  wait(KEEP_FOR);
+  wait(KEEP_FOR + FADE);
   const shown = seen.map((s) => s.shown);
   assert.deepEqual(shown.slice(shown.indexOf(true)).filter((v, k, a) => k === 0 || v !== a[k - 1]), [true, false]);
 });
@@ -88,7 +90,18 @@ test("shown at once before a step that holds the page", () => {
   busy.set("rig", "Getting the body ready to move…", { now: true });
   assert.equal(last().shown, true);
   busy.set("rig", null);
-  wait(KEEP_FOR);
+  wait(KEEP_FOR + FADE);
   assert.equal(last().shown, false);
   assert.equal(busy.busy, false);
+});
+
+test("a step that starts while it fades out brings it back, with no gap", () => {
+  const { busy, seen, wait, last } = rig();
+  busy.set("body", "Loading Mia…");
+  wait(2000);
+  busy.set("body", null);
+  wait(FADE / 2);
+  busy.set("room", "Loading the room…");
+  assert.deepEqual(last(), { shown: true, waiting: true, text: "Loading the room…", slow: "" });
+  assert.ok(seen.slice(seen.findIndex((s) => s.shown)).every((s) => s.shown));
 });

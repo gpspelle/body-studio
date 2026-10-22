@@ -136,7 +136,7 @@ class Viewer(unittest.TestCase):
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: m.type == "error" and errors.append(m.text))
-        # every line the spinner over the body says (busy.js), as it shows
+        # every line the loading screen says (busy.js), as it shows
         page.add_init_script("""addEventListener("DOMContentLoaded", () => {
           window.busySaid = [];
           const el = document.getElementById("busy");
@@ -149,8 +149,10 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
         page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
         page.wait_for_function("tattooStudio.ready", timeout=180000)
-        # the spinner said it was getting the body ready to move, and is gone now it can
-        page.wait_for_function("document.getElementById('busy').hidden && !document.body.classList.contains('is-busy')", timeout=10000)
+        # the loading screen said it was getting the body ready to move, and is gone once the
+        # clothes are fitted and the shop stands round her too
+        page.wait_for_function("document.getElementById('busy').hidden && !document.body.classList.contains('is-busy')", timeout=180000)
+        self.assertTrue(page.evaluate("wardrobe.ready"))
         self.assertIn("Getting the body ready to move…", page.evaluate("busySaid"))
         page.evaluate("bodyApp.viewer.controls.autoRotate = false")
 
@@ -703,7 +705,8 @@ def pick(page, item):
 
 
 def settled(page):
-    """Wait until the splats on screen are the latest ones."""
+    """Wait until the loading screen is gone and the splats on screen are the latest ones."""
+    page.wait_for_function("document.getElementById('busy').hidden", timeout=300000)
     page.wait_for_function("tattooStudio.tattoos().every((t) => t.inked)", timeout=60000)
     # Spark makes them again only when something changed, and `current` can be swapped for
     # another of its buffers with its own count: so either three new versions, or twenty frames
