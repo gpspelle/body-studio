@@ -699,8 +699,13 @@ def settled(page):
     # (counted as changes of the version, not as a higher one: `current` can be swapped for
     # another of Spark's buffers, whose count is its own)
     page.evaluate("window._settle = { v: bodyApp.viewer.spark.current.version, n: 0 }")
-    page.wait_for_function("""(() => { const s = window._settle, v = bodyApp.viewer.spark.current.version;
-        if (v !== s.v) { s.v = v; s.n++; } return s.n >= 3; })()""", timeout=300000)
+    try:
+        page.wait_for_function("""(() => { const s = window._settle, v = bodyApp.viewer.spark.current.version;
+            if (v !== s.v) { s.v = v; s.n++; } return s.n >= 3; })()""", timeout=300000)
+    except Exception:       # what the page was doing, for a CI log
+        raise AssertionError(page.evaluate("""JSON.stringify({ settle: window._settle,
+            display: bodyApp.viewer.spark.display.version, worn: window.wardrobe && wardrobe.worn(),
+            ready: window.wardrobe && wardrobe.ready, hidden: document.hidden, frame: performance.now() })"""))
 
 
 def ink_pixels(page, at, r=40):
