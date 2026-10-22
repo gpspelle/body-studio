@@ -119,10 +119,38 @@ test("the shop: every item in its place, none in another's, none on the body, al
   for (const a of boxes.filter((a) => a.kind === "stand" || a.kind === "hat")) assert.ok(a.lo[1] > 0.2, a.id);
   // hung garments hang clear of the floor
   for (const a of boxes.filter((a) => a.kind === "hang")) assert.ok(a.lo[1] > 0.1, a.id);
-  // and the whole shop is within what the camera is told to take in, under 2.4 heights to each side
-  assert.ok(half < 2.4, `${half}`);
+  // and the whole shop is within what the camera is told to take in, under 2.6 heights to each side
+  assert.ok(half < 2.6, `${half}`);
   for (const a of boxes) assert.ok(Math.abs(a.lo[0]) < half && Math.abs(a.hi[0]) < half, a.id);
   assert.ok(boxes.every((a) => a.hi[2] < SHOP.back + 0.5));
+});
+
+test("shelves no taller than the person, rails a few hangers long: more of them side by side instead", () => {
+  const many = (n, display) => Array.from({ length: n }, (_, k) => ({ id: display + k, display }));
+  for (const [hung, folded, heads] of [[10, 10, 13], [3, 2, 4], [23, 31, 26]]) {
+    const { places, parts } = shopLayout([...many(hung, "hang"), ...many(folded, "fold"), ...many(heads, "head")]);
+    const tops = parts.filter((p) => p.kind === "box").map((p) => p.at[1] + p.size[1] / 2);
+    assert.ok(Math.max(...tops) <= 1.1, `${Math.max(...tops)}`);
+    // a back panel for each unit, and a unit for each few rows
+    const units = parts.filter((p) => p.kind === "box" && p.material === "back").length;
+    const rows = Math.ceil(folded / SHOP.shelves.folded) + Math.ceil(heads / SHOP.shelves.heads);
+    assert.equal(units, Math.max(1, Math.ceil(rows / SHOP.shelves.levels)), `${hung}/${folded}/${heads}`);
+    // the rails: as many as it takes for no more than `most` hangers each, and none on another
+    const rails = parts.filter((p) => p.kind === "rod" && p.at[1] === SHOP.rail.height && p.to[1] === SHOP.rail.height)
+      .map((p) => [Math.min(p.at[0], p.to[0]), Math.max(p.at[0], p.to[0])]).sort((a, b) => a[0] - b[0]);
+    assert.equal(rails.length, Math.max(1, Math.ceil(hung / SHOP.rail.most)));
+    for (let k = 1; k < rails.length; k++) assert.ok(rails[k][0] > rails[k - 1][1] + 0.05, "rails apart");
+    for (const [a, b] of rails) {
+      const on = Object.values(places).filter((p) => p.kind === "hang" && p.x > a && p.x < b).length;
+      assert.ok(on >= 1 && on <= SHOP.rail.most, `${on} on a rail`);
+    }
+    // heads are never on a shelf below folded clothes in the same unit
+    const shelved = Object.values(places).filter((p) => p.kind === "fold" || p.kind === "head");
+    const unit = (p) => Math.floor((p.x - SHOP.inner) / (SHOP.shelves.width + SHOP.shelves.between));
+    for (const h of shelved.filter((p) => p.kind === "head"))
+      for (const f of shelved.filter((p) => p.kind === "fold" && unit(p) === unit(h)))
+        assert.ok(f.y <= h.y + 1e-9);
+  }
 });
 
 test("racks are built for any number of items", () => {

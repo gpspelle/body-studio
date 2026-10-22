@@ -87,6 +87,8 @@ async function load() {
   loading = file;
   $("studioBody").hidden = true;
   status(t("studio.finding"));
+  // (and the spinner over the body, index.html, until it can move)
+  app.busy(file, t("studio.finding"), { slow: t("load.slowRig") });
   try {
     let rig = null;
     for (;;) {
@@ -104,6 +106,7 @@ async function load() {
     await mesh.initialized;
     if (V.file() !== file) return;
     status(t("studio.preparing"));
+    app.busy(file, t("studio.preparing"), { now: true });       // (setup holds the page: show it now)
     await new Promise((ok) => requestAnimationFrame(() => setTimeout(ok)));   // let the status show
     setup(rig, mesh, file);
     status("");
@@ -111,6 +114,7 @@ async function load() {
     await restore();
   } finally {
     if (loading === file) loading = null;
+    app.busy(file, null);
   }
 }
 

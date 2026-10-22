@@ -136,12 +136,22 @@ class Viewer(unittest.TestCase):
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+        # every line the spinner over the body says (busy.js), as it shows
+        page.add_init_script("""addEventListener("DOMContentLoaded", () => {
+          window.busySaid = [];
+          const el = document.getElementById("busy");
+          new MutationObserver(() => { if (!el.hidden) busySaid.push(document.getElementById("busyText").textContent); })
+            .observe(el, { attributes: true, childList: true, subtree: true, characterData: true });
+        })""")
         page.goto(self.url)
         page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
         page.locator(".shelf button", has_text="Mia").click()
         page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
         page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
         page.wait_for_function("tattooStudio.ready", timeout=180000)
+        # the spinner said it was getting the body ready to move, and is gone now it can
+        page.wait_for_function("document.getElementById('busy').hidden && !document.body.classList.contains('is-busy')", timeout=10000)
+        self.assertIn("Getting the body ready to move…", page.evaluate("busySaid"))
         page.evaluate("bodyApp.viewer.controls.autoRotate = false")
 
         # a preset moves the joints and the splats with them
@@ -573,7 +583,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("tattooStudio.tattoos().length === 1")
         page.wait_for_function("tattooStudio.tattoos()[0].inked")
         page.evaluate("bodyApp.viewer.controls.autoRotate = false")
-        self.assertGreater(ink_pixels(page, at), 12)       # the ink shows on the bare arm (the shop round her makes it small)
+        self.assertGreater(ink_pixels(page, at), 8)        # the ink shows on the bare arm (the shop round her makes it small)
         pick(page, "longsleeve_jeans")
         page.wait_for_function("wardrobe.worn().includes('longsleeve_jeans')", timeout=60000)
         # the skin under the sleeve is hidden, and the ink in it with it
@@ -584,7 +594,7 @@ class Viewer(unittest.TestCase):
         self.assertIn("longsleeve_jeans", page.evaluate("wardrobe.shop().racked"))   # back on its shelf
         page.click("#wearWorn [data-item=suit]")          # taken off
         page.wait_for_function("wardrobe.worn().join() === 'white_sneakers'")
-        self.assertGreater(ink_pixels(page, at), 12)
+        self.assertGreater(ink_pixels(page, at), 8)
         page.evaluate("tattooStudio.preset('walk')")    # moves with the body, no errors
         # walking: the shoes stay on the feet, the tattoo goes along on the arm
         ink, shoes = page.evaluate("[tattooStudio.tattoos()[0].centre, wardrobe.gap('white_sneakers')]")

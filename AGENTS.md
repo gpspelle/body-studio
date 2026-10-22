@@ -8,7 +8,9 @@
   then bump the pin here in its own PR. `tests/unit/test_pipeline.py` checks that the pinned
   splat-studio still accepts every flag we pass.
 - **This repo**: body defaults (`pipeline.py`), the library of bodies (`library.py`), the local
-  server (`server.py`) and the single page (`static/index.html`, `static/body.css`). Tattoo &
+  server (`server.py`) and the single page (`static/index.html`, `static/body.css`). The spinner over
+  the body while it isn't ready yet in `static/busy.js` (tested by `tests/js/busy.test.mjs`; see
+  `docs/loading.md`). Tattoo &
   pose: skeleton and skin weights in `rig.py` (once per body, `<body>.rig.json`), posing and tattoo
   maths in `static/pose.js` (tested by `tests/js/pose.test.mjs` through `tests/unit/test_pose_js.py`),
   the panel in `static/tattoo.js`. Splats are moved by Spark's `SplatSkinning`; don't fit a body

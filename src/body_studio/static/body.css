@@ -62,6 +62,29 @@ body {
   text-align: center; padding: 16px; pointer-events: none;
 }
 .center[hidden], .drop[hidden], .pill[hidden] { display: none; }
+
+/* the spinner over the body while it can't be used yet (busy.js): over the body's middle, between
+   the panels, clicks pass through; spun by the compositor, so it keeps turning while the page works */
+.busy { position: fixed; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: 5; }
+.busy[hidden] { display: none; }
+.busy-card {
+  display: grid; justify-items: center; gap: 8px; max-width: min(280px, calc(100% - 32px));
+  padding: 14px 18px; border-radius: 14px; background: var(--chip); border: 1px solid var(--line);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  text-align: center; font-size: 13px; animation: busy-in 0.2s ease-out;
+}
+.busy-card .small:empty { display: none; }
+.spinner {
+  width: 26px; height: 26px; border-radius: 50%; will-change: transform;
+  border: 3px solid var(--line); border-top-color: var(--accent); animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes busy-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+  .busy-card { animation: none; }
+}
+body.is-busy #stage { cursor: progress; }
 .big { font-size: 22px; font-weight: 500; margin: 0 0 8px; }
 .quiet { color: var(--muted); max-width: 34em; margin: 0 auto; }
 

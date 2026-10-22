@@ -160,6 +160,13 @@
   walk and **F** sits on a chair. New API under `/api/decor`.
 - Fix: with a room remembered from last time, opening the app could fail to get the body's
   skeleton (the room asked for it before the body had loaded).
+- **A spinner while the body isn't ready**: while a body loads, its skeleton is found or it gets
+  ready to move, a small spinner over it says what is happening (only for a step longer than
+  0.4 s, kept at least 0.6 s once shown, with a word on why after 8 s). Clicks and drags go
+  through it. See `docs/loading.md`.
+- **Lower shelves, more rails**: the shop's shelves are units no taller than the person, side by
+  side, instead of one bookcase twice the person's height; outfits hang five to a rail, on two
+  rails instead of one crowded one.
 - **Styles and a clothes list**: 17 new items in hippie, rock, indie and punk styles, all CC0 and
   made by `scripts/wardrobe_styles.py` (MakeHuman outfits repainted: tie-dye, flowers, black
   leather, a band T-shirt, tartan, flannel, Breton stripes; and accessories built on the base

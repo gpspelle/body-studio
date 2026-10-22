@@ -5,7 +5,9 @@
 **Turn a phone video of a person into a 3D body you can orbit, on your own Mac.**
 
 One screen: the body stands in the middle and turns slowly; drag to look around, pick another
-body from the row at the bottom, or drop a new video anywhere on the page.
+body from the row at the bottom, or drop a new video anywhere on the page. While a body is
+loading, or getting ready to move, a small spinner over it says what it is doing (and, if it
+takes a while, why), so a body you can't pose yet never looks stuck.
 
 ![Body Studio on a laptop](docs/images/desktop-light.png)
 
@@ -126,8 +128,9 @@ opens (it stays as you last left it), so the clothes are there from the start.
 ![Clothes, tattoo & pose panel](docs/images/tattoo-desktop.png)
 
 - **Clothes**: while the panel is open, a small shop stands around the body: outfits on hangers
-  on a clothes rail, shoes on a shoe rack, folded T-shirts and jeans on shelves with short hair on
-  mannequin heads above them, and long hair and the fedora on stands. Point at an item to see its
+  on clothes rails (five hangers to a rail at most, side by side), shoes on a shoe rack, folded
+  T-shirts and jeans on shelf units no taller than the person (side by side, as many as it takes)
+  with short hair on mannequin heads above them, and long hair and the fedora on stands. Point at an item to see its
   name, click it to put it on. The panel lists everything too, by kind, with a **Style** filter
   (Casual, Smart, Hippie, Rock, Indie, Punk): that is also how to dress the body in a room, where
   the shop isn't shown. There are 20 outfits (tie-dye, a flower shirt and long skirt, a black
@@ -267,7 +270,10 @@ See [AGENTS.md](AGENTS.md) for conventions and [docs/plan.md](docs/plan.md) for 
 **Transforme um vídeo de uma pessoa, feito no celular, em um corpo 3D que você pode girar, no seu próprio Mac.**
 
 Uma tela só: o corpo fica no centro e gira devagar. Arraste para olhar em volta, escolha outro
-corpo na fileira de baixo ou solte um vídeo novo em qualquer lugar da página. Tudo roda no seu
+corpo na fileira de baixo ou solte um vídeo novo em qualquer lugar da página. Enquanto um corpo
+carrega, ou se prepara para se mexer, um pequeno indicador girando sobre ele diz o que está
+acontecendo (e, se demorar, por quê), então um corpo que ainda não pode ser posado nunca parece
+travado. Tudo roda no seu
 computador, sem upload, sem conta e sem GPU na nuvem. O processamento é o do
 [Splat Studio](https://github.com/gpspelle/splat-studio), instalado como dependência. A remoção
 do fundo, do chão e da névoa sempre acontece.
@@ -338,8 +344,9 @@ quando a página abre (fica como você deixou da última vez), então as roupas 
 <img src="docs/images/tattoo-phone.png" width="220" alt="Painel de roupas, tatuagem e pose no celular">
 
 - **Roupas**: com o painel aberto, uma pequena loja fica em volta do corpo: looks em cabides numa
-  arara, sapatos numa sapateira, camisetas e jeans dobrados em prateleiras com cabelos curtos em
-  cabeças de manequim acima, e cabelos compridos e o chapéu fedora em pedestais. Aponte para uma
+  arara (no máximo cinco cabides por arara, uma ao lado da outra), sapatos numa sapateira,
+  camisetas e jeans dobrados em estantes não mais altas que a pessoa (lado a lado, quantas forem
+  precisas) com cabelos curtos em cabeças de manequim acima, e cabelos compridos e o chapéu fedora em pedestais. Aponte para uma
   peça para ver o nome e clique para vestir. O painel também lista tudo, por tipo, com um filtro de
   **Estilo** (Casual, Social, Hippie, Rock, Indie, Punk): é assim também que se veste o corpo num
   cômodo, onde a loja não aparece. São 20 looks (entre eles tie-dye, camisa florida e saia longa,

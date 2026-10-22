@@ -113,18 +113,26 @@ export function onHead(V, head) {
 }
 
 // ---------------------------------------------------------------- the shop
-// Behind the body as the camera first sees it: the clothes rail to the left with the shoe rack in
-// front of it, the shelves (folded clothes below, short hair on mannequin heads above) to the right,
-// and beyond them the stands: a mannequin head on a pole for each hat and for hair too long for a
-// shelf. Sizes in the person's heights.
+// Behind the body as the camera first sees it: the clothes rails to the left (a few hangers on each,
+// side by side) with the shoe rack in front of the nearest, the shelf units to the right (no taller
+// than the person: folded clothes on the lower shelves, short hair on mannequin heads above, as many
+// units side by side as it takes), and beyond them the stands: a mannequin head on a pole for each
+// hat and for hair too long for a shelf. Sizes in the person's heights.
 export const SHOP = {
   back: -0.55,                              // the racks' line, behind the body
   inner: 0.35,                              // how far from the body's middle they start, to each side
-  rail: { height: 1.08, spacing: 0.17, end: 0.17, hanger: 0.1 },
-  shelves: { width: 0.8, depth: 0.2, first: 0.3, gap: 0.25, board: 0.012, folded: 3, heads: 5, foot: 0.012 },
+  rail: { height: 1.08, spacing: 0.17, end: 0.17, hanger: 0.1, most: 5, between: 0.06 },
+  shelves: { width: 0.8, depth: 0.2, first: 0.08, gap: 0.25, levels: 4, between: 0.02, board: 0.012, folded: 3, heads: 5, foot: 0.012 },
   shoes: { front: -0.2, tiers: [0.03, 0.2], step: 0.16, perTier: 3, spacing: 0.2, tilt: 0.25 },
-  stands: { gap: 0.13, spacing: 0.11, height: 0.98, stagger: 0.2 },
+  stands: { gap: 0.1, spacing: 0.11, height: 0.98, stagger: 0.2 },
 };
+
+// a list in n runs as even as can be, in order
+function runs(list, n) {
+  const out = [];
+  for (let k = 0, at = 0; k < n; k++) { const m = Math.round((list.length - at) / (n - k)); out.push(list.slice(at, at + m)); at += m; }
+  return out;
+}
 
 // Where every item goes ({id: {kind, x, y, z, tilt}}: the point its shape is anchored by, and how
 // far it leans toes down, radians), the parts the racks are made of ({kind: "box", at, size} or
@@ -136,29 +144,34 @@ export function shopLayout(items) {
   const box = (at, size, material = "wood") => parts.push({ kind: "box", at, size, material });
   const rod = (at, to, r, material = "metal") => parts.push({ kind: "rod", at, to, r, material });
 
-  // the rail, with a hanger on it for each item
+  // the rails, side by side from the body out, with a hanger on them for each item
   const hung = of("hang"), rh = S.rail.height, back = S.back;
-  const railEnd = -S.inner, railStart = railEnd - S.rail.end * 2 - Math.max(0, hung.length - 1) * S.rail.spacing;
-  rod([railStart, rh, back], [railEnd, rh, back], 0.008);
-  for (const x of [railStart, railEnd]) {
-    rod([x, 0.012, back], [x, rh, back], 0.009);
-    rod([x, 0.012, back - 0.12], [x, 0.012, back + 0.12], 0.012);
+  let railEnd = -S.inner, inner = null;
+  for (const rail of runs(hung, Math.max(1, Math.ceil(hung.length / S.rail.most)))) {
+    const railStart = railEnd - S.rail.end * 2 - Math.max(0, rail.length - 1) * S.rail.spacing;
+    inner = inner || [railStart, railEnd];
+    rod([railStart, rh, back], [railEnd, rh, back], 0.008);
+    for (const x of [railStart, railEnd]) {
+      rod([x, 0.012, back], [x, rh, back], 0.009);
+      rod([x, 0.012, back - 0.12], [x, 0.012, back + 0.12], 0.012);
+    }
+    rail.forEach((it, k) => {
+      // stepped a little front to back, so neighbouring sleeves lie over each other, not through
+      const x = railStart + S.rail.end + k * S.rail.spacing, y = rh + 0.008, z = back + (k % 2 ? -0.03 : 0.03), w = S.rail.hanger;
+      places[it.id] = { kind: "hang", x, y, z, tilt: 0 };
+      const neck = [x, y - 0.014, z], low = y - HANGER_DROP - 0.03;    // (inside the sloping shoulders)
+      rod([x, y, z], neck, 0.003);
+      rod(neck, [x - w, low, z], 0.004, "hanger");
+      rod(neck, [x + w, low, z], 0.004, "hanger");
+      rod([x - w, low, z], [x + w, low, z], 0.003, "hanger");
+    });
+    railEnd = railStart - S.rail.between;
   }
-  hung.forEach((it, k) => {
-    // stepped a little front to back, so neighbouring sleeves lie over each other, not through
-    const x = railStart + S.rail.end + k * S.rail.spacing, y = rh + 0.008, z = back + (k % 2 ? -0.03 : 0.03), w = S.rail.hanger;
-    places[it.id] = { kind: "hang", x, y, z, tilt: 0 };
-    const neck = [x, y - 0.014, z], low = y - HANGER_DROP - 0.03;    // (inside the sloping shoulders)
-    rod([x, y, z], neck, 0.003);
-    rod(neck, [x - w, low, z], 0.004, "hanger");
-    rod(neck, [x + w, low, z], 0.004, "hanger");
-    rod([x - w, low, z], [x + w, low, z], 0.003, "hanger");
-  });
 
-  // the shoe rack in front of the rail: tiers stepping up toward the back, the shoes on them toes
-  // down a little, toward the camera
+  // the shoe rack in front of the rail nearest the body: tiers stepping up toward the back, the
+  // shoes on them toes down a little, toward the camera
   const sr = S.shoes, shoes = of("shoes"), tiers = Math.max(1, Math.ceil(shoes.length / sr.perTier));
-  const sw = sr.spacing * sr.perTier, sx = (railStart + railEnd) / 2;
+  const sw = sr.spacing * sr.perTier, sx = Math.min((inner[0] + inner[1]) / 2, -S.inner - sw / 2);
   for (let t = 0; t < tiers; t++) {
     const y = sr.tiers[Math.min(t, sr.tiers.length - 1)] + Math.max(0, t - sr.tiers.length + 1) * 0.1, z = sr.front - t * sr.step;
     rod([sx - sw / 2, y, z + 0.04], [sx + sw / 2, y, z + 0.04], 0.006);
@@ -169,23 +182,28 @@ export function shopLayout(items) {
     });
   }
 
-  // the shelves: folded clothes on the lower ones, mannequin heads above
-  const sh = S.shelves, x0 = S.inner, x1 = S.inner + sh.width;
-  const rows = [], folded = of("fold"), heads = of("head");
-  for (let k = 0; k < folded.length; k += sh.folded) rows.push(folded.slice(k, k + sh.folded));
-  for (let k = 0; k < heads.length; k += sh.heads) rows.push(heads.slice(k, k + sh.heads));
-  const levels = rows.map((_, k) => sh.first + k * sh.gap);
-  const top = (levels.length ? levels[levels.length - 1] : sh.first) + sh.gap;
-  for (const y of [...levels, top]) box([(x0 + x1) / 2, y - sh.board / 2, back], [sh.width, sh.board, sh.depth]);
-  for (const x of [x0, x1]) box([x, top / 2, back], [sh.board, top, sh.depth]);
-  box([(x0 + x1) / 2, top / 2, back - sh.depth / 2], [sh.width, top, sh.board], "back");
-  rows.forEach((row, r) => row.forEach((it, k) => {
-    const x = x0 + sh.width * (k + 0.5) / row.length, y = levels[r];
-    if (it.display === "head") {
-      rod([x, y, back], [x, y + sh.foot, back], 0.02, "foam");             // the head's foot
-      places[it.id] = { kind: "head", x, y: y + sh.foot, z: back, tilt: 0 };
-    } else places[it.id] = { kind: "fold", x, y, z: back, tilt: 0 };
-  }));
+  // the shelf units, side by side from the body out: rows of folded clothes, then rows of
+  // mannequin heads, a few rows to a unit, each unit's rows on its top shelves (so heads stay at
+  // eye height and an empty shelf, if any, is the one at the floor)
+  const sh = S.shelves, rows = [], folded = of("fold"), heads = of("head");
+  if (folded.length) rows.push(...runs(folded, Math.ceil(folded.length / sh.folded)));     // (rows as even as can be)
+  if (heads.length) rows.push(...runs(heads, Math.ceil(heads.length / sh.heads)));
+  const levels = Array.from({ length: sh.levels }, (_, k) => sh.first + k * sh.gap), top = sh.first + sh.levels * sh.gap;
+  let x1 = S.inner;
+  for (let u = 0; u === 0 || u * sh.levels < rows.length; u++) {
+    const x0 = S.inner + u * (sh.width + sh.between), unit = rows.slice(u * sh.levels, (u + 1) * sh.levels);
+    x1 = x0 + sh.width;
+    for (const y of [...levels, top]) box([(x0 + x1) / 2, y - sh.board / 2, back], [sh.width, sh.board, sh.depth]);
+    for (const x of [x0, x1]) box([x, top / 2, back], [sh.board, top, sh.depth]);
+    box([(x0 + x1) / 2, top / 2, back - sh.depth / 2], [sh.width, top, sh.board], "back");
+    unit.forEach((row, r) => row.forEach((it, k) => {
+      const x = x0 + sh.width * (k + 0.5) / row.length, y = levels[sh.levels - unit.length + r];
+      if (it.display === "head") {
+        rod([x, y, back], [x, y + sh.foot, back], 0.02, "foam");             // the head's foot
+        places[it.id] = { kind: "head", x, y: y + sh.foot, z: back, tilt: 0 };
+      } else places[it.id] = { kind: "fold", x, y, z: back, tilt: 0 };
+    }));
+  }
 
   // the stands: a pole on a cross foot, a mannequin head on top
   const st = S.stands;

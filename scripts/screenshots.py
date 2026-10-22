@@ -39,6 +39,7 @@ SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("guide-desktop", 1280, 800, "light", "en", "guide"),
     ("room-desktop", 1280, 800, "light", "en", "room"),
     ("decor-desktop", 1280, 800, "light", "en", "decor"),
+    ("loading-desktop", 1280, 800, "light", "en", "loading"),
 ]
 # a line-art design drawn on white, like a scanned tattoo sketch: a sun with a wave inside
 DESIGN = """(() => {
@@ -128,6 +129,9 @@ def main() -> None:
                     decor_scene(page)
                 if panel == "guide":
                     page.click("#guideBtn")
+                page.wait_for_function("document.getElementById('busy').hidden", timeout=180000)
+                if panel == "loading":                  # the spinner as it shows while the skeleton is found
+                    page.evaluate("bodyApp.busy('shot', t('studio.finding'), { now: true })")
                 page.wait_for_function("document.getElementById('version').textContent.length > 0")
                 page.wait_for_timeout(1500)
                 page.screenshot(path=str(out / f"{name}.png"), timeout=180000)
@@ -190,7 +194,7 @@ def wardrobe_scene(page) -> None:
     page.locator("#presets button").nth(3).click()                 # walking
     page.evaluate("""(() => {                                       // a little from the side
       const V = bodyApp.viewer, t = V.controls.target, p = V.camera.position, d = p.distanceTo(t);
-      p.set(t.x + d * Math.sin(0.3), p.y, t.z + d * Math.cos(0.3)); V.controls.update();
+      p.set(t.x + d * Math.sin(0.1), p.y, t.z + d * Math.cos(0.1)); V.controls.update();
     })()""")
     # in software rendering a sort of this many splats takes a while: wait until the clothes are
     # on screen, then for one more sort from the new angle

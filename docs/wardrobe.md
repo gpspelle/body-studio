@@ -60,12 +60,20 @@ While the Try on panel is open the items are also shown around the body:
 
 | Where | What | How it is shown |
 |---|---|---|
-| Clothes rail, behind on the left | suit, shirts with jeans, jacket, overalls, shirt and skirt | on a hanger: the arms turned down to the sides, the legs together, the cloth a little flatter |
-| Shoe rack, in front of the rail | the 6 pairs | the two shoes side by side, toes a little down toward you |
-| Shelves, behind on the right | T-shirts, long-sleeve top, crop top with jeans, shorts or leggings | folded: legs folded together along the inside seam, sleeves folded back, then folded in zigzags from the collar into a flat stack, chest on top |
-| Shelves, above | 7 short hairstyles | on a mannequin head (MakeHuman's own head and neck) |
-| Shelves, above (more of them) | beanies, the headband, the glasses | on a mannequin head, like short hair |
+| Clothes rails, behind on the left | suit, shirts with jeans, jacket, overalls, shirt and skirt | on a hanger: the arms turned down to the sides, the legs together, the cloth a little flatter |
+| Shoe rack, in front of the rail nearest the body | the 6 pairs | the two shoes side by side, toes a little down toward you |
+| Shelf units, behind on the right | T-shirts, long-sleeve top, crop top with jeans, shorts or leggings | folded: legs folded together along the inside seam, sleeves folded back, then folded in zigzags from the collar into a flat stack, chest on top |
+| Shelf units, above | 7 short hairstyles | on a mannequin head (MakeHuman's own head and neck) |
+| Shelf units, above (more of them) | beanies, the headband, the glasses | on a mannequin head, like short hair |
 | Stands, at the right | long hair, ponytail, braid, the fedora | on a mannequin head on a pole (too long for a shelf) |
+
+A rail holds five hangers at most, so more outfits make more rails side by side, not one long rail
+with the garments crowded on it. A shelf unit has four shelves and is about as tall as the person
+(one person-height, up from two when every row was on one tall bookcase): more rows make more units
+side by side. Rows go folded clothes first, then mannequin heads, each unit's rows on its top shelves,
+so the heads stay at eye height and a spare shelf is the one at the floor. With today's catalogue
+that is two rails and two units, and the shop reaches about 2.5 person-heights to each side (the
+camera takes that in on a computer; on a phone it keeps to the racks nearest the body).
 
 How each outfit is shown is chosen in `wardrobe.py` (`FOLDED`, `LONG_HAIR`): what a shop folds
 (T-shirts, knitwear, sportswear) is folded, what has a collar, a jacket, a skirt or bibs is hung.

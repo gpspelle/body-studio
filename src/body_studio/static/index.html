@@ -38,6 +38,9 @@
   <p class="quiet" data-i18n="empty.how"></p>
 </div>
 <div id="loading" class="center" hidden><p class="quiet" id="loadingText"></p></div>
+<div id="busy" class="busy" hidden><div class="busy-card" role="status" aria-live="polite">
+  <span class="spinner" aria-hidden="true"></span><span id="busyText"></span><span id="busySlow" class="small"></span>
+</div></div>
 
 <div class="bottom">
   <p id="walkHint" class="walk-hint" role="status" hidden></p>
@@ -262,6 +265,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { Ground } from "/static/ground.js";
+import { Busy } from "/static/busy.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -388,14 +392,27 @@ function frame() {
 
 let mesh = null, fit = null, current = null, meshFile = null;
 
+// One spinner over the body while it can't be used yet (busy.js): loading it here, its skeleton
+// and getting it ready to move in tattoo.js (bodyApp.busy). Centred where the body is, between the
+// panels; the page under it still takes clicks and drags.
+const busy = new Busy(({ shown, text, slow }) => {
+  const cover = covered();
+  $("busy").style.inset = `${cover.top}px ${cover.right}px ${cover.bottom}px ${cover.left}px`;
+  $("busyText").textContent = text;
+  $("busySlow").textContent = slow;
+  $("busy").hidden = !shown;
+  document.body.classList.toggle("is-busy", shown);
+});
+
 async function show(body) {
   if (current === body.file) return;
   current = body.file;
   store.set("body:last", body.file);
   for (const b of document.querySelectorAll(".shelf button")) b.classList.toggle("on", b.dataset.file === body.file);
-  $("empty").hidden = true; $("loading").hidden = false; $("loadingText").textContent = t("load.loading", { name: body.name });
+  $("empty").hidden = true; $("loading").hidden = true;
+  busy.set("body", t("load.loading", { name: body.name.replace(/_/g, " ") }), { slow: t("load.slowBody") });
   const res = await fetch("/files/" + body.file.split("/").map(encodeURIComponent).join("/"));
-  if (!res.ok) { $("loadingText").textContent = t("load.failed", { name: body.name }); return; }
+  if (!res.ok) { busy.set("body", null); $("loading").hidden = false; $("loadingText").textContent = t("load.failed", { name: body.name }); return; }
   const bytes = new Uint8Array(await res.arrayBuffer());
   if (current !== body.file) return;           // another body was picked meanwhile
   if (mesh) { holder.remove(mesh); mesh.dispose?.(); }
@@ -410,7 +427,7 @@ async function show(body) {
   ground.place(fit.center, fit.center.y - fit.size.y / 2, fit.size.y, fit.size.x, fit.size.z);
   frame();
   controls.autoRotate = true;
-  $("loading").hidden = true;
+  busy.set("body", null);
   window.bodyViewer = { numSplats: () => mesh.numSplats || 0, size: () => fit.size.toArray(), file: () => current };
   $("studioBtn").hidden = false;
   dispatchEvent(new Event("bodyshown"));
@@ -507,6 +524,7 @@ window.bodyApp = {
   current: () => bodyList.find((b) => b.file === current) || null,
   show: (id) => { const b = bodyList.find((x) => x.id === id); if (b) show(b); },
   reframe: () => { if (fit) frame(); },
+  busy: (key, text, opts) => busy.set(key, text, opts),   // (tattoo.js: the skeleton, getting ready to move)
   upload,                                    // (house.js: a room's video)
   // for the tattoo and pose panel (tattoo.js)
   viewer: { scene, spark, holder, ground, camera, controls, renderer, canvas, frameHooks, mesh: () => mesh, file: () => current,
