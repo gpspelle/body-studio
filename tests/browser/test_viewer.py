@@ -7,6 +7,8 @@ import os
 import struct
 import tempfile
 import threading
+import urllib.parse
+import urllib.request
 import unittest
 import zlib
 from http.server import ThreadingHTTPServer
@@ -424,12 +426,23 @@ class Viewer(unittest.TestCase):
         page.click("#roomBtn")
         page.locator("#roomList button[data-file^='workspace/Living_room/']").click()
         page.wait_for_function("house.shown() && decor.group()", timeout=300000)
+        # the room as it was afterwards, for the other tests, even when this one fails
+        room = page.evaluate("house.file()")
+        self.addCleanup(lambda: urllib.request.urlopen(urllib.request.Request(
+            self.url + "api/decor/layout?room=" + urllib.parse.quote(room), method="POST",
+            data=json.dumps({"current": 0, "layouts": [{"name": "Layout 1", "items": []}]}).encode())).read())
         page.click("#roomBtn")
         page.click("#decorBtn")
         self.assertTrue(page.locator("#decor").is_visible())
-        self.assertEqual(page.locator("#decorItems button").count(), 9)            # the starters
+        # the starters, by kind: tables and chairs first
+        page.evaluate("decor.shelf('tables')")
+        self.assertEqual(page.locator("#decorGroups button").count(), 6)
+        tables = page.evaluate("[...document.querySelectorAll('#decorItems button')].map((b) => b.dataset.item)")
+        self.assertIn("round_table", tables)
+        self.assertIn("bench", tables)
+        self.assertNotIn("candle", tables)
         # a chair, a step ahead of her, facing her: the walk goes round it
-        page.locator("#decorItems button", has_text="Chair").click()
+        page.locator("#decorItems button[data-item=chair]").click()
         self.assertEqual(page.evaluate("decor.drawn()"), 1)
         chair = page.evaluate("decor.placed()[0]")
         self.assertFalse(page.evaluate(f"house.map().free({chair['x']}, {chair['z']})"))
@@ -440,15 +453,29 @@ class Viewer(unittest.TestCase):
         page.click("#decorRow")
         self.assertEqual(page.evaluate("decor.placed().length"), 5)
         # a round table with eight chairs round it, a candle on it
-        page.locator("#decorItems button", has_text="Round table").click()
+        page.locator("#decorItems button[data-item=round_table]").click()
         page.select_option("#decorRowN", "8")
         page.click("#decorAround")
         self.assertEqual(page.evaluate("decor.placed().length"), 14)
-        page.locator("#decorItems button", has_text="Candle").click()
+        page.locator("#decorGroups button", has_text="On the table").click()
+        page.locator("#decorItems button[data-item=candle]").click()
         y = page.evaluate("""(() => { const p = decor.placed(), t = p.find((q) => q.item === 'round_table');
             decor.move(p.length - 1, t.x + 0.3, t.z); return decor.placed()[p.length - 1].y; })()""")
         self.assertAlmostEqual(y, 0.76, places=3)
         self.assertEqual(page.evaluate("decor.drawn()"), 15)
+        # the table set: a place in front of each of its eight chairs, on it
+        page.evaluate("decor.pick(decor.placed().findIndex((q) => q.item === 'round_table'))")
+        page.click("#decorSet")
+        settings = page.evaluate("decor.placed().filter((q) => q.item === 'place_setting')")
+        self.assertEqual(len(settings), 8)
+        self.assertTrue(all(abs(q["y"] - 0.76) < 1e-6 for q in settings))
+        page.click("#decorSet")                                                     # set already
+        self.assertEqual(page.evaluate("decor.placed().filter((q) => q.item === 'place_setting').length"), 8)
+        # lights glow: string lights over the table
+        glowing = page.evaluate("decor.glowing()")
+        page.locator("#decorGroups button", has_text="Lights").click()
+        page.locator("#decorItems button[data-item=string_lights]").click()
+        self.assertEqual(page.evaluate("decor.glowing()"), glowing + 1)
         # dragged along the floor with the mouse: a thing in view, not under the panel
         page.evaluate("decor.pick(-1); tattooStudio.stepFor(1)")
         at = page.evaluate("""(() => {
@@ -473,23 +500,24 @@ class Viewer(unittest.TestCase):
         # kept for the room: there again after a reload
         page.wait_for_function("!decor.saving")
         page.reload()
-        page.wait_for_function("window.decor && decor.placed().length === 15", timeout=300000)
+        page.wait_for_function("window.decor && decor.placed().length === 24", timeout=300000)
         self.assertEqual(page.evaluate("decor.layouts().layouts.length"), 1)
         page.click("#decorBtn")
         page.click("#decorNew")
         self.assertEqual(page.evaluate("decor.placed().length"), 0)
         self.assertEqual(page.locator("#decorLayout option").count(), 2)
         page.select_option("#decorLayout", "0")
-        self.assertEqual(page.evaluate("decor.placed().length"), 15)
+        self.assertEqual(page.evaluate("decor.placed().length"), 24)
         # a thing made from a photo (the stand-in for TripoSR makes a cone), at its real height
         page.set_input_files("#decorPick", str(self.design))
         page.locator("#decorForm [name=label]").fill("Arch from Instagram")
         page.locator("#decorForm [name=height]").fill("120")
         page.locator("#decorForm button.btn").click()
         page.wait_for_function("decor.items().some((i) => i.name === 'Arch from Instagram' && i.status === 'ready')", timeout=60000)
+        page.locator("#decorGroups button", has_text="From photos").click()
         page.locator("#decorItems button", has_text="Arch from Instagram").click()
-        page.wait_for_function("decor.drawn() === 16")
-        scale = page.evaluate("decor.group().children.filter((c) => c.isMesh).find((c) => c.userData.index === 15).scale.y")
+        page.wait_for_function("decor.drawn() === 25")
+        scale = page.evaluate("decor.group().children.filter((c) => c.isMesh).find((c) => c.userData.index === 24).scale.y")
         self.assertAlmostEqual(scale, 1.2, places=6)
         self.assertTrue(page.locator("#decorHeightRow").is_visible())
         # a chair is somewhere to sit
@@ -498,9 +526,6 @@ class Viewer(unittest.TestCase):
             w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; tattooStudio.redraw(); })()""")
         self.assertEqual(page.evaluate("house.nearby()"), "sit")
         self.assertEqual(errors, [])
-        # the room as it was, for the other tests
-        page.evaluate("""fetch('/api/decor/layout?room=' + encodeURIComponent(house.file()),
-            { method: 'POST', body: JSON.stringify({ current: 0, layouts: [{ name: 'Layout 1', items: [] }] }) })""")
 
     def test_clothes_go_on_and_come_off(self):
         page = self.new_page(viewport={"width": 1280, "height": 800})

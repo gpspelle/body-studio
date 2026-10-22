@@ -4,7 +4,7 @@
 // come from the starters (decor.js draws them) or are made from a photo on this computer (POST
 // /api/decor/photo, decor.py and photo3d.py). The maths is decor.js's; the room is house.js's.
 import * as THREE from "three";
-import { COLOURS, STARTERS, around, blocker, dropY, freeSpot, itemDef, mapMatrix, row, seats, starterShape, unpack, wrap } from "/static/decor.js";
+import { COLOURS, GROUPS, STARTERS, around, blocker, dropY, freeSpot, itemDef, mapMatrix, row, seats, setTable, starterShape, unpack, wrap } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -20,6 +20,8 @@ let group = null;           // the meshes, in the map's metres (the group's matr
 const meshes = new Map();   // made item id -> its unpacked mesh (or the promise of it)
 const geoms = new Map();    // "id|colour" -> BufferGeometry
 let saveTimer = 0, pollTimer = 0, pendingPhoto = null, drag = null;
+// the inventory's group shown (decor.js GROUPS, or "mine": the things made from photos), kept for next time
+let shelf = (() => { try { return localStorage.getItem("decor.group"); } catch { return null; } })() || GROUPS[0];
 
 const placed = () => (L ? L.layouts[L.current].items : []);
 const itemOf = (id) => items.find((i) => i.id === id) || (STARTERS[id] ? { id } : null);
@@ -71,7 +73,17 @@ async function refreshItems() {
 }
 
 function inventory() {
-  $("decorItems").replaceChildren(...items.map((it) => {
+  const mine = items.some((i) => i.kind === "photo"), groups = mine ? [...GROUPS, "mine"] : GROUPS;
+  if (!groups.includes(shelf)) shelf = GROUPS[0];
+  $("decorGroups").replaceChildren(...groups.map((g) => {
+    const b = document.createElement("button");
+    b.dataset.group = g; b.textContent = t("decor.group." + g);
+    b.setAttribute("aria-pressed", String(g === shelf)); b.classList.toggle("on", g === shelf);
+    b.onclick = () => { shelf = g; try { localStorage.setItem("decor.group", g); } catch {} inventory(); };
+    return b;
+  }));
+  const shown = items.filter((it) => (it.kind === "photo" ? shelf === "mine" : STARTERS[it.id]?.group === shelf));
+  $("decorItems").replaceChildren(...shown.map((it) => {
     const b = document.createElement("button");
     b.dataset.item = it.id;
     if (it.kind === "photo") {
@@ -200,6 +212,7 @@ async function add(id) {
   const it = itemOf(id);
   if (!it) return;
   if (it.kind === "photo") await meshFor(id);
+  if (it.kind === "photo" && shelf !== "mine") { shelf = "mine"; inventory(); }
   const d = defs(id), { x, z, turn } = landing(d);
   const p = { item: id, x, y: 0, z, turn };
   p.y = dropY(d, placed(), defs, x, z, roomTop);
@@ -220,7 +233,9 @@ function pick(k) {
     $("decorTurnOut").textContent = $("decorTurn").value + "°";
     $("decorColours").hidden = !d.starter;
     for (const b of $("decorColours").children) b.classList.toggle("on", b.dataset.colour === (p.colour || STARTERS[p.item]?.colour));
-    $("decorAround").hidden = !(d.top !== undefined && d.size && p.item.endsWith("table"));
+    const table = d.top !== undefined && d.size && p.item.endsWith("table");
+    $("decorAround").hidden = !table;
+    $("decorSet").hidden = !table;
     $("decorHeightRow").hidden = d.starter;
     if (!d.starter) $("decorHeight").value = String(Math.round(it.height * 100));
     $("decorForget").hidden = d.starter;
@@ -265,7 +280,20 @@ $("decorRow").onclick = () => {
 $("decorAround").onclick = () => {
   const p = placed()[sel], n = +$("decorRowN").value;
   if (!p) return;
-  for (const c of around(defs(p.item), p, defs("chair"), n, STARTERS.chair.colour)) placed().push(c);
+  // the chairs already chosen for this layout (the last one put down), else the plain chair
+  const last = [...placed()].reverse().find((q) => STARTERS[q.item]?.group === "tables" && STARTERS[q.item].seat);
+  const chair = last ? last.item : "chair", colour = last ? last.colour || STARTERS[chair].colour : STARTERS.chair.colour;
+  for (const c of around(defs(p.item), p, defs(chair), n, colour)) placed().push(c);
+  changed();
+};
+// a place setting in front of every chair at the table, in the colour of the last one put down
+$("decorSet").onclick = () => {
+  const p = placed()[sel];
+  if (!p) return;
+  const last = [...placed()].reverse().find((q) => q.item === "place_setting");
+  const set = setTable(defs(p.item), p, placed(), defs);
+  for (const q of set) { if (last && last.colour) q.colour = last.colour; placed().push(q); }
+  say(set.length ? "" : t("decor.noChairs"));
   changed();
 };
 function removeSel() {
@@ -298,7 +326,16 @@ function geometry(s) {
   const g = new THREE.BufferGeometry();
   g.setAttribute("position", new THREE.BufferAttribute(s.p instanceof Float32Array ? s.p : new Float32Array(s.p), 3));
   g.setAttribute("color", new THREE.BufferAttribute(s.c instanceof Float32Array ? s.c : new Float32Array(s.c), 3));
-  g.setIndex(new THREE.BufferAttribute(s.i instanceof Uint32Array ? s.i : new Uint32Array(s.i), 1));
+  // the triangles that glow (bulbs, flames) after the rest, drawn with the second material
+  const tris = s.i instanceof Uint32Array ? s.i : new Uint32Array(s.i), idx = new Uint32Array(tris.length);
+  let lo = 0, hi = tris.length;
+  for (let k = 0; k < tris.length; k += 3) {
+    const glow = s.g && s.g[tris[k]] && s.g[tris[k + 1]] && s.g[tris[k + 2]];
+    if (glow) { hi -= 3; idx.set(tris.subarray(k, k + 3), hi); } else { idx.set(tris.subarray(k, k + 3), lo); lo += 3; }
+  }
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.addGroup(0, lo, 0);
+  if (lo < idx.length) g.addGroup(lo, idx.length - lo, 1);
   g.computeVertexNormals();
   return g;
 }
@@ -329,6 +366,7 @@ function geomFor(p) {
 
 const LOOK = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
 const PICKED = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, emissive: 0x2f6fd6, emissiveIntensity: 0.35 });
+const GLOW = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, toneMapped: false });
 
 function draw() {
   if (!group) return;
@@ -337,7 +375,7 @@ function draw() {
     const g = geomFor(p);
     if (!g) return;
     const d = defs(p.item);
-    const m = new THREE.Mesh(g, k === sel && !$("decor").hidden ? PICKED : LOOK);
+    const m = new THREE.Mesh(g, [k === sel && !$("decor").hidden ? PICKED : LOOK, GLOW]);
     m.position.set(p.x, p.y || 0, p.z);
     m.rotation.y = p.turn || 0;
     if (!d.starter) m.scale.setScalar(d.height);
@@ -453,4 +491,6 @@ window.decor = {
   group: () => group,
   move: (k, x, z) => { const p = placed()[k]; p.x = x; p.z = z; p.y = dropY(defs(p.item), placed(), defs, x, z, roomTop, p); changed(); },
   refresh: refreshItems,
+  shelf: (g) => { if (g) { shelf = g; inventory(); } return shelf; },
+  glowing: () => (group ? group.children.filter((c) => c.isMesh && c.geometry.groups.length > 1).length : 0),
 };

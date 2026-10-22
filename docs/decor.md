@@ -5,14 +5,15 @@ made in 3D from a photo (an Instagram picture of a centrepiece, a shop's photo o
 first use is planning a wedding venue: the venue is filmed as a room, the decor is placed in it,
 and the body can walk the aisle and sit at the tables.
 
-![A round table set with chairs, candles and flowers in the sample living room](images/decor-desktop.png)
+![A wedding set in the sample living room: a table set for eight under string lights, the bar, flowers](images/decor-desktop.png)
 
 ## The panel
 
 **Decor** appears in the top bar while a room is round the body (Room menu). It opens a panel at
 the right edge:
 
-- **Things**: the starters, then the things made from photos. Tap one to put it in the room, on
+- **Things**, by kind (Tables, On the table, Ceremony, Bar, Lights, Lounge, and From photos once
+  there is one; the kind shown is remembered). Tap one to put it in the room, on
   the floor in view beside the body (flowers, candles: on the table there), turned to face the
   camera.
 - **Add from a photo…**: pick a photo, give it a name and its **real height** in centimetres (the
@@ -21,20 +22,39 @@ the right edge:
 - **The thing picked** (tap it in the room, or the one just added): drag it along the floor, **Turn**
   (or `[` and `]`), a **colour** for the starters, its **real height** for a thing made from a
   photo, **Make a row** of 2–12 side by side, **Chairs round it** for a table (round: on a circle,
-  facing the middle; long: along both sides, then the ends), **Remove** (or Delete). A thing made
+  facing the middle; long: along both sides, then the ends; the chair last put down, in its
+  colour), **Set the table** (a place setting in front of each chair or bench seat at it, just
+  inside its edge, facing the guest; a place that is set already is left), **Remove** (or Delete). A thing made
   from a photo can also be deleted from the things.
 - **Layout**: several arrangements per room (**New**, **Copy**, **Delete**), kept in the data folder.
 
 Chairs and tables stop the walk like the room's furniture does (an arch only at its posts, so the
-body walks through it; a runner, candles and lanterns are walked past), and **F** sits on a chair
-that was put in the room.
+body walks through it; a runner, a rug, the dance floor, candles and lanterns are walked over or
+past), and **F** sits on a chair, a bench (three places), a sofa (two), an armchair or a bar
+stool that was put in the room.
 
 ## Starters
 
 Drawn by the page from simple shapes (`static/decor.js`), in metres, so they need no download and
-no licence: chair (seat at 45 cm, gold), round table (1.5 m across, 76 cm high, cloth to the
-floor), long table (1.8 × 0.8 m), flower arch (2.3 m), pillar (1 m), aisle runner (0.9 × 6 m),
-flowers, candle, lantern. Colours: white, ivory, gold, wood, green, blush, black.
+no licence. Sizes are the usual hire sizes, so a plan made with them holds at the venue:
+
+- **Tables**: chair (seat at 45 cm, gold), cross-back chair (wood), bench (1.8 m, three seats),
+  round table (1.5 m across, 76 cm high, cloth to the floor), long table (1.8 × 0.8 m), square
+  table (0.9 m), cocktail table (1.1 m high), sweetheart table (1.7 m, for the two of you).
+- **On the table**: place setting (charger, plate, napkin, cutlery, two glasses), low centrepiece
+  with candles, tall centrepiece (94 cm), candelabra, bud vases, table number, flowers, candle,
+  a three-tier cake on a stand, a champagne tower.
+- **Ceremony**: flower arch (2.3 m), moon arch (a 2.3 m ring), chuppah (four posts, a cloth roof),
+  flower wall (2.4 × 2.4 m), flower stand, aisle flowers, pillar (1 m), aisle runner (0.9 × 6 m),
+  welcome sign on an easel.
+- **Bar**: bar (2.4 m, 1.1 m high), back bar with bottles, bar stool (seat at 76 cm), buffet.
+- **Lights**: string lights (4 m long, hung at 2.8 m, sagging 35 cm), light pole (3 m),
+  chandelier (hung at 3.2 m), fairy light curtain (2.4 m), uplight (glows in its colour), lantern.
+  Bulbs and flames are drawn unlit by the room's light, so they glow.
+- **Lounge**: sofa (two seats), armchair, coffee table, rug (2.4 × 1.7 m), dance floor (4.8 m
+  square, tiled).
+
+Colours: white, ivory, gold, wood, green, blush, black.
 
 ## From a photo, on this computer
 

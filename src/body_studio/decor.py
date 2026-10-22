@@ -6,8 +6,8 @@ room), and the layouts they are put in. Design: docs/decor.md.
 
 Two kinds of item:
 
-- Starters, drawn by the page (static/decor.js): chairs, tables, an arch, candles, flowers... in
-  metres, in a few colours. Listed here so the inventory is one list.
+- Starters, drawn by the page (static/decor.js): chairs, tables, place settings, an arch, a bar,
+  string lights... in metres, in a few colours. Listed here so the inventory is one list.
 - Made from a photo (an Instagram picture, a shop's photo): photo3d.py turns it into a coloured
   mesh with TripoSR on this computer. The mesh is kept here at a height of 1 (the page scales it to
   the item's height in metres), standing on y = 0, centred over x = z = 0, its front toward +z.
@@ -43,18 +43,53 @@ MAX_ITEMS = 2000                # placed items in one layout
 MAX_LAYOUTS = 40
 COLOURS = ("white", "ivory", "gold", "wood", "green", "blush", "black")
 
-# The page draws these (static/decor.js STARTERS has the same ids). on: "floor", or "top" (stands on
-# a table or anything else with a top). The names are the page's (i18n "decor.item.<id>").
+# The page draws these (static/decor.js STARTERS has the same ids, in the same groups). on: "floor",
+# or "top" (stands on a table or anything else with a top). The names are the page's (i18n
+# "decor.item.<id>", "decor.group.<group>"). A wedding first: tables and seating, what goes on the
+# tables, flowers and the ceremony, the bar, lights, a lounge and the dance floor.
 STARTERS = (
-    {"id": "chair", "height": 0.9, "on": "floor"},
-    {"id": "round_table", "height": 0.76, "on": "floor"},
-    {"id": "long_table", "height": 0.76, "on": "floor"},
-    {"id": "arch", "height": 2.3, "on": "floor"},
-    {"id": "pillar", "height": 1.0, "on": "floor"},
-    {"id": "runner", "height": 0.01, "on": "floor"},
-    {"id": "flowers", "height": 0.45, "on": "top"},
-    {"id": "candle", "height": 0.3, "on": "top"},
-    {"id": "lantern", "height": 0.5, "on": "floor"},
+    {"id": "chair", "group": "tables", "height": 0.9, "on": "floor"},
+    {"id": "round_table", "group": "tables", "height": 0.76, "on": "floor"},
+    {"id": "long_table", "group": "tables", "height": 0.76, "on": "floor"},
+    {"id": "arch", "group": "ceremony", "height": 2.36, "on": "floor"},
+    {"id": "pillar", "group": "ceremony", "height": 1, "on": "floor"},
+    {"id": "runner", "group": "ceremony", "height": 0.01, "on": "floor"},
+    {"id": "flowers", "group": "table", "height": 0.45, "on": "top"},
+    {"id": "candle", "group": "table", "height": 0.3, "on": "top"},
+    {"id": "lantern", "group": "lights", "height": 0.5, "on": "floor"},
+    {"id": "cross_back_chair", "group": "tables", "height": 0.9, "on": "floor"},
+    {"id": "bench", "group": "tables", "height": 0.45, "on": "floor"},
+    {"id": "square_table", "group": "tables", "height": 0.76, "on": "floor"},
+    {"id": "cocktail_table", "group": "tables", "height": 1.1, "on": "floor"},
+    {"id": "sweetheart_table", "group": "tables", "height": 0.79, "on": "floor"},
+    {"id": "place_setting", "group": "table", "height": 0.19, "on": "top"},
+    {"id": "centrepiece", "group": "table", "height": 0.245, "on": "top"},
+    {"id": "tall_centrepiece", "group": "table", "height": 0.94, "on": "top"},
+    {"id": "candelabra", "group": "table", "height": 0.72, "on": "top"},
+    {"id": "bud_vases", "group": "table", "height": 0.24, "on": "top"},
+    {"id": "table_number", "group": "table", "height": 0.21, "on": "top"},
+    {"id": "cake", "group": "table", "height": 0.6, "on": "top"},
+    {"id": "champagne_tower", "group": "table", "height": 0.52, "on": "top"},
+    {"id": "moon_arch", "group": "ceremony", "height": 2.36, "on": "floor"},
+    {"id": "chuppah", "group": "ceremony", "height": 2.44, "on": "floor"},
+    {"id": "flower_wall", "group": "ceremony", "height": 2.4, "on": "floor"},
+    {"id": "flower_stand", "group": "ceremony", "height": 1.37, "on": "floor"},
+    {"id": "aisle_flowers", "group": "ceremony", "height": 0.41, "on": "floor"},
+    {"id": "welcome_sign", "group": "ceremony", "height": 1.6, "on": "floor"},
+    {"id": "bar", "group": "bar", "height": 1.1, "on": "floor"},
+    {"id": "back_bar", "group": "bar", "height": 2, "on": "floor"},
+    {"id": "bar_stool", "group": "bar", "height": 0.76, "on": "floor"},
+    {"id": "buffet", "group": "bar", "height": 0.98, "on": "floor"},
+    {"id": "string_lights", "group": "lights", "height": 2.8, "on": "floor"},
+    {"id": "light_pole", "group": "lights", "height": 3, "on": "floor"},
+    {"id": "chandelier", "group": "lights", "height": 3.2, "on": "floor"},
+    {"id": "fairy_curtain", "group": "lights", "height": 2.41, "on": "floor"},
+    {"id": "uplight", "group": "lights", "height": 0.2, "on": "floor"},
+    {"id": "sofa", "group": "lounge", "height": 0.82, "on": "floor"},
+    {"id": "armchair", "group": "lounge", "height": 0.82, "on": "floor"},
+    {"id": "coffee_table", "group": "lounge", "height": 0.42, "on": "floor"},
+    {"id": "rug", "group": "lounge", "height": 0.01, "on": "floor"},
+    {"id": "dance_floor", "group": "lounge", "height": 0.02, "on": "floor"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}
 

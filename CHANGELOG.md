@@ -150,6 +150,14 @@
   turn a moment behind her when she turns, without the bounce at every step, the snaps at the end
   of the swing or the hem tearing into lace that the old springs gave.
 
+- **More wedding decor**: about 30 more starters, shown by kind (Tables, On the table, Ceremony,
+  Bar, Lights, Lounge, and From photos): cross-back chairs, benches, square, cocktail and
+  sweetheart tables, place settings, centrepieces, candelabras, bud vases, table numbers, a cake, a
+  champagne tower, a moon arch, a chuppah, a flower wall, flower stands, aisle flowers, a welcome
+  sign, a bar with its back shelves and stools, a buffet, string lights, light poles, a
+  chandelier, a fairy light curtain, uplights, a sofa, armchairs, a coffee table, a rug and a dance
+  floor. Bulbs and flames glow. **Set the table** puts a place setting in front of each chair at a
+  table; **Chairs round it** uses the chair last put down. Benches, sofas and bar stools can be sat on.
 - **Decor in a room** (see `docs/decor.md`): with a room round the body, **Decor** opens a panel to
   put chairs, tables, a flower arch, a pillar, an aisle runner, flowers, candles and lanterns in it
   (in seven colours), drag them along the floor, turn them, make rows, put chairs round a table, and

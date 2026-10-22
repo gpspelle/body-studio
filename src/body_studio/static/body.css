@@ -261,6 +261,9 @@ label.btn { display: inline-block; font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .pill.busy::before { animation: none; } }
 
 /* Decor: the things as chips (a photo's own thumbnail in it), colour swatches, the repeat row. */
+/* the groups of things (tables, on the table, ceremony, bar, lights, lounge) as small tabs over them */
+.shelves { gap: 4px; margin-bottom: 6px; }
+.shelves button { font-size: 12px; padding: 2px 8px; border-color: transparent; }
 .things button { display: inline-flex; align-items: center; gap: 6px; }
 .things img { width: 20px; height: 20px; object-fit: cover; border-radius: 4px; }
 .things button.busy { opacity: 0.6; }

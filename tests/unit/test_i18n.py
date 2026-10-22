@@ -60,7 +60,7 @@ class I18n(unittest.TestCase):
         en, pt = table("en"), table("pt")
         page = (STATIC / "decorate.js").read_text()
         keys = set(re.findall(r'\bt\(\s*"(decor\.\w+)"', page))
-        keys |= {"decor.item." + s["id"] for s in decor.STARTERS} | {"decor.colour." + c for c in decor.COLOURS}
+        keys |= {"decor.item." + s["id"] for s in decor.STARTERS} | {"decor.group." + s["group"] for s in decor.STARTERS} | {"decor.group.mine"} | {"decor.colour." + c for c in decor.COLOURS}
         src = (STATIC.parent / "decor.py").read_text() + (STATIC.parent / "photo3d.py").read_text()
         codes = set(re.findall(r'DecorError\(.*, "(\w+)"\)', src)) | set(re.findall(r'code = "(\w+)"', src))
         codes |= set(re.findall(r'"code": "(\w+)"', (STATIC.parent / "server.py").read_text())) & {"no_room"}

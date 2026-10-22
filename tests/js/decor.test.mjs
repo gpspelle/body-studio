@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { COLOURS, STARTERS, around, blocker, covers, dropY, freeSpot, itemDef, mapMatrix, row, seats, starterShape, unpack, wrap } from "../../src/body_studio/static/decor.js";
+import { COLOURS, GROUPS, STARTERS, around, blocker, covers, dropY, freeSpot, itemDef, mapMatrix, row, seats, setTable, starterShape, unpack, wrap } from "../../src/body_studio/static/decor.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
 const env = (k) => process.env[k] && JSON.parse(fs.readFileSync(process.env[k], "utf8"));
@@ -25,13 +25,18 @@ test("the page has every starter decor.py lists, as tall as it says", () => {
     const st = STARTERS[s.id];
     assert.equal(st.height, s.height, s.id);
     assert.equal(st.on, s.on, s.id);
+    assert.equal(st.group, s.group, s.id);
+    assert.ok(GROUPS.includes(st.group), s.id + ": a group the panel shows");
     const sh = starterShape(s.id);
     assert.equal(sh.p.length, sh.c.length, s.id);
+    assert.equal(sh.g.length, sh.p.length / 3, s.id + ": glows or not, per vertex");
     assert.equal(sh.i.length % 3, 0, s.id);
     assert.ok(sh.i.every((i) => i >= 0 && i < sh.p.length / 3), s.id + ": faces in range");
     assert.ok(sh.p.every(Number.isFinite), s.id);
     const b = bounds(sh.p);
-    near(b.lo[1], 0, 1e-6, s.id + " stands on the floor");
+    // what hangs (string lights, a chandelier) may start above the floor
+    if (st.hangs) assert.ok(b.lo[1] >= -0.005, s.id + " above the floor");
+    else near(b.lo[1], 0, 0.005, s.id + " stands on the floor");
     near(b.hi[1], s.height, Math.max(0.006, 0.04 * s.height), s.id + " height");
     // its footprint (for walking round it, for putting things on it) is about its shape's
     const sz = st.size, w = sz.r !== undefined ? 2 * sz.r : sz.w, d = sz.r !== undefined ? 2 * sz.r : sz.d;
@@ -162,4 +167,45 @@ test("turns stay within half a turn either way", () => {
   for (const t of [around(defs("round_table"), { item: "round_table", x: 0, z: 0, turn: 3 }, defs("chair"), 12),
                    around(defs("long_table"), { item: "long_table", x: 0, z: 0, turn: -3 }, defs("chair"), 10)].flat())
     assert.ok(Math.abs(t.turn) <= Math.PI + 1e-9, String(t.turn));
+});
+
+test("lights and flames glow, the rest doesn't", () => {
+  const glows = (id) => starterShape(id).g.some((g) => g === 1);
+  for (const id of ["candle", "lantern", "string_lights", "chandelier", "fairy_curtain", "candelabra", "centrepiece"])
+    assert.ok(glows(id), id);
+  for (const id of ["chair", "round_table", "bar", "sofa", "cake"]) assert.ok(!glows(id), id);
+});
+
+test("every group has things in it, and a bench and a sofa seat more than one", () => {
+  for (const g of GROUPS) assert.ok(Object.values(STARTERS).some((s) => s.group === g), g);
+  const at = (id) => seats([{ item: id, x: 0, y: 0, z: 0, turn: 0 }], defs);
+  assert.equal(at("bench").length, 3);
+  assert.equal(at("sofa").length, 2);
+  assert.equal(at("chair").length, 1);
+  const xs = at("bench").map((s) => s.x);
+  assert.ok(Math.max(...xs) - Math.min(...xs) > 0.8, "along the bench");
+  assert.equal(at("bar_stool")[0].y, 0.76);
+});
+
+test("setting the table puts a place in front of each chair, on the table, facing the guest", () => {
+  for (const [id, n] of [["round_table", 8], ["long_table", 6], ["square_table", 4]]) {
+    for (const turn of [0, 0.7]) {
+      const t = { item: id, x: 2, y: 0, z: 1, turn }, def = defs(id);
+      const chairs = around(def, t, defs("chair"), n), far = { item: "chair", x: 9, y: 0, z: 9, turn: 0 };
+      const placed = [t, ...chairs, far], set = setTable(def, t, placed, defs);
+      assert.equal(set.length, n, id + ": one each, none for the far chair");
+      for (const [k, s] of set.entries()) {
+        assert.equal(s.item, "place_setting");
+        near(s.y, def.top, 1e-9, "on the top");
+        assert.ok(covers(def, t, s.x, s.z, -0.2), id + ": on the table, in from its edge");
+        const c = chairs[k], f = [Math.sin(s.turn), Math.cos(s.turn)], to = [c.x - s.x, c.z - s.z];
+        assert.ok((f[0] * to[0] + f[1] * to[1]) / Math.hypot(...to) > 0.95, id + ": facing its chair");
+        assert.ok(Math.hypot(...to) < 0.9, id + ": near its chair");
+      }
+      assert.equal(setTable(def, t, placed.concat(set), defs).length, 0, "set already");
+    }
+  }
+  const bench = { item: "bench", x: 0, y: 0, z: 0.75, turn: Math.PI }, lt = { item: "long_table", x: 0, y: 0, z: 0, turn: 0 };
+  assert.equal(setTable(defs("long_table"), lt, [lt, bench], defs).length, 3, "three on a bench");
+  assert.deepEqual(setTable(defs("chair"), { item: "chair", x: 0, z: 0 }, [], defs), []);
 });

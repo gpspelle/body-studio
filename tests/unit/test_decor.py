@@ -180,7 +180,7 @@ class Inventory(unittest.TestCase):
         turned = decor.clean_layouts({"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "turn": 10.4}]}]})
         self.assertAlmostEqual(turned["layouts"][0]["items"][0]["turn"], 10.4 - 4 * 3.141592653589793, places=3)
         self.assertTrue(decor.layout_file(self.d, room).parent.samefile(self.d / "decor" / "layouts"))
-        for bad in (None, {"layouts": []}, {"layouts": [{"items": [{"item": "sofa", "x": 0, "z": 0}]}]},
+        for bad in (None, {"layouts": []}, {"layouts": [{"items": [{"item": "spaceship", "x": 0, "z": 0}]}]},
                     {"layouts": [{"items": [{"item": "chair", "x": "a", "z": 0}]}]},
                     {"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "colour": "plaid"}]}]},
                     {"layouts": [{"items": [{"item": "chair", "x": 1e9, "z": 0}]}]}):

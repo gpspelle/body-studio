@@ -226,22 +226,29 @@ How it works and the limits (flat floors only, the size is a guess within about 
 
 ## Decor in a room
 
-With a room round the body, **Decor** in the top bar opens a panel for putting things in it: chairs,
-round and long tables, a flower arch, a pillar, an aisle runner, flowers, candles and lanterns, in
-a few colours, or things made in 3D from a photo. Planning a wedding venue is what it is for: film
-the venue as a room, set it, walk the aisle.
+With a room round the body, **Decor** in the top bar opens a panel for putting things in it, about
+40 wedding pieces in a few colours, by kind: **Tables** (chairs, cross-back chairs, benches, round,
+long, square, cocktail and sweetheart tables), **On the table** (place settings, centrepieces low
+and tall, candelabras, bud vases, table numbers, the cake, a champagne tower, flowers, candles),
+**Ceremony** (arches, a moon arch, a chuppah, a flower wall, flower stands, aisle flowers, a
+runner, a welcome sign), **Bar** (a bar, its back shelves, bar stools, a buffet), **Lights**
+(string lights, light poles, a chandelier, a curtain of fairy lights, uplights, lanterns; they
+glow) and **Lounge** (a sofa, armchairs, a coffee table, a rug, a dance floor), or things made in
+3D from a photo. Planning a wedding venue is what it is for: film the venue as a room, set it,
+walk the aisle.
 
-![A round table set with chairs, candles and flowers in the sample living room](docs/images/decor-desktop.png)
+![A wedding set in the sample living room: a table set for eight under string lights, the bar, flowers](docs/images/decor-desktop.png)
 
 - Tap a thing to put it in the room, then drag it along the floor. Flowers and candles go on the
   table they are dropped on. **Turn** (or `[` `]`), a colour, **Make a row** of up to 12, **Chairs
-  round it** for a table, **Remove** (or Delete).
+  round it** for a table, **Set the table** (a place setting in front of each chair), **Remove**
+  (or Delete).
 - **Add from a photo…**: a photo of one thing (an Instagram picture is fine), its name and its real
   height in cm. It is made into 3D **on this computer** with TripoSR (MIT) in a minute or two. The
   first time also installs it and downloads its weights (about 2 GB); `body-studio setup` does that
   beforehand. The back of the thing is guessed, so it works best on one whole thing on a plain
   background.
-- Chairs and tables stop the walk; **F** sits on a chair you put there.
+- Chairs and tables stop the walk; **F** sits on a chair, a bench, a sofa or a bar stool you put there.
 - **Layout**: several arrangements per room (**New**, **Copy**, **Delete**). Everything is kept in
   `decor/` in the data folder.
 
@@ -441,18 +448,26 @@ inglês: [docs/room.md](docs/room.md).
 ### Decoração no cômodo
 
 Com um cômodo em volta do corpo, **Decoração** na barra de cima abre um painel para colocar coisas
-nele: cadeiras, mesas redondas e compridas, um arco de flores, um pedestal, uma passadeira, flores,
-velas e lanternas, em algumas cores, ou coisas feitas em 3D a partir de uma foto. É para planejar a
+nele, umas 40 peças de casamento em algumas cores, por tipo: **Mesas** (cadeiras, cadeiras cross
+back, bancos, mesas redondas, compridas, quadradas, bistrô e a dos noivos), **Na mesa** (lugares
+postos, centros de mesa baixos e altos, candelabros, vasinhos, números de mesa, o bolo, uma torre
+de champanhe, flores, velas), **Cerimônia** (arcos, um arco lua, uma chupá, um painel de flores,
+colunas de flores, flores do corredor, uma passadeira, uma placa de boas-vindas), **Bar** (o bar,
+a prateleira, banquetas, um buffet), **Luzes** (varal de luzes, postes, um lustre, uma cortina de
+luzes, luzes de chão, lanternas; elas brilham) e **Lounge** (sofá, poltronas, mesa de centro,
+tapete, pista de dança), ou coisas feitas em 3D a partir de uma foto. É para planejar a
 decoração de um casamento: filme o espaço como um cômodo, monte a decoração, ande pelo corredor.
 
 - Toque numa coisa para colocá-la no cômodo e arraste pelo chão. Flores e velas ficam em cima da
   mesa onde são soltas. **Girar** (ou `[` `]`), uma cor, **Fazer uma fileira** de até 12,
-  **Cadeiras em volta** de uma mesa, **Remover** (ou Delete).
+  **Cadeiras em volta** de uma mesa, **Pôr a mesa** (um lugar posto na frente de cada cadeira),
+  **Remover** (ou Delete).
 - **Adicionar de uma foto…**: uma foto de uma coisa só (uma foto do Instagram serve), o nome e a
   altura real em cm. Ela vira 3D **neste computador** com o TripoSR (MIT) em um ou dois minutos. Na
   primeira vez também instala e baixa os pesos (cerca de 2 GB); o `body-studio setup` já faz isso
   antes. A parte de trás é adivinhada, então funciona melhor com uma coisa inteira num fundo liso.
-- Cadeiras e mesas param a caminhada; **F** senta numa cadeira que você colocou.
+- Cadeiras e mesas param a caminhada; **F** senta numa cadeira, num banco, num sofá ou numa
+  banqueta que você colocou.
 - **Arranjo**: vários arranjos por cômodo (**Novo**, **Copiar**, **Apagar**). Tudo fica em `decor/`
   na pasta de dados.
 

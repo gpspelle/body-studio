@@ -250,8 +250,9 @@ def room_scene(page) -> None:
 
 
 def decor_scene(page) -> None:
-    """Mia dressed in the sample living room set for a dinner: a round table with chairs round it,
-    flowers and candles on it, a flower arch and lanterns, the Decor panel open, the table picked."""
+    """Mia dressed in the sample living room set for a wedding dinner: a round table with cross-back
+    chairs round it, set, a centrepiece and candles on it, string lights over it, a flower stand
+    behind, the Decor panel open on the lights, the table picked."""
     dress(page)
     page.evaluate("house.choose(house.rooms()[0].file)")
     page.wait_for_function("house.shown() && decor.group()", timeout=300000)
@@ -263,22 +264,28 @@ def decor_scene(page) -> None:
         const put = async (id, along, side, turn = 0) => { await decor.add(id); const k = decor.placed().length - 1;
           decor.move(k, ...map(along, side)); return k; };
         const t = await put("round_table", -0.2, 1.15);
+        // one cross-back chair put down first, so Chairs round it uses them; then taken away again
+        const one = await put("cross_back_chair", 2, 2);
+        decor.pick(t);
         document.getElementById("decorRowN").value = "6"; document.getElementById("decorAround").click();
+        decor.pick(one); document.getElementById("decorRemove").click();
+        decor.pick(t); document.getElementById("decorSet").click();
         const T = decor.placed()[t];
-        for (const [id, dx, dz] of [["flowers", 0, 0], ["candle", 0.3, 0.1], ["candle", -0.25, -0.2], ["candle", 0.05, 0.35]]) {
+        for (const [id, dx, dz] of [["centrepiece", 0, 0], ["candle", 0.32, 0.12], ["candle", -0.3, -0.15]]) {
           await decor.add(id); decor.move(decor.placed().length - 1, T.x + dx, T.z + dz); }
-        await put("arch", -0.7, 0);
-        await put("lantern", -0.6, -1.1); await put("lantern", -0.6, 1.0);
+        await put("string_lights", -0.2, 1.0);
+        await put("flower_stand", -0.9, 0.6);
+        decor.shelf("lights");
         decor.pick(t);
         // the camera in front of her, a little to the table's side, at eye height
         const V = bodyApp.viewer, C = V.controls.target;
         const xyz = (xz, y) => [xz[0], y, xz[1]];
-        const eye = P.toBody(xyz(map(2.6, 0.4), 1.75)), look = P.toBody(xyz(map(-0.3, 0.55), 1.0));
+        const eye = P.toBody(xyz(map(3.6, 0.3), 1.6)), look = P.toBody(xyz(map(-0.6, 0.6), 1.55));
         V.holder.updateMatrixWorld();
         C.copy(V.holder.localToWorld(C.clone().set(...look)));
         V.camera.position.copy(V.holder.localToWorld(C.clone().set(...eye)));
         V.controls.autoRotate = false; V.controls.update(); })()""")
-    page.wait_for_function("decor.drawn() >= 14 && !decor.saving")
+    page.wait_for_function("decor.drawn() >= 18 && !decor.saving")
     settle(page)
 
 
