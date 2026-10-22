@@ -399,7 +399,7 @@ class Viewer(unittest.TestCase):
 
 
     def test_decorates_a_room(self):
-        page = self.browser.new_page(viewport={"width": 1100, "height": 700})
+        page = self.new_page(viewport={"width": 1100, "height": 700})
         self.addCleanup(page.close)
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))

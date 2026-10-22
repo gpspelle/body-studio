@@ -155,8 +155,7 @@ def tattoo_scene(page, tmp: Path) -> None:
     at = [0.5 * a + 0.5 * b for a, b in zip(elbow, wrist)]
     page.mouse.click(*page.evaluate(f"tattooStudio.screen({at})"))
     page.wait_for_function("tattooStudio.tattoos().length === 1")
-    page.fill("#tatSize", "8")
-    page.dispatch_event("#tatSize", "input")
+    page.evaluate("(() => { const e = document.getElementById('tatSize'); e.value = '8'; e.dispatchEvent(new Event('input')); })()")
     page.fill("#tatName", "Sun" if page.evaluate("window.i18n.lang") == "en" else "Sol")
     page.mouse.click(*page.evaluate("tattooStudio.screen(tattooStudio.joint('wrist_l'))"))   # picks the elbow
     page.wait_for_function("!document.getElementById('jointEdit').hidden")
