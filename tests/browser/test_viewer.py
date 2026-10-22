@@ -685,27 +685,23 @@ def pick(page, item):
         const a = wardrobe.onScreen('{item}'), v = bodyApp.viewer.spark.current.version, b = window._pickAt;
         if (!a) return false;
         if (!b || Math.hypot(a.x - b.x, a.y - b.y) > 2) {{ window._pickAt = {{ ...a, v, n: 0 }}; return false; }}
-        if (v !== b.v) {{ b.v = v; b.n++; }}
-        return b.n >= 3;
-    }})()""", timeout=120000)
+        if (v !== b.v) {{ b.v = v; b.n++; }} else b.still = (b.still || 0) + 1;
+        return b.n >= 3 || b.still >= 20;
+    }})()""", polling="raf", timeout=120000)
     at = page.evaluate(f"wardrobe.onScreen('{item}')")
     page.mouse.click(at["x"], at["y"])
 
 
 def settled(page):
-    """Wait until the splats on screen are the latest ones: Spark makes them again every frame
-    from the meshes, so a change shows once a few more have been made."""
+    """Wait until the splats on screen are the latest ones."""
     page.wait_for_function("tattooStudio.tattoos().every((t) => t.inked)", timeout=60000)
-    # (counted as changes of the version, not as a higher one: `current` can be swapped for
-    # another of Spark's buffers, whose count is its own)
-    page.evaluate("window._settle = { v: bodyApp.viewer.spark.current.version, n: 0 }")
-    try:
-        page.wait_for_function("""(() => { const s = window._settle, v = bodyApp.viewer.spark.current.version;
-            if (v !== s.v) { s.v = v; s.n++; } return s.n >= 3; })()""", timeout=300000)
-    except Exception:       # what the page was doing, for a CI log
-        raise AssertionError(page.evaluate("""JSON.stringify({ settle: window._settle,
-            display: bodyApp.viewer.spark.display.version, worn: window.wardrobe && wardrobe.worn(),
-            ready: window.wardrobe && wardrobe.ready, hidden: document.hidden, frame: performance.now() })"""))
+    # Spark makes them again only when something changed, and `current` can be swapped for
+    # another of its buffers with its own count: so either three new versions, or twenty frames
+    # drawn with the shown buffer the latest and no new version
+    page.evaluate("window._settle = { v: bodyApp.viewer.spark.current.version, n: 0, still: 0 }")
+    page.wait_for_function("""(() => { const s = window._settle, S = bodyApp.viewer.spark, v = S.current.version;
+        if (v !== s.v) { s.v = v; s.n++; s.still = 0; } else if (S.display === S.current) s.still++;
+        return s.n >= 3 || s.still >= 20; })()""", polling="raf", timeout=300000)
 
 
 def ink_pixels(page, at, r=40):
