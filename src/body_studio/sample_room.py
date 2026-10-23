@@ -351,8 +351,10 @@ def start(data_dir: Path) -> bool:
         key = str(Path(data_dir).resolve())
         proc = _making.get(key)
         if proc is None or proc.poll() is not None:
-            _making[key] = subprocess.Popen([sys.executable, "-m", "body_studio.sample_room", key],
-                                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # (what went wrong, if anything, is kept in the data folder: sample_rooms.log)
+            with open(Path(key) / "sample_rooms.log", "wb") as log:
+                _making[key] = subprocess.Popen([sys.executable, "-m", "body_studio.sample_room", key],
+                                                stdout=log, stderr=subprocess.STDOUT)
     return False
 
 

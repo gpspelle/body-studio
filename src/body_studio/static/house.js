@@ -56,12 +56,17 @@ function list() {
   $("roomNone").hidden = rooms.some((r) => !r.sample);
 }
 
+let samplesTries = 0;
 async function refresh() {
   const was = rooms.map((r) => r.file).join("|");
   try { rooms = await (await fetch("/api/rooms")).json(); } catch { rooms = []; }
-  if (want && !rooms.some((r) => r.file === want)) want = null;
+  // the sample rooms are made in the background the first time: listed again until they are there
+  const samples = rooms.filter((r) => r.sample).length;
+  if (samples < 2 && samplesTries++ < 60) setTimeout(refresh, 2000);
+  if (want && !rooms.some((r) => r.file === want) && samples >= 2) want = null;
   if (!$("roomMenu").hidden && rooms.map((r) => r.file).join("|") !== was) list();
-  if (want && !R && !busy && V.file()) choose(want);
+  if (want && !R && !busy && V.file() && rooms.some((r) => r.file === want)) choose(want);
+  dispatchEvent(new Event("roomslisted"));       // (modes.js: the tattoo studio, once it is there)
 }
 addEventListener("roomsready", refresh);
 
@@ -276,10 +281,13 @@ V.frameHooks.push((before) => {
 // ---------------------------------------------------------------- for tests and scripts
 window.house = {
   rooms: () => rooms,
+  // the sample tattoo studio's room, once it is made (modes.js puts the body there for tattoos)
+  studio: () => rooms.find((r) => r.name === "_sample_studio") || null,
   view,
   choose,
   shown: () => !!R,
   file: () => R && R.file,
+  wanted: () => want,                    // the room asked for, shown or on its way
   // the body's place in the room (map metres), and the room's map
   where: () => { const w = window.tattooStudio?.walker?.(); return R && R.P && w ? R.toMap(w.pos) : null; },
   map: () => R && R.room,

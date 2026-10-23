@@ -63,18 +63,21 @@ function setOpen(open, remember = true) {
     dispatchEvent(new CustomEvent("panelopen", { detail: "studio" }));
     load();
   }
-  if (S) { S.handles.visible = open; S.lines.visible = open; for (const tt of S.tattoos) tt.outline.visible = open && tt === S.selected; }
+  showHandles();
   app.reframe();
 }
+// the joints' dots and the tattoo's outline: while the panel is open for the tattoos and the pose
+// (not while it is open for the clothes, modes.js)
+// (with no mode, as in the tests and scripts that open the panel themselves, both the joints and the shop)
+const posing = () => !$("studio").hidden && ["tattoos", "none", undefined].includes(document.body.dataset.mode);
+function showHandles() {
+  if (!S) return;
+  const on = posing();
+  S.handles.visible = on; S.lines.visible = on;
+  for (const tt of S.tattoos) tt.outline.visible = on && tt === S.selected;
+}
+addEventListener("modechange", showHandles);
 $("studioBtn").onclick = () => setOpen($("studio").hidden);
-// The panel (clothes, tattoos, pose) is open from the start, as it was left; on a computer it is
-// open the first time too, so the clothes are there when the page opens (not on a phone: the body
-// would be too small)
-addEventListener("bodyshown", () => {
-  let was = null;
-  try { was = localStorage.getItem("studio:open"); } catch {}
-  if ($("studio").hidden && (was === "1" || (was === null && !isPhone()))) setOpen(true, false);
-});
 $("closeStudio").onclick = () => setOpen(false);
 addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("studio").hidden) setOpen(false); });
 // on a phone one panel at a time; and while decorating (Decor) the body's panel and joints step
@@ -182,7 +185,7 @@ function setup(rig, mesh, file) {
         // browser driven by a script says so), which want a body that holds still
         lifeOn: !navigator.webdriver };
   follow.set(0, 0, 0);
-  handles.visible = lines.visible = !$("studio").hidden;
+  handles.visible = lines.visible = posing();
   presetsUI(); handsUI(); whatIfUI();
   applyPose();
   window.tattooStudio.ready = true;
@@ -646,7 +649,7 @@ function upOf(bone) {
 }
 
 function onDown(e) {
-  if (!S || $("studio").hidden || e.target !== V.canvas || e.button > 0) return;
+  if (!S || !posing() || e.target !== V.canvas || e.button > 0) return;
   let hit = null;
   if (pending) {
     hit = hitBody(e);
@@ -961,7 +964,7 @@ function tattooAt(rest) {
 function select(tt) {
   if (S.selected && S.selected !== tt) S.selected.outline.visible = false;
   S.selected = tt;
-  if (tt) tt.outline.visible = !$("studio").hidden;
+  if (tt) tt.outline.visible = posing();
   tattooList();
 }
 

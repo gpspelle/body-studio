@@ -126,7 +126,7 @@ function ui() {
 }
 
 // Everything to put on, in the panel, by kind, for the style picked: the same as the racks around
-// the body, and the way to dress where the racks aren't shown (in a room)
+// the body (for the clothes, body.css leaves only what isn't on a rack: the necklaces)
 function pickList() {
   const style = STYLES.includes(store.get("wearStyle")) ? store.get("wearStyle") : "all";
   $("wearStyles").replaceChildren(...STYLES.filter((st) => st === "all" || catalog.some((i) => i.styles?.includes(st))).map((st) => {
@@ -141,12 +141,14 @@ function pickList() {
   const shown = catalog.filter((i) => style === "all" || i.styles?.includes(style));
   $("wearPick").replaceChildren(...SLOTS.filter((slot) => shown.some((i) => i.slot === slot)).map((slot) => {
     const box = document.createElement("div"), h = document.createElement("h3"), chips = document.createElement("div");
+    box.classList.toggle("racked", shown.every((i) => i.slot !== slot || i.display !== "none"));
     h.textContent = t("wear.slot." + slot);
     chips.className = "chips";
     chips.append(...shown.filter((i) => i.slot === slot).map((i) => {
       const b = document.createElement("button");
       b.textContent = t("wear.item." + i.id);
       b.dataset.item = i.id;
+      b.classList.toggle("racked", i.display !== "none");
       b.classList.toggle("on", isWorn(i.id));
       b.setAttribute("aria-pressed", String(isWorn(i.id)));
       b.disabled = !W.fit;
@@ -563,10 +565,12 @@ async function placeShop(w) {
 // shown while the panel is open on a body; what is worn stays in its place as a pale silhouette
 // (a click on it takes it off, as the ✕ in the panel does)
 const isWorn = (id) => !!W && [...W.worn.values()].some((e) => e.id === id);
+// (only while styling the clothes, modes.js: not for the tattoos, nor in a room, whose own
+// furniture is round the body then, house.js)
+const shopMode = () => ["clothes", "none", undefined].includes(document.body.dataset.mode);
 function showShop() {
   if (!shop) return;
-  // (not in a room: the room's own furniture is round the body then, house.js)
-  const on = !!W && !$("studio").hidden && !window.bodyApp.house?.shown();
+  const on = !!W && !$("studio").hidden && shopMode() && !window.bodyApp.house?.shown();
   shop.group.visible = on;
   for (const m of shop.pickable) m.material = isWorn(m.userData.item) ? m.userData.ghost : m.userData.look;
   if (!on) tip(null);
@@ -574,7 +578,8 @@ function showShop() {
 // how wide a view the camera should take in (window.bodyApp.reframe): the shop, while shown (on a
 // phone only the racks nearest the body, or the body would be too small to see; turn to see more)
 addEventListener("roomchange", () => { showShop(); window.bodyApp.reframe(); });
-window.bodyApp.room = () => (shop && W && !$("studio").hidden && !window.bodyApp.house?.shown() ? Math.min(2 * shop.half, innerWidth <= 600 ? 1.4 : 9) * W.rig.height : 0);
+addEventListener("modechange", () => { showShop(); window.bodyApp.reframe(); });
+window.bodyApp.room = () => (shop && W && !$("studio").hidden && shopMode() && !window.bodyApp.house?.shown() ? Math.min(2 * shop.half, innerWidth <= 600 ? 1.4 : 9) * W.rig.height : 0);
 new MutationObserver(showShop).observe($("studio"), { attributes: true, attributeFilter: ["hidden"] });
 
 // the item under the pointer (not one behind the body)

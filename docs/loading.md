@@ -60,7 +60,7 @@ first), so the screen stays up from the first to the last.
   it keeps turning while the page binds the splats. With reduced motion it fades in and out
   instead of turning. The cursor shows progress meanwhile; clicks pass through the screen (there
   is nothing to click by mistake that matters, and tests can drive the page under it).
-- Only while there is work under way: with the Try on panel closed (as on a phone at first) and no
+- Only while there is work under way: with no mode picked (as on a phone at first) and no
   room, the skeleton and the clothes aren't fetched, so once the body is loaded it is ready.
 - Choosing another body model for the clothes (Anny) later, from the panel, is not covered: it is
   asked for there, and the panel says how long it takes.

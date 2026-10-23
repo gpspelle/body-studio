@@ -211,3 +211,11 @@
   the upper arm and the thigh share the shoulder's and the hip's twist; the shoulder rises with a
   raised arm; skin at a bent elbow, knee or hip presses together instead of passing through; the
   deltoid, forearm and calf bulge too.
+- The Body Studio menu: the name at the top left (now on a soft chip) opens a card with **Style
+  your clothes**, **Style your tattoos**, **Rooms**, **Body progress**, **New body**, **Guide** and
+  **Language**, in place of the buttons in the top bar. Each mode shows only its own tools: the
+  clothes are picked from the racks (the panel keeps what is worn, the body model and the
+  necklaces), the tattoos are done in the sample tattoo studio (tattoos and pose, no clothes list),
+  and a room has the Room and Decor buttons and changes nothing worn or inked. The mode is kept in
+  the browser. The sample rooms' listing is retried until they are made, and their making is
+  logged in `sample_rooms.log` in the data folder.

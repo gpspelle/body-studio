@@ -20,7 +20,7 @@ minutes once; on a Mac PyTorch is a few hundred MB, on Linux about 5 GB with its
 If that fails, the panel says so and the standard fit is still there. `pip install 'body-studio[anny]'`
 does the same by hand.
 
-The **Try on** panel shows **Body model: Standard / Anny (trial)** under the
+The clothes panel (**Style your clothes**) shows **Body model: Standard / Anny (trial)** under the
 clothes. Pick one and what is worn comes off and goes on again, fitted to that model. The choice
 is kept in the browser. The first time a body is fitted with Anny it takes about two minutes on
 four CPU cores (and the very first time a minute more, to build Anny's cache in `~/.cache/anny`);
@@ -38,7 +38,7 @@ The file keeps Anny's overall sliders under `"shape"`. The standard fit takes 5â
 
 **Why a control on the page:** comparing the two fits on a real scan is the point of the trial, and
 the same clothes have to be seen on both, from any angle and in any pose. It is two small buttons
-in the Try on panel.
+in the clothes panel.
 
 ## How it fits
 

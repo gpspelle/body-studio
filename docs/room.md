@@ -1,7 +1,10 @@
 # A room around the body
 
 Film a room (or a whole house) from inside it, and the body stands in it: to its own scale, on
-its floor, walking round the furniture, sitting on the sofa or leaning on a wall.
+its floor, walking round the furniture, sitting on the sofa or leaning on a wall. **Rooms** in the
+Body Studio menu (`modes.js`) puts the body in the room it was in last there, else the first room
+filmed, else the sample living room; only then do **Room** and **Decor** show in the top bar, and
+the clothes and tattoos panel is closed: nothing worn or inked changes in a room.
 
 ## What happens
 
@@ -36,7 +39,7 @@ its floor, walking round the furniture, sitting on the sofa or leaning on a wall
 3. **The page** (`house.js`, maths in `room.js`): the room's splats go in the same group as the
    body, through one matrix (the room's PLY coordinates → map metres → the body's coordinates),
    so the room's free floor at the start is under the body's feet, facing the way with the most
-   room ahead. The body's height in metres (from the Try on panel, or the person's in Progress)
+   room ahead. The body's height in metres (from the tattoo and pose panel, or the person's in Progress)
    sets the scale.
    - **Walking**: every step the walker (`walk.js`) asks the room where the body may go
      (`Walker.bound`). The body keeps 20 cm from walls and furniture, in half-cell steps, so it

@@ -1,8 +1,11 @@
 # Wardrobe
 
-Clothes, shoes, hair, hats, glasses and necklaces to try on a scanned body, from the list in the
-**Try on** panel or a shop of racks and shelves around the body while the panel is open.
-Experimental.
+Clothes, shoes, hair, hats, glasses and necklaces to try on a scanned body, from a shop of racks
+and shelves around the body: **Style your clothes** in the Body Studio menu (`modes.js`). The
+panel at the left edge then holds what is worn, the body model and the necklaces (they have no
+rack); the full list by kind and style is the page's own, for tests, with no mode picked.
+Nothing worn changes in the other modes: the tattoo studio takes clothes off over a tattoo and
+puts them back, and a room shows the body as it is dressed. Experimental.
 
 ## What you can try on
 
@@ -56,7 +59,7 @@ Made by `scripts/wardrobe_styles.py` (ffmpeg for the images), our own work, CC0:
 
 ## The shop around the body
 
-While the Try on panel is open the items are also shown around the body:
+While the clothes panel is open the items are shown around the body:
 
 | Where | What | How it is shown |
 |---|---|---|

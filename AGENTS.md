@@ -8,7 +8,9 @@
   then bump the pin here in its own PR. `tests/unit/test_pipeline.py` checks that the pinned
   splat-studio still accepts every flag we pass.
 - **This repo**: body defaults (`pipeline.py`), the library of bodies (`library.py`), the local
-  server (`server.py`) and the single page (`static/index.html`, `static/body.css`). The loading
+  server (`server.py`) and the single page (`static/index.html`, `static/body.css`). The page's
+  modes (clothes, tattoos, rooms, progress) and the Body Studio menu that picks them in
+  `static/modes.js`: `<body data-mode>` and body.css hide the other modes' tools. The loading
   screen until the body can be used in `static/busy.js` (tested by `tests/js/busy.test.mjs`; see
   `docs/loading.md`). Tattoo &
   pose: skeleton and skin weights in `rig.py` (once per body, `<body>.rig.json`), posing and tattoo

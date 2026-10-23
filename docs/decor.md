@@ -9,8 +9,8 @@ and the body can walk the aisle and sit at the tables.
 
 ## The panel
 
-**Decor** appears in the top bar while a room is round the body (Room menu). It opens a panel at
-the right edge; the body's own panel (Try on) and its joints step aside while it is open, and come
+**Decor** appears in the top bar in the Rooms mode (the Body Studio menu), with a room round the
+body. It opens a panel at the right edge; the body's own panel and its joints step aside while it is open, and come
 back when it is closed. The panel has the picked thing on top, then two tabs, **Add** and **In the
 room**:
 

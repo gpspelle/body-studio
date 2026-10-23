@@ -1,7 +1,9 @@
 # Tattoo & pose
 
-Try a tattoo on the body and move the body to see how it sits. Click **Tattoo**, add an
-image, tap where it goes; drag the dots on the joints, or pick a pose. This page is how it works
+Try a tattoo on the body and move the body to see how it sits. Pick **Style your tattoos** in the
+Body Studio menu (the body goes into the sample tattoo studio, and the panel shows only the
+tattoos and the pose: no clothes to pick, no other room), add an image or tap a design on the
+flash wall, tap where it goes; drag the dots on the joints, or pick a pose. This page is how it works
 and why it was built this way.
 
 ## What happens
@@ -212,7 +214,8 @@ the fold presses together instead of passing through.
 
 ## The tattoo studio
 
-**Sample tattoo studio** in the Room menu is a tattoo parlour drawn by the app
+**Sample tattoo studio**, where **Style your tattoos** puts the body (and in the Room menu of the
+Rooms mode), is a tattoo parlour drawn by the app
 (`sample_studio.py`): a black tattoo bed, a reclining tattoo chair with an arm rest each side, the
 artist's stool and tray, a flash wall of cork, a full-length mirror, a counter by the door and a pink
 "TATTOO" neon. Next to its splat it writes `<name>.fixtures.json`, which says where the bed, the
@@ -272,7 +275,7 @@ weights) go along on their own.
   limbs either give each limb a key (QWOP: a key per thigh and calf) or hold a button per arm
   (Human: Fall Flat, Gang Beasts: a mouse button raises that arm). Holding was the complaint here,
   and the mouse already turns the camera, so these are toggles.
-- **The Guide** (top bar, or ?) lists every control in a card, keys on the left and a line on what
+- **The Guide** (the Body Studio menu, or ?) lists every control in a card, keys on the left and a line on what
   each does, grouped as a game's controls screen is: move, arms and legs, camera, panels.
 - **The panel's pose stays.** The walk is blended over the pose set in the panel (or a preset), and
   the body goes back to it when it stops, where it got to, except that arms held out as in the

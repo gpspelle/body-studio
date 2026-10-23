@@ -10,6 +10,15 @@ ready to use (the body, its skeleton, the clothes fitted and put back on, the sh
 room), a loading screen shows the logo turning and a line on what is happening (and, if it takes
 a while, why), so you never see a body you can't move yet.
 
+**Body Studio**, at the top left, opens the menu of what to do: **Style your clothes** (the shop
+around the body), **Style your tattoos** (in the tattoo studio), **Rooms**, **Body progress**,
+**New body**, **Guide** and **Language**. Each mode shows only its own tools: the clothes are
+picked from the racks, the tattoo studio has the tattoos and the pose, and in a room nothing worn
+or inked changes. On a computer the page opens on the clothes the first time, then in the mode
+you left it in.
+
+![The Body Studio menu](docs/images/menu-desktop.png)
+
 ![Body Studio on a laptop](docs/images/desktop-light.png)
 
 <img src="docs/images/phone-dark.png" width="220" align="right" alt="Body Studio on a phone, dark mode">
@@ -90,7 +99,7 @@ over time. Research and sources: [docs/body-fat.md](docs/body-fat.md).
 
 ## Following a person over time
 
-Click **Progress** to follow one person: a tape measure every week or two, a scan now and then.
+Pick **Body progress** in the menu to follow one person: a tape measure every week or two, a scan now and then.
 The body stays in the middle; the panel sits at the right edge (at the bottom on a phone).
 
 ![Progress panel](docs/images/progress-desktop.png)
@@ -120,9 +129,9 @@ Each person is one file, `people/<name>.json` in the data folder. How the design
 
 ## Clothes, tattoo & pose
 
-Click **Try on** to dress the body, try a tattoo on it and move it to see how it all sits. The
-panel sits at the left edge (at the bottom on a phone). On a computer it is open when the page
-opens (it stays as you last left it), so the clothes are there from the start.
+Pick **Style your clothes** in the menu to dress the body, or **Style your tattoos** to try a
+tattoo on it and move it to see how it sits. The panel sits at the left edge (at the bottom on a
+phone): for the clothes it holds what is worn, for the tattoos the tattoo and the pose.
 
 ![Trying on clothes](docs/images/wardrobe-desktop.png)
 
@@ -132,9 +141,7 @@ opens (it stays as you last left it), so the clothes are there from the start.
   on clothes rails (five hangers to a rail at most, side by side), shoes on a shoe rack, folded
   T-shirts and jeans on shelf units no taller than the person (side by side, as many as it takes)
   with short hair on mannequin heads above them, and long hair and the fedora on stands. Point at an item to see its
-  name, click it to put it on. The panel lists everything too, by kind, with a **Style** filter
-  (Casual, Smart, Hippie, Rock, Indie, Punk): that is also how to dress the body in a room, where
-  the shop isn't shown. There are 20 outfits (tie-dye, a flower shirt and long skirt, a black
+  name, click it to put it on. The panel lists the necklaces, which have no rack. There are 20 outfits (tie-dye, a flower shirt and long skirt, a black
   leather jacket, a band T-shirt, tartan skirt and trousers, a flannel shirt, Breton stripes among
   them), 6 pairs of shoes, 10 hairstyles, 4 hats (fedora, two beanies, a woven headband), 3 pairs
   of glasses and 3 necklaces (beads, a chain, a studded choker). Each is fitted to this person's shape, moves with the pose, and hides the skin under
@@ -166,7 +173,7 @@ opens (it stays as you last left it), so the clothes are there from the start.
   knee (the body's own left and right); they stay up until pressed again. Clothes, hair, shoes and
   tattoos go along. Let go and it stands where it got to, in the pose from the panel, with arms
   that were held out as in the scan now down by its sides; **R** brings it back. The first press
-  finds the skeleton if the panel hasn't yet. **Guide** (or **?**) lists every control.
+  finds the skeleton if the panel hasn't yet. **Guide** in the menu (or **?**) lists every control.
 
   ![Walking](docs/images/walk-desktop.png)
 
@@ -191,7 +198,7 @@ and their licences, and the limits: [docs/tattoo.md](docs/tattoo.md).
 next to the body. How the clothes are fitted and drawn, where they come from, and the limits:
 [docs/wardrobe.md](docs/wardrobe.md).
 
-Trial: the Try on panel shows **Body model: Standard / Anny (trial)**, to see the same clothes on a
+Trial: the clothes panel shows **Body model: Standard / Anny (trial)**, to see the same clothes on a
 body fitted either way ([Anny](https://github.com/naver/anny) is a body model that runs on PyTorch).
 `body-studio setup` installs PyTorch and Anny; if they aren't there, the first click on Anny installs
 them, with nothing to type (a few minutes, once). The Anny fit takes about two minutes the first time
@@ -207,14 +214,16 @@ gets up. The camera stays inside the room.
 
 ![The body sitting on the sofa of the sample living room](docs/images/room-desktop.png)
 
-- **Room** at the top opens the list of rooms filmed so far. **Add a room…** takes its video (an
+- Pick **Rooms** in the menu: the body goes into the room it was in last (the sample living room
+  the first time). **Room** at the top then opens the list of rooms filmed so far. **Add a room…** takes its video (an
   iPhone capture from Splat Capture works too, and is in metres). Pick a room to put the body in
   it, **No room** to take it out. **Size** corrects the room's size if it looks off.
 - **Sample living room** is always in the list, so you can try it before filming anything: a
   furnished room drawn by the app (sofa, armchair, bookshelf, TV, dining table, plant), made in
   the data folder the first time the list opens (`workspace/_sample_room/`).
 - **Sample tattoo studio** is there too: a tattoo bed, a reclining chair with arm rests, a flash
-  wall of designs and a mirror (`workspace/_sample_studio/`). Tap a design on the flash wall to
+  wall of designs and a mirror (`workspace/_sample_studio/`). **Style your tattoos** in the menu
+  puts the body in it. Tap a design on the flash wall to
   pick it, then tap the body to lay it there. **F** by the bed or the chair goes where that tattoo
   is made: in the chair with the arm on its rest for an arm, lying face down for the back, face up
   for the belly or a leg, with the arm over the head for the ribs. The clothes over the tattoo
@@ -236,7 +245,7 @@ How it works and the limits (flat floors only, the size is a guess within about 
 
 ## Decor in a room
 
-With a room round the body, **Decor** in the top bar opens a panel for putting things in it, about
+In **Rooms**, with a room round the body, **Decor** in the top bar opens a panel for putting things in it, about
 40 wedding pieces in a few colours, by kind: **Tables** (chairs, cross-back chairs, benches, round,
 long, square, cocktail and sweetheart tables), **On the table** (place settings, centrepieces low
 and tall, candelabras, bud vases, table numbers, the cake, a champagne tower, flowers, candles),
@@ -298,6 +307,13 @@ corpo na fileira de baixo ou solte um vídeo novo em qualquer lugar da página. 
 pronto para usar (o corpo, o esqueleto, as roupas ajustadas e vestidas de novo, a loja em volta,
 um cômodo), uma tela de carregamento mostra o logo girando e uma linha dizendo o que está
 acontecendo (e, se demorar, por quê), então você nunca vê um corpo que ainda não pode mexer.
+
+**Body Studio**, no alto à esquerda, abre o menu do que fazer: **Escolher as roupas** (a loja em
+volta do corpo), **Escolher as tatuagens** (no estúdio de tatuagem), **Cômodos**, **Evolução do
+corpo**, **Novo corpo**, **Guia** e **Idioma**. Cada modo mostra só as suas ferramentas: as roupas
+se escolhem nas araras, o estúdio de tatuagem tem as tatuagens e a pose, e num cômodo nada do que
+está vestido ou tatuado muda. No computador a página abre nas roupas da primeira vez, depois no
+modo em que você deixou.
 Tudo roda no seu
 computador, sem upload, sem conta e sem GPU na nuvem. O processamento é o do
 [Splat Studio](https://github.com/gpspelle/splat-studio), instalado como dependência. A remoção
@@ -341,7 +357,7 @@ ficam em `frames/<vídeo>/masks/`.
 
 ### Acompanhar uma pessoa ao longo do tempo
 
-Clique em **Evolução** para acompanhar uma pessoa: fita métrica a cada uma ou duas semanas, um
+Escolha **Evolução do corpo** no menu para acompanhar uma pessoa: fita métrica a cada uma ou duas semanas, um
 escaneamento de vez em quando. O corpo continua no centro; o painel fica na borda direita (embaixo,
 no celular).
 
@@ -362,9 +378,9 @@ pessoa é um arquivo, `people/<nome>.json` na pasta de dados.
 
 ### Roupas, tatuagem e pose
 
-Clique em **Provar** para vestir o corpo, testar uma tatuagem e mexer o corpo para ver como tudo
-fica. O painel fica na borda esquerda (embaixo, no celular). No computador ele já está aberto
-quando a página abre (fica como você deixou da última vez), então as roupas estão lá desde o início.
+Escolha **Escolher as roupas** no menu para vestir o corpo, ou **Escolher as tatuagens** para testar
+uma tatuagem e mexer o corpo para ver como fica. O painel fica na borda esquerda (embaixo, no
+celular): para as roupas, o que está vestido; para as tatuagens, a tatuagem e a pose.
 
 <img src="docs/images/tattoo-phone.png" width="220" alt="Painel de roupas, tatuagem e pose no celular">
 
@@ -372,9 +388,7 @@ quando a página abre (fica como você deixou da última vez), então as roupas 
   arara (no máximo cinco cabides por arara, uma ao lado da outra), sapatos numa sapateira,
   camisetas e jeans dobrados em estantes não mais altas que a pessoa (lado a lado, quantas forem
   precisas) com cabelos curtos em cabeças de manequim acima, e cabelos compridos e o chapéu fedora em pedestais. Aponte para uma
-  peça para ver o nome e clique para vestir. O painel também lista tudo, por tipo, com um filtro de
-  **Estilo** (Casual, Social, Hippie, Rock, Indie, Punk): é assim também que se veste o corpo num
-  cômodo, onde a loja não aparece. São 20 looks (entre eles tie-dye, camisa florida e saia longa,
+  peça para ver o nome e clique para vestir. O painel lista os colares, que não têm arara. São 20 looks (entre eles tie-dye, camisa florida e saia longa,
   jaqueta de couro preta, camiseta de banda, saia e calça xadrez, camisa de flanela, listras
   marinheiro), 6 pares de sapatos, 10 cortes de cabelo, 4 chapéus (fedora, dois gorros, uma faixa
   trançada), 3 óculos e 3 colares (contas, corrente, gargantilha com tachas). Cada peça se ajusta ao corpo da pessoa, acompanha a pose e esconde a pele
@@ -406,7 +420,7 @@ quando a página abre (fica como você deixou da última vez), então as roupas 
   esquerda e a direita do próprio corpo); ficam levantados até você apertar de novo. Roupas, cabelo,
   sapatos e tatuagens vão junto. Solte e ele fica onde chegou, na pose do painel, com os braços que
   estavam abertos como no escaneamento agora abaixados ao lado do corpo; **R** o traz de volta. O
-  primeiro toque encontra o esqueleto, se o painel ainda não encontrou. **Guia** (ou **?**) mostra
+  primeiro toque encontra o esqueleto, se o painel ainda não encontrou. **Guia**, no menu (ou **?**), mostra
   todos os controles.
 - **Parece vivo**: parado, o corpo respira, balança um pouco, pisca e vira a cabeça para você.
   Andando, os pés ficam firmes no chão. A pele escurece onde encosta em pele, o bíceps cresce
@@ -428,7 +442,7 @@ Como funciona, os modelos de corpo considerados e suas licenças, e os limites (
 corpo. Como as roupas são ajustadas e desenhadas, de onde vêm e os limites (em inglês):
 [docs/wardrobe.md](docs/wardrobe.md).
 
-Teste: o painel Provar mostra **Modelo de corpo: Padrão / Anny (teste)**, para ver as mesmas roupas
+Teste: o painel das roupas mostra **Modelo de corpo: Padrão / Anny (teste)**, para ver as mesmas roupas
 num corpo ajustado de um jeito ou de outro (o [Anny](https://github.com/naver/anny) é um modelo de
 corpo que roda no PyTorch). O `body-studio setup` instala o PyTorch e o Anny; se não estiverem lá, o
 primeiro clique em Anny os instala, sem nada para digitar (alguns minutos, uma vez). O ajuste com o Anny leva cerca de dois
@@ -443,7 +457,8 @@ Ande com **W A S D**: as paredes e os móveis o param (ele desliza ao longo dele
 perto do sofá ou de uma cadeira para sentar, ou perto de uma parede para se encostar; **F** de novo
 levanta. A câmera fica dentro do cômodo.
 
-- **Cômodo**, no alto, abre a lista dos cômodos já filmados. **Adicionar um cômodo…** recebe o
+- Escolha **Cômodos** no menu: o corpo vai para o último cômodo em que esteve (a sala de exemplo da
+  primeira vez). **Cômodo**, no alto, abre então a lista dos cômodos já filmados. **Adicionar um cômodo…** recebe o
   vídeo (uma captura do iPhone feita no Splat Capture também serve, e já vem em metros). Escolha um
   cômodo para colocar o corpo nele, **Nenhum** para tirar. **Tamanho** corrige o tamanho do cômodo
   se parecer errado.
@@ -451,7 +466,8 @@ levanta. A câmera fica dentro do cômodo.
   sala mobiliada desenhada pelo app (sofá, poltrona, estante, TV, mesa de jantar, planta), criada
   na pasta de dados na primeira vez que a lista abre (`workspace/_sample_room/`).
 - **Estúdio de tatuagem de exemplo** também está lá: uma maca, uma cadeira reclinável com apoios
-  de braço, uma parede de flash com desenhos e um espelho (`workspace/_sample_studio/`). Toque num
+  de braço, uma parede de flash com desenhos e um espelho (`workspace/_sample_studio/`). **Escolher as
+  tatuagens**, no menu, coloca o corpo nele. Toque num
   desenho da parede para escolhê-lo e depois no corpo para colocá-lo ali. **F** perto da maca ou da
   cadeira vai para onde essa tatuagem é feita: na cadeira com o braço no apoio, para um braço;
   deitado de bruços, para as costas; de barriga para cima, para a barriga ou uma perna; com o braço
@@ -472,7 +488,7 @@ inglês: [docs/room.md](docs/room.md).
 
 ### Decoração no cômodo
 
-Com um cômodo em volta do corpo, **Decoração** na barra de cima abre um painel para colocar coisas
+Em **Cômodos**, com um cômodo em volta do corpo, **Decoração** na barra de cima abre um painel para colocar coisas
 nele, umas 40 peças de casamento em algumas cores, por tipo: **Mesas** (cadeiras, cadeiras cross
 back, bancos, mesas redondas, compridas, quadradas, bistrô e a dos noivos), **Na mesa** (lugares
 postos, centros de mesa baixos e altos, candelabros, vasinhos, números de mesa, o bolo, uma torre

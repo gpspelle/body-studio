@@ -21,17 +21,32 @@
 <canvas id="stage" data-i18n-aria-label="app.view"></canvas>
 
 <header class="bar">
-  <span class="mark">Body Studio</span>
+  <!-- the name opens the menu of what to do (modes.js); what a mode needs at the edges shows in it -->
+  <button id="menuBtn" class="mark" aria-haspopup="dialog" aria-controls="modes" aria-expanded="false">
+    <span>Body Studio</span><span id="modeName" class="mode-name"></span>
+  </button>
   <span id="job" class="pill" role="status" hidden></span>
-  <button id="lang" class="link" data-i18n-aria-label="lang.label"></button>
-  <button id="guideBtn" class="btn" aria-haspopup="dialog" aria-controls="guide" data-i18n="guide.open"></button>
-  <button id="studioBtn" class="btn" aria-controls="studio" aria-expanded="false" data-i18n="studio.btn" hidden></button>
-  <button id="progressBtn" class="btn" aria-controls="progress" aria-expanded="false" data-i18n="prog.open"></button>
-  <button id="roomBtn" class="btn" aria-controls="roomMenu" aria-expanded="false" data-i18n="room.btn"></button>
-  <button id="decorBtn" class="btn" aria-controls="decor" aria-expanded="false" data-i18n="decor.btn" hidden></button>
-  <label class="btn" for="pick" data-i18n="app.new"></label>
+  <span class="grow"></span>
+  <button id="roomBtn" class="btn in-rooms" aria-controls="roomMenu" aria-expanded="false" data-i18n="room.btn"></button>
+  <button id="decorBtn" class="btn in-rooms" aria-controls="decor" aria-expanded="false" data-i18n="decor.btn" hidden></button>
+  <!-- (opened by the menu; the panels' code still listens to them) -->
+  <div hidden>
+    <button id="studioBtn" aria-controls="studio" aria-expanded="false" hidden></button>
+    <button id="progressBtn" aria-controls="progress" aria-expanded="false"></button>
+  </div>
   <input id="pick" type="file" accept=".mov,.mp4,.m4v,video/*" hidden>
 </header>
+<dialog id="modes" class="modes" data-i18n-aria-label="modes.title">
+  <nav>
+    <button data-mode="clothes"><strong data-i18n="modes.clothes"></strong><span data-i18n="modes.clothesHow"></span></button>
+    <button data-mode="tattoos"><strong data-i18n="modes.tattoos"></strong><span data-i18n="modes.tattoosHow"></span></button>
+    <button data-mode="rooms"><strong data-i18n="modes.rooms"></strong><span data-i18n="modes.roomsHow"></span></button>
+    <button data-mode="progress"><strong data-i18n="modes.progress"></strong><span data-i18n="modes.progressHow"></span></button>
+    <label for="pick" id="newBody" tabindex="0"><strong data-i18n="app.new"></strong><span data-i18n="modes.newHow"></span></label>
+    <button id="guideBtn" aria-haspopup="dialog" aria-controls="guide"><strong data-i18n="guide.open"></strong><span data-i18n="modes.guideHow"></span></button>
+    <button id="lang"><strong data-i18n="lang.label"></strong><span id="langName"></span></button>
+  </nav>
+</dialog>
 
 <div id="empty" class="center" hidden>
   <p class="big" data-i18n="empty.title"></p>
@@ -271,8 +286,7 @@
   <section>
     <h2 data-i18n="guide.panels"></h2>
     <dl class="keys">
-      <dt><span class="gesture" data-i18n="studio.btn"></span></dt><dd data-i18n="guide.tryOn"></dd>
-      <dt><span class="gesture" data-i18n="prog.open"></span></dt><dd data-i18n="guide.progress"></dd>
+      <dt><span class="gesture">Body Studio</span></dt><dd data-i18n="guide.menu"></dd>
       <dt><span class="gesture" data-i18n="room.btn"></span></dt><dd data-i18n="guide.room"></dd>
       <dt><span class="gesture" data-i18n="decor.btn"></span></dt><dd data-i18n="guide.decor"></dd>
     </dl>
@@ -303,7 +317,8 @@ const $ = (id) => document.getElementById(id);
 const t = window.t;
 function langButton() {
   const other = window.i18n.lang === "pt" ? "en" : "pt";
-  $("lang").textContent = window.i18n.LANGS[other];
+  const names = { en: "English", pt: "Português" };
+  $("langName").textContent = names[window.i18n.lang] + " → " + names[other];
   $("lang").onclick = () => window.i18n.set(other);
 }
 window.i18n.apply(); langButton();
@@ -573,6 +588,7 @@ setInterval(refreshJobs, 2000);
 <script type="module" src="/static/tattoo.js"></script>
 <script type="module" src="/static/house.js"></script>
 <script type="module" src="/static/parlour.js"></script>
+<script type="module" src="/static/modes.js"></script>
 <script type="module" src="/static/decorate.js"></script>
 </body>
 </html>

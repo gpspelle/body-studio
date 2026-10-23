@@ -37,6 +37,7 @@ SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("wardrobe-desktop", 1280, 800, "light", "en", "wardrobe"),
     ("walk-desktop", 1280, 800, "light", "en", "walk"),
     ("guide-desktop", 1280, 800, "light", "en", "guide"),
+    ("menu-desktop", 1280, 800, "light", "en", "menu"),
     ("room-desktop", 1280, 800, "light", "en", "room"),
     ("decor-desktop", 1280, 800, "light", "en", "decor"),
     ("studio-desktop", 1280, 800, "light", "en", "studio"),
@@ -111,10 +112,11 @@ def main() -> None:
                     continue
                 page = browser.new_page(viewport={"width": w, "height": h}, color_scheme=scheme)
                 page.add_init_script(f"localStorage.setItem('lang', '{lang}')")
-                # the Try on panel opens when it is asked for (on a computer it opens by itself the first time)
-                page.add_init_script("localStorage.setItem('studio:open', '0')")
+                # no mode at first, just the body (on a computer it opens on the clothes the first time):
+                # each scene puts the page in its mode
+                page.add_init_script("localStorage.setItem('mode', 'none')")
                 if panel == "progress":
-                    page.add_init_script("localStorage.setItem('progress:open', '1')")
+                    page.add_init_script("localStorage.setItem('mode', 'progress'); localStorage.setItem('progress:open', '1')")
                 page.goto(url)
                 page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
                 if panel == "progress":
@@ -132,7 +134,11 @@ def main() -> None:
                 if panel == "studio":
                     studio_scene(page)
                 if panel == "guide":
+                    page.click("#menuBtn")
                     page.click("#guideBtn")
+                if panel == "menu":                     # the menu behind the name, on the clothes
+                    page.evaluate("modes.show('clothes')")
+                    page.click("#menuBtn")
                 page.wait_for_function("document.getElementById('busy').hidden", timeout=180000)
                 if panel == "loading":                  # the spinner as it shows while the skeleton is found
                     page.evaluate("bodyApp.busy('shot', t('studio.finding'), { now: true })")
@@ -146,37 +152,40 @@ def main() -> None:
 
 
 def tattoo_scene(page, tmp: Path) -> None:
-    """Mia flexing, with a sun on her left forearm and the left elbow picked; closer on a laptop."""
+    """Mia flexing in the tattoo studio, with a sun on her left forearm (and on a laptop the left
+    elbow picked)."""
     import base64
     design = tmp / "sun.png"
     design.write_bytes(base64.b64decode(page.evaluate(DESIGN).split(",", 1)[1]))
     page.locator(".shelf button", has_text="Mia").click()
     page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
-    page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
-    page.wait_for_function("tattooStudio.ready", timeout=300000)
+    page.evaluate("modes.go('tattoos')")              # in the tattoo studio, its panel open
+    page.wait_for_function("tattooStudio.ready && house.shown() && parlour.shown()", timeout=300000)
+    page.wait_for_function("document.getElementById('busy').hidden", timeout=300000)
     page.evaluate("bodyApp.viewer.controls.autoRotate = false")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)   # (frames are slow while it loads)
-    page.locator("#presets button").nth(2).click(timeout=120000)   # flex
-    page.set_input_files("#tatPick", str(design))
-    page.wait_for_function("document.getElementById('tatHint').textContent.length > 0", timeout=120000)
+    for tries in range(3):                       # (under software rendering the change is sometimes missed)
+        page.wait_for_function("tattooStudio.ready", timeout=300000)
+        page.set_input_files("#tatPick", str(design))
+        try:
+            page.wait_for_function("tattooStudio.pending()", timeout=90000)
+            break
+        except Exception:
+            if tries == 2:
+                raise
     elbow, wrist = page.evaluate("[tattooStudio.joint('elbow_l'), tattooStudio.joint('wrist_l')]")
     at = [0.5 * a + 0.5 * b for a, b in zip(elbow, wrist)]
     page.mouse.click(*page.evaluate(f"tattooStudio.screen({at})"))
-    page.wait_for_function("tattooStudio.tattoos().length === 1")
+    page.wait_for_function("tattooStudio.tattoos().length === 1", timeout=120000)
+    page.locator("#presets button").nth(2).click(timeout=120000)   # then flex (laid first: on a phone the flexed arm is above the view)
     page.evaluate("(() => { const e = document.getElementById('tatSize'); e.value = '8'; e.dispatchEvent(new Event('input')); })()")
-    page.fill("#tatName", "Sun" if page.evaluate("window.i18n.lang") == "en" else "Sol")
-    page.mouse.click(*page.evaluate("tattooStudio.screen(tattooStudio.joint('wrist_l'))"))   # picks the elbow
-    page.wait_for_function("!document.getElementById('jointEdit').hidden")
-    if page.viewport_size["width"] > 600:              # closer: from the hips up
-        page.evaluate("""(() => {
-          const V = bodyApp.viewer, THREE_V = V.camera.position.constructor;
-          const c = tattooStudio.joint('chest');
-          const chest = V.holder.localToWorld(new THREE_V(c[0], c[1], c[2]));
-          const shift = chest.clone().sub(V.controls.target).multiplyScalar(0.8);
-          V.controls.target.add(shift); V.camera.position.add(shift);
-          V.camera.position.lerp(V.controls.target, 0.45);
-          V.controls.update();
-        })()""")
+    page.fill("#tatName", "Sun" if page.evaluate("window.i18n.lang") == "en" else "Sol", timeout=120000)
+    if page.viewport_size["width"] <= 600:             # on a phone, back a little: the flexed arms in view
+        page.evaluate("""(() => { const V = bodyApp.viewer, p = V.camera.position, t = V.controls.target;
+          p.sub(t).multiplyScalar(1.8).add(t); V.controls.update(); })()""")
+    if page.viewport_size["width"] > 600:              # (on a phone the flexed wrist is above the view)
+        page.mouse.click(*page.evaluate("tattooStudio.screen(tattooStudio.joint('wrist_l'))"))   # picks the elbow
+        page.wait_for_function("!document.getElementById('jointEdit').hidden")
     # the ink is splats: wait until they are made and sorted with the body's from this angle
     page.wait_for_function("tattooStudio.tattoos().every((t) => t.inked)", timeout=120000)
     page.evaluate("new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))")
@@ -188,6 +197,7 @@ def wardrobe_scene(page) -> None:
     """Mia walking in a T-shirt, jeans, sneakers and a bob, in the shop of clothes around her."""
     page.locator(".shelf button", has_text="Mia").click()
     page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+    page.evaluate("modes.show('clothes')")
     page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
     page.evaluate("bodyApp.viewer.controls.autoRotate = false")
@@ -195,7 +205,7 @@ def wardrobe_scene(page) -> None:
         at = page.wait_for_function(f"wardrobe.onScreen('{item}')", timeout=120000).json_value()   # on the racks around her
         page.mouse.click(at["x"], at["y"])
         page.wait_for_function(f"wardrobe.worn().includes('{item}')", timeout=120000)
-    page.locator("#presets button").nth(3).click()                 # walking
+    page.evaluate("tattooStudio.preset('walk')")                   # walking (the pose isn't in the clothes' panel)
     page.evaluate("""(() => {                                       // a little from the side
       const V = bodyApp.viewer, t = V.controls.target, p = V.camera.position, d = p.distanceTo(t);
       p.set(t.x + d * Math.sin(0.1), p.y, t.z + d * Math.cos(0.1)); V.controls.update();
@@ -212,6 +222,7 @@ def dress(page, items=("tee_jeans_f", "white_sneakers", "bob_dark")) -> None:
     """Mia, dressed from the racks around her."""
     page.locator(".shelf button", has_text="Mia").click()
     page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+    page.evaluate("modes.show('clothes')")
     page.evaluate("document.getElementById('studio').hidden && document.getElementById('studioBtn').click()")
     page.wait_for_function("window.wardrobe && wardrobe.ready", timeout=300000)
     for item in items:
@@ -235,6 +246,7 @@ def settle(page) -> None:
 def room_scene(page) -> None:
     """Mia dressed, sitting on the sofa of the sample living room, seen from across the room."""
     dress(page)
+    page.evaluate("modes.show('rooms')")
     page.evaluate("house.choose(house.rooms()[0].file)")
     page.wait_for_function("house.shown()", timeout=300000)
     page.evaluate("""(() => { const r = house.map(), s = r.seats.reduce((a, b) => (Math.abs(b.x) < Math.abs(a.x) ? b : a));
@@ -259,6 +271,7 @@ def decor_scene(page) -> None:
     behind, the Decor panel open on the catalogue of things for the table, the table picked with its handles
     and its toolbar."""
     dress(page)
+    page.evaluate("modes.show('rooms')")
     page.evaluate("house.choose(house.rooms()[0].file)")
     page.wait_for_function("house.shown() && decor.group()", timeout=300000)
     page.click("#decorBtn")
@@ -300,6 +313,7 @@ def studio_scene(page) -> None:
     """Mia in the sample tattoo studio, in the tattoo chair with her left arm on its rest and a
     rose from the flash wall on the forearm, the clothes over it off, the flash wall behind."""
     dress(page, items=("tee_jeans_f", "white_sneakers", "bob_dark"))
+    page.evaluate("modes.show('tattoos')")
     page.evaluate("house.choose(house.rooms().find((r) => r.name === '_sample_studio').file)")
     page.wait_for_function("house.shown() && window.parlour && parlour.shown() && parlour.sheets().every((s) => s.ready)", timeout=300000)
     page.wait_for_function("document.getElementById('busy').hidden", timeout=180000)
