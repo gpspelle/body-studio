@@ -18,6 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+from tests.fakes import samples  # noqa: E402
 from tests.fakes.bodyply import write_body  # noqa: E402
 from tests.fakes.makehuman import write_body as write_person  # noqa: E402
 
@@ -25,7 +26,7 @@ from playwright.sync_api import sync_playwright  # noqa: E402
 from splat_studio.server.jobs import Runner  # noqa: E402
 from splat_studio.server.library import DataDir  # noqa: E402
 
-from body_studio import history, library, sample_room, server  # noqa: E402
+from body_studio import history, server  # noqa: E402
 
 SHOTS = [  # name, width, height, colour scheme, panel open
     ("desktop-light", 1280, 800, "light", None),
@@ -101,9 +102,7 @@ def main() -> None:
         write_person(p, n=300_000)
         os.utime(p, (1_990_000_000, 1_990_000_000))
         seed_person(data)
-        sample_room.ensure(data.root)                   # the sample living room, for the room shot
-        sample_room.ensure(data.root, library.STUDIO)   # and the tattoo studio
-        sample_room.ensure(data.root, library.VENUE)    # and the wedding venue
+        samples.ensure(data.root)       # the sample living room, tattoo studio and wedding venue (cached)
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
         url = f"http://127.0.0.1:{httpd.server_address[1]}/"
