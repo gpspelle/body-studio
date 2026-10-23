@@ -20,9 +20,10 @@ from splat_studio.server.library import DataDir
 from body_studio import server
 from tests.fakes.bodyply import write_body
 from tests.fakes.makehuman import write_body as write_person
+from tests.fakes import samples
 from tests.fakes.room import write_room
 
-from body_studio import library, sample_room
+from body_studio import library
 
 try:
     from playwright.sync_api import sync_playwright
@@ -42,9 +43,7 @@ class Viewer(unittest.TestCase):
         os.utime(data.workspace / "Mia/run_20261011_120000/splat/standard_30000_object.ply", (old, old))
         write_room(data.workspace / "Living_room/run_20261021_120000", n=40000)    # a room filmed from inside
         library.mark_room(data.root, "Living_room")
-        sample_room.ensure(data.root)       # made before the page opens, so it isn't made while tests run
-        sample_room.ensure(data.root, library.STUDIO)
-        sample_room.ensure(data.root, library.VENUE)
+        samples.ensure(data.root)           # there before the page opens, so they aren't made while tests run
         cls.design = Path(cls.tmp.name) / "design.png"
         cls.design.write_bytes(arrow_png())
         # decor from a photo: tests/fakes/photo3d.py stands in for TripoSR

@@ -3,8 +3,12 @@
 ## Before you start
 
 - A Claude Code web session is set up by `scripts/session-start.sh` (run by `.claude/settings.json`):
-  the app, Playwright 1.56 to match the container's Chromium, `BODY_STUDIO_CHROMIUM` set. Elsewhere:
-  `pip install . playwright`.
+  the app installed editable (your edits are what tests and screenshots run), Playwright 1.56 to
+  match the container's Chromium, `BODY_STUDIO_CHROMIUM` set. Elsewhere: `pip install -e . playwright`.
+- The sample rooms for browser tests and screenshots are drawn once and kept in
+  `~/.cache/body-studio-tests` (`tests/fakes/samples.py`); a change to the app's Python draws them again.
+- CI skips the browser tests when nothing the page uses changed (`scripts/browser_needed.py`), and
+  skips everything for README, CHANGELOG or docs/ alone.
 - Tests while you work: `python3 scripts/test.py --changed` (only the unit tests for what you
   changed since origin/main, side by side). All of them: `python3 scripts/test.py` (about 1.5 min).
   One module: `python3 scripts/test.py test_rig`. Push and let CI run the rest; look at a CI

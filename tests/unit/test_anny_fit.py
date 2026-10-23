@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 from body_studio import __main__ as cli
-from body_studio import anny_fit, fit, rig, wardrobe
+from body_studio import anny_fit, fit, photo3d, rig, wardrobe
 from tests.fakes.makehuman import skin_normals, surface, write_body
 from tests.unit.test_wardrobe import distances, pct
 
@@ -66,11 +66,15 @@ class WithoutTorch(unittest.TestCase):
         doesn't stop the rest. `check` lists it."""
         calls = []
         splat = mock.MagicMock(side_effect=lambda argv: calls.append(("splat", argv)))
+        # (TripoSR's own install is test_decor's: here it would really pip install PyTorch, minutes)
+        triposr = mock.patch.object(photo3d, "install", side_effect=lambda log, weights: calls.append(("triposr",)))
+        triposr.start()
+        self.addCleanup(triposr.stop)
         with mock.patch.dict(sys.modules, {"splat_studio.__main__": mock.MagicMock(main=splat)}):
             with mock.patch.object(anny_fit, "install", side_effect=lambda log: calls.append(("anny",))):
                 cli.main(["setup"])
                 cli.main(["setup", "--masking"])
-            self.assertEqual(calls, [("anny",), ("splat", ["setup"]), ("splat", ["setup", "--masking"])])
+            self.assertEqual(calls, [("anny",), ("triposr",), ("splat", ["setup"]), ("splat", ["setup", "--masking"])])
             out = io.StringIO()
             with mock.patch.object(anny_fit, "install", side_effect=anny_fit.Missing("couldn't install PyTorch and Anny")), \
                     contextlib.redirect_stdout(out):
