@@ -1,5 +1,26 @@
 # Notes for coding agents
 
+## Before you start
+
+- A Claude Code web session is set up by `scripts/session-start.sh` (run by `.claude/settings.json`):
+  the app, Playwright 1.56 to match the container's Chromium, `BODY_STUDIO_CHROMIUM` set. Elsewhere:
+  `pip install . playwright`.
+- Tests while you work: `python3 scripts/test.py --changed` (only the unit tests for what you
+  changed since origin/main, side by side). All of them: `python3 scripts/test.py` (about 1.5 min).
+  One module: `python3 scripts/test.py test_rig`. Push and let CI run the rest; look at a CI
+  failure only when your change caused it.
+- Browser tests take minutes each in software rendering: run only the one you touched
+  (`python -m unittest tests.browser.test_viewer.Viewer.test_...`). A new one starts from
+  `self.open_page()` and waits with `settled(page)` / `pick(page, item)`, never a fixed delay. A
+  check that is maths (where things go, how skin moves) belongs in a JS test under `tests/js/`,
+  which runs in seconds and never flakes, not in a browser test.
+- Every feature touches: `static/i18n.js` (English and Portuguese), `CHANGELOG.md`, `CREDITS.md`
+  for any outside asset, a CI shard for a new browser test, unit tests for new code.
+- README, its screenshots and docs/images: at milestones or when asked, not on every push. A PR
+  that skips them says `No docs needed: <reason>`. Screenshots: `python3 scripts/screenshots.py
+  <name>` for just the one you changed; look at it at 100% before committing.
+- splat-studio changes: batch them, then bump the pin once.
+
 ## What lives where
 
 - **Capture pipeline** (frames, COLMAP, Brush, fog and background removal, masks): in
@@ -79,8 +100,8 @@ tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no ex
 
 ## Keep the README current
 
-A change a user sees (the page, a CLI flag, a default, a file the app writes) updates
-`README.md` (both languages) and adds a line to `CHANGELOG.md` in the same PR. CI
+A change a user sees (the page, a CLI flag, a default, a file the app writes) adds a line to
+`CHANGELOG.md` in the same PR; `README.md` (both languages) catches up at milestones. CI
 (`.github/workflows/docs.yml`) fails a PR that touches user-facing code without touching
 `README.md` or `docs/`, unless the PR description has a line `No docs needed: <reason>`.
 A change to how the page looks regenerates `docs/images/` with `python3 scripts/screenshots.py`,

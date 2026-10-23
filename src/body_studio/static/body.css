@@ -131,6 +131,9 @@ body[data-mode="tattoos"] #wear { display: none; }
 @keyframes busy-in { from { opacity: 0; } }
 @keyframes busy-breathe { 50% { opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) {
+  /* nothing slides or fades: things change at once (and screenshots and browser tests find the
+     page already still) */
+  *, *::before, *::after { transition: none !important; }
   .busy-figure { animation: busy-breathe 2.4s ease-in-out infinite; }
   .busy-floor { animation: none; }
 }

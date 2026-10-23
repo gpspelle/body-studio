@@ -110,7 +110,8 @@ def main() -> None:
             for name, w, h, scheme, lang, panel in SHOTS:
                 if sys.argv[1:] and name not in sys.argv[1:]:
                     continue
-                page = browser.new_page(viewport={"width": w, "height": h}, color_scheme=scheme)
+                page = browser.new_page(viewport={"width": w, "height": h}, color_scheme=scheme,
+                                        reduced_motion="reduce")   # no CSS transitions caught half way
                 page.add_init_script(f"localStorage.setItem('lang', '{lang}')")
                 # no mode at first, just the body (on a computer it opens on the clothes the first time):
                 # each scene puts the page in its mode

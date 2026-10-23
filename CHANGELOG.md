@@ -219,3 +219,4 @@
   and a room has the Room and Decor buttons and changes nothing worn or inked. The mode is kept in
   the browser. The sample rooms' listing is retried until they are made, and their making is
   logged in `sample_rooms.log` in the data folder.
+- With reduced motion asked for by the system, panels and buttons change at once instead of sliding or fading.
