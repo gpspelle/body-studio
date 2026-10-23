@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { COLOURS, GROUPS, STARTERS, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap } from "../../src/body_studio/static/decor.js";
+import { COLOURS, FINISHES, GROUPS, STARTERS, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap } from "../../src/body_studio/static/decor.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
 const env = (k) => process.env[k] && JSON.parse(fs.readFileSync(process.env[k], "utf8"));
@@ -30,6 +30,8 @@ test("the page has every starter decor.py lists, as tall as it says", () => {
     const sh = starterShape(s.id);
     assert.equal(sh.p.length, sh.c.length, s.id);
     assert.equal(sh.g.length, sh.p.length / 3, s.id + ": glows or not, per vertex");
+    assert.equal(sh.m.length, sh.p.length / 3, s.id + ": made of something, per vertex");
+    assert.ok(sh.m.every((m) => Number.isInteger(m) && m >= 0 && m < FINISHES.length), s.id);
     assert.equal(sh.i.length % 3, 0, s.id);
     assert.ok(sh.i.every((i) => i >= 0 && i < sh.p.length / 3), s.id + ": faces in range");
     assert.ok(sh.p.every(Number.isFinite), s.id);
@@ -260,4 +262,37 @@ test("the list of what is in the room goes by kind, numbered within a name", () 
   assert.deepEqual(rows.map((r) => r.name), ["Chair 1", "Chair 2", "Round table", "Candle", "String lights", "Arch"]);
   assert.deepEqual(rows.map((r) => r.k), [1, 3, 2, 0, 5, 4]);
   assert.deepEqual(listing([], name, group), []);
+});
+
+test("each part is made of something: brass is metal, wood is wood, a vase is glass, a cloth is cloth", () => {
+  const most = (id, colour) => {
+    const m = starterShape(id, colour).m, n = new Map();
+    for (const v of m) n.set(v, (n.get(v) || 0) + 1);
+    return FINISHES[[...n].sort((a, b) => b[1] - a[1])[0][0]].name;
+  };
+  assert.equal(most("chair", "gold"), "metal");
+  assert.equal(most("cross_back_chair", "wood"), "wood");
+  assert.equal(most("round_table", "white"), "cloth");
+  const has = (id, name) => starterShape(id).m.includes(FINISHES.findIndex((f) => f.name === name));
+  assert.ok(has("candle", "satin") && has("candle", "metal"), "wax on a brass holder");
+  assert.ok(has("flowers", "glass"), "the vase");
+  assert.ok(has("place_setting", "glass") && has("place_setting", "metal"), "glasses and cutlery");
+  assert.ok(has("string_lights", "glow") && !has("chair", "glow"));
+  // what glows is made of light
+  const s = starterShape("candle"), glow = FINISHES.findIndex((f) => f.glow);
+  s.g.forEach((g, k) => assert.equal(g === 1, s.m[k] === glow));
+});
+
+test("a thing's picture frames all of it, from its front and a little above", () => {
+  for (const id of ["chair", "long_table", "arch", "candle", "dance_floor", "string_lights"]) {
+    const b = shapeBounds(starterShape(id).p), v = thumbView(b);
+    const to = v.target.map((c, a) => c - v.eye[a]), d = Math.hypot(...to);
+    assert.ok(v.eye[2] > b.hi[2] && v.eye[1] > v.target[1] && v.eye[0] > v.target[0], id + ": front, above, a little right");
+    // every corner within the view's cone
+    for (const x of [b.lo[0], b.hi[0]]) for (const y of [b.lo[1], b.hi[1]]) for (const z of [b.lo[2], b.hi[2]]) {
+      const p = [x - v.eye[0], y - v.eye[1], z - v.eye[2]], cos = (p[0] * to[0] + p[1] * to[1] + p[2] * to[2]) / (Math.hypot(...p) * d);
+      assert.ok(Math.acos(Math.min(1, cos)) <= (v.fov / 2) * Math.PI / 180 + 1e-9, id + ": the corner in view");
+    }
+    assert.ok(v.shadow[0] >= b.hi[0] - b.lo[0] && v.shadow[1] >= b.hi[2] - b.lo[2]);
+  }
 });

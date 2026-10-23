@@ -256,7 +256,8 @@ def room_scene(page) -> None:
 def decor_scene(page) -> None:
     """Mia dressed in the sample living room set for a wedding dinner: a round table with cross-back
     chairs round it, set, a centrepiece and candles on it, string lights over it, a flower stand
-    behind, the Decor panel open on what is in the room, the table picked with its handles."""
+    behind, the Decor panel open on the catalogue of things for the table, the table picked with its handles
+    and its toolbar."""
     dress(page)
     page.evaluate("house.choose(house.rooms()[0].file)")
     page.wait_for_function("house.shown() && decor.group()", timeout=300000)
@@ -279,7 +280,7 @@ def decor_scene(page) -> None:
           await decor.add(id); decor.move(decor.placed().length - 1, T.x + dx, T.z + dz); }
         await put("string_lights", -0.2, 1.0);
         await put("flower_stand", -0.9, 0.6);
-        decor.tab("room");
+        decor.tab("add"); decor.shelf("table");
         decor.pick(t);
         // the camera in front of her, a little to the table's side, at eye height
         const V = bodyApp.viewer, C = V.controls.target;
@@ -289,7 +290,9 @@ def decor_scene(page) -> None:
         C.copy(V.holder.localToWorld(C.clone().set(...look)));
         V.camera.position.copy(V.holder.localToWorld(C.clone().set(...eye)));
         V.controls.autoRotate = false; V.controls.update(); })()""")
-    page.wait_for_function("decor.drawn() >= 18 && !decor.saving")
+    page.wait_for_function("decor.drawn() >= 18 && !decor.saving", timeout=300000)
+    # the catalogue's pictures and the picked one's, all made
+    page.wait_for_function("[...document.querySelectorAll('#decor .pic')].every((p) => p.querySelector('img'))", timeout=600000)
     settle(page)
 
 

@@ -14,8 +14,8 @@ the right edge; the body's own panel (Try on) and its joints step aside while it
 back when it is closed. The panel has the picked thing on top, then two tabs, **Add** and **In the
 room**:
 
-- **Things**, by kind (Tables, On the table, Ceremony, Bar, Lights, Lounge, and From photos once
-  there is one; the kind shown is remembered). Tap one to put it in the room, on
+- **Things**, a catalogue of pictures by kind (Tables, On the table, Ceremony, Bar, Lights, Lounge,
+  and From photos once there is one; the kind shown is remembered). Tap one to put it in the room, on
   the floor in view beside the body (flowers, candles: on the table there), turned to face the
   camera.
 - **Add from a photo…**: pick a photo, give it a name and its **real height** in centimetres (the
@@ -33,7 +33,9 @@ room**:
 - **Handles** on the picked thing, like the body's joints: a ring on the floor round it, with a
   knob where its front faces (drag: turn, in 15° steps, Shift for any angle), and a knob on a stalk
   over it (drag: raise or lower, 0–5 m; **Raised** in the panel does the same). Drag the thing
-  itself to move it. The handles are drawn over everything, so the thing never hides them.
+  itself to move it. The handles are drawn over everything, so the thing never hides them. A small
+  toolbar floats just above it: turn a step left or right, **Duplicate** (a copy beside it),
+  remove.
 - **Layout** (in **In the room**): several arrangements per room (**New**, **Copy**, **Delete**),
   kept in the data folder.
 
@@ -61,6 +63,31 @@ and editing it, and what we took:
   it can't go there. Not taken yet (the wheel moves the camera here).
 - **Editors (Blender's outliner, Unity's hierarchy)**: a list of everything in the scene, picked
   by a click, in sync with the 3D view. Taken: In the room, kept in step with what is picked.
+
+## Look and feel
+
+Decorating a wedding or a home is meant to feel like browsing a good furniture shop, not like
+a game's build mode. What the shops and the makers' own sites do, and what we took:
+
+- **Big retailers (IKEA, IKEA Kreativ; Westwing, Kave Home, Maisons du Monde and their room
+  planners):** a catalogue of product pictures on a pale ground, three-quarters from the front,
+  soft light and a contact shadow, the name under it; one calm panel; the room is what matters.
+  Taken: the catalogue is a grid of pictures of each piece, rendered by the page itself (so a
+  colour change is a new picture), on warm paper.
+- **Design houses (Vitra, HAY, Muuto, &Tradition, Gubi; their 3D viewers and configurators):**
+  real materials (linen that doesn't shine, brass that reflects, glass you see through), studio
+  light from soft boxes, generous space, a serif or a refined sans for names, hairlines rather
+  than boxes. Taken: every part has a finish (cloth, satin, wood, metal, glass, light), lit by a
+  small studio of soft boxes reflected in it; soft shadows under each piece; the panel in paper,
+  ink and hairlines with names in a serif.
+- **Configurators (Tylko, FACOM, Beyerdynamic):** controls next to the thing, not far away in a
+  menu; few of them; information only when needed. Taken: a small toolbar floats by the picked
+  piece (turn, duplicate, remove), white handles with a dark edge on it.
+
+Shapes are drawn with the details that read as quality at a glance: bevelled edges that catch the
+light, upholstery with rounded cushions on brass feet, tablecloths that fall in soft folds and
+roll over the table's edge, roses with cupped petals arranged in a dome, lacquered dance floor
+panels with a brass trim.
 
 ## Starters
 

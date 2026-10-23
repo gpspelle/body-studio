@@ -15,15 +15,101 @@ const LEAF = [0.29, 0.45, 0.27], FLAME = [1.0, 0.78, 0.35], WAX = [0.97, 0.95, 0
 
 // ---------------------------------------------------------------- building shapes
 // A shape is { p: [x, y, z, ...], c: [r, g, b, ...] (0..1), g: [1 per vertex that glows: a bulb, a
-// flame], i: [triangles] }.
-function shape() { return { p: [], c: [], g: [], i: [] }; }
-let glowing = 0;
-function vert(s, x, y, z, col) { s.p.push(x, y, z); s.c.push(col[0], col[1], col[2]); s.g.push(glowing); return s.p.length / 3 - 1; }
+// flame], m: [what each vertex is made of, an index in FINISHES], i: [triangles] }.
+function shape() { return { p: [], c: [], g: [], m: [], i: [] }; }
+
+// What things are made of, for the page's materials (decorate.js): how rough, how metal, how clear.
+// A part's finish comes from its colour (gold and silver are metal, wood is wood, glass is glass)
+// unless made() says otherwise.
+export const FINISHES = [
+  { name: "cloth", rough: 0.92, metal: 0 },          // linen, velvet, paint: no shine
+  { name: "satin", rough: 0.4, metal: 0 },           // china, wax, icing, lacquer, petals
+  { name: "wood", rough: 0.62, metal: 0 },
+  { name: "metal", rough: 0.3, metal: 1 },           // brass, gold, silver, iron
+  { name: "glass", rough: 0.05, metal: 0, clear: 0.28 },
+  { name: "glow", rough: 1, metal: 0, glow: true },  // bulbs, flames: they give light
+];
+const F = Object.fromEntries(FINISHES.map((f, k) => [f.name, k]));
+let glowing = 0, finish = null;
+const finishes = new Map();                        // colour (the array itself) -> its finish
+function finishOf(col) { return glowing ? F.glow : finish !== null ? finish : (finishes.get(col) ?? F.cloth); }
+let place = null;                                  // while set, what vert() adds is moved by it
+function vert(s, x, y, z, col) {
+  if (place) [x, y, z] = place(x, y, z);
+  s.p.push(x, y, z); s.c.push(col[0], col[1], col[2]); s.g.push(glowing); s.m.push(finishOf(col));
+  return s.p.length / 3 - 1;
+}
 // what f() adds glows
 function lit(f) { glowing = 1; try { f(); } finally { glowing = 0; } }
+// what f() adds is made of `name` (whatever its colour)
+function made(name, f) { const was = finish; finish = F[name]; try { f(); } finally { finish = was; } }
 function quad(s, a, b, c, d) { s.i.push(a, b, c, a, c, d); }
 
+// a box standing at (cx, cy, cz), its edges softly bevelled (a few millimetres: they catch the light
+// as real edges do); thin boxes (a cloth, a tile) stay sharp
 function box(s, w, h, d, cx, cy, cz, col) {
+  const b = Math.min(0.006, Math.min(w, h, d) * 0.18);
+  if (b < 0.0015) return sharpBox(s, w, h, d, cx, cy, cz, col);
+  // the 6 faces inset by b, then the 12 edges and 8 corners between them
+  const X = [cx - w / 2, cx + w / 2], Y = [cy, cy + h], Z = [cz - d / 2, cz + d / 2];
+  const P = (i, j, k, ax) => [X[i] + (ax === 0 ? 0 : i ? -b : b), Y[j] + (ax === 1 ? 0 : j ? -b : b), Z[k] + (ax === 2 ? 0 : k ? -b : b)];
+  const corner = {};
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) for (let k = 0; k < 2; k++)
+    for (let ax = 0; ax < 3; ax++) corner[`${i}${j}${k}${ax}`] = vert(s, ...P(i, j, k, ax), col);
+  const c = (i, j, k, ax) => corner[`${i}${j}${k}${ax}`];
+  const face = (a, b2, c2, d2, out) => quadOut(s, a, b2, c2, d2, out);
+  // faces: x = 0/1 (ax 0), y (ax 1), z (ax 2)
+  for (const i of [0, 1]) face(c(i, 0, 0, 0), c(i, 1, 0, 0), c(i, 1, 1, 0), c(i, 0, 1, 0), [i ? 1 : -1, 0, 0]);
+  for (const j of [0, 1]) face(c(0, j, 0, 1), c(1, j, 0, 1), c(1, j, 1, 1), c(0, j, 1, 1), [0, j ? 1 : -1, 0]);
+  for (const k of [0, 1]) face(c(0, 0, k, 2), c(1, 0, k, 2), c(1, 1, k, 2), c(0, 1, k, 2), [0, 0, k ? 1 : -1]);
+  // edges along x (between the y and z faces), along y, along z
+  for (const j of [0, 1]) for (const k of [0, 1])
+    face(c(0, j, k, 1), c(1, j, k, 1), c(1, j, k, 2), c(0, j, k, 2), [0, j ? 1 : -1, k ? 1 : -1]);
+  for (const i of [0, 1]) for (const k of [0, 1])
+    face(c(i, 0, k, 0), c(i, 1, k, 0), c(i, 1, k, 2), c(i, 0, k, 2), [i ? 1 : -1, 0, k ? 1 : -1]);
+  for (const i of [0, 1]) for (const j of [0, 1])
+    face(c(i, j, 0, 0), c(i, j, 1, 0), c(i, j, 1, 1), c(i, j, 0, 1), [i ? 1 : -1, j ? 1 : -1, 0]);
+  for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) for (let k = 0; k < 2; k++)
+    triOut(s, c(i, j, k, 0), c(i, j, k, 1), c(i, j, k, 2), [i ? 1 : -1, j ? 1 : -1, k ? 1 : -1]);
+}
+// a triangle and a quad wound to face `out`
+function triOut(s, a, b, c, out) {
+  const p = (v) => s.p.slice(v * 3, v * 3 + 3);
+  const A = p(a), B = p(b), C = p(c), u = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], v = [C[0] - A[0], C[1] - A[1], C[2] - A[2]];
+  const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  if (n[0] * out[0] + n[1] * out[1] + n[2] * out[2] >= 0) s.i.push(a, b, c); else s.i.push(a, c, b);
+}
+function quadOut(s, a, b, c, d, out) { triOut(s, a, b, c, out); triOut(s, a, c, d, out); }
+
+// An upholstered block: a box w x h x d standing at (cx, cy, cz) whose edges round off with radius
+// r, as a cushion, a padded arm, a cloth over a table's edge do. Each face is a grid pushed out
+// onto the rounded shape (as three.js's RoundedBoxGeometry).
+function soft(s, w, h, d, cx, cy, cz, col, r = 0.04, n = 6) {
+  r = Math.min(r, w / 2 - 1e-4, h / 2 - 1e-4, d / 2 - 1e-4);
+  const half = [w / 2, h / 2, d / 2], inner = half.map((v) => v - r), mid = [cx, cy + h / 2, cz];
+  const at = (q) => {
+    const c = q.map((v, a) => Math.max(-inner[a], Math.min(inner[a], v)));
+    const off = q.map((v, a) => v - c[a]), L = Math.hypot(...off) || 1;
+    return c.map((v, a) => mid[a] + v + (off[a] / L) * r);
+  };
+  // each face: its axis and side; u and v run over the other two axes
+  for (let ax = 0; ax < 3; ax++) for (const side of [-1, 1]) {
+    const u = (ax + 1) % 3, v = (ax + 2) % 3, ids = [];
+    for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) {
+      const q = [0, 0, 0];
+      q[ax] = side * half[ax];
+      q[u] = (i / n * 2 - 1) * half[u];
+      q[v] = (j / n * 2 - 1) * half[v];
+      ids.push(vert(s, ...at(q), col));
+    }
+    const out = [0, 0, 0];
+    out[ax] = side;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++)
+      quadOut(s, ids[i * (n + 1) + j], ids[(i + 1) * (n + 1) + j], ids[(i + 1) * (n + 1) + j + 1], ids[i * (n + 1) + j + 1], out);
+  }
+}
+
+function sharpBox(s, w, h, d, cx, cy, cz, col) {
   const x = [cx - w / 2, cx + w / 2], y = [cy, cy + h], z = [cz - d / 2, cz + d / 2];
   // each face its own four corners, so the faces stay flat-shaded
   const faces = [
@@ -79,15 +165,100 @@ function ball(s, r, cx, cy, cz, col, seg = 10) {
     for (let k = 0; k < seg; k++) quad(s, rows[j][k], rows[j][(k + 1) % seg], rows[j + 1][(k + 1) % seg], rows[j + 1][k]);
 }
 
-// a bunch of flowers round (cx, cy, cz): blooms in the colour, leaves under them
+// a ball squashed to radii (rx, ry, rz), turned by `turn` about y: a leaf, a petal's base
+function blob(s, rx, ry, rz, cx, cy, cz, col, turn = 0, seg = 8) {
+  const rows = [], c = Math.cos(turn), sn = Math.sin(turn);
+  for (let j = 0; j <= seg / 2; j++) {
+    const ph = (j / (seg / 2)) * Math.PI;
+    rows.push(Array.from({ length: seg }, (_, k) => {
+      const a = (k / seg) * 2 * Math.PI, x = rx * Math.sin(ph) * Math.sin(a), z = rz * Math.sin(ph) * Math.cos(a);
+      return vert(s, cx + x * c + z * sn, cy + ry * Math.cos(ph), cz - x * sn + z * c, col);
+    }));
+  }
+  for (let j = 0; j < rows.length - 1; j++)
+    for (let k = 0; k < seg; k++) quad(s, rows[j][k], rows[j][(k + 1) % seg], rows[j + 1][(k + 1) % seg], rows[j + 1][k]);
+}
+
+// One bloom of radius b at (cx, cy, cz), facing up: a garden rose. A round bud at its heart, then
+// three rings of cupped petals, each ring more open than the one inside it, the outer ones paler
+// at their edges as real petals are; darker deep inside.
+function bloom(s, b, cx, cy, cz, col, spin = 0) {
+  const deep = col.map((v) => v * 0.7), edge = col.map((v) => v + (1 - v) * 0.25);
+  made("satin", () => {
+    blob(s, b * 0.36, b * 0.42, b * 0.36, cx, cy + b * 0.12, cz, deep, spin, 10);
+    // [where the ring starts, petals, how open (0 upright .. 1 flat), length]
+    for (const [r0, n, open, len, lift] of [[0.18, 4, 0.12, 0.62, 0.05], [0.28, 5, 0.32, 0.78, -0.05], [0.4, 6, 0.6, 0.9, -0.2]]) {
+      for (let k = 0; k < n; k++) {
+        const a = spin + (k + r0 * 3) * ((2 * Math.PI) / n), ca = Math.cos(a), sa = Math.sin(a);
+        const U = 4, Vn = 4, pts = [];
+        for (let u = 0; u <= U; u++) for (let v = 0; v <= Vn; v++) {
+          const t = u / U, w = (v / Vn) * 2 - 1;
+          // up the petal: rising from the root, curving out as it opens; across: a cup
+          const ang = (Math.PI / 2) * (1 - open) * (1 - 0.55 * t) + (Math.PI / 2) * open * 0.15;
+          const out = b * (r0 + len * t * Math.cos(ang) * 0.9), up = b * (lift + len * t * Math.sin(ang));
+          const half = b * len * 0.48 * Math.sin(Math.PI * Math.min(1, 0.2 + t * 0.95)), side = w * half;
+          const cup = b * 0.16 * (w * w) * (0.4 + t);
+          pts.push(vert(s, cx + (out - cup) * sa + side * ca, cy + up + cup * 0.6, cz + (out - cup) * ca - side * sa,
+                        t > 0.75 ? edge : t < 0.3 ? deep : col));
+        }
+        for (let u = 0; u < U; u++) for (let v = 0; v < Vn; v++)
+          quad(s, pts[u * (Vn + 1) + v], pts[u * (Vn + 1) + v + 1], pts[(u + 1) * (Vn + 1) + v + 1], pts[(u + 1) * (Vn + 1) + v]);
+      }
+    }
+  });
+}
+
+// what f() adds at the origin, facing up, put at c facing along the unit direction n
+function facing(n, c, f) {
+  const up = [0, 1, 0], ax = [up[1] * n[2] - up[2] * n[1], up[2] * n[0] - up[0] * n[2], up[0] * n[1] - up[1] * n[0]];
+  const sn = Math.hypot(...ax), cs = n[1], k = sn > 1e-9 ? ax.map((v) => v / sn) : [1, 0, 0];
+  const was = place;
+  // Rodrigues: turn by the angle between up and n about their common normal
+  place = (x, y, z) => {
+    const v = [x, y, z], dot = k[0] * x + k[1] * y + k[2] * z;
+    const cr = [k[1] * z - k[2] * y, k[2] * x - k[0] * z, k[0] * y - k[1] * x];
+    const r = v.map((q, a) => q * cs + cr[a] * sn + k[a] * dot * (1 - cs));
+    return was ? was(r[0] + c[0], r[1] + c[1], r[2] + c[2]) : [r[0] + c[0], r[1] + c[1], r[2] + c[2]];
+  };
+  try { f(); } finally { place = was; }
+}
+
+// A bunch of flowers round (cx, cy, cz), r across: roses in the colour (a few paler) packed in a
+// dome, each facing out from its middle as an arranged bouquet does, leaves tucked round the rim.
 function bunch(s, n, r, cx, cy, cz, col, seed = 1) {
   let q = seed;
   const rnd = () => ((q = (q * 16807) % 2147483647) / 2147483647);
-  for (let k = 0; k < n; k++) {
-    const a = rnd() * 2 * Math.PI, d = Math.sqrt(rnd()) * r, b = 0.028 + 0.022 * rnd();
-    const leaf = k % 3 === 2;
-    ball(s, leaf ? b * 0.8 : b, cx + d * Math.sin(a), cy + (rnd() - 0.3) * r * 0.6, cz + d * Math.cos(a), leaf ? LEAF : col, 12);
+  const pale = col.map((v) => v + (1 - v) * 0.45), golden = Math.PI * (3 - Math.sqrt(5));
+  const blooms = Math.max(1, Math.round(n * 0.75));
+  for (let k = 0; k < blooms; k++) {
+    // spread over the top of a dome, from its crown to a little below its middle
+    const t = (k + 0.5) / blooms, up = 1 - t * 1.15, ring = Math.sqrt(Math.max(0, 1 - up * up)), a = k * golden + seed;
+    const d = [ring * Math.sin(a), up, ring * Math.cos(a)], b = r * (0.3 + 0.12 * rnd()) / Math.sqrt(Math.max(1, blooms / 6));
+    const c = [cx + d[0] * r * 0.82, cy + d[1] * r * 0.55, cz + d[2] * r * 0.82];
+    facing(d, c, () => bloom(s, b, 0, 0, 0, k % 5 === 4 ? pale : col, rnd() * 6.3));
   }
+  for (let k = blooms; k < n; k++) {
+    const a = rnd() * 2 * Math.PI, d = [Math.sin(a) * 0.9, -0.35, Math.cos(a) * 0.9], len = r * (0.22 + 0.08 * rnd());
+    facing([d[0] * 0.5, 0.85, d[2] * 0.5], [cx + d[0] * r * 0.85, cy - r * 0.12, cz + d[2] * r * 0.85],
+           () => blob(s, len * 0.45, len * 0.08, len, 0, 0, 0, LEAF, a, 8));
+  }
+}
+
+// A cloth falling from a round top of radius r (at height h) to the floor, in soft folds that
+// open towards the hem.
+function drape(s, r, h, col, folds = 14, seg = 96) {
+  const rows = 8, ring = [];
+  for (let j = 0; j <= rows; j++) {
+    const t = j / rows, y = h * (1 - t), R = r + 0.035 * t, f = 0.022 * t * t;
+    ring.push(Array.from({ length: seg }, (_, k) => {
+      const a = (k / seg) * 2 * Math.PI, rr = R + f * Math.sin(folds * a + 0.7 * Math.sin(3 * a));
+      return vert(s, rr * Math.sin(a), y, rr * Math.cos(a), col);
+    }));
+  }
+  for (let j = 0; j < rows; j++) for (let k = 0; k < seg; k++) quad(s, ring[j][k], ring[j + 1][k], ring[j + 1][(k + 1) % seg], ring[j][(k + 1) % seg]);
+  // the top, a hair over the cloth's edge
+  const c = vert(s, 0, h, 0, col);
+  for (let k = 0; k < seg; k++) s.i.push(c, ring[0][k], ring[0][(k + 1) % seg]);
 }
 
 // ---------------------------------------------------------------- the starters
@@ -110,14 +281,14 @@ export const STARTERS = {
   },
   round_table: {
     group: "tables", height: 0.76, on: "floor", colour: "white", size: { r: 0.78 }, block: true, top: 0.76,
-    make(col) { const s = shape(); cyl(s, 0.8, 0.76, 0.73, 0, 0, 0, col, 48); cyl(s, 0.76, 0.76, 0.03, 0, 0.73, 0, col, 48); return s; },
+    make(col) { const s = shape(); drape(s, 0.76, 0.76, col); return s; },
   },
   long_table: {
     group: "tables", height: 0.76, on: "floor", colour: "white", size: { w: 1.84, d: 0.84 }, block: true, top: 0.76,
-    make(col) { const s = shape(); box(s, 1.84, 0.73, 0.84, 0, 0, 0, col); box(s, 1.8, 0.03, 0.8, 0, 0.73, 0, col); return s; },
+    make(col) { const s = shape(); cloth(s, 1.84, 0.84, 0.76, col); return s; },
   },
   arch: {
-    group: "ceremony", height: 2.36, on: "floor", colour: "white", size: { w: 1.7, d: 0.4 }, block: "posts",
+    group: "ceremony", height: 2.36, on: "floor", colour: "white", size: { w: 1.9, d: 0.4 }, block: "posts",
     posts: [[-0.8, 0], [0.8, 0]],
     make(col) {
       const s = shape(), bloom = col === COLOURS.white ? COLOURS.blush : COLOURS.white;
@@ -151,7 +322,7 @@ export const STARTERS = {
       const s = shape();
       cyl(s, 0.05, 0.07, 0.18, 0, 0, 0, GLASS, 20);
       for (let k = 0; k < 5; k++) rod(s, [0, 0.12, 0], [0.08 * Math.sin(k * 1.3), 0.3, 0.08 * Math.cos(k * 1.3)], 0.005, LEAF, 5);
-      bunch(s, 30, 0.14, 0, 0.345, 0, col, 11);
+      bunch(s, 30, 0.14, 0, 0.365, 0, col, 11);
       return s;
     },
   },
@@ -177,6 +348,8 @@ export const STARTERS = {
 const SILVER = [0.78, 0.79, 0.8], CHAMPAGNE = [0.96, 0.86, 0.55], BULB = [1.0, 0.86, 0.55], WIRE = [0.12, 0.12, 0.12];
 const CAKE = [0.97, 0.95, 0.9], BOTTLES = [[0.18, 0.35, 0.2], [0.55, 0.32, 0.12], [0.85, 0.88, 0.86], [0.45, 0.1, 0.15]];
 const other = (col, a = COLOURS.white, b = COLOURS.ivory) => (col === a ? b : a);
+for (const [cols, f] of [[[COLOURS.gold, SILVER, WIRE], F.metal], [[COLOURS.wood], F.wood], [[GLASS, ...BOTTLES], F.glass],
+                         [[WAX, CAKE, CHAMPAGNE], F.satin]]) for (const c of cols) finishes.set(c, f);
 
 // a stemmed glass at (x, y, z): a wine glass, or a flat coupe
 function glassAt(s, x, y, z, coupe = false, fill = null) {
@@ -195,7 +368,32 @@ function hoop(s, R, cx, cy, cz, r, col, a0 = 0, a1 = 2 * Math.PI, n = 36) {
   }
 }
 // a cloth over a table's edge, falling to the floor
-function cloth(s, w, d, h, col) { box(s, w, h - 0.03, d, 0, 0, 0, col); box(s, w - 0.04, 0.03, d - 0.04, 0, h - 0.03, 0, col); }
+// a cloth over a table, its top's edges rounded where it falls over them, to the floor
+function cloth(s, w, d, h, col) {
+  // its top's outline is a squircle (straight sides, softly rounded corners); from it the cloth
+  // falls in soft folds that open towards the hem, a little wider there
+  const a = w / 2, b = d / 2, n = 10, N = 192, rows = 8;
+  const edge = (k) => {
+    const th = (k / N) * 2 * Math.PI, c = Math.cos(th), sn = Math.sin(th);
+    const x = a * Math.sign(c) * Math.abs(c) ** (2 / n), z = b * Math.sign(sn) * Math.abs(sn) ** (2 / n);
+    const nx = Math.sign(x) * Math.abs(x / a) ** (n - 1) / a, nz = Math.sign(z) * Math.abs(z / b) ** (n - 1) / b, L = Math.hypot(nx, nz) || 1;
+    return { p: [x, z], n: [nx / L, nz / L], th };
+  };
+  const E = Array.from({ length: N }, (_, k) => edge(k)), ring = [];
+  for (let j = 0; j <= rows; j++) {
+    const t = j / rows, y = (h - 0.012) * (1 - t);
+    ring.push(E.map((e, k) => {
+      const off = 0.004 + 0.018 * t + 0.016 * t * t * Math.sin(e.th * 26 + 0.8 * Math.sin(k * 0.23));
+      return vert(s, e.p[0] + e.n[0] * off, y, e.p[1] + e.n[1] * off, col);
+    }));
+  }
+  for (let j = 0; j < rows; j++) for (let k = 0; k < N; k++) quad(s, ring[j][k], ring[j + 1][k], ring[j + 1][(k + 1) % N], ring[j][(k + 1) % N]);
+  // the top, rolling softly over its edge
+  const top = E.map((e) => vert(s, e.p[0] - e.n[0] * 0.012, h, e.p[1] - e.n[1] * 0.012, col));
+  for (let k = 0; k < N; k++) quad(s, top[k], top[(k + 1) % N], ring[0][(k + 1) % N], ring[0][k]);
+  const c = vert(s, 0, h, 0, col);
+  for (let k = 0; k < N; k++) s.i.push(c, top[(k + 1) % N], top[k]);
+}
 
 Object.assign(STARTERS, {
   // ------------------------------------------------ tables and seating
@@ -285,7 +483,7 @@ Object.assign(STARTERS, {
     },
   },
   tall_centrepiece: {
-    group: "table", height: 0.94, on: "top", colour: "white", size: { r: 0.3 }, block: false,
+    group: "table", height: 0.94, on: "top", colour: "white", size: { r: 0.24 }, block: false,
     make(col) {
       // a tall glass vase with a ball of flowers above the guests' heads, greenery falling from it
       const s = shape();
@@ -407,7 +605,7 @@ Object.assign(STARTERS, {
     },
   },
   flower_stand: {
-    group: "ceremony", height: 1.37, on: "floor", colour: "gold", size: { r: 0.22 }, block: true,
+    group: "ceremony", height: 1.37, on: "floor", colour: "gold", size: { r: 0.27 }, block: true,
     make(col) {
       const s = shape();
       cyl(s, 0.18, 0.14, 0.04, 0, 0, 0, col, 24); rod(s, [0, 0.04, 0], [0, 0.95, 0], 0.025, col, 10);
@@ -581,12 +779,15 @@ Object.assign(STARTERS, {
     group: "lounge", height: 0.82, on: "floor", colour: "ivory", size: { w: 1.7, d: 0.85 }, block: true,
     seats: [{ x: -0.38, y: 0.44, z: 0.05, back: true }, { x: 0.38, y: 0.44, z: 0.05, back: true }],
     make(col) {
-      const s = shape(), legs = COLOURS.wood;
-      for (const x of [-0.78, 0.78]) for (const z of [-0.36, 0.36]) box(s, 0.05, 0.08, 0.05, x, 0, z, legs);
-      box(s, 1.7, 0.2, 0.85, 0, 0.08, 0, col);
-      for (const x of [-0.38, 0.38]) box(s, 0.74, 0.16, 0.68, x, 0.28, 0.07, col);
-      box(s, 1.7, 0.54, 0.18, 0, 0.28, -0.33, col);
-      for (const x of [-0.78, 0.78]) box(s, 0.14, 0.34, 0.85, x, 0.28, 0, col);
+      // a deep, softly rounded sofa on tapered brass feet: a base, two seat and two back
+      // cushions, rounded arms
+      const s = shape(), feet = COLOURS.gold;
+      for (const x of [-0.76, 0.76]) for (const z of [-0.34, 0.34]) cyl(s, 0.018, 0.026, 0.1, x, 0, z, feet, 12);
+      soft(s, 1.7, 0.2, 0.85, 0, 0.08, 0, col, 0.05);
+      for (const x of [-0.355, 0.355]) soft(s, 0.7, 0.17, 0.66, x, 0.26, 0.07, col, 0.07);
+      soft(s, 1.7, 0.56, 0.2, 0, 0.26, -0.325, col, 0.08);
+      for (const x of [-0.355, 0.355]) soft(s, 0.68, 0.36, 0.18, x, 0.42, -0.19, col, 0.08);
+      for (const x of [-0.77, 0.77]) soft(s, 0.16, 0.36, 0.85, x, 0.26, 0, col, 0.07);
       return s;
     },
   },
@@ -594,12 +795,13 @@ Object.assign(STARTERS, {
     group: "lounge", height: 0.82, on: "floor", colour: "ivory", size: { w: 0.85, d: 0.85 }, block: true,
     seat: { y: 0.44, z: 0.05, back: true },
     make(col) {
-      const s = shape();
-      for (const x of [-0.36, 0.36]) for (const z of [-0.36, 0.36]) box(s, 0.05, 0.08, 0.05, x, 0, z, COLOURS.wood);
-      box(s, 0.85, 0.2, 0.85, 0, 0.08, 0, col);
-      box(s, 0.58, 0.16, 0.68, 0, 0.28, 0.07, col);
-      box(s, 0.85, 0.54, 0.18, 0, 0.28, -0.33, col);
-      for (const x of [-0.355, 0.355]) box(s, 0.14, 0.34, 0.85, x, 0.28, 0, col);
+      const s = shape(), feet = COLOURS.gold;
+      for (const x of [-0.34, 0.34]) for (const z of [-0.34, 0.34]) cyl(s, 0.018, 0.026, 0.1, x, 0, z, feet, 12);
+      soft(s, 0.85, 0.2, 0.85, 0, 0.08, 0, col, 0.05);
+      soft(s, 0.56, 0.17, 0.66, 0, 0.26, 0.07, col, 0.07);
+      soft(s, 0.85, 0.56, 0.2, 0, 0.26, -0.325, col, 0.08);
+      soft(s, 0.54, 0.36, 0.18, 0, 0.42, -0.19, col, 0.08);
+      for (const x of [-0.345, 0.345]) soft(s, 0.16, 0.36, 0.85, x, 0.26, 0, col, 0.07);
       return s;
     },
   },
@@ -621,12 +823,18 @@ Object.assign(STARTERS, {
     },
   },
   dance_floor: {
-    group: "lounge", height: 0.02, on: "floor", colour: "black", size: { w: 4.8, d: 4.8 }, block: false,
+    group: "lounge", height: 0.02, on: "floor", colour: "white", size: { w: 4.8, d: 4.8 }, block: false,
     make(col) {
-      // 8 x 8 tiles, the colour and white
+      // 8 x 8 gloss panels in the colour, each a shade off its neighbour as lacquer is, on a
+      // thin edge trim
       const s = shape(), n = 8, t = 4.8 / n;
-      for (let i = 0; i < n; i++) for (let k = 0; k < n; k++)
-        box(s, t - 0.004, 0.02, t - 0.004, -2.4 + t * (i + 0.5), 0, -2.4 + t * (k + 0.5), (i + k) % 2 ? col : COLOURS.white);
+      made("satin", () => {
+        for (let i = 0; i < n; i++) for (let k = 0; k < n; k++) {
+          const tint = 1 - 0.025 * (((i * 7 + k * 3) % 4) / 3);
+          box(s, t - 0.006, 0.02, t - 0.006, -2.4 + t * (i + 0.5), 0, -2.4 + t * (k + 0.5), col.map((v) => v * tint));
+        }
+      });
+      for (const [w, d, x, z] of [[4.84, 0.02, 0, 2.41], [4.84, 0.02, 0, -2.41], [0.02, 4.84, 2.41, 0], [0.02, 4.84, -2.41, 0]]) box(s, w, 0.015, d, x, 0, z, COLOURS.gold);
       return s;
     },
   },
@@ -879,4 +1087,25 @@ export function listing(placed, nameOf, groupOf) {
   });
   const order = (g) => { const i = GROUPS.indexOf(g); return i < 0 ? GROUPS.length : i; };
   return rows.sort((a, b) => order(a.group) - order(b.group) || a.item.localeCompare(b.item) || a.k - b.k);
+}
+
+// ---------------------------------------------------------------- pictures for the panel
+// a shape's bounds: { lo: [x, y, z], hi: [x, y, z] }
+export function bounds(p) {
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let k = 0; k < p.length; k++) { lo[k % 3] = Math.min(lo[k % 3], p[k]); hi[k % 3] = Math.max(hi[k % 3], p[k]); }
+  return { lo, hi };
+}
+
+// Where the camera stands for a thing's picture: three-quarters from its front (+z), a little
+// to its right and above, far enough that all of it fits; the shadow's size under it.
+export function thumbView(b, fov = 28) {
+  const c = [0, 1, 2].map((a) => (b.lo[a] + b.hi[a]) / 2), size = [0, 1, 2].map((a) => b.hi[a] - b.lo[a]);
+  const r = Math.max(0.05, Math.hypot(...size) / 2);
+  const dir = [0.5, 0.42, 1], n = Math.hypot(...dir), far = (r / Math.sin((fov / 2) * Math.PI / 180)) * 1.02;
+  return {
+    fov, target: c,
+    eye: c.map((v, a) => v + (dir[a] / n) * far),
+    shadow: [Math.max(0.1, size[0] * 1.3), Math.max(0.1, size[2] * 1.3)],
+  };
 }

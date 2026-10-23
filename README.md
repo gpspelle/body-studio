@@ -253,7 +253,10 @@ walk the aisle.
   and candles go on the table they are dropped on. **In the room** lists everything placed, by
   kind: tap a line to pick it, ✕ to take it away. While Decor is open, the body's panel steps aside.
 - The picked thing has handles, like the body's joints: drag the ring round it to turn it (Shift
-  for any angle), the knob over it to raise or lower it (**Raised** does the same). **Turn** (or `[` `]`), a colour, **Make a row** of up to 12, **Chairs
+  for any angle), the knob over it to raise or lower it (**Raised** does the same). A small
+  toolbar above it turns it a step, duplicates it or removes it.
+- The things look like a furniture shop's: linen, brass, wood and glass in soft studio light,
+  a soft shadow under each, a picture of each in the catalogue. **Turn** (or `[` `]`), a colour, **Make a row** of up to 12, **Chairs
   round it** for a table, **Set the table** (a place setting in front of each chair), **Remove**
   (or Delete).
 - **Add from a photo…**: a photo of one thing (an Instagram picture is fine), its name and its real
@@ -485,7 +488,10 @@ decoração de um casamento: filme o espaço como um cômodo, monte a decoraçã
   tipo: toque numa linha para escolher, ✕ para tirar. Com a Decoração aberta, o painel do corpo sai
   da frente.
 - A coisa escolhida tem alças, como as juntas do corpo: arraste o anel em volta para girar (Shift
-  para qualquer ângulo) e o botão em cima para erguer ou baixar (**Erguido** faz o mesmo). **Girar** (ou `[` `]`), uma cor, **Fazer uma fileira** de até 12,
+  para qualquer ângulo) e o botão em cima para erguer ou baixar (**Erguido** faz o mesmo). Uma
+  pequena barra em cima dela gira um passo, duplica ou remove.
+- As coisas parecem as de uma loja de móveis: linho, latão, madeira e vidro numa luz suave de
+  estúdio, uma sombra suave embaixo de cada uma, uma foto de cada no catálogo. **Girar** (ou `[` `]`), uma cor, **Fazer uma fileira** de até 12,
   **Cadeiras em volta** de uma mesa, **Pôr a mesa** (um lugar posto na frente de cada cadeira),
   **Remover** (ou Delete).
 - **Adicionar de uma foto…**: uma foto de uma coisa só (uma foto do Instagram serve), o nome e a

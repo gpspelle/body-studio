@@ -168,42 +168,46 @@
     </section>
   </div>
 </aside>
-<!-- Decor in the room (decorate.js): the one picked, then two tabs: things to add, and what is in
-     the room (with the layouts). -->
-<aside id="decor" class="panel" data-i18n-aria-label="decor.title" hidden>
+<!-- Decor in the room (decorate.js): the one picked, then two tabs: things to add (a catalogue
+     with a picture of each), and what is in the room (with the layouts). -->
+<aside id="decor" class="panel shop" data-i18n-aria-label="decor.title" hidden>
   <div class="panel-head">
-    <strong data-i18n="decor.title"></strong>
+    <strong class="shop-title" data-i18n="decor.title"></strong>
     <span class="grow"></span>
     <button id="closeDecor" class="link" data-i18n-aria-label="decor.close">✕</button>
   </div>
-  <section id="decorEdit" hidden>
-    <div class="inline-chips picked"><h2 id="decorName"></h2><span class="grow"></span><button id="decorDone" class="link" data-i18n="decor.done"></button></div>
-    <p class="small" data-i18n="decor.dragHint"></p>
+  <section id="decorEdit" class="picked" hidden>
+    <div class="picked-head">
+      <span class="pic" id="decorPic"></span>
+      <div class="grow"><h2 id="decorName"></h2><p class="small" data-i18n="decor.dragHint"></p></div>
+      <button id="decorDone" class="link" data-i18n="decor.done"></button>
+    </div>
     <div class="sliders">
       <label><span data-i18n="decor.turn"></span><input id="decorTurn" type="range" min="-180" max="180" step="5"><output id="decorTurnOut"></output></label>
       <label><span data-i18n="decor.lift"></span><input id="decorLift" type="range" min="0" max="300" step="1"><output id="decorLiftOut"></output></label>
     </div>
     <div class="chips swatches" id="decorColours" role="group" data-i18n-aria-label="decor.colour"></div>
     <label id="decorHeightRow" class="inline small"><span data-i18n="decor.height"></span><input id="decorHeight" type="number" inputmode="decimal" min="2" max="600" step="1"></label>
-    <div class="inline-chips repeat">
+    <div class="repeat">
       <label class="small"><span data-i18n="decor.count"></span>
         <select id="decorRowN"><option>2</option><option>3</option><option>4</option><option selected>5</option><option>6</option><option>8</option><option>10</option><option>12</option></select></label>
       <button id="decorRow" class="btn" data-i18n="decor.row"></button>
       <button id="decorAround" class="btn" data-i18n="decor.around"></button>
       <button id="decorSet" class="btn" data-i18n="decor.set"></button>
     </div>
-    <button id="decorRemove" class="link" data-i18n="decor.remove"></button>
-    <button id="decorForget" class="link" data-i18n="decor.forget"></button>
+    <div class="quiet">
+      <button id="decorRemove" class="link" data-i18n="decor.remove"></button>
+      <button id="decorForget" class="link" data-i18n="decor.forget"></button>
+    </div>
   </section>
   <div class="tabs" role="tablist">
     <button id="decorAddTab" role="tab" aria-selected="true" aria-controls="decorAdd" data-i18n="decor.tabAdd"></button>
     <button id="decorRoomTab" role="tab" aria-selected="false" aria-controls="decorRoom"></button>
   </div>
   <section id="decorAdd" role="tabpanel">
-    <p class="small" data-i18n="decor.how"></p>
     <div class="chips shelves" id="decorGroups" role="group" data-i18n-aria-label="decor.groups"></div>
-    <div class="chips things" id="decorItems"></div>
-    <label class="btn" for="decorPick" data-i18n="decor.add"></label>
+    <div class="cards" id="decorItems"></div>
+    <label class="btn wide" for="decorPick" data-i18n="decor.add"></label>
     <input id="decorPick" type="file" accept="image/jpeg,image/png,image/webp" hidden>
     <form id="decorForm" class="form" hidden>
       <p class="small" data-i18n="decor.addHow"></p>
@@ -226,6 +230,14 @@
     </div>
   </section>
 </aside>
+<!-- by the picked thing, over the room: turn it, copy it, take it away -->
+<div id="decorBar" class="objbar" role="toolbar" data-i18n-aria-label="decor.bar" hidden>
+  <button id="barLeft" data-i18n-aria-label="decor.turnLeft"><svg viewBox="0 0 20 20"><path d="M7 4 3.5 7.5 7 11M4 7.5h7a5 5 0 1 1 0 10H8"/></svg></button>
+  <button id="barRight" data-i18n-aria-label="decor.turnRight"><svg viewBox="0 0 20 20"><path d="M13 4l3.5 3.5L13 11M16 7.5H9a5 5 0 1 0 0 10h3"/></svg></button>
+  <span class="sep"></span>
+  <button id="barCopy" data-i18n-aria-label="decor.duplicate"><svg viewBox="0 0 20 20"><rect x="6.5" y="6.5" width="10" height="10" rx="2"/><path d="M13.5 4.5v-.5a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 4v7A1.5 1.5 0 0 0 5 12.5h.5"/></svg></button>
+  <button id="barRemove" data-i18n-aria-label="decor.remove"><svg viewBox="0 0 20 20"><path d="M4 6h12M8 6V4.5h4V6M6 6l.7 10h6.6L14 6"/></svg></button>
+</div>
 <!-- Every control on one card, as a game's controls screen: keys, what each does, in a word or two. -->
 <dialog id="guide" class="guide" aria-labelledby="guideTitle">
   <div class="panel-head">

@@ -5,8 +5,9 @@
 // come from the starters (decor.js draws them) or are made from a photo on this computer (POST
 // /api/decor/photo, decor.py and photo3d.py). The maths is decor.js's; the room is house.js's.
 import * as THREE from "three";
-import { COLOURS, GROUPS, MAX_LIFT, STARTERS, around, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
-         setTable, standY, starterShape, turnToward, unpack, wrap } from "/static/decor.js";
+import { geometry, materials, picture, shadow } from "/static/decorlook.js";
+import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
+         bounds, setTable, standY, starterShape, turnToward, unpack, wrap } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -46,6 +47,7 @@ function setOpen(open) {
     dispatchEvent(new CustomEvent("panelopen", { detail: "decor" }));
     V.controls.autoRotate = false;
     refreshItems();
+    pump();
   }
   draw();
   app.reframe();
@@ -99,15 +101,14 @@ function inventory() {
     return b;
   }));
   const shown = items.filter((it) => (it.kind === "photo" ? shelf === "mine" : STARTERS[it.id]?.group === shelf));
+  // a card each, its picture (the starters photographed as a shop does, decorlook.js) over its name
   $("decorItems").replaceChildren(...shown.map((it) => {
     const b = document.createElement("button");
     b.dataset.item = it.id;
-    if (it.kind === "photo") {
-      const img = document.createElement("img");
-      img.src = `/api/decor/${it.id}/photo`; img.alt = "";
-      b.append(img);
-    }
-    b.append(document.createTextNode(nameOf(it)));
+    b.append(picFor(it.id, STARTERS[it.id]?.colour));
+    const name = document.createElement("span");
+    name.className = "name"; name.textContent = nameOf(it);
+    b.append(name);
     if (it.status === "working") { b.disabled = true; b.title = t("decor.making", { name: it.name }); b.classList.add("busy"); }
     else if (it.status === "failed") {
       b.classList.add("failed");
@@ -119,6 +120,47 @@ function inventory() {
   const working = items.filter((i) => i.status === "working"), failed = items.filter((i) => i.status === "failed");
   say(working.length ? t("decor.making", { name: working.map((i) => i.name).join(", ") })
       : failed.length ? t("decor.failed", { name: failed[0].name, error: errText({ code: failed[0].code, message: failed[0].error }) }) : "");
+}
+
+// ---------------------------------------------------------------- pictures
+// "id|colour" -> a data URL; made one at a time, between frames, the first time one is wanted
+const pics = new Map(), wanted = [];
+let picking = false;
+function picFor(id, colour) {
+  const span = document.createElement("span");
+  span.className = "pic";
+  const it = itemOf(id);
+  if (it && it.kind === "photo") { const img = new Image(); img.src = `/api/decor/${id}/photo`; img.alt = ""; span.append(img); return span; }
+  const key = id + "|" + (colour || "");
+  span.dataset.pic = key;
+  const url = pics.get(key);
+  if (url) { const img = new Image(); img.src = url; img.alt = ""; span.append(img); }
+  else {
+    // the ones just shown go first
+    if (url === undefined) pics.set(key, null);
+    const at = wanted.indexOf(key);
+    if (at >= 0) wanted.splice(at, 1);
+    if (url === undefined || at >= 0) { wanted.unshift(key); pump(); }
+  }
+  return span;
+}
+function pump() {
+  // (only while the panel is open: they are for it, and the room shouldn't wait for them)
+  if (picking || !wanted.length || $("decor").hidden) return;
+  picking = true;
+  requestAnimationFrame(() => setTimeout(() => {
+    const key = wanted.shift(), [id, colour] = key.split("|");
+    try {
+      const g = geomFor({ item: id, colour: colour || undefined });
+      if (g) pics.set(key, picture(g, bounds(g.attributes.position.array)));
+    } catch (e) { console.warn("decor picture", id, e); }
+    const url = pics.get(key);
+    if (url) for (const el of document.querySelectorAll(`[data-pic="${key}"]`)) {
+      const img = new Image(); img.src = url; img.alt = ""; el.replaceChildren(img);
+    }
+    picking = false;
+    pump();
+  }, 0));
 }
 
 async function retry(it) {
@@ -181,7 +223,9 @@ function list() {
     const li = document.createElement("li"), b = document.createElement("button"), x = document.createElement("button");
     li.dataset.index = String(r.k);
     li.classList.toggle("on", r.k === sel);
-    b.className = "name"; b.textContent = r.name;
+    b.className = "name";
+    const q = placed()[r.k];
+    b.append(picFor(q.item, q.colour || STARTERS[q.item]?.colour), document.createTextNode(r.name));
     b.onclick = () => pick(r.k);
     x.className = "x"; x.textContent = "✕";
     x.setAttribute("aria-label", t("decor.removeOne", { name: r.name }));
@@ -273,6 +317,7 @@ function pick(k) {
   if (p) {
     const it = itemOf(p.item), d = defs(p.item);
     $("decorName").textContent = nameOf(it);
+    $("decorPic").replaceWith(Object.assign(picFor(p.item, p.colour || STARTERS[p.item]?.colour), { id: "decorPic" }));
     $("decorTurn").value = String(Math.round(((p.turn * 180 / Math.PI) % 360 + 540) % 360 - 180));
     $("decorTurnOut").textContent = $("decorTurn").value + "°";
     $("decorLift").value = String(Math.round((p.lift || 0) * 100));
@@ -380,23 +425,6 @@ addEventListener("keydown", (e) => {
 });
 
 // ---------------------------------------------------------------- drawing
-function geometry(s) {
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.BufferAttribute(s.p instanceof Float32Array ? s.p : new Float32Array(s.p), 3));
-  g.setAttribute("color", new THREE.BufferAttribute(s.c instanceof Float32Array ? s.c : new Float32Array(s.c), 3));
-  // the triangles that glow (bulbs, flames) after the rest, drawn with the second material
-  const tris = s.i instanceof Uint32Array ? s.i : new Uint32Array(s.i), idx = new Uint32Array(tris.length);
-  let lo = 0, hi = tris.length;
-  for (let k = 0; k < tris.length; k += 3) {
-    const glow = s.g && s.g[tris[k]] && s.g[tris[k + 1]] && s.g[tris[k + 2]];
-    if (glow) { hi -= 3; idx.set(tris.subarray(k, k + 3), hi); } else { idx.set(tris.subarray(k, k + 3), lo); lo += 3; }
-  }
-  g.setIndex(new THREE.BufferAttribute(idx, 1));
-  g.addGroup(0, lo, 0);
-  if (lo < idx.length) g.addGroup(lo, idx.length - lo, 1);
-  g.computeVertexNormals();
-  return g;
-}
 function meshFor(id) {
   if (!meshes.has(id))
     meshes.set(id, fetch(`/api/decor/${id}/mesh`).then((r) => (r.ok ? r.json() : null)).then((m) => {
@@ -422,23 +450,38 @@ function geomFor(p) {
   return g;
 }
 
-const LOOK = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
-const PICKED = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, emissive: 0x2f6fd6, emissiveIntensity: 0.35 });
-const GLOW = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, toneMapped: false });
+// one material per finish (decorlook.js), made once the renderer is there
+let MATS = null;
+const mats = () => (MATS ||= materials(V.renderer));
+// the soft shadows, in their own group (not things to pick)
+let shades = null;
+const SHADE_PLANE = new THREE.PlaneGeometry(1, 1), SHADE = shadow();
 
 function draw() {
   if (!group) return;
   for (const c of [...group.children]) if (c.isMesh) group.remove(c);
+  if (!shades) { shades = new THREE.Group(); shades.userData.shades = true; }
+  if (shades.parent !== group) group.add(shades);
+  for (const c of [...shades.children]) shades.remove(c);
   placed().forEach((p, k) => {
     const g = geomFor(p);
     if (!g) return;
     const d = defs(p.item);
-    const m = new THREE.Mesh(g, [k === sel && !$("decor").hidden ? PICKED : LOOK, GLOW]);
+    const m = new THREE.Mesh(g, mats());
     m.position.set(p.x, p.y || 0, p.z);
     m.rotation.y = p.turn || 0;
     if (!d.starter) m.scale.setScalar(d.height);
     m.userData.index = k;
     group.add(m);
+    // a soft shadow under what stands (not under what lies flat or hangs)
+    if (d.height > 0.05 && !STARTERS[p.item]?.hangs) {
+      const sh = new THREE.Mesh(SHADE_PLANE, SHADE), sz = d.size, w = sz.r !== undefined ? 2 * sz.r : sz.w, dd = sz.r !== undefined ? 2 * sz.r : sz.d;
+      sh.rotation.set(-Math.PI / 2, p.turn || 0, 0, "YXZ");
+      sh.position.set(p.x, (p.y || 0) - (p.lift || 0) + 0.004, p.z);
+      sh.scale.set(w * 1.35, dd * 1.35, 1);
+      sh.renderOrder = -1;
+      shades.add(sh);
+    }
   });
   placeGizmo();
   const map = H()?.map();
@@ -451,22 +494,26 @@ function draw() {
 // everything so they are never hidden by the thing. Each knob has a bigger, unseen ball round it
 // to grab.
 let gizmo = null;
-const HANDLE = new THREE.MeshBasicMaterial({ color: 0x2f6fd6, depthTest: false, transparent: true, opacity: 0.9, toneMapped: false });
+// white with a soft dark edge, as the handles of a photo editor: seen on a pale floor and a dark one
+const HANDLE = new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true, opacity: 0.95, toneMapped: false });
+const EDGE = new THREE.MeshBasicMaterial({ color: 0x1c1c1a, depthTest: false, transparent: true, opacity: 0.45, toneMapped: false });
 const GRAB = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthTest: false, depthWrite: false });
 function makeGizmo() {
   const g = new THREE.Group();
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.012, 6, 64), HANDLE);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.006, 6, 96), HANDLE);
+  ring.add(Object.assign(new THREE.Mesh(new THREE.TorusGeometry(1, 0.011, 6, 96), EDGE), { name: "ringEdge", renderOrder: 9 }));
   ring.rotation.x = Math.PI / 2; ring.name = "ring";
   const knob = (name) => {
-    const k = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 12), HANDLE);
+    const k = new THREE.Mesh(new THREE.SphereGeometry(0.04, 20, 14), HANDLE);
+    k.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(0.05, 20, 14), EDGE), { name: name + "Edge", renderOrder: 9 }));
     k.add(Object.assign(new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), GRAB), { name: name + "Grab" }));
     k.name = name;
     return k;
   };
-  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 1, 6), HANDLE);
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 1, 6), HANDLE);
   stalk.name = "stalk";
   g.add(ring, knob("turn"), knob("lift"), stalk);
-  g.traverse((o) => { o.renderOrder = 10; o.userData.handle = o.name.replace("Grab", ""); });
+  g.traverse((o) => { if (!o.renderOrder) o.renderOrder = 10; o.userData.handle = o.name.replace(/Grab|Edge/, ""); });
   return g;
 }
 function placeGizmo() {
@@ -484,12 +531,47 @@ function placeGizmo() {
   stalk.scale.y = Math.max(0.01, h.lift[1] - low); stalk.position.set(p.x, (low + h.lift[1]) / 2, p.z);
 }
 
+// ---------------------------------------------------------------- the toolbar by the picked thing
+// Over the room, just above the picked thing: turn it a step either way, duplicate it, take it
+// away. It follows the thing on screen and keeps clear of the panel and the edges.
+function placeBar() {
+  const bar = $("decorBar"), p = placed()[sel];
+  const show = !!(p && group && !$("decor").hidden && !drag);
+  if (!show) { bar.hidden = true; return; }
+  const top = new THREE.Vector3(...handles(defs(p.item), p).lift).add(new THREE.Vector3(0, 0.06, 0));
+  group.updateMatrixWorld();
+  const v = group.localToWorld(top).project(V.camera);
+  if (v.z > 1) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const w = bar.offsetWidth, h = bar.offsetHeight, right = innerWidth - ($("decor").getBoundingClientRect().width + 32);
+  const x = Math.min(Math.max(12, (v.x + 1) / 2 * innerWidth - w / 2), right - w), y = Math.min(Math.max(64, (1 - v.y) / 2 * innerHeight - h - 14), innerHeight - h - 12);
+  bar.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+}
+const turnBy = (dir) => { const p = placed()[sel]; if (!p) return; p.turn = wrap(Math.round(p.turn / (Math.PI / 12)) * (Math.PI / 12) + dir * Math.PI / 12); pick(sel); changed(); };
+$("barLeft").onclick = () => turnBy(1);
+$("barRight").onclick = () => turnBy(-1);
+$("barRemove").onclick = () => removeSel();
+// a copy beside it (to its right, a hand's width apart), picked
+$("barCopy").onclick = () => {
+  const p = placed()[sel];
+  if (!p) return;
+  const q = row(defs(p.item), p, 2)[0];
+  q.y = standY(defs(p.item), placed(), defs, q, roomTop);
+  placed().push(q);
+  pick(placed().length - 1); changed();
+};
+function barTitles() { for (const b of $("decorBar").querySelectorAll("button")) b.title = b.getAttribute("aria-label") || ""; }
+barTitles();
+V.frameHooks.push((before) => { if (!before) placeBar(); });
+
 function show() {
   hide();
   group = new THREE.Group();
   group.matrixAutoUpdate = false;
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x8a8178, 2.2);
-  const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+  // the studio's reflections do most of the light (decorlook.js); a soft sky and a warm sun
+  // give the shapes their shading
+  const hemi = new THREE.HemisphereLight(0xfffaf2, 0x7d766e, 0.9);
+  const sun = new THREE.DirectionalLight(0xfff1de, 1.6);
   sun.position.set(2, 5, 3);
   group.add(hemi, sun, sun.target);
   V.holder.add(group);
@@ -620,7 +702,7 @@ addEventListener("roomchange", async () => {
   pick(-1);
   dispatchEvent(new Event("decorready"));
 });
-addEventListener("langchange", () => { inventory(); colourChips(); if (L) { layoutsUI(); pick(sel); } });
+addEventListener("langchange", () => { barTitles(); inventory(); colourChips(); if (L) { layoutsUI(); pick(sel); } });
 
 // ---------------------------------------------------------------- for tests and scripts
 window.decor = {
@@ -642,6 +724,7 @@ window.decor = {
     return [h, [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]];
   })) : null),
   refresh: refreshItems,
+  pictures: () => ({ wanted: wanted.length, made: [...pics.values()].filter(Boolean).length, busy: picking }),
   shelf: (g) => { if (g) { shelf = g; inventory(); } return shelf; },
-  glowing: () => (group ? group.children.filter((c) => c.isMesh && c.geometry.groups.length > 1).length : 0),
+  glowing: () => (group ? group.children.filter((c) => c.isMesh && c.geometry.groups.some((g) => FINISHES[g.materialIndex].glow)).length : 0),
 };

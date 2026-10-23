@@ -263,35 +263,108 @@ label.btn { display: inline-block; font-size: 13px; }
 }
 @media (prefers-reduced-motion: reduce) { .pill.busy::before { animation: none; } }
 
-/* Decor: the things as chips (a photo's own thumbnail in it), colour swatches, the repeat row. */
-/* the groups of things (tables, on the table, ceremony, bar, lights, lounge) as small tabs over them */
-.shelves { gap: 4px; margin-bottom: 6px; }
-.shelves button { font-size: 12px; padding: 2px 8px; border-color: transparent; }
-.things button { display: inline-flex; align-items: center; gap: 6px; }
-.things img { width: 20px; height: 20px; object-fit: cover; border-radius: 4px; }
-.things button.busy { opacity: 0.6; }
-.things button.failed { border-color: var(--bad); }
-.swatches button { width: 24px; height: 24px; padding: 0; border-radius: 50%; background: var(--swatch); }
-.swatches button.on { outline: 2px solid var(--text); outline-offset: 2px; }
-.repeat { flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
-.repeat label { display: flex; align-items: center; gap: 6px; }
-.layouts { align-items: center; }
-.layouts select { flex: 1; min-width: 0; }
-#decorEdit .link { padding-left: 0; margin-right: 12px; }
-/* Decor: two tabs (Add, In the room), the list of what is in the room, the picked thing on top */
-.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 4px 0 10px; }
-.tabs button {
-  font: inherit; font-size: 13px; color: var(--muted); background: none; border: 0; cursor: pointer;
-  padding: 6px 10px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+
+/* Decor, as a furniture shop: a calm paper panel, a catalogue of product pictures, one hairline
+   between parts, the picked piece on top, a small toolbar by it in the room. */
+#decor.shop {
+  --paper: #faf8f4; --card: #f0ece5; --ink: #1f1d1a; --soft: #8a857c; --hair: rgba(31, 29, 26, 0.09);
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  width: 360px; padding: 18px 20px 20px; background: var(--paper); color: var(--ink);
+  border: 0; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 12px 40px rgba(0, 0, 0, 0.10);
+  backdrop-filter: none; -webkit-backdrop-filter: none; scrollbar-gutter: stable;
 }
-.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--text); }
-.placed-list { list-style: none; margin: 0 0 10px; padding: 0; max-height: 40vh; overflow-y: auto; }
-.placed-list li { display: flex; align-items: center; border-radius: 8px; }
-.placed-list li.on { background: var(--line); }
-.placed-list .name { flex: 1; text-align: left; font: inherit; font-size: 13px; color: var(--text); background: none; border: 0; padding: 5px 8px; cursor: pointer; }
-.placed-list .group { font-size: 11px; color: var(--muted); margin: 8px 8px 2px; }
-.placed-list .x { font: inherit; color: var(--muted); background: none; border: 0; padding: 4px 8px; cursor: pointer; }
-.placed-list .x:hover { color: var(--bad); }
-#decorEdit { border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 4px; }
-#decorEdit .picked { align-items: center; }
-#decorEdit .picked h2 { margin: 0; }
+@media (prefers-color-scheme: dark) {
+  #decor.shop { --paper: #1b1a18; --card: #252320; --ink: #efece6; --soft: #9b968c; --hair: rgba(255, 255, 255, 0.08); }
+}
+.with-panel:has(#decor:not([hidden])) .bottom { right: 392px; }
+#decor .small { color: var(--soft); }
+#decor section { border-top: 0; padding: 0 0 14px; }
+#decor .panel-head { margin-bottom: 10px; }
+#decor .shop-title { font-family: var(--serif); font-size: 22px; font-weight: 500; letter-spacing: 0.005em; }
+#decor h2 { color: var(--soft); font-size: 11px; letter-spacing: 0.08em; margin: 14px 0 8px; }
+#decor .btn { background: transparent; border-color: var(--hair); color: var(--ink); border-radius: 999px; padding: 6px 12px; }
+#decor .btn:hover { border-color: var(--ink); }
+#decor .btn.wide { display: block; text-align: center; margin-top: 12px; }
+#decor select, #decor input[type=number], #decor input:not([type]) { border-color: var(--hair); background: transparent; }
+/* the two tabs: one hairline under them, the chosen one inked */
+#decor .tabs { display: flex; gap: 18px; border-bottom: 1px solid var(--hair); margin: 0 0 14px; }
+#decor .tabs button {
+  font: inherit; font-size: 13px; color: var(--soft); background: none; border: 0; cursor: pointer;
+  padding: 8px 0 9px; border-bottom: 1.5px solid transparent; margin-bottom: -1px;
+}
+#decor .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+/* kinds: quiet words, the chosen one inked */
+#decor .shelves { gap: 4px 14px; margin: 0 0 14px; }
+#decor .shelves button { border: 0; padding: 2px 0; font-size: 12.5px; color: var(--soft); border-radius: 0; background: none; }
+#decor .shelves button.on { color: var(--ink); text-decoration: underline; text-underline-offset: 5px; text-decoration-thickness: 1px; }
+/* the catalogue: three across, a product picture on a warm card, the name under it */
+#decor .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 8px; }
+#decor .cards button {
+  display: grid; gap: 6px; padding: 0; border: 0; background: none; color: var(--ink); cursor: pointer;
+  font: inherit; font-size: 12px; line-height: 1.25; text-align: left;
+}
+#decor .cards .pic { aspect-ratio: 1; border-radius: 10px; transition: background 0.15s; }
+#decor .cards button:hover .pic, #decor .cards button:focus-visible .pic { background: color-mix(in srgb, var(--card) 80%, var(--ink) 8%); }
+#decor .cards button:focus-visible { outline: none; }
+#decor .cards button:focus-visible .pic { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+#decor .cards .name { padding: 0 2px; }
+#decor .cards button.busy { opacity: 0.55; cursor: progress; }
+#decor .cards button.failed .name { color: var(--bad); }
+#decor .pic { display: grid; place-items: center; background: var(--card); overflow: hidden; }
+#decor .pic img { width: 100%; height: 100%; object-fit: contain; display: block; }
+#decor .pic:not(:has(img))::after { content: ""; width: 30%; height: 30%; border-radius: 50%; background: var(--hair); animation: decorPulse 1.2s ease-in-out infinite alternate; }
+@keyframes decorPulse { from { opacity: 0.4; } to { opacity: 1; } }
+/* the picked piece, on top: its picture, its name in the serif, its settings */
+#decor .picked { padding-bottom: 16px; margin-bottom: 4px; }
+#decor .picked-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+#decor .picked-head .pic { width: 56px; height: 56px; border-radius: 10px; flex: none; }
+#decor .picked-head h2 { font-family: var(--serif); font-size: 18px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--ink); margin: 0 0 2px; }
+#decor .picked-head .small { margin: 0; font-size: 11.5px; }
+#decor .picked-head .link { color: var(--ink); }
+#decor .sliders label { grid-template-columns: 58px 1fr 48px; color: var(--soft); }
+#decor input[type=range] { -webkit-appearance: none; appearance: none; height: 18px; background: transparent; }
+#decor input[type=range]::-webkit-slider-runnable-track { height: 2px; background: var(--hair); border-radius: 2px; }
+#decor input[type=range]::-moz-range-track { height: 2px; background: var(--hair); border-radius: 2px; }
+#decor input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -6px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); }
+#decor input[type=range]::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 2px solid var(--paper); }
+#decor .swatches { gap: 8px; margin: 10px 0 4px; }
+.swatches button { width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--swatch); border: 1px solid rgba(0, 0, 0, 0.12); }
+.swatches button.on { outline: 1.5px solid var(--ink, var(--text)); outline-offset: 2px; }
+#decor .repeat { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 4px; }
+#decor .repeat label { display: flex; align-items: center; gap: 6px; margin-right: 2px; }
+#decor .quiet { display: flex; gap: 16px; margin-top: 8px; }
+#decor .quiet .link { padding: 0; color: var(--soft); font-size: 12.5px; }
+#decor .quiet .link:hover { color: var(--bad); }
+/* what is in the room: a picture, the name, a quiet x that never sits under the scrollbar */
+.placed-list { list-style: none; margin: 0 0 6px; padding: 0 6px 0 0; max-height: 44vh; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin; }
+.placed-list li { display: flex; align-items: center; gap: 4px; border-radius: 10px; }
+.placed-list li:not(.group):hover, .placed-list li.on { background: var(--card); }
+.placed-list .name { flex: 1; display: flex; align-items: center; gap: 10px; text-align: left; font: inherit; font-size: 13px; color: var(--ink); background: none; border: 0; padding: 4px 6px; cursor: pointer; min-width: 0; }
+.placed-list .name .pic { width: 32px; height: 32px; border-radius: 7px; flex: none; }
+.placed-list li.group { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--soft); padding: 12px 6px 4px; }
+.placed-list li.group:first-child { padding-top: 0; }
+.placed-list .x { flex: none; width: 28px; height: 28px; font: inherit; font-size: 12px; color: var(--soft); background: none; border: 0; border-radius: 50%; cursor: pointer; opacity: 0; }
+.placed-list li:hover .x, .placed-list li.on .x, .placed-list .x:focus-visible { opacity: 1; }
+.placed-list .x:hover { color: var(--bad); background: var(--paper); }
+@media (hover: none) { .placed-list .x { opacity: 1; } }
+#decor .layouts { align-items: center; gap: 12px; }
+#decor .layouts select { flex: 1; min-width: 0; }
+#decor .layouts .link { padding: 0; color: var(--soft); }
+/* the toolbar by the picked piece */
+.objbar {
+  position: fixed; left: 0; top: 0; z-index: 25; display: flex; align-items: center; gap: 2px; padding: 4px;
+  background: #faf8f4; color: #1f1d1a; border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+.objbar[hidden] { display: none; }
+.objbar button { width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: none; color: inherit; border-radius: 50%; cursor: pointer; }
+.objbar button:hover { background: rgba(0, 0, 0, 0.06); }
+.objbar #barRemove:hover { color: var(--bad); }
+.objbar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.objbar .sep { width: 1px; height: 18px; background: rgba(0, 0, 0, 0.1); margin: 0 3px; }
+@media (prefers-color-scheme: dark) {
+  .objbar { background: #252320; color: #efece6; }
+  .objbar button:hover { background: rgba(255, 255, 255, 0.08); }
+  .objbar .sep { background: rgba(255, 255, 255, 0.12); }
+}
+@media (max-width: 600px) { #decor.shop { width: auto; padding: 14px 16px; } #decor .cards { grid-template-columns: repeat(4, 1fr); } }

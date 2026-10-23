@@ -583,6 +583,18 @@ class Viewer(unittest.TestCase):
         turn1 = page.evaluate(f"decor.placed()[{k}].turn")
         self.assertGreater(abs(math.remainder(turn1 - turn0, 2 * math.pi)), 2)
         self.assertAlmostEqual(turn1 / (math.pi / 12), round(turn1 / (math.pi / 12)), places=6)   # in steps
+        # the toolbar by the picked thing: a copy beside it, picked, then taken away again
+        page.wait_for_function("!document.getElementById('decorBar').hidden")
+        n = page.evaluate("decor.placed().length")
+        page.click("#barCopy")
+        self.assertEqual(page.evaluate("decor.placed().length"), n + 1)
+        self.assertEqual(page.evaluate("decor.selected()"), n)
+        self.assertEqual(page.evaluate("decor.placed()[decor.selected()].item"), "candle")
+        page.click("#barRemove")
+        self.assertEqual(page.evaluate("decor.placed().length"), n)
+        page.wait_for_function("document.getElementById('decorBar').hidden")
+        # the catalogue shows a picture of each thing, made by the page
+        page.wait_for_function("document.querySelector('#decorItems .pic img')", timeout=300000)
         # dragged along the floor with the mouse: a thing in view, not under the panel
         page.evaluate("decor.pick(-1); tattooStudio.stepFor(1)")
         at = page.evaluate("""(() => {

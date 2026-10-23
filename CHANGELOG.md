@@ -150,6 +150,12 @@
   turn a moment behind her when she turns, without the bounce at every step, the snaps at the end
   of the swing or the hem tearing into lace that the old springs gave.
 
+- **Decor that looks like a furniture shop's**: every part of a piece has a finish (linen, china,
+  wood, brass, glass, light) lit by a small studio of soft boxes; soft shadows under each; bevelled
+  edges, rounded upholstery on brass feet, draped tablecloths, roses with petals, a lacquered dance
+  floor. The catalogue is a grid of pictures of each piece; the panel is paper and hairlines with
+  names in a serif; a toolbar by the picked piece turns, duplicates and removes it; the handles are
+  white. Fixed: the list's scrollbar covered its ✕ buttons, and two lines ran under the tabs.
 - **A tidier Decor panel, with handles**: two tabs, **Add** and **In the room** (everything placed,
   by kind, to pick or take away with ✕; the layouts are there too). The picked thing sits on top
   with **Done**. Handles on it like the body's joints: a ring round it turns it, a knob over it
