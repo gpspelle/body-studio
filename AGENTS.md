@@ -71,7 +71,9 @@ tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no ex
 - `tests/integration/test_end_to_end.py`: the real splat-studio pipeline with splat-studio's own
   stand-in COLMAP and Brush (the fake Brush rejects unknown flags). Needs ffmpeg and
   `SPLAT_STUDIO_SRC="$(python3 scripts/splat_studio_src.py)"`.
-- `tests/browser`: the page in Chromium. Wait for page state, never a fixed delay.
+- `tests/browser`: the page in Chromium. Wait for page state, never a fixed delay. CI runs them in
+  shards side by side (`.github/workflows/ci.yml`): put a new test in one, by how long it takes
+  (`tests/unit/test_ci.py` checks).
 - `tests/fakes/makehuman.py`: the MakeHuman base mesh (CC0) with artist-placed joints, as a
   splat PLY in several shapes and poses; the realistic body for skeleton and tattoo tests.
 

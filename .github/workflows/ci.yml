@@ -33,13 +33,33 @@ jobs:
           python -m unittest tests.integration.test_end_to_end -v
 
   browser:
-    name: app in a real browser
+    name: app in a real browser (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    timeout-minutes: 35             # nine pages rendered in software, the tattoo studio's among them
+    timeout-minutes: 25             # pages rendered in software (no GPU): a few minutes each
+    strategy:
+      fail-fast: false
+      # the tests split by how long they take on CI, so the shards end about together
+      # (tests/unit/test_ci.py checks that every browser test is in one)
+      matrix:
+        include:
+          - shard: clothes
+            tests: test_clothes_go_on_and_come_off
+          - shard: rooms
+            tests: test_decorates_a_room test_the_menu_shows_each_mode_its_tools test_a_tattoo_in_the_tattoo_studio
+          - shard: body
+            tests: >-
+              test_body_loads_upright_without_errors test_progress_panel_follows_a_person
+              test_stands_walks_and_sits_in_a_room test_switches_the_body_model
+              test_tattoo_follows_the_body_as_it_moves test_walks_and_jumps_with_the_keyboard
+    env:
+      BODY_STUDIO_CHROMIUM: /usr/bin/google-chrome   # the runner's own Chrome: nothing to download or install
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install . playwright && python -m playwright install --with-deps chromium
-      - run: python -m unittest tests.browser.test_viewer -v
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install . playwright
+      - name: Browser tests (${{ matrix.shard }})
+        run: python -m unittest -v $(for t in ${{ matrix.tests }}; do echo tests.browser.test_viewer.Viewer.$t; done)
