@@ -16,7 +16,7 @@ In metres, y up, the floor at 0 (the file is y-down). x runs along the house fro
 The plan isn't to scale ("planta sem escala"), so the sizes are its measures:
 
 - the deck at the door, the reception (6 m), the vertical garden (4.5 m, a wall of leaves) and the
-  ante-room (9.3 m), each 4 m wide; the kitchen (4.7 m) beside the ante-room, opening on the hall;
+  ante-room (9.3 m), each 4 m wide; the kitchen (4.7 m) beside the ante-room, its door open on the hall;
 - the main hall, 17.8 m by 8.6 m (narrower by 1.5 m for its first 5 m), its windows along the
   left, a half wall (3.24 m) before the hall to the toilets on the right; glass doors at its end;
 - the stage, 8.6 m by 3.2 m and 70 cm high, beside the pergola (10.8 m by 7.4 m), which opens on
@@ -32,7 +32,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 2
+VERSION = 3
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -48,6 +48,7 @@ GARDEN_W = 17.8
 GARDEN_RIGHT, GARDEN_LEFT = 20.0, 30.0
 ANTE = (-9.3, 0.0, 0.0, 4.0)
 KITCHEN = (-9.3, 0.0, 4.0, 8.6)
+KITCHEN_DOOR = (6.9, 8.0)               # z: its door on the hall
 VERTICAL = (-13.8, -9.3, 0.0, 4.0)
 RECEPTION = (-19.8, -13.8, 0.0, 4.0)
 DECK = (-21.8, -19.8, 0.0, 4.0)
@@ -255,7 +256,7 @@ def door_x(z, a0, a1, out, rnd, h=2.2):
 def house(rnd, out):
     wall = _wall(PLASTER)
     # the floors and the ceilings
-    for r in (RECEPTION, VERTICAL, ANTE):
+    for r in (RECEPTION, VERTICAL, ANTE, KITCHEN):
         base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(_stone, r), out, FLOOR_STEP)
     hx0, hx1, hz0, hz1 = HALL
     oak = _shaded(_oak, HALL, reach=1.2, dark=0.8)
@@ -263,7 +264,7 @@ def house(rnd, out):
     base._surface(rnd, (NOTCH[1], hx1, 0, 0, hz0, hz1), oak, out, 0.04, 0.004)
     base._surface(rnd, (hx1, WC[1], 0, 0, 0, WC[2]), _shaded(_stone, (hx1 - 6, WC[1], 0, WC[2])), out, FLOOR_STEP)
     base._surface(rnd, (*DECK[:2], 0, 0, *DECK[2:]), _boards, out, FLOOR_STEP)
-    for (x0, x1, z0, z1) in (RECEPTION, ANTE, (hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1),
+    for (x0, x1, z0, z1) in (RECEPTION, ANTE, KITCHEN, (hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1),
                              (hx1, STAGE[1], 0, WC[2])):
         base._surface(rnd, (x0, x1, H, H, z0, z1), CEILING, out, CEIL_STEP)
 
@@ -289,8 +290,12 @@ def house(rnd, out):
         frame_z(x, 0.8, 3.2, 0.0, 2.8, out, rnd, colour=(0.96, 0.95, 0.92), t=0.08, d=0.12)
     # the ante-room into the hall (where the hall is narrower), the kitchen's back wall beside it
     wall_z(0.0, 0.0, 4.0, [(NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9)], wall, out, rnd)
-    wall_z(0.0, 4.0, hz1, [(7.0, 7.9, 0.0, 2.2)], wall, out, rnd)
-    door_z(0.0, 7.0, 7.9, out, rnd)                 # the kitchen's door, on the hall
+    # the kitchen's door, on the hall: open, swung in against the kitchen's side (an empty room:
+    # the plan shows nothing in it)
+    wall_z(0.0, 4.0, hz1, [KITCHEN_DOOR + (0.0, 2.2)], wall, out, rnd)
+    frame_z(0.0, *KITCHEN_DOOR, 0.0, 2.2, out, rnd, colour=(0.96, 0.95, 0.92), t=0.06, d=0.04)
+    a0, a1 = KITCHEN_DOOR
+    base._surface(rnd, (-(a1 - a0), -0.06, 0.0, 2.2, a1 - 0.04, a1 - 0.04), WALNUT, out, 0.03)
 
     # the hall: the notch on the right, the half wall, the toilets' hall and the stage beside it
     wall_x(NOTCH[2], 0.0, NOTCH[1], [], wall, out, rnd)

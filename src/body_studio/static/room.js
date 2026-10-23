@@ -226,7 +226,7 @@ export class Placement {
 // of the head, a little in front of the face so the head stays behind the camera; the look turned
 // `yaw` about up from `ahead` (the way the body faces) and tilted `pitch` up, both in radians.
 // Everything in the body's coordinates; H the body's height. -> { eye, look } (look: 1 H ahead).
-export const EYE = { up: 0.55, ahead: 0.07, pitch: 1.4 };   // of head to top, of H, the most it tilts
+export const EYE = { up: 0.55, ahead: 0.07, pitch: 1.4, steady: 3 };   // of head to top, of H, the most it tilts, how fast the eye follows the head (1/s)
 export function eyeView(head, top, ahead, up, yaw, pitch, H) {
   const u = unit(up), f0 = unit(sub(ahead, scale(u, dot(ahead, u))));
   const side = cross(u, f0);
@@ -253,6 +253,28 @@ export function skyView(at, face, box) {
   const height = Math.max(SKY.low, Math.min(SKY.high, SKY.reach * Math.max(box[0], box[1])));
   const back = height * Math.tan(SKY.tilt);
   return { eye: [at[0] - f[0] * back, height, at[1] - f[1] * back], look: [at[0], 0, at[1]], height };
+}
+// From above, W A S D slide the view across the plan, faster the higher it is (metres a second)
+export function panSpeed(height, run) { return (run ? 2.5 : 1) * Math.max(3, 0.6 * height); }
+
+// ---------------------------------------------------------------- flying through
+// Without the body (house.js, "Fly through"): the camera at eye height goes where it looks with
+// W A S D, through walls and much faster than a walk, and stays over the room's map. `at` [x, z]
+// in map metres, `way` the map's [x, z] way to go (unit; null: still), `box` [x0, z0, x1, z1].
+export const FLY = { eye: 1.6, speed: 4, run: 11 };
+export function flyStep(at, way, run, dt, box) {
+  if (!way) return at.slice();
+  const s = (run ? FLY.run : FLY.speed) * Math.min(Math.max(dt, 0), 0.1);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  return [clamp(at[0] + way[0] * s, box[0], box[2]), clamp(at[1] + way[1] * s, box[1], box[3])];
+}
+// The eye in first person, kept steady: the head sways and bobs as the body walks, and a camera
+// fixed to it would sway too. `held` the eye as it was, `now` where the head puts it, both
+// [x, y, z] from the body's place on the floor; dt seconds. -> the eye eased toward `now`
+export function steadyEye(held, now, dt) {
+  if (!held) return now.slice();
+  const f = 1 - Math.exp(-EYE.steady * Math.min(Math.max(dt, 0), 0.1));
+  return held.map((v, i) => v + (now[i] - v) * f);
 }
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];

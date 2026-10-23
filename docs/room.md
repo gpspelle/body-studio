@@ -99,17 +99,34 @@ mapped when it is made (about 20 s, in the same background process), so the page
 sea and the hills are drawn faint enough to be left out of the map, so they don't make it bigger.
 Its map cells are about 10 cm (a long place gets as many cells as a square one of the same floor
 area, up to four times as many along its length). Ceilings are 3.4 m; the garden and the vertical
-garden are open to the sky. See it in **First person** (V), or **From above**.
+garden are open to the sky. See it in **First person** (V), **From above** or **Fly through**.
+
+## Four ways to see a room
+
+In a room, four chips at the bottom pick how it is seen (or **1 2 3 4**); a chip pressed again goes
+back to **Third person**. The views are `setView` in `static/house.js`.
+
+1. **Third person**: the orbit round the body, **W A S D** walk it, the camera follows.
+2. **First person** (or **V**): through the body's eyes. See below.
+3. **From above**, without the body: the plan seen from the sky. See below.
+4. **Fly through**, without the body: the camera at eye height (1.6 m), drag to look round,
+   **W A S D** go where it looks at 4 m/s (11 m/s with **Shift**), through walls, kept over the
+   room's map, to cross a venue quickly. Back to **Third person** or **First person**, the body
+   stands where the flight ended (the nearest free floor), facing the way you looked. The step is
+   `flyStep` in `static/room.js`.
+
+From above and flying, the body, its clothes and tattoos and its shadow are not drawn (everything
+under the viewer's holder but the room's splats and decor, which are marked `userData.room`).
 
 ## From above
 
-**From above** in the top bar, in a room: the camera high over the body (35% of the room's longest
-side, between 6 and 28 m up), looking down at it a little from behind, and everything above 2.4 m
-(or just under the ceiling, if lower) is hidden, so the ceiling is gone and you see into every
-room. Drag to orbit and zoom as usual, but never down to the floor's level; walking still works.
-**From above** again, **First person** or another room puts the ceiling back. The camera's place
-is `skyView` in `static/room.js`; the ceiling is cut on the graphics card by a Spark modifier that
-hides the room's splats above a height (`roofless` in `static/house.js`).
+The camera high over the body (35% of the room's longest side, between 6 and 28 m up), looking
+down at its place a little from behind, and everything above 2.4 m (or just under the ceiling, if
+lower) is hidden, so the ceiling is gone and you see into every room. Drag to orbit and zoom as
+usual, but never down to the floor's level; **W A S D** slide the view across the plan, faster the
+higher it is (`panSpeed`). Any other view or another room puts the ceiling back. The camera's
+place is `skyView` in `static/room.js`; the ceiling is cut on the graphics card by a Spark modifier
+that hides the room's splats above a height (`roofless` in `static/house.js`).
 
 ## Walking faster
 
@@ -119,12 +136,15 @@ speed still comes from the legs (`gait(p, hurry)` in `static/walk.js`).
 
 ## First person
 
-**First person** in the top bar (or **V**), in a room: the camera at the body's eyes (between
-the head joint and the top of the head, 7% of the height in front of the face, so the head stays
-behind it). Drag to look round (the room held and pulled, as the orbit does; a full width is half
-a turn; the tilt stops at 80°); **W A S D** walk the way it looks. The body turns as it walks, the
-look doesn't. The orbit is off meanwhile; **Third person** (or V) puts the camera behind the body
-again (`view()`). The maths is `eyeView` and `lookBy` in `static/room.js`.
+The camera at the body's eyes (between the head joint and the top of the head, 7% of the height
+in front of the face, so the head stays behind it). Drag to look round (the room held and pulled,
+as the orbit does; a full width is half a turn; the tilt stops at 80°); **W A S D** walk the way it
+looks. The look is kept as a way in the room, not from the body's facing, so the view never turns
+by itself while the body turns into the walk, and the walk goes straight. The eye is measured from
+the body's place on the floor and eased (`steadyEye`, about a third of a second), so the head's
+sway and bob as it walks don't shake the view. The orbit is off meanwhile; **Third person** (or V)
+puts the camera behind the body again (`view()`). The maths is `eyeView`, `lookBy` and `steadyEye`
+in `static/room.js`.
 
 ## Filming a room
 

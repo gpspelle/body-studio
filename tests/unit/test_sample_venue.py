@@ -57,12 +57,12 @@ class SampleVenueTest(unittest.TestCase):
         # through every room on the way, and its doorways
         for name, (x, z) in {"deck": (-20.8, 2.0), "reception": (-16.8, 2.0), "reception door": (-19.8, 2.0),
                              "vertical garden": (-11.5, 2.0), "ante-room": (-4.0, 2.0), "into the hall": (0.0, 2.8),
-                             "hall": (9.0, 5.0), "by the half wall": (11.3, 4.2), "toilets' hall": (14.0, 1.6),
+                             "hall": (9.0, 5.0), "the kitchen": (-4.0, 6.0), "the kitchen door": (0.0, 7.4), "by the half wall": (11.3, 4.2), "toilets' hall": (14.0, 1.6),
                              "glass doors": (17.8, 3.9), "pergola": (23.0, 7.0), "lawn": (38.0, 8.0),
                              "beside the pergola": (22.0, 14.0), "by the far side": (52.4, 8.9),
                              "on the beach": (V._garden_end(8.9) + 3.0, 8.9)}.items():
             self.assertTrue(self.free(x, z), name)
-        for name, (x, z) in {"the kitchen": (-4.0, 6.0), "the ante-room's wall": (-4.0, 4.0), "the hall's side": (9.0, 8.6),
+        for name, (x, z) in {"the kitchen's back wall": (-9.3, 6.0), "the ante-room's wall": (-4.0, 4.0), "the hall's side": (9.0, 8.6),
                              "the notch": (2.5, 0.7), "the half wall": (11.3, 1.5), "the stage": (24.0, 1.6),
                              "the bungalow's side": (V.BUNGALOW[0], 15.0), "the left wall": (40.0, V.GARDEN_W),
                              "outside": (40.0, 19.0), "the sea": (V._garden_end(8.9) + V.BEACH + 6.0, 8.9)}.items():

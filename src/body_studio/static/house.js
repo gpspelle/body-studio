@@ -5,7 +5,7 @@
 // walls and seats are) is room.py's, the maths room.js's; the walk and the sitting are walk.js's.
 import * as THREE from "three";
 import { SplatMesh, dyno } from "@sparkjsdev/spark";
-import { Placement, RoomMap, SKY, eyeView, lookBy, skyView } from "/static/room.js";
+import { FLY, Placement, RoomMap, SKY, eyeView, flyStep, lookBy, panSpeed, skyView, steadyEye } from "/static/room.js";
 import { v3 } from "/static/pose.js";
 
 const $ = (id) => document.getElementById(id);
@@ -177,7 +177,7 @@ function view() {
 }
 
 function clear() {
-  if (sky) fromAbove(false);
+  if (mode !== "body") setView("body");
   if (R) {
     V.holder.remove(R.mesh);
     R.mesh.dispose?.();
@@ -270,7 +270,7 @@ V.frameHooks.push((before) => {
   }
   if (!R || !R.P) return;
   if (++hintFrame % 15 === 0) hintNow();
-  if (fp || sky) return;                        // (the eyes are inside already; above, there is no ceiling)
+  if (mode !== "body") return;                  // (the eyes are inside already; above, there is no ceiling; flying goes through)
   V.holder.updateMatrixWorld();
   const target = V.holder.worldToLocal(V.controls.target.clone()), eye = V.holder.worldToLocal(V.camera.position.clone());
   const tm = R.P.toMap([target.x, target.y, target.z]), em = R.P.toMap([eye.x, eye.y, eye.z]);
@@ -281,85 +281,174 @@ V.frameHooks.push((before) => {
   V.camera.updateMatrixWorld();
 });
 
-// ---------------------------------------------------------------- first person
-// In a room, the room seen through the body's eyes (V, or the eye button): the camera at the eyes,
-// a drag looks round, W A S D walk the way it looks (tattoo.js moveDir takes the camera's way). The
-// orbit is off meanwhile; leaving it, the camera goes back behind the body (view()).
-let fp = null;                                  // { yaw, pitch, drag } while seeing as the body does
-function firstPerson(on) {
-  on = !!on && !!R;
-  if (on === !!fp) return;
-  if (on) {
-    fp = { yaw: 0, pitch: -0.12, drag: null };
+// ---------------------------------------------------------------- the four views
+// In a room, the chips at the bottom (or 1 2 3 4) pick how it is seen:
+//   body   third person: the orbit round the body, W A S D walk it (tattoo.js)
+//   eyes   first person: the camera at its eyes (V too), a drag looks round, W A S D walk the way
+//          it looks
+//   above  from above, without the body: the ceiling taken off, the orbit turns and zooms, W A S D
+//          slide the view across the plan
+//   fly    fly through, without the body: the camera at eye height, a drag looks round, W A S D go
+//          where it looks, through walls and fast (Shift faster still); back to the body or its
+//          eyes, the body is put down where the flight ended
+// Leaving the eyes or above, the camera goes back behind the body (view()).
+let mode = "body";
+let fp = null;                                  // { look, pitch, drag, eye } while seeing as the body does
+let sky = null;                                 // the orbit's limits as they were, while above
+let fly = null;                                 // { at [x, z], look, pitch, drag } while flying
+const bodyless = () => mode === "above" || mode === "fly";
+// (look: the way it looks, as an angle about up from the way the body was scanned facing, as the
+// walker's heading; kept as the body turns, so the view never turns by itself)
+function setView(v) {
+  if (!R || !R.P || !window.tattooStudio?.walker?.()) v = "body";
+  if (v === mode) return;
+  const w = window.tattooStudio.walker(), was = mode, look = fp ? fp.look : fly ? fly.look : w.heading;
+  if (was === "fly" && (v === "body" || v === "eyes")) land(fly);
+  if (was === "eyes") { fp = null; V.controls.enabled = true; }
+  if (was === "above") { const C = V.controls; C.minDistance = sky.min; C.maxDistance = sky.max; C.maxPolarAngle = sky.polar; sky = null; cutAt(null); }
+  if (was === "fly") { fly = null; V.controls.enabled = true; }
+  mode = v;
+  if (v === "eyes" || v === "fly") {
     V.controls.enabled = false; V.controls.autoRotate = false;
-    V.camera.near = 0.02 * (R.P?.k || 1); V.camera.updateProjectionMatrix();
-  } else {
-    fp = null;
-    V.controls.enabled = true;
-    view();
+    V.camera.near = 0.02 * R.P.k; V.camera.far = 400 * R.P.k; V.camera.updateProjectionMatrix();
   }
-  $("eyeBtn").setAttribute("aria-pressed", String(on));
-  $("eyeBtn").textContent = t(on ? "room.eyeOff" : "room.eye");
-  document.body.classList.toggle("first-person", on);
+  if (v === "eyes") fp = { look, pitch: -0.12, drag: null, eye: null };
+  if (v === "fly") fly = { at: R.toMap(w.pos), look, pitch: -0.08, drag: null };
+  if (v === "above") above();
+  if (v === "body") view();
+  showBody(!bodyless());
+  for (const [id, m] of [["bodyBtn", "body"], ["eyeBtn", "eyes"], ["skyBtn", "above"], ["flyBtn", "fly"]]) {
+    $(id).setAttribute("aria-pressed", String(m === v));
+    $(id).classList.toggle("on", m === v);
+  }
+  document.body.classList.toggle("first-person", v === "eyes");
+  document.body.classList.toggle("from-above", v === "above");
+  document.body.classList.toggle("flying", v === "fly");
   dispatchEvent(new Event("viewchange"));
 }
+// a chip pressed again goes back to the body
+const toggle = (v) => setView(mode === v ? "body" : v);
+$("roomViews").addEventListener("click", (e) => { const b = e.target.closest("button[data-view]"); if (b) toggle(b.dataset.view); });
+const VIEW_KEYS = { KeyV: "eyes", Digit1: "body", Digit2: "eyes", Digit3: "above", Digit4: "fly" };
+addEventListener("keydown", (e) => {
+  const v = VIEW_KEYS[e.code];
+  if (!v || e.metaKey || e.ctrlKey || e.altKey || e.repeat || $("guide").open) return;
+  if (e.target.closest?.("input, textarea, select, [contenteditable]") || !R) return;
+  if (e.code !== "KeyV" && document.body.dataset.mode !== "rooms") return;     // (the tattoo studio has its own views)
+  e.preventDefault();
+  if (e.code === "KeyV") toggle("eyes"); else setView(v);
+});
+addEventListener("roomchange", () => { $("roomViews").hidden = !R; if (!R) setView("body"); });
+
+// the way a look angle points, in the body's coordinates
+function lookWay(look) {
+  const w = window.tattooStudio.walker();
+  return v3.add(v3.scale(w.front, Math.cos(look)), v3.scale(w.side, Math.sin(look)));
+}
+// the way W A S D say, in the body's coordinates, for a look angle (null: none held)
+function keysWay(look) {
+  const f = (held.has("f") ? 1 : 0) - (held.has("b") ? 1 : 0), r = (held.has("r") ? 1 : 0) - (held.has("l") ? 1 : 0);
+  if (!f && !r) return null;
+  const w = window.tattooStudio.walker(), ahead = lookWay(look), right = v3.cross(ahead, w.up);
+  return v3.unit(v3.add(v3.scale(ahead, f), v3.scale(right, r)));
+}
+// what tattoo.js walks by: null, the camera's way as usual; false, the body stays (it isn't shown);
+// in first person the way it looks, so the walk goes straight however the head moves
+function steer() {
+  if (bodyless()) return false;
+  return fp ? lookWay(fp.look) : null;
+}
+// where the head turns to look (tattoo.js, walk.js's head look; null: the camera)
+function gaze() {
+  if (bodyless()) return null;
+  if (!fp || !fp.eye) return undefined;
+  const w = window.tattooStudio.walker();
+  return v3.add(v3.add(fp.eye, fp.base), v3.scale(lookWay(fp.look), 5 * w.H));
+}
+
+// the keys, while the body isn't the one moving (tattoo.js has its own for walking)
+const KEYS = { KeyW: "f", ArrowUp: "f", KeyS: "b", ArrowDown: "b", KeyA: "l", ArrowLeft: "l", KeyD: "r", ArrowRight: "r" };
+const held = new Set();
+let hurry = false;
+addEventListener("keydown", (e) => {
+  hurry = e.shiftKey;
+  if (e.metaKey || e.ctrlKey || e.altKey || $("guide").open || e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+  if (KEYS[e.code]) held.add(KEYS[e.code]);
+});
+addEventListener("keyup", (e) => { hurry = e.shiftKey; held.delete(KEYS[e.code]); });
+addEventListener("blur", () => { held.clear(); hurry = false; });
+
+// ---------------------------------------------------------------- first person
 // the eye and the look now, in the scene
-function eyeNow() {
+function eyeNow(dt) {
   const w = window.tattooStudio?.walker?.(), sk = w && w.sk;
   if (!fp || !sk) return null;
   const head = sk.P[sk.index("head")], top = sk.P[sk.index("head_end")] || head;
   if (!head) return null;
-  const v = eyeView(head, top, w.facing(), w.up, fp.yaw, fp.pitch, w.H);
+  const v = eyeView(head, top, w.front, w.up, fp.look, fp.pitch, w.H);
+  // measured from the body's place on the floor, eased: the head's sway and bob don't shake it
+  const base = v3.add(window.tattooStudio.rig().frame.origin, w.pos);
+  fp.eye = steadyEye(fp.eye, v3.sub(v.eye, base), dt);
+  fp.base = base;
+  const eye = v3.add(base, fp.eye), look = v3.add(eye, v3.sub(v.look, v.eye));
   V.holder.updateMatrixWorld();
-  return { eye: V.holder.localToWorld(new THREE.Vector3(...v.eye)), look: V.holder.localToWorld(new THREE.Vector3(...v.look)) };
+  return { eye: V.holder.localToWorld(new THREE.Vector3(...eye)), look: V.holder.localToWorld(new THREE.Vector3(...look)) };
 }
+let lastHook = 0;
 V.frameHooks.unshift((before) => {
-  if (!before || !fp) return;
-  const v = eyeNow();
+  if (!before) return;
+  const now = performance.now(), dt = lastHook ? (now - lastHook) / 1000 : 1 / 60;
+  lastHook = now;
+  if (bodyless()) hideBody();
+  let v = null;
+  if (fp) v = eyeNow(dt);
+  else if (fly) v = flyNow(dt);
+  else if (sky) slide(dt);
   if (!v) return;
   V.camera.position.copy(v.eye);
   V.controls.target.copy(v.look);
   V.camera.lookAt(v.look);
   V.camera.updateMatrixWorld();
 });
-// the body turns where it walks; the look stays where it was looking, so it keeps the yaw
-// measured from the body's way: turned back by as much as the body turned
-let facedWas = null;
-V.frameHooks.push((before) => {
-  const w = window.tattooStudio?.walker?.();
-  if (!before || !fp || !w) { facedWas = null; return; }
-  if (facedWas !== null && w.heading !== facedWas) fp.yaw -= w.heading - facedWas;
-  facedWas = w.heading;
-});
-$("eyeBtn").onclick = () => { fromAbove(false); firstPerson(!fp); };
-addEventListener("keydown", (e) => {
-  if (e.code !== "KeyV" || e.metaKey || e.ctrlKey || e.altKey || e.repeat || $("guide").open) return;
-  if (e.target.closest?.("input, textarea, select, [contenteditable]") || !R) return;
-  e.preventDefault();
-  fromAbove(false);
-  firstPerson(!fp);
-});
-// a drag on the room looks round (what decor or the joints take, they take first)
+// a drag on the room looks round, in first person and flying (what decor or the joints take, they take first)
+const looking = () => fp || fly;
 addEventListener("pointerdown", (e) => {
-  if (!fp || e.target !== V.canvas || e.button !== 0) return;
-  fp.drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
+  const L = looking();
+  if (!L || e.target !== V.canvas || e.button !== 0) return;
+  L.drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
   V.canvas.setPointerCapture?.(e.pointerId);
 });
 addEventListener("pointermove", (e) => {
-  if (!fp || !fp.drag || e.pointerId !== fp.drag.id) return;
-  [fp.yaw, fp.pitch] = lookBy(fp.yaw, fp.pitch, e.clientX - fp.drag.x, e.clientY - fp.drag.y, innerWidth);
-  fp.drag.x = e.clientX; fp.drag.y = e.clientY;
+  const L = looking();
+  if (!L || !L.drag || e.pointerId !== L.drag.id) return;
+  [L.look, L.pitch] = lookBy(L.look, L.pitch, e.clientX - L.drag.x, e.clientY - L.drag.y, innerWidth);
+  L.drag.x = e.clientX; L.drag.y = e.clientY;
 });
-addEventListener("pointerup", () => { if (fp) fp.drag = null; });
-addEventListener("pointercancel", () => { if (fp) fp.drag = null; });
-addEventListener("roomchange", () => { $("eyeBtn").hidden = $("skyBtn").hidden = !R; if (!R) { firstPerson(false); fromAbove(false); } });
+addEventListener("pointerup", () => { const L = looking(); if (L) L.drag = null; });
+addEventListener("pointercancel", () => { const L = looking(); if (L) L.drag = null; });
+
+// ---------------------------------------------------------------- without the body
+// From above and flying, the body isn't drawn: its splats, its clothes and tattoos and its shadow
+// (everything under the holder that isn't the room's: the room's splats, decor, parlour.js's
+// sheets are marked userData.room). Hidden each frame, as clothes may come in meanwhile.
+const hidden = new Set();
+function hideBody() {
+  for (const o of [...V.holder.children, V.ground.mesh]) {
+    if (!o || !o.visible || o === R?.mesh || o.userData.room) continue;
+    o.visible = false;
+    hidden.add(o);
+  }
+}
+function showBody(on) {
+  if (!on) return hideBody();
+  for (const o of hidden) o.visible = true;
+  hidden.clear();
+}
 
 // ---------------------------------------------------------------- from above
-// In a room, the room seen from above, as a plan comes alive: the camera high over the body,
+// The room seen from above, as a plan comes alive: the camera high over where the body is,
 // looking down at a slant, everything over SKY.cut (the ceiling, the lamps, the tops of the walls)
-// taken off so the floor shows; the orbit turns it and zooms as usual, and W A S D still walk.
-// Leaving it, the room is whole again and the camera goes back behind the body (view()).
-let sky = null;                                 // the orbit's limits as they were, while above
+// taken off so the floor shows; the orbit turns it and zooms as usual, and W A S D slide it.
 // (a Spark object modifier on the room's splats: those above the cut are not drawn)
 function roofless(mesh, frame) {
   const cut = new dyno.DynoUniform({ key: "roomCut", type: "vec4", value: new THREE.Vector4(...frame.up, 1e9) });
@@ -384,36 +473,65 @@ function cutAt(metres) {
   R.mesh.roomCut.value.w = metres === null ? 1e9 : fr.floor + metres / fr.metres;
   R.mesh.updateVersion?.();
 }
-function fromAbove(on) {
-  on = !!on && !!R && !!R.P;
-  if (on === !!sky) return;
+function above() {
   const C = V.controls;
-  if (on) {
-    firstPerson(false);
-    sky = { min: C.minDistance, max: C.maxDistance, polar: C.maxPolarAngle };
-    cutAt(R.map.ceiling ? Math.min(SKY.cut, R.map.ceiling - 0.2) : SKY.cut);
-    const w = window.tattooStudio.walker(), at = R.toMap(w.pos), k = R.P.k;
-    const box = [R.map.nx * R.map.cell, R.map.nz * R.map.cell];
-    const v = skyView(at, R.P.wayToMap(w.facing()), box);
-    V.holder.updateMatrixWorld();
-    const world = (p) => V.holder.localToWorld(new THREE.Vector3(...R.P.toBody(p)));
-    C.target.copy(world(v.look));
-    V.camera.position.copy(world(v.eye));
-    C.minDistance = 1.5 * k; C.maxDistance = 3 * v.height * k; C.maxPolarAngle = SKY.polar;
-    V.camera.near = 0.05 * k; V.camera.far = 400 * k; V.camera.updateProjectionMatrix();
-    C.autoRotate = false;
-    C.update();
-  } else {
-    C.minDistance = sky.min; C.maxDistance = sky.max; C.maxPolarAngle = sky.polar;
-    sky = null;
-    cutAt(null);
-    view();
-  }
-  $("skyBtn").setAttribute("aria-pressed", String(on));
-  document.body.classList.toggle("from-above", on);
-  dispatchEvent(new Event("viewchange"));
+  sky = { min: C.minDistance, max: C.maxDistance, polar: C.maxPolarAngle };
+  cutAt(R.map.ceiling ? Math.min(SKY.cut, R.map.ceiling - 0.2) : SKY.cut);
+  const w = window.tattooStudio.walker(), at = R.toMap(w.pos), k = R.P.k;
+  const box = [R.map.nx * R.map.cell, R.map.nz * R.map.cell];
+  const v = skyView(at, R.P.wayToMap(w.facing()), box);
+  V.holder.updateMatrixWorld();
+  C.target.copy(toWorld(v.look));
+  V.camera.position.copy(toWorld(v.eye));
+  C.minDistance = 1.5 * k; C.maxDistance = 3 * v.height * k; C.maxPolarAngle = SKY.polar;
+  V.camera.near = 0.05 * k; V.camera.far = 400 * k; V.camera.updateProjectionMatrix();
+  C.autoRotate = false;
+  C.update();
 }
-$("skyBtn").onclick = () => fromAbove(!sky);
+const toWorld = (p) => V.holder.localToWorld(new THREE.Vector3(...R.P.toBody(p)));
+// W A S D from above: the view slides over the plan, the way the camera looks along the floor
+function slide(dt) {
+  const f = (held.has("f") ? 1 : 0) - (held.has("b") ? 1 : 0), r = (held.has("r") ? 1 : 0) - (held.has("l") ? 1 : 0);
+  if (!f && !r) return;
+  V.holder.updateMatrixWorld();
+  const local = (p) => { const b = V.holder.worldToLocal(p.clone()); return R.P.toMap([b.x, b.y, b.z]); };
+  const t = local(V.controls.target), e = local(V.camera.position);
+  const ahead = [t[0] - e[0], t[2] - e[2]], n = Math.hypot(...ahead) || 1;
+  // (the map's right of a way [x, z] along the floor: [-z, x], y being up)
+  const a = [ahead[0] / n, ahead[1] / n], right = [-a[1], a[0]];
+  const s = panSpeed(e[1] - t[1], hurry) * Math.min(dt, 0.1);
+  const d = [(a[0] * f + right[0] * r) * s, (a[1] * f + right[1] * r) * s];
+  const step = toWorld([t[0] + d[0], t[1], t[2] + d[1]]).sub(toWorld(t));
+  V.controls.target.add(step);
+  V.camera.position.add(step);
+}
+
+// ---------------------------------------------------------------- flying through
+function bounds() {
+  const m = R.room;
+  return [m.x0, m.z0, m.x0 + m.nx * m.cell, m.z0 + m.nz * m.cell];
+}
+function flyNow(dt) {
+  const way = keysWay(fly.look);
+  fly.at = flyStep(fly.at, way && R.P.wayToMap(way), hurry, dt, bounds());
+  const w = window.tattooStudio.walker(), dir = lookWay(fly.look), p = Math.max(-1.4, Math.min(1.4, fly.pitch));
+  const look = v3.add(v3.scale(dir, Math.cos(p)), v3.scale(w.up, Math.sin(p)));
+  V.holder.updateMatrixWorld();
+  const eye = toWorld([fly.at[0], FLY.eye, fly.at[1]]);
+  const local = V.holder.worldToLocal(eye.clone());
+  return { eye, look: V.holder.localToWorld(new THREE.Vector3(local.x + look[0] * w.H, local.y + look[1] * w.H, local.z + look[2] * w.H)) };
+}
+// the body put down where the flight ended (the nearest free floor), facing the way it looked
+function land(f) {
+  const studio = window.tattooStudio, w = studio.walker();
+  if (!R || !w) return;
+  const spot = R.room.nearestFree(f.at[0], f.at[1], undefined, 3);
+  if (!spot || w.resting) return;
+  w.pos = R.toPos(spot);
+  w.heading = f.look;
+  w.settle();
+  studio.redraw();
+}
 
 // ---------------------------------------------------------------- for tests and scripts
 window.house = {
@@ -438,11 +556,20 @@ window.house = {
   fixtures: () => (R && R.map.fixtures) || null,
   station: (fn) => { station = fn; },
   // whether the camera's view of the body is clear (1) or something is in the way (less)
-  // first person: on or off (firstPerson(on)), and where it looks ({ yaw, pitch } or null)
-  firstPerson: (on) => { if (on !== undefined) firstPerson(on); return fp && { yaw: fp.yaw, pitch: fp.pitch }; },
+  // the view: "body", "eyes", "above" or "fly" (view(v) sets it); and for tattoo.js, the way to
+  // walk and where the head looks (steer(), gaze())
+  mode: (v) => { if (v !== undefined) setView(v); return mode; },
+  steer, gaze,
+  // first person: on or off (firstPerson(on)), and where it looks ({ yaw, pitch } or null; yaw
+  // as the walker's heading)
+  firstPerson: (on) => { if (on !== undefined) setView(on ? "eyes" : "body"); return fp && { yaw: fp.look, pitch: fp.pitch }; },
   // from above: on or off (fromAbove(on)); whether it is
-  fromAbove: (on) => { if (on !== undefined) fromAbove(on); return !!sky; },
-  look: (yaw, pitch) => { if (fp) { fp.yaw = yaw; fp.pitch = pitch; } },
+  fromAbove: (on) => { if (on !== undefined) setView(on ? "above" : "body"); return !!sky; },
+  // flying: on or off; where the camera is ([x, z] map metres) or null
+  fly: (on) => { if (on !== undefined) setView(on ? "fly" : "body"); return fly && fly.at.slice(); },
+  look: (yaw, pitch) => { const L = fp || fly; if (L) { L.look = yaw; L.pitch = pitch; } },
+  // the body's things hidden now (from above and flying)
+  bodyHidden: () => hidden.size > 0,
   sight: () => {
     if (!R || !R.P) return null;
     const target = V.holder.worldToLocal(V.controls.target.clone()), eye = V.holder.worldToLocal(V.camera.position.clone());

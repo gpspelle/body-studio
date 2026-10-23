@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Skeleton, q, v3 } from "../../src/body_studio/static/pose.js";
 import { Walker } from "../../src/body_studio/static/walk.js";
-import { Placement, ROOM, RoomMap, EYE, SKY, eyeView, lookBy, skyView } from "../../src/body_studio/static/room.js";
+import { Placement, ROOM, RoomMap, EYE, FLY, SKY, eyeView, flyStep, lookBy, panSpeed, skyView, steadyEye } from "../../src/body_studio/static/room.js";
 
 const map = JSON.parse(readFileSync(process.env.ROOM_JSON, "utf8"));
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
@@ -220,4 +220,34 @@ test("from above: high over the body and behind it, looking down at it at a slan
     assert.ok(d[0] * f[0] + d[2] * f[1] > 0, "from behind: looking the way the body faces");
   }
   assert.ok(SKY.polar > SKY.tilt && SKY.polar < Math.PI / 2, "the orbit stays above the floor");
+});
+
+test("first person: the eye kept steady while the head sways, yet with the head in a moment", () => {
+  // a walk sways the head 3 cm side to side twice a second: the eye moves far less
+  let eye = null, most = 0;
+  for (let i = 0; i < 240; i++) {
+    const now = [0.03 * Math.sin(2 * Math.PI * 2 * i / 60), 1.6, 0.1];
+    eye = steadyEye(eye, now, 1 / 60);
+    if (i > 60) most = Math.max(most, Math.abs(eye[0]));
+  }
+  assert.ok(most < 0.008, `sways ${most.toFixed(3)} m`);
+  near(eye[1], 1.6, 1e-6, "at the head's height");
+  // sat down, the head 0.5 m lower: the eye follows it within a second
+  for (let i = 0; i < 60; i++) eye = steadyEye(eye, [0, 1.1, 0.1], 1 / 60);
+  assert.ok(eye[1] < 1.13, "down with the head");
+  assert.deepEqual(steadyEye(null, [1, 2, 3], 0.01), [1, 2, 3], "where the head is, to begin with");
+});
+
+test("flying through: fast, straight, and kept over the map", () => {
+  const box = [0, 0, 20, 10];
+  let at = [5, 5];
+  for (let i = 0; i < 60; i++) at = flyStep(at, [1, 0], false, 1 / 60, box);
+  near(at[0], 5 + FLY.speed, 1e-9, "a second's flight");
+  near(at[1], 5, 1e-12, "straight");
+  assert.ok(FLY.speed > 2 && FLY.run > 2 * FLY.speed, "faster than a walk, and with Shift much faster");
+  assert.deepEqual(flyStep([19.9, 5], [1, 0], true, 0.1, box), [20, 5], "stops at the map's edge");
+  assert.deepEqual(flyStep([3, 4], null, true, 0.1, box), [3, 4], "no keys: still");
+  near(flyStep([5, 5], [0, 1], false, 5, box)[1], 5 + 0.1 * FLY.speed, 1e-9, "a long frame counts as a tenth of a second");
+  // from above, the plan slides faster the higher the camera
+  assert.ok(panSpeed(28, false) > panSpeed(6, false) && panSpeed(6, true) > panSpeed(6, false));
 });

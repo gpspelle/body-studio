@@ -242,4 +242,12 @@
   bougainvillea and orchids, filament bulbs, rattan and jute pendants, paper globes, voile swags,
   a half-moon arch, a tropical arch, a flower swing, a canoe of flowers, backdrops, a rattan
   lounge, side tables, a dresser for the cake, more chairs and lanterns.
+- Rooms: four views, as chips at the bottom (or 1 2 3 4): third person, first person, from
+  above and a new fly through, at eye height and fast, through walls. From above and flying,
+  the body isn't drawn and W A S D move the camera; after a flight the body stands where it ended.
+  The First person and From above buttons moved from the top bar to these chips.
+- The sample venue's kitchen can be walked into: it has a floor now and its door stands open on
+  the hall.
+- First person walks straight: the view no longer turns by itself as the body turns into the
+  walk, and the head's sway no longer shakes it.
 - With reduced motion asked for by the system, panels and buttons change at once instead of sliding or fading.

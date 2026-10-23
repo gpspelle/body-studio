@@ -351,7 +351,7 @@ def venue_scene(page, above=False) -> None:
             const a = w.facing(), d = P.wayToBody([1, 0]), u = w.up;
             const dot = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
             const cross = [a[1] * d[2] - a[2] * d[1], a[2] * d[0] - a[0] * d[2], a[0] * d[1] - a[1] * d[0]];
-            house.look(Math.atan2(dot(cross, u), dot(a, d)), -0.06); })()""")
+            house.look(w.heading + Math.atan2(dot(cross, u), dot(a, d)), -0.06); })()""")
     page.wait_for_function(f"decor.drawn() >= {n} && !decor.saving", timeout=300000)
     settle(page)
 

@@ -652,6 +652,7 @@ V.frameHooks.push((before) => { if (!before) placeBar(); });
 function show() {
   hide();
   group = new THREE.Group();
+  group.userData.room = true;                 // (house.js: still drawn when the body is not)
   group.matrixAutoUpdate = false;
   // the studio's reflections do most of the light (decorlook.js); a soft sky and a warm sun
   // give the shapes their shading

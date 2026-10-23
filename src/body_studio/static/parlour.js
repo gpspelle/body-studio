@@ -68,6 +68,7 @@ async function hang() {
   hung = key;
   unhang();
   group = new THREE.Group();
+  group.userData.room = true;
   group.name = "flash";
   const at = sheetLayout(fx.flash, list.length);
   const n = dirToBody(P, fx.flash.normal), up = dirToBody(P, [0, 1, 0]);

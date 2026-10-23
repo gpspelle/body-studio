@@ -29,8 +29,6 @@
   <span class="grow"></span>
   <button id="roomBtn" class="btn in-rooms" aria-controls="roomMenu" aria-expanded="false" data-i18n="room.btn"></button>
   <button id="decorBtn" class="btn in-rooms" aria-controls="decor" aria-expanded="false" data-i18n="decor.btn" hidden></button>
-  <button id="eyeBtn" class="btn in-rooms" aria-pressed="false" data-i18n="room.eye" hidden></button>
-  <button id="skyBtn" class="btn in-rooms" aria-pressed="false" data-i18n="room.sky" hidden></button>
   <!-- (opened by the menu; the panels' code still listens to them) -->
   <div hidden>
     <button id="studioBtn" aria-controls="studio" aria-expanded="false" hidden></button>
@@ -66,6 +64,13 @@
 
 <div class="bottom">
   <p id="walkHint" class="walk-hint" role="status" hidden></p>
+  <!-- in a room: how it is seen (house.js) -->
+  <div id="roomViews" class="chips views in-rooms" role="group" data-i18n-aria-label="room.views" hidden>
+    <button type="button" id="bodyBtn" data-view="body" class="on" aria-pressed="true" data-i18n="room.third"></button>
+    <button type="button" id="eyeBtn" data-view="eyes" aria-pressed="false" data-i18n="room.eye"></button>
+    <button type="button" id="skyBtn" data-view="above" aria-pressed="false" data-i18n="room.sky"></button>
+    <button type="button" id="flyBtn" data-view="fly" aria-pressed="false" data-i18n="room.fly"></button>
+  </div>
   <div id="studioViews" class="chips views" role="group" data-i18n-aria-label="studio.views" hidden>
     <button type="button" data-view="room" class="on" data-i18n="studio.viewRoom"></button>
     <button type="button" data-view="artist" data-i18n="studio.viewArtist"></button>
@@ -275,6 +280,7 @@
       <dt><kbd>R</kbd></dt><dd data-i18n="guide.back"></dd>
       <dt><kbd>F</kbd></dt><dd data-i18n="guide.rest"></dd>
       <dt><kbd>V</kbd></dt><dd data-i18n="guide.eye"></dd>
+      <dt><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd><kbd>4</kbd></dt><dd data-i18n="guide.views"></dd>
     </dl>
   </section>
   <section>

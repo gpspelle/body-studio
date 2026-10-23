@@ -370,6 +370,10 @@ function still() {
 function moveDir() {
   const f = (held.has("f") ? 1 : 0) - (held.has("b") ? 1 : 0), r = (held.has("r") ? 1 : 0) - (held.has("l") ? 1 : 0);
   if (!f && !r) return null;
+  // (house.js: in first person the way it looks; from above or flying, the body isn't shown and stays)
+  const own = window.house?.steer?.();
+  if (own === false) return null;
+  if (own) return v3.unit(own);
   const look = V.camera.getWorldDirection(new THREE.Vector3()).applyQuaternion(V.holder.quaternion.clone().invert());
   const up = S.rig.frame.up;
   let ahead = v3.sub([look.x, look.y, look.z], v3.scale(up, v3.dot([look.x, look.y, look.z], up)));
@@ -392,8 +396,8 @@ function walkFrame(now) {
     jumpAsked = false;
     let lived = false;
     if (S.lifeOn && !document.hidden) {
-      const eye = V.holder.worldToLocal(V.camera.position.clone());
-      const r = S.alive.update(dt, { eye: [eye.x, eye.y, eye.z], walking: S.walker.walking });
+      const eye = V.holder.worldToLocal(V.camera.position.clone()), gaze = window.house?.gaze?.();
+      const r = S.alive.update(dt, { eye: gaze !== undefined ? gaze : [eye.x, eye.y, eye.z], walking: S.walker.walking });
       S.sk.extra = r.extra; S.life.breath = r.breath; S.life.blink = r.blink;
       // breathing alone needn't redraw at 60 frames a second
       lived = moved || now - lastLife > 33;
