@@ -62,9 +62,22 @@ class Viewer(unittest.TestCase):
         """A page in no mode at first: just the body, every tool reachable from code, no room or
         panel of its own (each test opens what it needs; test_the_menu_shows_each_mode_its_tools
         checks the modes, and test_clothes_go_on_and_come_off the clothes one a computer opens in)."""
-        page = self.browser.new_page(**kw)
+        # reduced motion: no CSS transitions to wait out (software rendering never settles them)
+        page = self.browser.new_page(**{"reduced_motion": "reduce", **kw})
         page.add_init_script("localStorage.getItem('mode') === null && localStorage.setItem('mode', 'none')")
         return page
+
+    def open_page(self, url=None, **kw):
+        """For a new test: a page in no mode with the body loaded, closed when the test ends, and
+        the list its errors collect in (assert it's empty at the end)."""
+        page = self.new_page(**{"viewport": {"width": 1280, "height": 800}, **kw})
+        self.addCleanup(page.close)              # (a failed test leaves no page rendering behind)
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.on("console", lambda m: m.type == "error" and errors.append(m.text))
+        page.goto(url or self.url)
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        return page, errors
 
     @classmethod
     def tearDownClass(cls):

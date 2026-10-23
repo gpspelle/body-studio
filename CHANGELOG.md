@@ -226,3 +226,4 @@
 - Decor: your own colour for a piece (the last swatch: a colour picker, **HEX** and **RGB**), kept
   in the layout as `#rrggbb`. The handles answer the pointer from further (measured on the
   screen), the pointer shows a hand over a piece or a handle, and the knob under it grows.
+- With reduced motion asked for by the system, panels and buttons change at once instead of sliding or fading.
