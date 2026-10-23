@@ -238,4 +238,8 @@
   callas, gerberas, orchids, hydrangeas, pampas, petals, hanging greenery, a flower cloud,
   lanterns, a wicker pendant, a wooden aisle, a fabric ceiling, a cane chair, a wooden table and
   more), in a new Flowers group, and coral, rattan and copper colours.
+- Decor: 36 more starters from two decorators' proposals for the venue: hung clouds of leaves,
+  bougainvillea and orchids, filament bulbs, rattan and jute pendants, paper globes, voile swags,
+  a half-moon arch, a tropical arch, a flower swing, a canoe of flowers, backdrops, a rattan
+  lounge, side tables, a dresser for the cake, more chairs and lanterns.
 - With reduced motion asked for by the system, panels and buttons change at once instead of sliding or fading.

@@ -112,6 +112,14 @@ no licence. Sizes are the usual hire sizes, so a plan made with them holds at th
   and a flower cloud (hung from the ceiling), a eucalyptus runner, copper and wicker lanterns, a
   wicker pendant, a wooden aisle (1.5 × 6 m), a draped fabric ceiling (4 m square), a cane chair, a
   wooden table (2.2 m) and a rattan place setting.
+- **From the decorators' proposals** for the venue: hung clouds (tropical leaves with bulbs,
+  bougainvillea, orchids, ferns with bulbs, greenery with woven lamps), filament bulbs, a cluster of
+  rattan pendants (bells, domes, gourds, eggs, a drum), a jute pendant, paper globes, hanging pots,
+  voile swags; red ginger on moss, a bromeliad, a white flower bank, clay vases, a canoe of
+  flowers; a half-moon arch and a tropical arch, an altar table and platform, a flower swing,
+  bamboo, green and woven-plate backdrops; a rattan sofa and round chair, wicker poufs, a jute rug,
+  trunk and wire side tables, a painted dresser and a wicker stand for the cake, bamboo folding and
+  chiavari chairs, rope and tall lanterns.
 - **On the table**: place setting (charger, plate, napkin, cutlery, two glasses), low centrepiece
   with candles, tall centrepiece (94 cm), candelabra, bud vases, table number, flowers, candle,
   a three-tier cake on a stand, a champagne tower.
