@@ -340,13 +340,15 @@ $("jointReset").onclick = () => {
 $("poseReset").onclick = () => { still(); S.sk.reset(); applyPose(); refreshJointSliders(); };
 
 // ---------------------------------------------------------------- walking
-// W A S D (or the arrows) walk the body across the floor, the way the camera looks; Space jumps;
+// W A S D (or the arrows) walk the body across the floor, the way the camera looks, briskly with
+// Shift held; Space jumps;
 // Q / E raise an arm, Z / C a knee, until pressed again (walk.js). The camera follows. The
 // panel's pose is what the body goes back to when it stops, with arms held out as in the scan
 // brought down. The Guide (index.html) lists the keys.
 const KEYS = { KeyW: "f", ArrowUp: "f", KeyS: "b", ArrowDown: "b", KeyA: "l", ArrowLeft: "l", KeyD: "r", ArrowRight: "r" };
 const LIMB_KEYS = { KeyQ: "arm_l", KeyE: "arm_r", KeyZ: "knee_l", KeyC: "knee_r" };
 const held = new Set();
+let hurry = false;                            // Shift held: a brisker walk
 const follow = new THREE.Vector3();          // where the walk has taken the body, in the scene
 let jumpAsked = false, toggles = [], walkFrameId = 0, lastFrame = 0;
 const known = { get() { try { return localStorage.getItem("walk:known") === "1"; } catch { return false; } },
@@ -386,7 +388,7 @@ function walkFrame(now) {
     const was = S.walker.active;
     for (const limb of toggles) S.walker.toggle(limb);
     toggles = [];
-    const moved = S.walker.update(dt, { move: moveDir(), jump: jumpAsked });
+    const moved = S.walker.update(dt, { move: moveDir(), jump: jumpAsked, run: hurry });
     jumpAsked = false;
     let lived = false;
     if (S.lifeOn && !document.hidden) {
@@ -548,6 +550,7 @@ function followBody() {
 
 const typing = (e) => !!e.target.closest?.("input, textarea, select, [contenteditable]");
 addEventListener("keydown", async (e) => {
+  hurry = e.shiftKey;
   if (e.metaKey || e.ctrlKey || e.altKey || typing(e) || $("guide").open) return;
   if (e.code === "KeyR") {                   // back where it was scanned (index.html frames it again)
     if (S) { S.walker.home(); follow.set(0, 0, 0); drawPose(); save(); }
@@ -569,8 +572,8 @@ addEventListener("keydown", async (e) => {
   walkHint(S ? "" : $("studioStatus").textContent);
   if (S) walking();
 });
-addEventListener("keyup", (e) => { const k = KEYS[e.code]; if (k) held.delete(k); });
-addEventListener("blur", () => held.clear());
+addEventListener("keyup", (e) => { hurry = e.shiftKey; const k = KEYS[e.code]; if (k) held.delete(k); });
+addEventListener("blur", () => { held.clear(); hurry = false; });
 
 // ---------------------------------------------------------------- picking
 const ray = new THREE.Raycaster();
@@ -1216,13 +1219,13 @@ window.tattooStudio = {
   // (frames: every step is drawn, so loose clothes and hair swing as they would at 60 a second;
   // it returns the most they turned on the way, which doesn't hang on how settled they were at the
   // end)
-  walkFor: (seconds, keys = "f", jump = false, frames = false) => {
+  walkFor: (seconds, keys = "f", jump = false, frames = false, run = false) => {
     held.clear();
     S.hold = true;
     for (const k of keys) held.add(k);
     const most = { hips: 0, head: 0 };
     for (let i = 0; i < Math.round(seconds * 60); i++) {
-      S.walker.update(1 / 60, { move: moveDir(), jump: jump && i === 0 });
+      S.walker.update(1 / 60, { move: moveDir(), jump: jump && i === 0, run });
       if (frames) {
         S.swing.fixed = 1 / 60; drawPose();
         for (const k of ["hips", "head"]) most[k] = Math.max(most[k], Math.abs(S.fleshState.swing[k].o[3]));

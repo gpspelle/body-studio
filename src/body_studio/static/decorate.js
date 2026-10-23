@@ -837,7 +837,7 @@ window.decor = {
   open: () => setOpen(true),
   drawn: () => (group ? group.children.filter((c) => c.isMesh).length : 0),
   group: () => group,
-  move: (k, x, z) => { const p = placed()[k]; p.x = x; p.z = z; p.y = standY(defs(p.item), placed(), defs, p, roomTop); changed(); },
+  move: (k, x, z, turn) => { const p = placed()[k]; p.x = x; p.z = z; if (turn != null) p.turn = turn; p.y = standY(defs(p.item), placed(), defs, p, roomTop); changed(); },
   tab: (which) => { if (which) setTab(which); return tab; },
   handles: () => (gizmo && gizmo.visible ? Object.fromEntries(["turn", "lift", "ring"].map((h) => {
     const m = gizmo.getObjectByName(h);

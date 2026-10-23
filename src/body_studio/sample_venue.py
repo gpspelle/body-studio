@@ -1,22 +1,28 @@
 """A wedding venue made of splats, laid out like the Casa Arandella plan Gabriel sent (a long house
-with a garden behind it), for decorating a big place before filming one.
+with a garden behind it that runs down to the beach), for decorating a big place before filming one.
+Only what the plan shows is built (the rooms, their walls, doors and windows, the stage, the
+pergola, the garden and its bungalow) and the beach and the sea it meets; the rest is left to the
+Decor panel. What the plan doesn't say (the pergola's glass roof on black steel, the sand under it,
+the anti-room's green walls) is as the venue's own photos show it.
 
 Drawn like the sample living room (sample_room.py, whose helpers it uses): boxes, cylinders and
 leaves covered in flat splats, written as a room run so room.py maps it and the page shows it like
-a filmed room. It is much bigger (80 m long), so its surfaces take bigger splats further apart.
+a filmed room. It is much bigger (90 m from the door to the water), so its surfaces take bigger
+splats further apart, and what is far off (the sea, the island across the channel) is drawn see-
+through enough that the map leaves it out.
 
 In metres, y up, the floor at 0 (the file is y-down). x runs along the house from the entrance
-(x < 0) to the end of the garden; z across it, from the long straight wall on the right (z = 0)
-to the left. The plan isn't to scale ("planta sem escala"), so the sizes are its measures:
+(x < 0) to the beach; z across it, from the long straight wall on the right (z = 0) to the left.
+The plan isn't to scale ("planta sem escala"), so the sizes are its measures:
 
 - the deck at the door, the reception (6 m), the vertical garden (4.5 m, a wall of leaves) and the
-  ante-room (9.3 m), each 4 m wide; the kitchen (4.7 m) beside the ante-room, closed;
+  ante-room (9.3 m), each 4 m wide; the kitchen (4.7 m) beside the ante-room, opening on the hall;
 - the main hall, 17.8 m by 8.6 m (narrower by 1.5 m for its first 5 m), its windows along the
   left, a half wall (3.24 m) before the hall to the toilets on the right; glass doors at its end;
-- the stage, 8.6 m by 3.2 m and 70 cm high, beside the pergola (10.8 m by 7.4 m, wooden beams
-  and slats, a brick floor), which opens on the garden;
-- the garden, 17.8 m wide, 20 m along the right and 30 m along the left, a lawn in hedges with
-  olive trees, a path and a gate in the slanted far side, and the bungalow on the left.
+- the stage, 8.6 m by 3.2 m and 70 cm high, beside the pergola (10.8 m by 7.4 m), which opens on
+  the garden;
+- the garden, 17.8 m wide, 20 m along the right and 30 m along the left, walled along its sides,
+  the bungalow on the left near its end; its slanted far side opens on the beach.
 """
 from __future__ import annotations
 
@@ -26,7 +32,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 1
+VERSION = 2
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -45,8 +51,9 @@ KITCHEN = (-9.3, 0.0, 4.0, 8.6)
 VERTICAL = (-13.8, -9.3, 0.0, 4.0)
 RECEPTION = (-19.8, -13.8, 0.0, 4.0)
 DECK = (-21.8, -19.8, 0.0, 4.0)
-BUNGALOW = (43.0, 49.0, 13.8, 17.4)
-TREES = [(33.0, 13.5), (38.5, 3.0), (51.0, 13.0), (46.0, 5.5)]
+BUNGALOW = (41.5, 50.5, 12.7, 17.5)
+BEACH = 8.0                         # m of dry sand from the garden's far side to the water
+SEA = 130.0                         # m out to the island across the channel
 
 FLOOR_STEP, WALL_STEP, CEIL_STEP, LAWN_STEP = 0.055, 0.065, 0.08, 0.085
 
@@ -64,8 +71,9 @@ BARK = (0.33, 0.27, 0.21)
 WHITEWASH = (0.92, 0.91, 0.88)
 LINEN = (0.82, 0.78, 0.70)
 
-# the places to sit, for tests: (x, z) of the seat's middle, its height and the way the sitter faces
-SEATS = {"reception bench": ((-16.8, 3.55), 0.45, (0.0, -1.0))}
+SAND = (0.86, 0.78, 0.62)
+SEA_BLUE = (0.36, 0.50, 0.52)
+FAR = 0.42                          # how opaque what is far off is drawn: under room.OPAQUE
 
 
 # ---------------------------------------------------------------- what the surfaces look like
@@ -136,14 +144,9 @@ def _wall(colour):
 
 
 def _view(x, y, z, rnd):
-    """What a window shows: a pale sky over the tops of trees, green below."""
-    along = x + z
-    trees = 1.9 + 0.35 * math.sin(along * 1.7) + 0.2 * math.sin(along * 4.3 + 1)
-    if y > trees:
-        k = min(1.0, (y - trees) / 1.2)
-        return (0.80 + 0.1 * k, 0.87 + 0.06 * k, 0.92 + 0.04 * k)
-    g = 0.06 * math.sin(along * 9 + y * 7)
-    return (0.40 + g, 0.52 + g, 0.36 + g)
+    """What a window shows: a pale sky, lighter toward the top (the plan says nothing of outside)."""
+    k = min(1.0, max(0.0, (y - 0.7) / 2.4))
+    return (0.80 + 0.1 * k, 0.86 + 0.07 * k, 0.90 + 0.05 * k)
 
 
 def _lawn(x, y, z, rnd):
@@ -154,9 +157,10 @@ def _lawn(x, y, z, rnd):
     return (0.32 + t * 0.8, 0.50 + t, 0.25 + t * 0.6)
 
 
-def _gravel(x, y, z, rnd):
-    t = rnd.uniform(-0.07, 0.07)
-    return (0.78 + t, 0.74 + t, 0.66 + t)
+def _sand(x, y, z, rnd):
+    """Beach sand, pale and fine, a little darker in drifts."""
+    t = 0.03 * math.sin(x * 0.9 + 2 * math.sin(z * 0.6)) * math.sin(z * 1.3 + x * 0.2) + rnd.uniform(-0.035, 0.035)
+    return (SAND[0] + t, SAND[1] + t, SAND[2] + t * 0.9)
 
 
 def _greenwall(x, y, z, rnd):
@@ -265,19 +269,16 @@ def house(rnd, out):
 
     # the long straight wall on the right (z = 0): the reception's door is at the deck end
     wall_x(0.0, RECEPTION[0], RECEPTION[1], [], wall, out, rnd)
-    base._surface(rnd, (VERTICAL[0], VERTICAL[1], 0.0, H, 0.0, 0.0), _greenwall, out, 0.04)
-    for _ in range(14000):                         # the leaves stand out from it
-        x, y = rnd.uniform(VERTICAL[0] + 0.1, VERTICAL[1] - 0.1), rnd.uniform(0.15, H - 0.2)
-        t = rnd.uniform(-0.06, 0.08)
-        out.append(((x, y, rnd.uniform(0.02, 0.16)), (0.20 + t, 0.40 + t, 0.18 + t), [0.03, 0.03, 0.012]))
-    wall_x(0.0, ANTE[0], ANTE[1], [], wall, out, rnd)
+    green_x(rnd, 0.0, VERTICAL[0], VERTICAL[1], +1, out)
+    # (the ante-room has walls of ferns and leaves too, the venue's own: "decoração natural permanente")
+    green_x(rnd, 0.0, ANTE[0], ANTE[1], +1, out)
     # the left side of the reception, the vertical garden and the ante-room; the kitchen behind
-    wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-17.5, -16.1, 0.9, 2.6)], wall, out, rnd)
-    frame_x(4.0, -17.5, -16.1, 0.9, 2.6, out, rnd)
-    base._surface(rnd, (-17.5, -16.1, 0.9, 2.6, 4.02, 4.02), _view, out, 0.04)
+    wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.8, -17.6, 0.9, 2.6)], wall, out, rnd)
+    frame_x(4.0, -18.8, -17.6, 0.9, 2.6, out, rnd)
+    base._surface(rnd, (-18.8, -17.6, 0.9, 2.6, 4.02, 4.02), _view, out, 0.04)
     wall_x(4.0, VERTICAL[0], VERTICAL[1], [], wall, out, rnd)
-    wall_x(4.0, ANTE[0], ANTE[1], [(-5.4, -4.4, 0.0, 2.2)], wall, out, rnd)
-    door_x(4.0, -5.4, -4.4, out, rnd)               # to the kitchen, closed
+    wall_x(4.0, ANTE[0], ANTE[1], [], wall, out, rnd)  # (the kitchen's side: green on the ante-room's)
+    green_x(rnd, 4.0, ANTE[0] + 0.3, ANTE[1] - 0.3, -1, out)
     wall_x(KITCHEN[3], KITCHEN[0], KITCHEN[1], [], wall, out, rnd)
     wall_z(KITCHEN[0], 4.0, KITCHEN[3], [], wall, out, rnd)
     # the front: the deck and the reception's door, wide open; the rooms open one into the next
@@ -288,8 +289,8 @@ def house(rnd, out):
         frame_z(x, 0.8, 3.2, 0.0, 2.8, out, rnd, colour=(0.96, 0.95, 0.92), t=0.08, d=0.12)
     # the ante-room into the hall (where the hall is narrower), the kitchen's back wall beside it
     wall_z(0.0, 0.0, 4.0, [(NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9)], wall, out, rnd)
-    wall_z(0.0, 4.0, hz1, [(5.6, 6.6, 0.0, 2.2)], wall, out, rnd)
-    door_z(0.0, 5.6, 6.6, out, rnd)                 # the kitchen's other door
+    wall_z(0.0, 4.0, hz1, [(7.0, 7.9, 0.0, 2.2)], wall, out, rnd)
+    door_z(0.0, 7.0, 7.9, out, rnd)                 # the kitchen's door, on the hall
 
     # the hall: the notch on the right, the half wall, the toilets' hall and the stage beside it
     wall_x(NOTCH[2], 0.0, NOTCH[1], [], wall, out, rnd)
@@ -322,13 +323,11 @@ def house(rnd, out):
         boiserie_x(0.0, a, b, +1, out, rnd)
     for a, b in [(0.3, windows[0][0] - 0.3)] + [(windows[k][1] + 0.35, windows[k + 1][0] - 0.35) for k in range(4)] + [(windows[4][1] + 0.35, hx1 - 0.3)]:
         boiserie_x(hz1, a, b, -1, out, rnd)
-    # beams across the ceiling, and three brass chandeliers down the middle
+    # beams across the ceiling
     for k in range(7):
         x = 1.3 + 2.6 * k
         z0 = NOTCH[2] if x < NOTCH[1] else 0.0
         base._surface(rnd, (x - 0.1, x + 0.1, H - 0.28, H, z0, hz1), BEAM, out, 0.04)
-    for x in (4.5, 9.0, 13.5):
-        chandelier(rnd, x, 5.2, out)
 
     # the stage: 70 cm up, panelled behind, a lip of oak along its front
     sx0, sx1, sz0, sz1, sh = STAGE
@@ -338,9 +337,6 @@ def house(rnd, out):
     base._surface(rnd, (sx0, sx1, sh - 0.04, sh + 0.02, sz1 - 0.02, sz1 + 0.04), OAK, out, 0.02)
     base._surface(rnd, (sx0, sx1, sh, H, 0.0, 0.0), _panels, out, 0.04)
     wall_z(sx1, 0.0, sz1, [], _panels, out, rnd)
-    for x in (sx0 + 1.5, sx1 - 1.5):                # two warm lamps over it
-        base._cylinder(rnd, x, 1.6, 0.18, 0.05, H - 0.55, H - 0.35, (0.80, 0.64, 0.35), out, top=False, step=0.02)
-        base._cylinder(rnd, x, 1.6, 0.006, 0.006, H - 0.35, H, STEEL, out, top=False, step=0.02)
 
 
 def boiserie_x(z, a, b, side, out, rnd):
@@ -367,55 +363,40 @@ def boiserie_x(z, a, b, side, out, rnd):
             base._surface(rnd, (x1 - w, x1, y0, y1, z + lip, z + lip), colour, out, 0.012)
 
 
-def chandelier(rnd, x, z, out):
-    """A ring of brass with candle bulbs, on a rod from the ceiling."""
-    gold, glow = (0.80, 0.64, 0.33), (1.0, 0.93, 0.75)
-    base._cylinder(rnd, x, z, 0.008, 0.008, 2.75, H, gold, out, top=False, step=0.02)
-    for r in (0.55, 0.35):
-        for k in range(int(2 * math.pi * r / 0.012)):
-            a = 2 * math.pi * k * 0.012 / r + rnd.uniform(-0.01, 0.01)
-            out.append(((x + r * math.cos(a), 2.7 + 0.04 * (r < 0.5), z + r * math.sin(a)), gold, [0.01, 0.01, 0.01]))
-    for k in range(10):
-        a = 2 * math.pi * k / 10
-        cx, cz = x + 0.55 * math.cos(a), z + 0.55 * math.sin(a)
-        base._cylinder(rnd, cx, cz, 0.012, 0.012, 2.7, 2.8, (0.96, 0.94, 0.88), out, top=False, step=0.01)
-        for _ in range(60):
-            u = [rnd.gauss(0, 1) for _ in range(3)]
-            n = math.sqrt(sum(v * v for v in u)) or 1
-            out.append(((cx + 0.025 * u[0] / n, 2.83 + 0.035 * u[1] / n, cz + 0.025 * u[2] / n), glow, [0.008] * 3))
+def green_x(rnd, z, x0, x1, side, out):
+    """A wall of leaves along x at z (the room on its `side`): ferns and ivy, light and dark, the
+    leaves standing out from it."""
+    base._surface(rnd, (x0, x1, 0.0, H, z + 0.005 * side, z + 0.005 * side), _greenwall, out, 0.04)
+    for _ in range(int(3000 * (x1 - x0))):
+        x, y = rnd.uniform(x0 + 0.05, x1 - 0.05), rnd.uniform(0.15, H - 0.2)
+        t = rnd.uniform(-0.06, 0.08)
+        out.append(((x, y, z + side * rnd.uniform(0.02, 0.16)), (0.20 + t, 0.40 + t, 0.18 + t), [0.03, 0.03, 0.012]))
 
 
 # ---------------------------------------------------------------- outside: the pergola and the garden
 
 def pergola(rnd, out):
+    """The pergola as the photos show it: a glass roof, pitched, on black steel posts and rafters,
+    over sand; open on the garden and on the stage."""
     x0, x1, z0, z1 = PERGOLA
-    base._surface(rnd, (x0, x1, 0, 0, z0, z1), _bricks, out, FLOOR_STEP)
-    posts = [(x, z) for x in (x0 + 0.1, x0 + 3.7, x0 + 7.2, x1 - 0.1) for z in (z1 - 0.1,)]
-    posts += [(x1 - 0.1, z0 + 0.1 + k * 3.65) for k in range(2)]
-    for x, z in posts:
-        base._surface(rnd, (x - 0.08, x + 0.08, 0.0, 3.0, z - 0.08, z + 0.08), OAK, out, 0.04)
-    # beams along x over the outer posts, and over the stage's edge; along z at the garden end
-    for z in (z0 + 0.05, z1 - 0.1):
-        base._surface(rnd, (x0, x1, 2.98, 3.2, z - 0.07, z + 0.07), BEAM, out, 0.045)
-    base._surface(rnd, (x1 - 0.17, x1 - 0.03, 2.98, 3.2, z0, z1), BEAM, out, 0.045)
-    # slats across, 45 cm apart, and vines here and there on them
-    x = x0 + 0.3
-    while x < x1 - 0.2:
-        base._surface(rnd, (x - 0.03, x + 0.03, 3.2, 3.3, z0 - 0.2, z1 + 0.2), OAK, out, 0.045)
-        x += 0.45
-    for _ in range(9000):
-        cx = rnd.choice([x0 + 1.0, x0 + 4.5, x0 + 8.2, x1 - 0.4])
-        x, z = cx + rnd.gauss(0, 0.8), z1 + rnd.gauss(-0.3, 0.6)
-        if not (x0 < x < x1 and z0 < z < z1 + 0.3):
-            continue
-        t = rnd.uniform(-0.06, 0.07)
-        out.append(((x, 3.3 + abs(rnd.gauss(0, 0.06)), z), (LEAF[0] + t, LEAF[1] + t, LEAF[2] + t), [0.03, 0.012, 0.03]))
-    for x, z in posts[:4]:                          # climbing up the outer posts
-        for _ in range(900):
-            y = rnd.uniform(0.3, 3.0)
-            a = rnd.uniform(0, 2 * math.pi)
-            t = rnd.uniform(-0.06, 0.07)
-            out.append(((x + 0.11 * math.cos(a), y, z + 0.11 * math.sin(a)), (LEAF[0] + t, LEAF[1] + t, LEAF[2] + t), [0.025] * 3))
+    base._surface(rnd, (x0, x1, 0, 0, z0, z1), _sand, out, FLOOR_STEP)
+    eave, ridge, zm = 3.0, 4.1, (z0 + z1) / 2
+    roof = lambda z: eave + (ridge - eave) * (1 - abs(z - zm) / ((z1 - z0) / 2))
+    bars = [x0 + 0.05 + k * (x1 - x0 - 0.1) / 6 for k in range(7)]
+    for x in bars:
+        for z in (z1 - 0.06,):                      # posts along the open side, the house on the other
+            base._surface(rnd, (x - 0.05, x + 0.05, 0.0, eave, z - 0.05, z + 0.05), STEEL, out, 0.03)
+        # a rafter across, up to the ridge and down
+        for k in range(int((z1 - z0) / 0.03)):
+            z = z0 + (k + 0.5) * 0.03
+            out.append(((x, roof(z), z), STEEL, [0.03, 0.04, 0.02]))
+    for z in (z0 + 0.06, z1 - 0.06, zm):             # the eaves' beams and the ridge, along x
+        base._surface(rnd, (x0, x1, roof(z) - 0.12, roof(z), z - 0.04, z + 0.04), STEEL, out, 0.03)
+    # the glass: faint, so the sky shows through it (and the map leaves it out)
+    for k in range(int((x1 - x0) / 0.3)):
+        for m in range(int((z1 - z0) / 0.3)):
+            x, z = x0 + (k + rnd.random()) * 0.3, z0 + (m + rnd.random()) * 0.3
+            out.append(((x, roof(z) + 0.02, z), (0.86, 0.91, 0.93), [0.22, 0.01, 0.22], 0.06))
 
 
 def _garden_end(z):
@@ -424,7 +405,7 @@ def _garden_end(z):
 
 
 def garden(rnd, out):
-    # the lawn, between the pergola and the stage's end (where the house ends) and the far side
+    # the lawn, from the stage's end (where the house ends) and the pergola to the far side
     z = 0.0
     while z < GARDEN_W:
         x = GARDEN_X
@@ -432,90 +413,70 @@ def garden(rnd, out):
         while x < end:
             p = (x + rnd.random() * LAWN_STEP, 0.0, z + rnd.random() * LAWN_STEP)
             if p[0] < end:
-                c = _gravel(*p, rnd) if _on_path(p[0], p[2]) else _lawn(*p, rnd)
-                out.append((p, c, [LAWN_STEP * 0.75, LAWN_STEP * 0.09, LAWN_STEP * 0.75]))
+                out.append((p, _lawn(*p, rnd), [LAWN_STEP * 0.75, LAWN_STEP * 0.09, LAWN_STEP * 0.75]))
             x += LAWN_STEP
         z += LAWN_STEP
-    # the pergola's outer side is the garden's too, beyond it a strip of lawn to the left hedge
+    # beside the pergola, the lawn to the garden's left wall
     base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _lawn, out, LAWN_STEP)
-    # hedges round it: along the right (a whitewashed wall with the house), the left, the far side
-    wall_x(0.0, GARDEN_X, GARDEN_X + GARDEN_RIGHT, [], _wall(WHITEWASH), out, rnd, h=2.4)
-    hedge(rnd, (PERGOLA[0], GARDEN_X + GARDEN_LEFT), GARDEN_W - 0.3, out)
-    hedge_z(rnd, PERGOLA[0] + 0.3, PERGOLA[3] + 0.2, GARDEN_W, out)
-    # the far side, slanted, with the gate in its middle (5 m)
-    a, b = (GARDEN_X + GARDEN_RIGHT, 0.0), (GARDEN_X + GARDEN_LEFT, GARDEN_W)
-    length = math.hypot(b[0] - a[0], b[1] - a[1])
-    gate = (length / 2 - 2.5, length / 2 + 2.5)
-    for k in range(int(length / 0.06)):
-        s = (k + rnd.random()) * 0.06
-        px, pz = a[0] + (b[0] - a[0]) * s / length, a[1] + (b[1] - a[1]) * s / length
-        if gate[0] < s < gate[1]:
-            if (s - gate[0]) % 0.14 < 0.03:        # the gate's iron bars
-                for j in range(30):
-                    out.append(((px, 0.06 * j + 0.03, pz), STEEL, [0.012, 0.03, 0.012]))
-            continue
-        _hedge_column(rnd, px, pz, out, ((b[1] - a[1]) / length, -(b[0] - a[0]) / length))
-    for x, z in TREES:
-        olive(rnd, x, z, out)
+    # its walls, along the right (on from the house's) and the left, and across beside the pergola,
+    # whitewashed, 2 m high, to where the sand starts
+    white = _wall(WHITEWASH)
+    wall_x(0.0, GARDEN_X, _garden_end(0.0), [], white, out, rnd, h=2.0)
+    wall_x(GARDEN_W, PERGOLA[0], _garden_end(GARDEN_W), [], white, out, rnd, h=2.0)
+    wall_z(PERGOLA[0], PERGOLA[3], GARDEN_W, [], white, out, rnd, h=2.0)
     bungalow(rnd, out)
 
 
-def _on_path(x, z):
-    """The path: from the pergola's middle down the garden to the gate, a little winding."""
-    zc = 6.9 + 0.8 * math.sin((x - GARDEN_X) * 0.25) + (x - GARDEN_X) * 0.06
-    return abs(z - zc) < 0.6 and x < _garden_end(zc) - 0.5
-
-
-def hedge(rnd, xs, z, out):
-    """A hedge along x at z."""
-    x = xs[0]
-    while x < xs[1]:
-        _hedge_column(rnd, x, z, out, (0.0, 1.0))
-        x += 0.06
-
-
-def hedge_z(rnd, x, z0, z1, out):
-    """A hedge along z at x."""
-    z = z0
-    while z < z1:
-        _hedge_column(rnd, x, z, out, (1.0, 0.0))
-        z += 0.06
-
-
-def _hedge_column(rnd, x, z, out, n, h=1.9):
-    """A slice of a clipped hedge at (x, z), 60 cm deep across n (its faces' way), h high, its
-    leaves light and dark, a little lighter at the top where the sun gets."""
-    for j in range(int(h / 0.07)):
-        for side in (-0.3, 0.3):
-            t = rnd.uniform(-0.05, 0.05)
-            y = (j + rnd.random()) * 0.07
-            c = (HEDGE[0] + t, HEDGE[1] + t * 1.2 + 0.04 * (y / h), HEDGE[2] + t)
-            d = side * (1 - 0.15 * rnd.random())
-            out.append(((x + n[0] * d, y, z + n[1] * d), c, [0.045, 0.045, 0.045]))
-    for _ in range(5):
-        t = rnd.uniform(-0.05, 0.05)
-        d = rnd.uniform(-0.3, 0.3)
-        out.append(((x + n[0] * d, h + rnd.uniform(-0.02, 0.02), z + n[1] * d), (HEDGE[0] + t + 0.03, HEDGE[1] + t + 0.06, HEDGE[2] + t), [0.045, 0.02, 0.045]))
-
-
-def olive(rnd, x, z, out):
-    """An olive tree: a twisted trunk and a wide, silvery crown above 2.4 m."""
-    for j in range(140):
-        y = j * 0.02
-        bend = 0.12 * math.sin(y * 2.2)
-        r = 0.13 - 0.02 * y
-        for k in range(18):
-            a = 2 * math.pi * (k + rnd.random()) / 18
-            t = rnd.uniform(-0.05, 0.05)
-            out.append(((x + bend + r * math.cos(a), y, z + r * math.sin(a)), (BARK[0] + t, BARK[1] + t, BARK[2] + t), [0.03, 0.03, 0.03]))
-    for _ in range(9000):
-        u = [rnd.gauss(0, 1) for _ in range(3)]
-        n = math.sqrt(sum(v * v for v in u)) or 1
-        rr = 1.6 * (0.7 + 0.3 * rnd.random())
-        p = (x + rr * u[0] / n, 3.6 + 0.8 * u[1] / n, z + rr * u[2] / n)
-        t = rnd.uniform(-0.07, 0.07)
-        out.append((p, (OLIVE[0] + t, OLIVE[1] + t, OLIVE[2] + t * 0.8), [0.04, 0.04, 0.04]))
-    base._cylinder(rnd, x, z, 0.9, 0.9, 0.0, 0.01, (0.40, 0.31, 0.22), out, step=0.05)   # bark round its foot
+def beach(rnd, out):
+    """Past the garden's far side, the beach: dry sand down to the water (walkable), then the sea
+    out to the island across the channel, a long blue ridge under the haze; both far enough off,
+    and drawn faintly enough, that the map leaves them out."""
+    a, b = (GARDEN_X + GARDEN_RIGHT, 0.0), (GARDEN_X + GARDEN_LEFT, GARDEN_W)
+    L = math.hypot(b[0] - a[0], b[1] - a[1])
+    t, n = ((b[0] - a[0]) / L, (b[1] - a[1]) / L), ((b[1] - a[1]) / L, -(b[0] - a[0]) / L)   # along it, out to sea
+    def at(u, v):                                     # u along the shore from a, v out from the garden
+        return (a[0] + t[0] * u + n[0] * v, a[1] + t[1] * u + n[1] * v)
+    # dry sand along the garden's width, for the body to walk out on
+    step = LAWN_STEP
+    for i in range(int(L / step)):
+        for k in range(int(BEACH / step)):
+            x, z = at((i + rnd.random()) * step, (k + rnd.random()) * step)
+            y = -0.004 * k * step                    # (sloping a few centimetres to the water)
+            out.append(((x, y, z), _sand(x, y, z, rnd), [step * 0.75, step * 0.09, step * 0.75]))
+    # the beach on along the shore each way, and the wet sand at the water: seen, not walked
+    far = lambda p, c, s: out.append((p, c, s, FAR))
+    for u0, u1, v0, v1, colour, st in ((-40.0, 0.0, 0.0, BEACH, SAND, 0.3), (L, L + 40.0, 0.0, BEACH, SAND, 0.3),
+                                       (-40.0, L + 40.0, BEACH, BEACH + 3.0, (0.70, 0.63, 0.50), 0.3)):
+        for i in range(int((u1 - u0) / st)):
+            for k in range(int((v1 - v0) / st)):
+                x, z = at(u0 + (i + rnd.random()) * st, v0 + (k + rnd.random()) * st)
+                c = tuple(v + rnd.uniform(-0.03, 0.03) for v in colour)
+                far((x, -0.05, z), c, [st * 1.3, 0.02, st * 1.3])
+    # the sea: gentle swell lines toward the shore, bigger splats further out
+    v = BEACH + 3.0
+    while v < SEA:
+        st = 0.35 + v * 0.012
+        for i in range(int(200.0 / st)):
+            u = -100.0 + (i + rnd.random()) * st
+            x, z = at(u, v + rnd.random() * st)
+            swell = 0.04 * math.sin(v * 1.7 + 0.3 * math.sin(u * 0.2))
+            c = (SEA_BLUE[0] + swell, SEA_BLUE[1] + swell, SEA_BLUE[2] + swell * 0.8)
+            if v < BEACH + 4.0 and rnd.random() < 0.5:   # the foam where it breaks
+                c = (0.88, 0.9, 0.88)
+            far((x, -0.25, z), c, [st * 1.4, 0.02, st * 1.4])
+        v += st
+    # the island: a ridge across the channel, hazy blue-grey, its peaks 15 to 30 m up (low in the sky, as from the garden)
+    # (its skyline in smaller splats, so it is a hill's edge and not a cloud's)
+    for i in range(int(320.0 / 0.9)):
+        u = -140.0 + i * 0.9
+        top = 15 + 8 * math.sin(u * 0.021 + 1) + 5 * math.sin(u * 0.067) + 3 * math.sin(u * 0.17 + 2)
+        y = 0.0
+        while y < top:
+            s = 1.3 if y < top - 3.0 else 0.6
+            x, z = at(u + rnd.uniform(-0.4, 0.4), SEA + 10 * (1 - y / top))
+            k = 0.88 + 0.12 * y / top
+            far((x, min(y, top - 0.3), z), (0.56 * k, 0.63 * k, 0.69 * k), [0.4, s, s])   # (flat to the garden)
+            y += 1.0 if s > 1 else 0.5
 
 
 def bungalow(rnd, out):
@@ -554,27 +515,6 @@ def bungalow(rnd, out):
                 t = 0.04 if int((f * n) / 3) % 2 else -0.02
                 out.append(((x + rnd.random() * 0.05, yy, zz), (0.36 + t, 0.37 + t, 0.39 + t), [0.04, 0.012, 0.04]))
                 x += 0.05
-    # a step and two lanterns at the door
-    base._surface(rnd, (door[0] - 0.4, door[1] + 0.4, 0.0, 0.12, z0 - 0.5, z0), (0.62, 0.60, 0.56), out, 0.03)
-    for x in (door[0] - 0.25, door[1] + 0.25):
-        base._surface(rnd, (x - 0.06, x + 0.06, 1.8, 2.0, z0 - 0.08, z0), STEEL, out, 0.01)
-
-
-def reception(rnd, out):
-    """A long upholstered bench under the reception's window, and two olive trees in pots at the door."""
-    base._surface(rnd, (-18.0, -15.6, 0.36, 0.45, 3.35, 3.8), LINEN, out, 0.02)
-    base._surface(rnd, (-18.0, -15.6, 0.05, 0.36, 3.4, 3.8), (0.70, 0.66, 0.58), out, 0.03)
-    for x in (-17.9, -15.75):
-        base._surface(rnd, (x - 0.03, x + 0.03, 0.0, 0.05, 3.42, 3.78), STEEL, out, 0.01)
-    for z in (0.7, 3.3):
-        base._cylinder(rnd, DECK[0] + 1.0, z, 0.3, 0.36, 0.0, 0.75, (0.82, 0.78, 0.70), out, step=0.03)
-        for _ in range(2500):
-            u = [rnd.gauss(0, 1) for _ in range(3)]
-            n = math.sqrt(sum(v * v for v in u)) or 1
-            t = rnd.uniform(-0.07, 0.07)
-            out.append(((DECK[0] + 1.0 + 0.45 * u[0] / n, 1.5 + 0.45 * u[1] / n, z + 0.45 * u[2] / n),
-                        (OLIVE[0] + t, OLIVE[1] + t, OLIVE[2] + t), [0.03] * 3))
-        base._cylinder(rnd, DECK[0] + 1.0, z, 0.04, 0.03, 0.75, 1.2, BARK, out, top=False, step=0.02)
 
 
 def splats(seed: int = SEED) -> list:
@@ -582,10 +522,10 @@ def splats(seed: int = SEED) -> list:
     rnd = random.Random(seed)
     out = []
     house(rnd, out)
-    reception(rnd, out)
     pergola(rnd, out)
     garden(rnd, out)
-    return [(p, tuple(min(1.0, max(0.0, v)) for v in c), s) for p, c, s in out]
+    beach(rnd, out)
+    return [(r[0], tuple(min(1.0, max(0.0, v)) for v in r[1]), *r[2:]) for r in out]
 
 
 def make(d: Path) -> Path:

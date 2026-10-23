@@ -227,4 +227,15 @@
 - Decor: your own colour for a piece (the last swatch: a colour picker, **HEX** and **RGB**), kept
   in the layout as `#rrggbb`. The handles answer the pointer from further (measured on the
   screen), the pointer shows a hand over a piece or a handle, and the knob under it grows.
+- Walking: hold **Shift** for a brisker pace (longer steps, the feet still planted).
+- Rooms: **From above** shows the room from high up with everything above 2.4 m hidden, so you see
+  through the ceiling.
+- The sample wedding venue now has only what its floor plan shows (no trees, chandeliers or
+  furniture of ours), a glass-roof steel pergola on sand and green walls in the ante-room, and the
+  beach beyond the garden: sand, the sea and the island's hills (kept out of the map).
+  `sample_venue.py` version 2; the venue is redrawn once.
+- Decor: a flower shop of 25 more starters (tropical and baby's breath banks, a flower ring,
+  callas, gerberas, orchids, hydrangeas, pampas, petals, hanging greenery, a flower cloud,
+  lanterns, a wicker pendant, a wooden aisle, a fabric ceiling, a cane chair, a wooden table and
+  more), in a new Flowers group, and coral, rattan and copper colours.
 - With reduced motion asked for by the system, panels and buttons change at once instead of sliding or fading.

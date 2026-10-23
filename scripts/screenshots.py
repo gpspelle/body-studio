@@ -41,6 +41,7 @@ SHOTS = [  # name, width, height, colour scheme, panel open
     ("room-desktop", 1280, 800, "light", "room"),
     ("decor-desktop", 1280, 800, "light", "decor"),
     ("venue-desktop", 1280, 800, "light", "venue"),
+    ("venue-above", 1280, 800, "light", "venue-above"),
     ("studio-desktop", 1280, 800, "light", "studio"),
     ("loading-desktop", 1280, 800, "light", "loading"),
 ]
@@ -137,6 +138,8 @@ def main() -> None:
                     studio_scene(page)
                 if panel == "venue":
                     venue_scene(page)
+                if panel == "venue-above":
+                    venue_scene(page, above=True)
                 if panel == "guide":
                     page.click("#menuBtn")
                     page.click("#guideBtn")
@@ -314,36 +317,43 @@ def decor_scene(page) -> None:
     settle(page)
 
 
-def venue_scene(page) -> None:
-    """The sample wedding venue in first person: from the hall's middle down its length to the glass
-    doors and the garden, three round tables set for dinner with chairs round them."""
+def venue_scene(page, above=False) -> None:
+    """The sample wedding venue set for a ceremony in the garden: a wooden aisle from the pergola
+    toward the sea, banks of tropical flowers and baby's breath along it, benches either side, a
+    ring of white flowers at its end. In first person from under the pergola, or from above."""
     dress(page)
     page.evaluate("modes.show('rooms')")
     page.evaluate("house.choose(house.rooms().find((r) => r.name === '_sample_venue').file)")
     page.wait_for_function("house.shown() && decor.group()", timeout=600000)
     page.click("#decorBtn")
-    page.evaluate("""(async () => {
+    n = page.evaluate("""(async () => {
         // (the venue's metres -> the map's: x along, z across the other way)
-        const at = (x, z) => [x, -z];
+        const at = (x, z) => [x, -z], zc = 6.9;
         const w = tattooStudio.walker(), P = house.placement(), o = tattooStudio.rig().frame.origin;
-        const b = P.toBody([4.2, 0, -4.4]);
-        w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; tattooStudio.redraw();
-        for (const [x, z] of [[9.0, 3.0], [9.0, 6.6], [13.2, 4.8]]) {
-          await decor.add("round_table"); const t = decor.placed().length - 1;
-          decor.move(t, ...at(x, z));
-          decor.pick(t);
-          document.getElementById("decorRowN").value = "6"; document.getElementById("decorAround").click();
-          decor.pick(t); document.getElementById("decorSet").click();
-          await decor.add("centrepiece"); decor.move(decor.placed().length - 1, ...at(x, z));
-        }
+        const b = P.toBody([27.4, 0, -zc]);
+        w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; w.settle(); tattooStudio.redraw();   // (settle: the skeleton there too)
+        const put = async (id, x, z, turn = 0) => {
+          await decor.add(id); const k = decor.placed().length - 1;
+          decor.move(k, ...at(x, z), turn); return k; };
+        for (const x of [33, 39]) await put("deck_aisle", x, zc, Math.PI / 2);
+        for (let k = 0; k < 6; k++) for (const side of [-1, 1])
+          await put(k % 2 ? "baby_breath_bank" : "tropical_bank", 31 + 2 * k, zc + side * 1.35);
+        for (let k = 0; k < 5; k++) for (const side of [-1, 1]) await put("bench", 31.8 + 2 * k, zc + side * 2.9, Math.PI / 2);
+        await put("floral_ring", 43.6, zc, -Math.PI / 2);
         decor.pick(-1); document.getElementById("closeDecor").click();
-        // looking down the hall (along the map's x), a little down
-        house.firstPerson(true);
-        const a = w.facing(), d = P.wayToBody([1, 0]), u = w.up;
-        const dot = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
-        const cross = [a[1] * d[2] - a[2] * d[1], a[2] * d[0] - a[0] * d[2], a[0] * d[1] - a[1] * d[0]];
-        house.look(Math.atan2(dot(cross, u), dot(a, d)), -0.1); })()""")
-    page.wait_for_function("decor.drawn() >= 3 * 14 && !decor.saving", timeout=300000)
+        return decor.placed().length; })()""")
+    if above:
+        page.evaluate("house.fromAbove(true)")
+    else:
+        page.evaluate("""(() => {
+            // looking down the aisle (along the map's x), toward the sea
+            house.firstPerson(true);
+            const w = tattooStudio.walker(), P = house.placement();
+            const a = w.facing(), d = P.wayToBody([1, 0]), u = w.up;
+            const dot = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
+            const cross = [a[1] * d[2] - a[2] * d[1], a[2] * d[0] - a[0] * d[2], a[0] * d[1] - a[1] * d[0]];
+            house.look(Math.atan2(dot(cross, u), dot(a, d)), -0.06); })()""")
+    page.wait_for_function(f"decor.drawn() >= {n} && !decor.saving", timeout=300000)
     settle(page)
 
 

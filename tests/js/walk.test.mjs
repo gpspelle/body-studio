@@ -89,6 +89,30 @@ test("W walks the body forward on the floor, legs and arms swinging", () => {
   near(v3.dot(faced, F), 1, 1e-6, "still facing ahead");
 });
 
+test("Shift: a brisker pace on longer steps, the feet still planted", () => {
+  const sk = new Skeleton(rig), w = new Walker(sk, rig), sk2 = new Skeleton(rig), w2 = new Walker(sk2, rig);
+  const a = at(sk, "pelvis").slice(), b = at(sk2, "pelvis").slice();
+  run(w, 3, { move: F });
+  let hip = 0;
+  run(w2, 3, { move: F, run: true }, () => { hip = Math.max(hip, sk2.angles[sk2.index("hip_l")].flex); });
+  const walked = v3.dot(v3.sub(at(sk, "pelvis"), a), F), hurried = v3.dot(v3.sub(at(sk2, "pelvis"), b), F);
+  assert.ok(hurried > 1.5 * walked, `walked ${walked / H} H, hurried ${hurried / H} H`);
+  assert.ok(hurried < 1.05 * WALK.speed * WALK.run * 3 * H);
+  assert.ok(hip > 33, "longer steps, not only quicker ones");
+  near(w2.hurry, 1, 0.02);
+  let slid = 0, travelled = 0, prev = null;
+  run(w2, 2, { move: F, run: true }, () => {
+    const k = stance(w2.phase) > stance((w2.phase + 0.5) % 1) ? 0 : 1, s = ["l", "r"][k];
+    const low = w2.footPoints(s).reduce((p, q) => (v3.dot(q, U) < v3.dot(p, U) ? q : p)).slice();
+    const now = { k, low, pelvis: at(sk2, "pelvis").slice() };
+    if (prev && prev.k === k) { slid += v3.len(flat(v3.sub(now.low, prev.low))); travelled += v3.len(flat(v3.sub(now.pelvis, prev.pelvis))); }
+    prev = now;
+  });
+  assert.ok(slid < 0.15 * travelled, `the standing foot slid ${(slid / travelled * 100).toFixed(0)}%`);
+  run(w2, 2, { move: F });
+  near(w2.hurry, 0, 0.02, "let go of Shift: back to a walk");
+});
+
 test("the foot on the floor stays put while the body walks over it", () => {
   const sk = new Skeleton(rig), w = new Walker(sk, rig);
   run(w, 1.5, { move: F });

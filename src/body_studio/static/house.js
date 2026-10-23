@@ -4,8 +4,8 @@
 // a key to walk) gets up, and the camera stays inside the room. The room's map (where the floor,
 // walls and seats are) is room.py's, the maths room.js's; the walk and the sitting are walk.js's.
 import * as THREE from "three";
-import { SplatMesh } from "@sparkjsdev/spark";
-import { Placement, RoomMap, eyeView, lookBy } from "/static/room.js";
+import { SplatMesh, dyno } from "@sparkjsdev/spark";
+import { Placement, RoomMap, SKY, eyeView, lookBy, skyView } from "/static/room.js";
 import { v3 } from "/static/pose.js";
 
 const $ = (id) => document.getElementById(id);
@@ -114,6 +114,7 @@ async function choose(file) {
     if (want !== file) { mesh.dispose?.(); return; }
     clear();
     mesh.matrixAutoUpdate = false;
+    roofless(mesh, map.frame);
     const room = new RoomMap(map);
     R = { file, map, room, mesh, size: +(store.get("room:size:" + file) || 1), ahead: room.openWay() };
     V.holder.add(mesh);
@@ -165,7 +166,7 @@ function view() {
   }
   if (!best) return false;
   const k = R.P.k;
-  V.camera.near = 0.03 * k; V.camera.far = 160 * k; V.camera.updateProjectionMatrix();      // (a venue is 80 m long)
+  V.camera.near = 0.03 * k; V.camera.far = 400 * k; V.camera.updateProjectionMatrix();      // (a venue is 80 m long, and sees the sea)
   V.controls.minDistance = 0.4 * k; V.controls.maxDistance = 6 * k;
   V.holder.updateMatrixWorld();
   const target = V.holder.localToWorld(new THREE.Vector3(...R.P.toBody([at[0], body[1] * 0.85, at[1]])));
@@ -176,6 +177,7 @@ function view() {
 }
 
 function clear() {
+  if (sky) fromAbove(false);
   if (R) {
     V.holder.remove(R.mesh);
     R.mesh.dispose?.();
@@ -268,7 +270,7 @@ V.frameHooks.push((before) => {
   }
   if (!R || !R.P) return;
   if (++hintFrame % 15 === 0) hintNow();
-  if (fp) return;                               // (the eyes are inside already)
+  if (fp || sky) return;                        // (the eyes are inside already; above, there is no ceiling)
   V.holder.updateMatrixWorld();
   const target = V.holder.worldToLocal(V.controls.target.clone()), eye = V.holder.worldToLocal(V.camera.position.clone());
   const tm = R.P.toMap([target.x, target.y, target.z]), em = R.P.toMap([eye.x, eye.y, eye.z]);
@@ -329,11 +331,12 @@ V.frameHooks.push((before) => {
   if (facedWas !== null && w.heading !== facedWas) fp.yaw -= w.heading - facedWas;
   facedWas = w.heading;
 });
-$("eyeBtn").onclick = () => firstPerson(!fp);
+$("eyeBtn").onclick = () => { fromAbove(false); firstPerson(!fp); };
 addEventListener("keydown", (e) => {
   if (e.code !== "KeyV" || e.metaKey || e.ctrlKey || e.altKey || e.repeat || $("guide").open) return;
   if (e.target.closest?.("input, textarea, select, [contenteditable]") || !R) return;
   e.preventDefault();
+  fromAbove(false);
   firstPerson(!fp);
 });
 // a drag on the room looks round (what decor or the joints take, they take first)
@@ -349,7 +352,68 @@ addEventListener("pointermove", (e) => {
 });
 addEventListener("pointerup", () => { if (fp) fp.drag = null; });
 addEventListener("pointercancel", () => { if (fp) fp.drag = null; });
-addEventListener("roomchange", () => { $("eyeBtn").hidden = !R; if (!R) firstPerson(false); });
+addEventListener("roomchange", () => { $("eyeBtn").hidden = $("skyBtn").hidden = !R; if (!R) { firstPerson(false); fromAbove(false); } });
+
+// ---------------------------------------------------------------- from above
+// In a room, the room seen from above, as a plan comes alive: the camera high over the body,
+// looking down at a slant, everything over SKY.cut (the ceiling, the lamps, the tops of the walls)
+// taken off so the floor shows; the orbit turns it and zooms as usual, and W A S D still walk.
+// Leaving it, the room is whole again and the camera goes back behind the body (view()).
+let sky = null;                                 // the orbit's limits as they were, while above
+// (a Spark object modifier on the room's splats: those above the cut are not drawn)
+function roofless(mesh, frame) {
+  const cut = new dyno.DynoUniform({ key: "roomCut", type: "vec4", value: new THREE.Vector4(...frame.up, 1e9) });
+  mesh.objectModifier = dyno.dynoBlock({ gsplat: dyno.Gsplat }, { gsplat: dyno.Gsplat }, ({ gsplat }) => {
+    const d = dyno.dyno({
+      inTypes: { gsplat: dyno.Gsplat, cut: "vec4" }, outTypes: { gsplat: dyno.Gsplat },
+      inputs: { gsplat, cut },
+      statements: ({ inputs: I, outputs: O }) => [
+        `${O.gsplat} = ${I.gsplat};`,
+        `if (dot(${O.gsplat}.center, ${I.cut}.xyz) > ${I.cut}.w) ${O.gsplat}.rgba.a = 0.0;`,
+      ],
+    });
+    return { gsplat: d.outputs.gsplat };
+  });
+  mesh.updateGenerator();
+  mesh.roomCut = cut;
+}
+// splats over `metres` above the floor hidden (null: none)
+function cutAt(metres) {
+  if (!R || !R.mesh.roomCut) return;
+  const fr = R.map.frame;
+  R.mesh.roomCut.value.w = metres === null ? 1e9 : fr.floor + metres / fr.metres;
+  R.mesh.updateVersion?.();
+}
+function fromAbove(on) {
+  on = !!on && !!R && !!R.P;
+  if (on === !!sky) return;
+  const C = V.controls;
+  if (on) {
+    firstPerson(false);
+    sky = { min: C.minDistance, max: C.maxDistance, polar: C.maxPolarAngle };
+    cutAt(R.map.ceiling ? Math.min(SKY.cut, R.map.ceiling - 0.2) : SKY.cut);
+    const w = window.tattooStudio.walker(), at = R.toMap(w.pos), k = R.P.k;
+    const box = [R.map.nx * R.map.cell, R.map.nz * R.map.cell];
+    const v = skyView(at, R.P.wayToMap(w.facing()), box);
+    V.holder.updateMatrixWorld();
+    const world = (p) => V.holder.localToWorld(new THREE.Vector3(...R.P.toBody(p)));
+    C.target.copy(world(v.look));
+    V.camera.position.copy(world(v.eye));
+    C.minDistance = 1.5 * k; C.maxDistance = 3 * v.height * k; C.maxPolarAngle = SKY.polar;
+    V.camera.near = 0.05 * k; V.camera.far = 400 * k; V.camera.updateProjectionMatrix();
+    C.autoRotate = false;
+    C.update();
+  } else {
+    C.minDistance = sky.min; C.maxDistance = sky.max; C.maxPolarAngle = sky.polar;
+    sky = null;
+    cutAt(null);
+    view();
+  }
+  $("skyBtn").setAttribute("aria-pressed", String(on));
+  document.body.classList.toggle("from-above", on);
+  dispatchEvent(new Event("viewchange"));
+}
+$("skyBtn").onclick = () => fromAbove(!sky);
 
 // ---------------------------------------------------------------- for tests and scripts
 window.house = {
@@ -376,6 +440,8 @@ window.house = {
   // whether the camera's view of the body is clear (1) or something is in the way (less)
   // first person: on or off (firstPerson(on)), and where it looks ({ yaw, pitch } or null)
   firstPerson: (on) => { if (on !== undefined) firstPerson(on); return fp && { yaw: fp.yaw, pitch: fp.pitch }; },
+  // from above: on or off (fromAbove(on)); whether it is
+  fromAbove: (on) => { if (on !== undefined) fromAbove(on); return !!sky; },
   look: (yaw, pitch) => { if (fp) { fp.yaw = yaw; fp.pitch = pitch; } },
   sight: () => {
     if (!R || !R.P) return null;

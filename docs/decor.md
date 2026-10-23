@@ -104,6 +104,14 @@ no licence. Sizes are the usual hire sizes, so a plan made with them holds at th
 - **Tables**: chair (seat at 45 cm, gold), cross-back chair (wood), bench (1.8 m, three seats),
   round table (1.5 m across, 76 cm high, cloth to the floor), long table (1.8 × 0.8 m), square
   table (0.9 m), cocktail table (1.1 m high), sweetheart table (1.7 m, for the two of you).
+- **Flowers** (from a beach wedding's photos): calla lilies in a tall vase, gerberas, a bank of
+  baby's breath (1.4 m) and a tropical flower bank (red torch ginger, celosia plumes, orange
+  alstroemeria, yellow chrysanthemums, golden rod and orchids among palm leaves), a ring of white
+  flowers (2.5 m), a table garland, floating candles in glass, grass in glass, an orchid in its pot,
+  hydrangeas, pampas grass, a floor arrangement, a path of petals, a tropical jar, hanging greenery
+  and a flower cloud (hung from the ceiling), a eucalyptus runner, copper and wicker lanterns, a
+  wicker pendant, a wooden aisle (1.5 × 6 m), a draped fabric ceiling (4 m square), a cane chair, a
+  wooden table (2.2 m) and a rattan place setting.
 - **On the table**: place setting (charger, plate, napkin, cutlery, two glasses), low centrepiece
   with candles, tall centrepiece (94 cm), candelabra, bud vases, table number, flowers, candle,
   a three-tier cake on a stand, a champagne tower.
@@ -117,7 +125,7 @@ no licence. Sizes are the usual hire sizes, so a plan made with them holds at th
 - **Lounge**: sofa (two seats), armchair, coffee table, rug (2.4 × 1.7 m), dance floor (4.8 m
   square, tiled).
 
-Colours: white, ivory, gold, wood, green, blush, black.
+Colours: white, ivory, gold, wood, green, blush, black, coral, rattan, copper.
 
 ## From a photo, on this computer
 

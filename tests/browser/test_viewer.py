@@ -449,6 +449,22 @@ class Viewer(unittest.TestCase):
         page.click("#eyeBtn")
         self.assertIsNone(page.evaluate("house.firstPerson()"))
         page.wait_for_function(eyes + " > 0.6")
+        # from above: the camera high over her, the room's top taken off; the eye button comes down again
+        page.click("#skyBtn")
+        self.assertTrue(page.evaluate("house.fromAbove()"))
+        self.assertEqual(page.locator("#skyBtn").get_attribute("aria-pressed"), "true")
+        high = """(() => { const V = bodyApp.viewer, P = house.placement(), c = V.holder.worldToLocal(V.camera.position.clone());
+            return P.toMap([c.x, c.y, c.z])[1]; })()"""
+        self.assertGreater(page.evaluate(high), 5, "metres over the floor")
+        self.assertLess(page.evaluate("house.mesh().roomCut.value.w"), 1e8, "the ceiling taken off")
+        page.evaluate("tattooStudio.walkFor(0.5, 'f')")
+        self.assertTrue(page.evaluate("house.fromAbove()"), "walking from above")
+        page.click("#eyeBtn")
+        self.assertFalse(page.evaluate("house.fromAbove()"))
+        self.assertIsNotNone(page.evaluate("house.firstPerson()"))
+        self.assertEqual(page.evaluate("house.mesh().roomCut.value.w"), 1e9, "the room whole again")
+        page.click("#eyeBtn")
+        page.wait_for_function(eyes + " > 0.6")
         page.evaluate("tattooStudio.stepFor(2)")
         # no room: she stands on the plain floor again, walls gone
         page.click("#roomBtn")
