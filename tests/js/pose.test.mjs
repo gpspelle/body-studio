@@ -466,9 +466,11 @@ test("the skin's normals point out of the body, under the arms too", () => {
   // the normal is what lifts the ink out of the skin and keeps a design on one surface: one that
   // points in (the side of the chest under the arm used to be turned toward the upper arm, the
   // nearer bone) sinks the ink into the body and stops the design there
+  // every third cell: a fair sample of the whole skin, at a third of the cost (this check was most
+  // of the unit tests' time)
   let bad = 0, all = 0;
   const flipped = {};
-  for (let c = 0; c < skin.count; c++) {
+  for (let c = 0; c < skin.count; c += 3) {
     const p = skin._p(c), bone = boneAt(p);
     // (a face has the inside of its mouth in the mesh; fingers and toes are thinner than a cell)
     if (/^(head|neck|wrist|ankle)/.test(bone)) continue;

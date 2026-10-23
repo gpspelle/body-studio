@@ -26,7 +26,7 @@ jobs:
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then brew install ffmpeg; else sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg; fi
       - run: pip install .          # also installs the pinned splat-studio and OpenCV
-      - run: python -m unittest discover -s tests/unit -t . -v
+      - run: python scripts/test.py            # each test class in its own process, side by side
       - name: End to end (real splat-studio pipeline, its stand-in COLMAP and Brush)
         run: |
           export SPLAT_STUDIO_SRC="$(python3 scripts/splat_studio_src.py .splat-studio-src)"
