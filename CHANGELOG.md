@@ -2,6 +2,7 @@
 
 ## 0.1.0 (unreleased)
 
+- English only for now: the Portuguese translation and the Language entry in the menu are gone.
 - First version: one page with the body in the centre (turntable, drag to orbit, no pan),
   a row of bodies, drop a video anywhere to start a run.
 - `body-studio run`, `setup`, `check`, built on splat-studio pinned at `ac7c892`.

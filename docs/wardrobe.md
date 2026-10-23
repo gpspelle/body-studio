@@ -196,7 +196,7 @@ python3 scripts/wardrobe_pack.py MAKEHUMAN_DATA BASE_OBJ
 `MAKEHUMAN_DATA` is a MakeHuman 1.1 data folder (Ubuntu's `makehuman-data` 1.1.1 package has one in
 `usr/share/makehuman/data`), `BASE_OBJ` is `makehuman/data/3dobjs/base.obj` from the MakeHuman
 repository. Needs ffmpeg for the textures. To add an item: add a line to `CATALOG` in
-`wardrobe.py`, its names to `static/i18n.js` (English and Portuguese) and a row to `CREDITS.md`,
+`wardrobe.py`, its names to `static/i18n.js` and a row to `CREDITS.md`,
 then run the script. The styled items: `python3 scripts/wardrobe_styles.py [ID...]`.
 
 ## What comes next

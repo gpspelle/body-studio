@@ -358,7 +358,6 @@ function walkHint(text) {
   $("walkHint").hidden = !text;
 }
 addEventListener("bodyshown", () => walkHint(keyboard() && !known.get() ? t("walk.hint") : ""));
-addEventListener("langchange", () => { if (!$("walkHint").hidden && !loading) walkHint(t("walk.hint")); });
 
 // the panel's pose again, right away, wherever the body walked to (before the panel changes it)
 function still() {
@@ -490,7 +489,6 @@ function setShape(i, v) {
 $("wiWeight").oninput = (e) => setShape(0, e.target.value);
 $("wiMuscle").oninput = (e) => setShape(1, e.target.value);
 $("wiReset").onclick = () => { setShape(0, 0); setShape(1, 0); };
-addEventListener("langchange", () => whatIfUI());
 
 // loose clothes swing from the hips, hair from the head (flesh.js Swing); the frames go on while
 // they still move
@@ -1034,7 +1032,6 @@ addEventListener("skinhidden", (e) => {
   S.hiddenSkin = e.detail;
   for (const tt of S.tattoos) inkOnSkin(tt);
 });
-addEventListener("langchange", () => { if (S) { presetsUI(); handsUI(); jointUI(); tattooList(); } });
 
 // ---------------------------------------------------------------- kept in this browser
 // Pose, height and tattoos (with their images) per body, in IndexedDB. Nothing leaves the computer.

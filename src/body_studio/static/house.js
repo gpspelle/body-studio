@@ -255,7 +255,6 @@ function hintNow() {
   const n = !w.busy && nearby();
   setHint(n ? (n.kind === "station" ? n.hint : t(n.kind === "sit" ? "room.sit" : "room.lean")) : "");
 }
-addEventListener("langchange", () => { hint = ""; hintNow(); });
 
 // ---------------------------------------------------------------- the camera stays inside
 // Before each frame is drawn, a camera that is behind a wall or above the ceiling is brought in
@@ -351,7 +350,6 @@ addEventListener("pointermove", (e) => {
 addEventListener("pointerup", () => { if (fp) fp.drag = null; });
 addEventListener("pointercancel", () => { if (fp) fp.drag = null; });
 addEventListener("roomchange", () => { $("eyeBtn").hidden = !R; if (!R) firstPerson(false); });
-addEventListener("langchange", () => { $("eyeBtn").textContent = t(fp ? "room.eyeOff" : "room.eye"); });
 
 // ---------------------------------------------------------------- for tests and scripts
 window.house = {

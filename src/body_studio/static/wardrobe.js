@@ -159,7 +159,6 @@ function pickList() {
     return box;
   }));
 }
-addEventListener("langchange", ui);
 // the body model the clothes are fitted with: what is worn comes off and goes on again on the other
 for (const b of $("wearModel").querySelectorAll("button")) b.onclick = () => useModel(b.dataset.model);
 async function useModel(model) {

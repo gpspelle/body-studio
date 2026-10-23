@@ -226,7 +226,6 @@ function enter() {
 }
 addEventListener("roomchange", enter);
 addEventListener("roomplaced", () => { if (fx) { hung = ""; hang(); } });
-addEventListener("langchange", () => { if (fx) hang(); });
 // the body's own designs join the wall as tattoos are added or renamed; the clothes go back on
 // once the body is up again
 setInterval(() => { if (fx && !document.hidden) hang(); }, 1000);

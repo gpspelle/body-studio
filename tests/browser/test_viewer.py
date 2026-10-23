@@ -746,13 +746,13 @@ class Viewer(unittest.TestCase):
         page.locator(".shelf button", has_text="Mia").click()
         page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
         # the top bar: the name (the menu), and nothing else of the modes'
-        for b in ("#studioBtn", "#progressBtn", "#guideBtn", "#lang", "#roomBtn", "#decorBtn"):
+        for b in ("#studioBtn", "#progressBtn", "#guideBtn", "#roomBtn", "#decorBtn"):
             self.assertTrue(page.locator(b).is_hidden(), b)
         page.click("#menuBtn")
         self.assertTrue(page.evaluate("document.getElementById('modes').open"))
         self.assertEqual(page.get_attribute("#menuBtn", "aria-expanded"), "true")
         self.assertEqual([b.inner_text().split("\n")[0] for b in page.locator("#modes nav > *").all()],
-                         ["Style your clothes", "Style your tattoos", "Rooms", "Body progress", "New body", "Guide", "Language"])
+                         ["Style your clothes", "Style your tattoos", "Rooms", "Body progress", "New body", "Guide"])
         page.keyboard.press("Escape")
         self.assertFalse(page.evaluate("document.getElementById('modes').open"))
         # clothes: the panel with what is worn, the shop round her, no room
@@ -781,12 +781,6 @@ class Viewer(unittest.TestCase):
         self.assertTrue(page.locator("#roomBtn").is_hidden())
         page.evaluate("modes.go('rooms')")
         page.wait_for_function(f"house.file() === {json.dumps(room)}", timeout=300000)
-        # the language, from the menu too
-        page.click("#menuBtn")
-        page.click("#lang")
-        page.wait_for_function("document.getElementById('modeName').textContent === 'Cômodos'")
-        page.click("#menuBtn")
-        page.click("#lang")
         page.evaluate("modes.go('none')")
         page.wait_for_function("!house.shown()")
         self.assertEqual(errors, [])

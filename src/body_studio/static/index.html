@@ -45,7 +45,6 @@
     <button data-mode="progress"><strong data-i18n="modes.progress"></strong><span data-i18n="modes.progressHow"></span></button>
     <label for="pick" id="newBody" tabindex="0"><strong data-i18n="app.new"></strong><span data-i18n="modes.newHow"></span></label>
     <button id="guideBtn" aria-haspopup="dialog" aria-controls="guide"><strong data-i18n="guide.open"></strong><span data-i18n="modes.guideHow"></span></button>
-    <button id="lang"><strong data-i18n="lang.label"></strong><span id="langName"></span></button>
   </nav>
 </dialog>
 
@@ -322,14 +321,7 @@ import { Busy } from "/static/busy.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
-function langButton() {
-  const other = window.i18n.lang === "pt" ? "en" : "pt";
-  const names = { en: "English", pt: "Português" };
-  $("langName").textContent = names[window.i18n.lang] + " → " + names[other];
-  $("lang").onclick = () => window.i18n.set(other);
-}
-window.i18n.apply(); langButton();
-addEventListener("langchange", () => { langButton(); lastPill && lastPill(); });
+window.i18n.apply();
 fetch("/api/version").then((r) => r.json()).then((v) => ($("version").textContent = "v" + v.version)).catch(() => {});
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },

@@ -1,8 +1,8 @@
 // What the page is for at the moment, picked from the menu behind the name at the top left: style
 // the clothes (the shop round the body: walk up to a rack and click what to wear), style the
 // tattoos (in the tattoo studio: the tattoos and the pose), a room (rooms and decor: nothing worn
-// or inked changes there) or the body's progress; and from the same menu a new body, the guide and
-// the language. Each mode shows only its own tools: <body data-mode> and body.css hide the rest,
+// or inked changes there) or the body's progress; and from the same menu a new body and the guide.
+// Each mode shows only its own tools: <body data-mode> and body.css hide the rest,
 // wardrobe.js shows the shop only for the clothes, tattoo.js the joints only for the tattoos.
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -98,7 +98,6 @@ addEventListener("roomslisted", () => {
 // the room to come back to in the rooms mode: the last one shown there
 addEventListener("roomplaced", () => { if (mode === "rooms") store.set("mode:room", house().file()); });
 addEventListener("bodyshown", () => { if (mode !== "none") place(); });
-addEventListener("langchange", label);
 
 document.body.dataset.mode = mode;
 label();

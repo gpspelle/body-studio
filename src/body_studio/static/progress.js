@@ -252,5 +252,4 @@ function renderScans() {
 }
 
 addEventListener("bodyshown", () => { if (data && !$("progress").hidden) renderScans(); });
-addEventListener("langchange", () => { if (data) render(data); });
 if (store.get("progress:open")) setOpen(true);

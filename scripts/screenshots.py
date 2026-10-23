@@ -27,22 +27,22 @@ from splat_studio.server.library import DataDir  # noqa: E402
 
 from body_studio import history, library, sample_room, server  # noqa: E402
 
-SHOTS = [  # name, width, height, colour scheme, language, panel open
-    ("desktop-light", 1280, 800, "light", "en", None),
-    ("phone-dark", 390, 844, "dark", "pt", None),
-    ("progress-desktop", 1280, 800, "light", "en", "progress"),
-    ("progress-phone", 390, 844, "dark", "pt", "progress"),
-    ("tattoo-desktop", 1280, 800, "light", "en", "tattoo"),
-    ("tattoo-phone", 390, 844, "dark", "pt", "tattoo"),
-    ("wardrobe-desktop", 1280, 800, "light", "en", "wardrobe"),
-    ("walk-desktop", 1280, 800, "light", "en", "walk"),
-    ("guide-desktop", 1280, 800, "light", "en", "guide"),
-    ("menu-desktop", 1280, 800, "light", "en", "menu"),
-    ("room-desktop", 1280, 800, "light", "en", "room"),
-    ("decor-desktop", 1280, 800, "light", "en", "decor"),
-    ("venue-desktop", 1280, 800, "light", "en", "venue"),
-    ("studio-desktop", 1280, 800, "light", "en", "studio"),
-    ("loading-desktop", 1280, 800, "light", "en", "loading"),
+SHOTS = [  # name, width, height, colour scheme, panel open
+    ("desktop-light", 1280, 800, "light", None),
+    ("phone-dark", 390, 844, "dark", None),
+    ("progress-desktop", 1280, 800, "light", "progress"),
+    ("progress-phone", 390, 844, "dark", "progress"),
+    ("tattoo-desktop", 1280, 800, "light", "tattoo"),
+    ("tattoo-phone", 390, 844, "dark", "tattoo"),
+    ("wardrobe-desktop", 1280, 800, "light", "wardrobe"),
+    ("walk-desktop", 1280, 800, "light", "walk"),
+    ("guide-desktop", 1280, 800, "light", "guide"),
+    ("menu-desktop", 1280, 800, "light", "menu"),
+    ("room-desktop", 1280, 800, "light", "room"),
+    ("decor-desktop", 1280, 800, "light", "decor"),
+    ("venue-desktop", 1280, 800, "light", "venue"),
+    ("studio-desktop", 1280, 800, "light", "studio"),
+    ("loading-desktop", 1280, 800, "light", "loading"),
 ]
 # a line-art design drawn on white, like a scanned tattoo sketch: a sun with a wave inside
 DESIGN = """(() => {
@@ -109,12 +109,11 @@ def main() -> None:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(executable_path=os.environ.get("BODY_STUDIO_CHROMIUM") or None,
                                          args=["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
-            for name, w, h, scheme, lang, panel in SHOTS:
+            for name, w, h, scheme, panel in SHOTS:
                 if sys.argv[1:] and name not in sys.argv[1:]:
                     continue
                 page = browser.new_page(viewport={"width": w, "height": h}, color_scheme=scheme,
                                         reduced_motion="reduce")   # no CSS transitions caught half way
-                page.add_init_script(f"localStorage.setItem('lang', '{lang}')")
                 # no mode at first, just the body (on a computer it opens on the clothes the first time):
                 # each scene puts the page in its mode
                 page.add_init_script("localStorage.setItem('mode', 'none')")
@@ -184,7 +183,7 @@ def tattoo_scene(page, tmp: Path) -> None:
     page.wait_for_function("tattooStudio.tattoos().length === 1", timeout=120000)
     page.locator("#presets button").nth(2).click(timeout=120000)   # then flex (laid first: on a phone the flexed arm is above the view)
     page.evaluate("(() => { const e = document.getElementById('tatSize'); e.value = '8'; e.dispatchEvent(new Event('input')); })()")
-    page.fill("#tatName", "Sun" if page.evaluate("window.i18n.lang") == "en" else "Sol", timeout=120000)
+    page.fill("#tatName", "Sun", timeout=120000)
     if page.viewport_size["width"] <= 600:             # on a phone, back a little: the flexed arms in view
         page.evaluate("""(() => { const V = bodyApp.viewer, p = V.camera.position, t = V.controls.target;
           p.sub(t).multiplyScalar(1.8).add(t); V.controls.update(); })()""")

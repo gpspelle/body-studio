@@ -824,7 +824,6 @@ addEventListener("roomchange", async () => {
   pick(-1);
   dispatchEvent(new Event("decorready"));
 });
-addEventListener("langchange", () => { barTitles(); inventory(); colourChips(); if (L) { layoutsUI(); pick(sel); } });
 
 // ---------------------------------------------------------------- for tests and scripts
 window.decor = {

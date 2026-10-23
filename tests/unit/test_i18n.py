@@ -12,8 +12,10 @@ def table(lang: str) -> set:
 
 
 class I18n(unittest.TestCase):
-    def test_every_key_in_every_language(self):
-        self.assertEqual(table("en"), table("pt"))
+    def test_english_only(self):
+        js = (STATIC / "i18n.js").read_text()
+        self.assertEqual(re.findall(r"^    (\w+): {", js, re.M), ["en"])
+        self.assertNotIn('id="lang"', (STATIC / "index.html").read_text())
 
     def test_page_uses_only_known_keys(self):
         page = "".join((STATIC / f).read_text() for f in ("index.html", "progress.js", "tattoo.js", "decorate.js"))
@@ -46,18 +48,17 @@ class I18n(unittest.TestCase):
 
     def test_wardrobe_names_are_translated(self):
         from body_studio import wardrobe
-        en, pt = table("en"), table("pt")
+        en = table("en")
         keys = {"wear.item." + i["id"] for i in wardrobe.CATALOG}
         keys |= set(re.findall(r'\bt\(\s*"(wear\.\w+)"', (STATIC / "wardrobe.js").read_text()))
         keys |= set(re.findall(r'"(wear\.(?:hint|wait))"', (STATIC / "wardrobe.js").read_text()))
         self.assertLessEqual(keys, en)
-        self.assertLessEqual(keys, pt)
         fit = (STATIC.parent / "fit.py").read_text()      # fit errors reuse the rig's advice
         self.assertLessEqual({"rig.err." + c for c in re.findall(r'FitError\(.*, "(\w+)"\)', fit)}, en)
 
     def test_decor_names_and_errors_are_translated(self):
         from body_studio import decor
-        en, pt = table("en"), table("pt")
+        en = table("en")
         page = (STATIC / "decorate.js").read_text()
         keys = set(re.findall(r'\bt\(\s*"(decor\.\w+)"', page))
         keys |= {"decor.item." + s["id"] for s in decor.STARTERS} | {"decor.group." + s["group"] for s in decor.STARTERS} | {"decor.group.mine"} | {"decor.colour." + c for c in decor.COLOURS}
@@ -67,7 +68,6 @@ class I18n(unittest.TestCase):
         self.assertGreaterEqual(codes, {"photo_type", "photo_size", "height", "mesh", "photo3d", "photo3d_install"})
         keys |= {"decor.err." + c for c in codes}
         self.assertLessEqual(keys, en)
-        self.assertLessEqual(keys, pt)
 
     def test_every_upload_error_is_translated(self):
         codes = set(re.findall(r'"code": "(\w+)"', (STATIC.parent / "server.py").read_text()))

@@ -28,7 +28,7 @@ import path. Why not a shared library extracted from both: splat-studio already 
 | Unique run folders, lock files, summary.txt | Inherited |
 | Fake tools rejecting unknown flags | End-to-end test uses splat-studio's fakes at the pinned commit |
 | CI with and without optional deps | OpenCV is installed with the app (blurry frames always dropped), so CI runs with it; without it is covered in splat-studio |
-| Plain copy, all languages | English and Portuguese, key parity tested |
+| Plain copy | English only, every key used is tested to exist |
 | Header, footer, logo, GitHub link | Minimal: name top left, version, source and license at the bottom |
 | In-progress, recent and history for long lists | Not yet: the row of bodies grows. Step 5 below |
 | Docs rule, docs CI, screenshot script | AGENTS.md, `docs.yml`, `scripts/screenshots.py` |
