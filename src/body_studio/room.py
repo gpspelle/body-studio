@@ -50,7 +50,7 @@ SEAT_APART = 0.55           # m: between two places to sit on one seat (a sofa h
 WALL = 1.5                  # m: something this tall is a wall (or a wardrobe) to lean on
 CAMERA_HEIGHT = 1.45        # m: a phone filming a room
 CEILING = 2.5               # m: a ceiling, when nothing else tells the size
-MAX_CELLS = 400             # cells along a side; a bigger place takes bigger cells
+MAX_CELLS = 400             # cells along a side of a square place (as many in all for a long one); bigger takes bigger cells
 MAX_SPLATS = 1_500_000      # opaque splats looked at (spread evenly over the file)
 OPAQUE = 0.5
 
@@ -204,7 +204,9 @@ def build(path: Path, run_dir: Path | None = None) -> dict:
     sx, sz = sorted(px), sorted(pz)
     x0, x1 = _quantile(sx, 0.002) - 0.2, _quantile(sx, 0.998) + 0.2
     z0, z1 = _quantile(sz, 0.002) - 0.2, _quantile(sz, 0.998) + 0.2
-    cell = max(CELL, (x1 - x0) / MAX_CELLS, (z1 - z0) / MAX_CELLS)
+    # (a long place, a wedding venue's hall and garden, keeps cells as small as a square one's of
+    # the same floor area would have, up to four times as many along its length)
+    cell = max(CELL, math.sqrt((x1 - x0) * (z1 - z0)) / MAX_CELLS, (x1 - x0) / (4 * MAX_CELLS), (z1 - z0) / (4 * MAX_CELLS))
     nx, nz = max(1, math.ceil((x1 - x0) / cell)), max(1, math.ceil((z1 - z0) / cell))
     nb = round(TOP / BIN)
     count = array("H", bytes(2 * nx * nz * nb))

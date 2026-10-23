@@ -5,7 +5,7 @@ the way a room run leaves its splat (workspace/<name>/run_*/splat/NAME_clean.ply
 Brush's, with COLMAP's images.bin for a camera path held at 1.45 m), so room.py maps it like any
 scanned room and the page shows it like one. It is made the first time the rooms are listed and
 kept in the data folder; a new VERSION makes it again. The sample tattoo studio (sample_studio.py)
-is made the same way, beside it.
+and the sample wedding venue (sample_venue.py) are made the same way, beside it.
 
 The room is 5.5 m by 4.5 m and 2.6 m high, in metres, y up, the floor at 0 (the file is y-down):
 a sofa along the back wall (seat 45 cm) with a picture above it, an armchair by the window, a
@@ -181,10 +181,11 @@ def parts(rnd) -> list:
     return p + legs + _books(rnd)
 
 
-def _surface(rnd, box, colour, out):
-    """Flat splats about STEP apart over the faces of a box (a box flat on one axis is one face)."""
+def _surface(rnd, box, colour, out, step=STEP, jitter=0.025):
+    """Flat splats about `step` apart over the faces of a box (a box flat on one axis is one face),
+    each colour a little off by up to `jitter`."""
     x0, x1, y0, y1, z0, z1 = box
-    flat = STEP * 0.12
+    flat = step * 0.12
     if y1 == y0:
         faces = [(1, y0, (0, x0, x1), (2, z0, z1))]
     elif x1 == x0:
@@ -196,7 +197,7 @@ def _surface(rnd, box, colour, out):
                  (0, x0, (1, y0, y1), (2, z0, z1)), (0, x1, (1, y0, y1), (2, z0, z1)),
                  (2, z0, (0, x0, x1), (1, y0, y1)), (2, z1, (0, x0, x1), (1, y0, y1))]
     for axis, v, (a, a0, a1), (b, b0, b1) in faces:
-        na, nb = max(1, round((a1 - a0) / STEP)), max(1, round((b1 - b0) / STEP))
+        na, nb = max(1, round((a1 - a0) / step)), max(1, round((b1 - b0) / step))
         for i in range(na):
             for k in range(nb):
                 p = [0.0, 0.0, 0.0]
@@ -204,24 +205,24 @@ def _surface(rnd, box, colour, out):
                 p[a] = a0 + (i + rnd.random()) * (a1 - a0) / na
                 p[b] = b0 + (k + rnd.random()) * (b1 - b0) / nb
                 c = colour(*p, rnd) if callable(colour) else colour
-                s = [STEP * 0.75] * 3
+                s = [step * 0.75] * 3
                 s[axis] = flat
-                out.append((p, tuple(min(1.0, max(0.0, ch + rnd.uniform(-0.025, 0.025))) for ch in c), s))
+                out.append((p, tuple(min(1.0, max(0.0, ch + rnd.uniform(-jitter, jitter))) for ch in c), s))
 
 
-def _cylinder(rnd, cx, cz, r0, r1, y0, y1, colour, out, top=True):
+def _cylinder(rnd, cx, cz, r0, r1, y0, y1, colour, out, top=True, step=STEP):
     """The side (radius r0 at y0 to r1 at y1) and the top of a round thing."""
-    n_up = max(1, round((y1 - y0) / STEP))
+    n_up = max(1, round((y1 - y0) / step))
     for i in range(n_up):
         y = y0 + (i + rnd.random()) * (y1 - y0) / n_up
         r = r0 + (r1 - r0) * (y - y0) / (y1 - y0)
-        for k in range(max(6, round(2 * math.pi * r / STEP))):
+        for k in range(max(6, round(2 * math.pi * r / step))):
             a = rnd.uniform(0, 2 * math.pi)
-            out.append(((cx + r * math.cos(a), y, cz + r * math.sin(a)), colour, [STEP * 0.6] * 3))
+            out.append(((cx + r * math.cos(a), y, cz + r * math.sin(a)), colour, [step * 0.6] * 3))
     if top:
-        for _ in range(max(4, round(math.pi * r1 * r1 / STEP ** 2))):
+        for _ in range(max(4, round(math.pi * r1 * r1 / step ** 2))):
             a, r = rnd.uniform(0, 2 * math.pi), r1 * math.sqrt(rnd.random())
-            out.append(((cx + r * math.cos(a), y1, cz + r * math.sin(a)), colour, [STEP * 0.6] * 3))
+            out.append(((cx + r * math.cos(a), y1, cz + r * math.sin(a)), colour, [step * 0.6] * 3))
 
 
 def _leaves(rnd, cx, cz, y0, y1, out):
@@ -320,9 +321,10 @@ def _make_living_room(d: Path) -> Path:
 
 def _samples() -> dict:
     """Each sample room's folder name: (its VERSION, its splat's name, what makes it in a run folder)."""
-    from . import sample_studio
+    from . import sample_studio, sample_venue
     return {NAME: (VERSION, PLY, _make_living_room),
-            library.STUDIO: (sample_studio.VERSION, sample_studio.PLY, sample_studio.make)}
+            library.STUDIO: (sample_studio.VERSION, sample_studio.PLY, sample_studio.make),
+            library.VENUE: (sample_venue.VERSION, sample_venue.PLY, sample_venue.make)}
 
 
 def run_dir(data_dir: Path, name: str = NAME) -> Path:

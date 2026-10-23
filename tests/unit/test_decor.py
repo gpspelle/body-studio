@@ -181,9 +181,14 @@ class Inventory(unittest.TestCase):
         turned = decor.clean_layouts({"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "turn": 10.4}]}]})
         self.assertAlmostEqual(turned["layouts"][0]["items"][0]["turn"], 10.4 - 4 * 3.141592653589793, places=3)
         self.assertTrue(decor.layout_file(self.d, room).parent.samefile(self.d / "decor" / "layouts"))
+        # a colour of your own, from the picker (HEX), kept in lower case
+        own = decor.clean_layouts({"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "colour": "#C9A46A"}]}]})
+        self.assertEqual(own["layouts"][0]["items"][0]["colour"], "#c9a46a")
         for bad in (None, {"layouts": []}, {"layouts": [{"items": [{"item": "spaceship", "x": 0, "z": 0}]}]},
                     {"layouts": [{"items": [{"item": "chair", "x": "a", "z": 0}]}]},
                     {"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "colour": "plaid"}]}]},
+                    {"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "colour": "#c9a46"}]}]},
+                    {"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "colour": "#zzzzzz"}]}]},
                     {"layouts": [{"items": [{"item": "chair", "x": 1e9, "z": 0}]}]},
                     {"layouts": [{"items": [{"item": "chair", "x": 0, "z": 0, "lift": 9}]}]}):
             with self.assertRaises(decor.DecorError):

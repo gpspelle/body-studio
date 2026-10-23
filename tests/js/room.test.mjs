@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Skeleton, q, v3 } from "../../src/body_studio/static/pose.js";
 import { Walker } from "../../src/body_studio/static/walk.js";
-import { Placement, ROOM, RoomMap } from "../../src/body_studio/static/room.js";
+import { Placement, ROOM, RoomMap, EYE, eyeView, lookBy } from "../../src/body_studio/static/room.js";
 
 const map = JSON.parse(readFileSync(process.env.ROOM_JSON, "utf8"));
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
@@ -186,4 +186,25 @@ test("no leaning on a wall with something in front of it (a TV on its console)",
   assert.ok(w, "the bare wall is");
   near(w.at[1], 0.1, 0.03, "on its face");
   assert.ok(w.n[1] > 0.95);
+});
+
+test("first person: the eye in front of the face, the look turned and tilted", () => {
+  const head = [0, 1.55, 0], top = [0, 1.75, 0], up = [0, 1, 0], ahead = [0, 0, 1], H = 1.7;
+  const v = eyeView(head, top, ahead, up, 0, 0, H);
+  near(v.eye[1], 1.55 + 0.2 * EYE.up, 1e-9, "between the head and its top");
+  near(v.eye[2], EYE.ahead * H, 1e-9, "in front of the face");
+  near(v.look[2] - v.eye[2], H, 1e-9, "looking the way the body faces");
+  // turned a quarter to the left (side = up x ahead = +x), tilted up a little
+  const l = eyeView(head, top, ahead, up, Math.PI / 2, 0.3, H);
+  near(l.dir[0], Math.cos(0.3), 1e-9, "left");
+  near(l.dir[1], Math.sin(0.3), 1e-9, "up");
+  near(Math.hypot(...l.dir), 1, 1e-9, "a direction");
+  // a way that leans out of the floor counts only along it; the tilt stops short of straight up
+  const t = eyeView(head, top, [0, 0.5, 1], up, 0, 9, H);
+  near(t.dir[1], Math.sin(EYE.pitch), 1e-9, "the most it tilts");
+  // dragged right: the look turns left; dragged down: it tilts up; half a turn for a full width
+  const [yaw, pitch] = lookBy(0, 0, 800, 100, 1600);
+  near(yaw, Math.PI / 2, 1e-9, "a quarter turn for half the width");
+  assert.ok(pitch > 0);
+  assert.equal(lookBy(0, 1.3, 0, 5000, 1000)[1], EYE.pitch);
 });

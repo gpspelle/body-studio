@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { COLOURS, FINISHES, GROUPS, STARTERS, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap } from "../../src/body_studio/static/decor.js";
+import { COLOURS, FINISHES, GROUPS, STARTERS, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex } from "../../src/body_studio/static/decor.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
 const env = (k) => process.env[k] && JSON.parse(fs.readFileSync(process.env[k], "utf8"));
@@ -295,4 +295,38 @@ test("a thing's picture frames all of it, from its front and a little above", ()
     }
     assert.ok(v.shadow[0] >= b.hi[0] - b.lo[0] && v.shadow[1] >= b.hi[2] - b.lo[2]);
   }
+});
+
+test("colours of your own: HEX and RGB in, the starter's finish kept", () => {
+  assert.deepEqual(fromHex("#c9a46a"), [201, 164, 106]);
+  assert.deepEqual(fromHex("C9A46A"), [201, 164, 106]);
+  assert.deepEqual(fromHex(" #fa0 "), [255, 170, 0]);
+  for (const bad of ["#c9a46", "#zzzzzz", "", null, "gold", "#1234567"]) assert.equal(fromHex(bad), null, String(bad));
+  assert.equal(toHex([201, 164, 106]), "#c9a46a");
+  assert.equal(toHex([300, -4, 12.6]), "#ff000d");
+  assert.deepEqual(fromRgb("201, 164, 106"), [201, 164, 106]);
+  assert.deepEqual(fromRgb("rgb(201 164 106)"), [201, 164, 106]);
+  assert.deepEqual(fromRgb("201;164;106"), [201, 164, 106]);
+  for (const bad of ["201, 164", "256, 0, 0", "a, b, c", "1, 2, 3, 4"]) assert.equal(fromRgb(bad), null, bad);
+  assert.equal(hexOf("#C9A46A", "gold"), "#c9a46a");
+  assert.equal(hexOf("gold"), toHex(COLOURS.gold.map((v) => v * 255)));
+  assert.equal(hexOf(undefined, "wood"), toHex(COLOURS.wood.map((v) => v * 255)));
+  // the colour itself, 0..1, the same array each time; a name or nothing as before
+  const blue = colourOf("#2040a0", "gold");
+  assert.deepEqual(blue.map((v) => Math.round(v * 255)), [32, 64, 160]);
+  assert.equal(colourOf("#2040A0", "gold"), blue);
+  assert.equal(colourOf("wood", "gold"), COLOURS.wood);
+  assert.equal(colourOf("#nope", "gold"), COLOURS.gold);
+  // a gold chair painted blue: the frame is blue and still metal; the cushion as it was
+  const gold = starterShape("chair"), painted = starterShape("chair", "#2040a0");
+  assert.equal(painted.p.length, gold.p.length);
+  const metal = FINISHES.findIndex((f) => f.name === "metal");
+  let frame = 0;
+  for (let v = 0; v < gold.m.length; v++) {
+    if (gold.c[3 * v] !== COLOURS.gold[0] || gold.c[3 * v + 2] !== COLOURS.gold[2]) continue;
+    frame++;
+    assert.equal(painted.m[v], metal);
+    near(painted.c[3 * v + 2], 160 / 255, 1e-6, "blue");
+  }
+  assert.ok(frame > 50, "the chair has a gold frame");
 });

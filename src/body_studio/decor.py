@@ -411,9 +411,10 @@ def clean_layouts(d) -> dict:
             if p.get("lift"):
                 q["lift"] = round(_num(p["lift"], 0, 5, "lift"), 3)
             if p.get("colour") is not None:
-                if p["colour"] not in COLOURS:
+                c = str(p["colour"]).lower()
+                if c not in COLOURS and not re.fullmatch(r"#[0-9a-f]{6}", c):
                     raise DecorError("no such colour", "bad_request")
-                q["colour"] = p["colour"]
+                q["colour"] = c
             placed.append(q)
         out.append({"name": clean_name(lay.get("name") or "Layout"), "items": placed})
     cur = d.get("current", 0)

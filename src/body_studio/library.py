@@ -51,7 +51,8 @@ def _runs(data_dir: Path):
 
 SAMPLE = "_sample_room"           # the drawn living room (sample_room.py): listed last, never a body
 STUDIO = "_sample_studio"         # the drawn tattoo studio (sample_studio.py): after it
-SAMPLES = (SAMPLE, STUDIO)
+VENUE = "_sample_venue"           # the drawn wedding venue (sample_venue.py): after that
+SAMPLES = (SAMPLE, STUDIO, VENUE)
 
 
 def rooms(data_dir: Path) -> list[dict]:

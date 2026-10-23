@@ -22,7 +22,10 @@ room**:
   photo can't tell its size), **Make it in 3D**. It shows as "making…" until it is ready, a minute
   or two later; a thing that failed says why, and a tap tries again.
 - **The thing picked** (tap it in the room, or the one just added): drag it along the floor, **Turn**
-  (or `[` and `]`), a **colour** for the starters, its **real height** for a thing made from a
+  (or `[` and `]`), a **colour** for the starters (the last swatch is your own: a colour picker
+  with **HEX** and **RGB** fields; a whole "201, 164, 106" pasted in one field fills the three;
+  kept as `#rrggbb`, and a piece in your colour keeps its finish: a brass chair painted blue is
+  still metal), its **real height** for a thing made from a
   photo, **Make a row** of 2–12 side by side, **Chairs round it** for a table (round: on a circle,
   facing the middle; long: along both sides, then the ends; the chair last put down, in its
   colour), **Set the table** (a place setting in front of each chair or bench seat at it, just
@@ -33,7 +36,10 @@ room**:
 - **Handles** on the picked thing, like the body's joints: a ring on the floor round it, with a
   knob where its front faces (drag: turn, in 15° steps, Shift for any angle), and a knob on a stalk
   over it (drag: raise or lower, 0–5 m; **Raised** in the panel does the same). Drag the thing
-  itself to move it. The handles are drawn over everything, so the thing never hides them. A small
+  itself to move it. The handles are drawn over everything, so the thing never hides them, and
+  are found on the screen (within 24 px of a knob, 12 px of the ring), not by what the pointer's
+  ray touches; the pointer shows a hand over a thing or the ring's knob, up and down arrows over
+  the lift knob, and the knob under it grows. A small
   toolbar floats just above it: turn a step left or right, **Duplicate** (a copy beside it),
   remove.
 - **Layout** (in **In the room**): several arrangements per room (**New**, **Copy**, **Delete**),
@@ -163,7 +169,8 @@ on}`), `POST /api/decor/<id>/retry`, `DELETE /api/decor/<id>`, `GET`/`POST
 
 ## A venue
 
-A venue is filmed like a room (Room → **Add a room…**), with the same advice: walk slowly, phone at
+Before filming one, the **Sample wedding venue** in the Room menu is a big place to try
+([room.md](room.md#the-sample-wedding-venue)). A venue is filmed like a room (Room → **Add a room…**), with the same advice: walk slowly, phone at
 chest height, pointing at the walls. Today the app maps one video, so for a big venue film the part
 you are decorating in one take. Next steps for venues: several overlapping videos joined into one,
 a "this distance is X m" tool for the scale (decor needs it closer than the camera height guess),

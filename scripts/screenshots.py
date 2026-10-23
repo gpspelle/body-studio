@@ -40,6 +40,7 @@ SHOTS = [  # name, width, height, colour scheme, language, panel open
     ("menu-desktop", 1280, 800, "light", "en", "menu"),
     ("room-desktop", 1280, 800, "light", "en", "room"),
     ("decor-desktop", 1280, 800, "light", "en", "decor"),
+    ("venue-desktop", 1280, 800, "light", "en", "venue"),
     ("studio-desktop", 1280, 800, "light", "en", "studio"),
     ("loading-desktop", 1280, 800, "light", "en", "loading"),
 ]
@@ -101,6 +102,7 @@ def main() -> None:
         seed_person(data)
         sample_room.ensure(data.root)                   # the sample living room, for the room shot
         sample_room.ensure(data.root, library.STUDIO)   # and the tattoo studio
+        sample_room.ensure(data.root, library.VENUE)    # and the wedding venue
         httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
         url = f"http://127.0.0.1:{httpd.server_address[1]}/"
@@ -110,7 +112,7 @@ def main() -> None:
             for name, w, h, scheme, lang, panel in SHOTS:
                 if sys.argv[1:] and name not in sys.argv[1:]:
                     continue
-                page = browser.new_page(viewport={"width": w, "height": h}, color_scheme=scheme)
+                page = browser.new_page(viewport={"width": w, "height": h}, color_scheme=scheme, device_scale_factor=float(os.environ.get("DPR", "1")))
                 page.add_init_script(f"localStorage.setItem('lang', '{lang}')")
                 # no mode at first, just the body (on a computer it opens on the clothes the first time):
                 # each scene puts the page in its mode
@@ -133,6 +135,8 @@ def main() -> None:
                     decor_scene(page)
                 if panel == "studio":
                     studio_scene(page)
+                if panel == "venue":
+                    venue_scene(page)
                 if panel == "guide":
                     page.click("#menuBtn")
                     page.click("#guideBtn")
@@ -268,7 +272,7 @@ def room_scene(page) -> None:
 def decor_scene(page) -> None:
     """Mia dressed in the sample living room set for a wedding dinner: a round table with cross-back
     chairs round it, set, a centrepiece and candles on it, string lights over it, a flower stand
-    behind, the Decor panel open on the catalogue of things for the table, the table picked with its handles
+    behind, the Decor panel open on the catalogue of things for the table, the table picked with its handles, its colour picker
     and its toolbar."""
     dress(page)
     page.evaluate("modes.show('rooms')")
@@ -295,6 +299,7 @@ def decor_scene(page) -> None:
         await put("flower_stand", -0.9, 0.6);
         decor.tab("add"); decor.shelf("table");
         decor.pick(t);
+        document.getElementById("decorOwn").click();          // its colour picker open (HEX, RGB)
         // the camera in front of her, a little to the table's side, at eye height
         const V = bodyApp.viewer, C = V.controls.target;
         const xyz = (xz, y) => [xz[0], y, xz[1]];
@@ -306,6 +311,39 @@ def decor_scene(page) -> None:
     page.wait_for_function("decor.drawn() >= 18 && !decor.saving", timeout=300000)
     # the catalogue's pictures and the picked one's, all made
     page.wait_for_function("[...document.querySelectorAll('#decor .pic')].every((p) => p.querySelector('img'))", timeout=600000)
+    settle(page)
+
+
+def venue_scene(page) -> None:
+    """The sample wedding venue in first person: from the hall's middle down its length to the glass
+    doors and the garden, three round tables set for dinner with chairs round them."""
+    dress(page)
+    page.evaluate("modes.show('rooms')")
+    page.evaluate("house.choose(house.rooms().find((r) => r.name === '_sample_venue').file)")
+    page.wait_for_function("house.shown() && decor.group()", timeout=600000)
+    page.click("#decorBtn")
+    page.evaluate("""(async () => {
+        // (the venue's metres -> the map's: x along, z across the other way)
+        const at = (x, z) => [x, -z];
+        const w = tattooStudio.walker(), P = house.placement(), o = tattooStudio.rig().frame.origin;
+        const b = P.toBody([4.2, 0, -4.4]);
+        w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; tattooStudio.redraw();
+        for (const [x, z] of [[9.0, 3.0], [9.0, 6.6], [13.2, 4.8]]) {
+          await decor.add("round_table"); const t = decor.placed().length - 1;
+          decor.move(t, ...at(x, z));
+          decor.pick(t);
+          document.getElementById("decorRowN").value = "6"; document.getElementById("decorAround").click();
+          decor.pick(t); document.getElementById("decorSet").click();
+          await decor.add("centrepiece"); decor.move(decor.placed().length - 1, ...at(x, z));
+        }
+        decor.pick(-1); document.getElementById("closeDecor").click();
+        // looking down the hall (along the map's x), a little down
+        house.firstPerson(true);
+        const a = w.facing(), d = P.wayToBody([1, 0]), u = w.up;
+        const dot = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
+        const cross = [a[1] * d[2] - a[2] * d[1], a[2] * d[0] - a[0] * d[2], a[0] * d[1] - a[1] * d[0]];
+        house.look(Math.atan2(dot(cross, u), dot(a, d)), -0.1); })()""")
+    page.wait_for_function("decor.drawn() >= 3 * 14 && !decor.saving", timeout=300000)
     settle(page)
 
 

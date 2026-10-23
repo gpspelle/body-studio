@@ -219,3 +219,10 @@
   and a room has the Room and Decor buttons and changes nothing worn or inked. The mode is kept in
   the browser. The sample rooms' listing is retried until they are made, and their making is
   logged in `sample_rooms.log` in the data folder.
+- Rooms: **First person** (or **V**) shows the room through the body's eyes; drag to look round,
+  **W A S D** walk the way you look. A sample wedding venue (`workspace/_sample_venue/`), laid out
+  as the Casa Arandella floor plan: reception, ante-room, a 17.8 m hall, the stage, a pergola and a
+  garden with a bungalow, 80 m long, mapped when it is made. Long places get finer map cells.
+- Decor: your own colour for a piece (the last swatch: a colour picker, **HEX** and **RGB**), kept
+  in the layout as `#rrggbb`. The handles answer the pointer from further (measured on the
+  screen), the pointer shows a hand over a piece or a handle, and the knob under it grows.

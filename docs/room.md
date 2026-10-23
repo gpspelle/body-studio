@@ -82,6 +82,33 @@ wall of cork, a mirror, a counter and a neon sign, in
 turns it into the map's metres (`fixtures` in the map), and the page uses it to hang designs on the
 flash wall and to put the body on the bed or in the chair. What happens there: [tattoo.md](tattoo.md#the-tattoo-studio).
 
+## The sample wedding venue
+
+Third in the menu: **Sample wedding venue** (`sample_venue.py`), laid out as the floor plan of a
+real venue (Casa Arandella, São Sebastião), with the plan's measures (it isn't drawn to scale):
+the deck and the reception (6 × 4 m), the vertical garden (4.5 m, a wall of leaves), the
+ante-room (9.3 m) with the closed kitchen beside it, the main hall (17.8 × 8.6 m, 1.5 m narrower
+for its first 5 m, light oak boards, panelled walls, five tall steel windows, beams and three brass
+chandeliers), a half wall to the toilets' hall, glass doors onto the pergola (10.8 × 7.4 m, oak
+beams and slats with vines, a herringbone brick floor), the stage beside it (8.6 × 3.2 m, 70 cm
+up, not walked on), and the garden (17.8 m wide, 20 m along the right and 30 m along the left: a
+striped lawn, hedges, olive trees, a gravel path to the gate in its slanted far side, the
+bungalow). 80 m from the door to the gate, about 720,000 splats (40 MB) a little bigger and
+further apart than the living room's. It is mapped when it is made (about 20 s, in the same
+background process), so the page doesn't wait; its map cells are about 10 cm (a long place gets as
+many cells as a square one of the same floor area, up to four times as many along its length).
+Ceilings are 3.4 m; the garden and the vertical garden are open to the sky. See it in **First
+person** (V) for its size.
+
+## First person
+
+**First person** in the top bar (or **V**), in a room: the camera at the body's eyes (between
+the head joint and the top of the head, 7% of the height in front of the face, so the head stays
+behind it). Drag to look round (the room held and pulled, as the orbit does; a full width is half
+a turn; the tilt stops at 80°); **W A S D** walk the way it looks. The body turns as it walks, the
+look doesn't. The orbit is off meanwhile; **Third person** (or V) puts the camera behind the body
+again (`view()`). The maths is `eyeView` and `lookBy` in `static/room.js`.
+
 ## Filming a room
 
 - Walk slowly round the room, the phone at chest height, pointing at the walls; turn slowly. Get

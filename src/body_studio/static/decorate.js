@@ -7,7 +7,7 @@
 import * as THREE from "three";
 import { geometry, materials, picture, shadow } from "/static/decorlook.js";
 import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
-         bounds, setTable, standY, starterShape, turnToward, unpack, wrap } from "/static/decor.js";
+         bounds, fromHex, fromRgb, hexOf, setTable, standY, starterShape, toHex, turnToward, unpack, wrap } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -145,14 +145,22 @@ function picFor(id, colour) {
   return span;
 }
 // made by a worker (decorpics.js) where the browser can; else here, between frames
-let painter = null, flying = null;
+// (a worker that doesn't answer within a few seconds, as when its graphics stall, is let go: the
+// rest are made here)
+let painter = null, flying = null, late = 0;
+const PAINTER_MS = 15000;
+function letGo() {
+  painter?.terminate(); painter = null; clearTimeout(late);
+  if (flying) wanted.unshift(flying);
+  flying = null; picking = false; pump();
+}
 try {
   painter = new Worker("/static/decorpics.js", { type: "module" });
   painter.onmessage = ({ data: { key, blob } }) => shown(key, blob && URL.createObjectURL(blob));
-  painter.onerror = (e) => { e.preventDefault(); painter = null; if (flying) wanted.unshift(flying); picking = false; pump(); };
+  painter.onerror = (e) => { e.preventDefault(); letGo(); };
 } catch { painter = null; }
 function shown(key, url) {
-  flying = null;
+  flying = null; clearTimeout(late);
   if (url) {
     pics.set(key, url);
     for (const el of document.querySelectorAll(`[data-pic="${key}"]`)) {
@@ -167,7 +175,7 @@ function pump() {
   if (picking || !wanted.length || $("decor").hidden) return;
   picking = true;
   const key = wanted.shift(), [id, colour] = key.split("|");
-  if (painter && STARTERS[id]) { flying = key; painter.postMessage({ key, id, colour }); return; }
+  if (painter && STARTERS[id]) { flying = key; late = setTimeout(letGo, PAINTER_MS); painter.postMessage({ key, id, colour }); return; }
   requestAnimationFrame(() => setTimeout(() => {
     let url = null;
     try {
@@ -338,7 +346,12 @@ function pick(k) {
     $("decorLift").value = String(Math.round((p.lift || 0) * 100));
     $("decorLiftOut").textContent = $("decorLift").value + " cm";
     $("decorColours").hidden = !d.starter;
-    for (const b of $("decorColours").children) b.classList.toggle("on", b.dataset.colour === (p.colour || STARTERS[p.item]?.colour));
+    const colour = p.colour || STARTERS[p.item]?.colour, own = !!fromHex(colour);
+    for (const b of $("decorColours").children) b.classList.toggle("on", own ? b.id === "decorOwn" : b.dataset.colour === colour);
+    $("decorOwn").style.setProperty("--swatch", own ? colour : "");
+    $("decorOwn").classList.toggle("set", own);
+    if (!d.starter) $("decorMix").hidden = true;
+    mixer();
     const table = d.top !== undefined && d.size && p.item.endsWith("table");
     $("decorAround").hidden = !table;
     $("decorSet").hidden = !table;
@@ -362,16 +375,63 @@ $("decorLift").oninput = (e) => {
 };
 
 function colourChips() {
-  $("decorColours").replaceChildren(...Object.keys(COLOURS).map((c) => {
+  const named = Object.keys(COLOURS).map((c) => {
     const b = document.createElement("button");
     b.dataset.colour = c; b.title = t("decor.colour." + c);
     b.setAttribute("aria-label", t("decor.colour." + c));
     b.style.setProperty("--swatch", "#" + new THREE.Color(...COLOURS[c]).getHexString());
-    b.onclick = () => { const p = placed()[sel]; if (!p) return; p.colour = c; pick(sel); changed(); };
+    b.onclick = () => { $("decorMix").hidden = true; setColour(c, true); };
     return b;
-  }));
+  });
+  // your own colour: the mixer under the swatches (a colour wheel, HEX, RGB)
+  const mine = document.createElement("button");
+  mine.id = "decorOwn"; mine.className = "own"; mine.title = t("decor.own");
+  mine.setAttribute("aria-label", t("decor.own")); mine.setAttribute("aria-expanded", "false");
+  mine.onclick = () => { $("decorMix").hidden = !$("decorMix").hidden; mixer(); };
+  $("decorColours").replaceChildren(...named, mine);
 }
 colourChips();
+
+// the picked thing's colour: a name or "#rrggbb"; `done` once the choice is made (a swatch, the end
+// of a drag on the wheel, Enter in a field), else it is only drawn
+function setColour(c, done) {
+  const p = placed()[sel];
+  if (!p || !c) return;
+  p.colour = c;
+  if (done) { pick(sel); changed(); } else draw();
+}
+// the mixer shows the picked thing's colour
+function mixer() {
+  const p = placed()[sel];
+  $("decorOwn").setAttribute("aria-expanded", String(!$("decorMix").hidden));
+  if (!p) return;
+  const hex = hexOf(p.colour, STARTERS[p.item]?.colour), rgb = fromHex(hex);
+  $("decorWheel").value = hex;
+  if (document.activeElement !== $("decorHex")) $("decorHex").value = hex;
+  ["decorR", "decorG", "decorB"].forEach((id, k) => { if (document.activeElement !== $(id)) $(id).value = String(rgb[k]); });
+  $("decorHex").classList.remove("bad");
+}
+$("decorWheel").oninput = (e) => { setColour(e.target.value, false); mixer(); };
+$("decorWheel").onchange = (e) => { setColour(e.target.value, true); mixer(); };
+$("decorHex").oninput = (e) => {
+  const rgb = fromHex(e.target.value);
+  e.target.classList.toggle("bad", !rgb && e.target.value.trim().length >= 4);
+  if (rgb && e.target.value.replace("#", "").length === 6) { setColour(toHex(rgb), false); mixer(); }
+};
+$("decorHex").onchange = (e) => { const rgb = fromHex(e.target.value); if (rgb) setColour(toHex(rgb), true); mixer(); };
+for (const id of ["decorR", "decorG", "decorB"]) {
+  const now = () => toHex(["decorR", "decorG", "decorB"].map((k) => +$(k).value));
+  $(id).oninput = () => { setColour(now(), false); mixer(); };
+  $(id).onchange = () => { setColour(now(), true); mixer(); };
+  // a whole "201, 164, 106" pasted in one field fills the three
+  $(id).addEventListener("paste", (e) => {
+    const rgb = fromRgb(e.clipboardData?.getData("text"));
+    if (!rgb) return;
+    e.preventDefault();
+    ["decorR", "decorG", "decorB"].forEach((k, j) => { $(k).value = String(rgb[j]); });
+    setColour(toHex(rgb), true); mixer();
+  });
+}
 
 $("decorTurn").oninput = (e) => {
   const p = placed()[sel];
@@ -462,8 +522,18 @@ function geomFor(p) {
     g = geometry(m.shape);
   }
   geoms.set(key, g);
+  // (colours of your own come and go as the wheel turns: only the last few are kept)
+  if (fromHex(p.colour)) {
+    mixed.push(key);
+    while (mixed.length > 16) {
+      const old = mixed.shift();
+      if (mixed.includes(old) || placed().some((q) => q.item + "|" + q.colour === old)) continue;
+      geoms.get(old)?.dispose(); geoms.delete(old);
+    }
+  }
   return g;
 }
+const mixed = [];
 
 // one material per finish (decorlook.js), made once the renderer is there
 let MATS = null;
@@ -617,12 +687,46 @@ function hit(e) {
   return h ? h.object.userData.index : -1;
 }
 // the handle under the pointer: "turn" (the ring or its knob), "lift", or null
+// The handle under the pointer, measured on the screen (as the body's joints are): a knob within
+// KNOB_PX of its centre, else the ring within RING_PX of its line; the lift knob wins.
+const KNOB_PX = 24, RING_PX = 12;
 function handleAt(e) {
   if (!gizmo || !gizmo.visible) return null;
-  aim(e);
-  const h = ray.intersectObject(gizmo, true)[0];
-  return h ? (h.object.userData.handle === "ring" ? "turn" : h.object.userData.handle) : null;
+  const r = V.canvas.getBoundingClientRect(), v = new THREE.Vector3();
+  const screen = (o) => { v.copy(o).project(V.camera); return v.z > 1 ? null : [(v.x + 1) / 2 * r.width + r.left, (1 - v.y) / 2 * r.height + r.top]; };
+  const near = (q, px) => q && Math.hypot(q[0] - e.clientX, q[1] - e.clientY) < px;
+  gizmo.updateMatrixWorld(true);
+  for (const name of ["lift", "turn"]) if (near(screen(gizmo.getObjectByName(name).getWorldPosition(new THREE.Vector3())), KNOB_PX)) return name;
+  const ring = gizmo.getObjectByName("ring");
+  let a = null;
+  for (let k = 0; k <= 64; k++) {
+    const t = k / 64 * 2 * Math.PI, b = screen(ring.localToWorld(new THREE.Vector3(Math.cos(t), Math.sin(t), 0)));
+    if (a && b) {
+      const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy || 1;
+      const u = Math.max(0, Math.min(1, ((e.clientX - a[0]) * dx + (e.clientY - a[1]) * dy) / l));
+      if (Math.hypot(a[0] + u * dx - e.clientX, a[1] + u * dy - e.clientY) < RING_PX) return "turn";
+    }
+    a = b && [...b];
+  }
+  return null;
 }
+// what the pointer shows over the room while Decor is open: a hand over a thing or a handle
+let hoverAt = null;
+function hover() {
+  const e = hoverAt;
+  hoverAt = null;
+  if (!e || drag) return;
+  const on = group && !$("decor").hidden && e.target === V.canvas;
+  const h = on && handleAt(e);
+  const cursor = !on ? "" : h === "lift" ? "ns-resize" : h ? "grab" : hit(e) >= 0 ? "grab" : "";
+  if (V.canvas.style.cursor !== cursor) V.canvas.style.cursor = cursor;
+  if (gizmo) for (const name of ["lift", "turn"]) gizmo.getObjectByName(name).scale.setScalar(h === name ? 1.25 : 1);
+}
+addEventListener("pointermove", (e) => {
+  if (drag || e.pointerType === "touch") return;
+  if (!hoverAt) requestAnimationFrame(hover);
+  hoverAt = e;
+});
 // the pointer's ray in the map's metres
 function rayInMap(e) {
   aim(e);
@@ -649,6 +753,7 @@ addEventListener("pointerdown", (e) => {
     drag = { k: sel, handle, base, off: y === null ? 0 : y - (p.lift || 0) };
     e.stopImmediatePropagation(); e.preventDefault();
     V.controls.enabled = false;
+    V.canvas.style.cursor = handle === "turn" ? "grabbing" : "ns-resize";
     V.canvas.setPointerCapture?.(e.pointerId);
     return;
   }
@@ -659,6 +764,7 @@ addEventListener("pointerdown", (e) => {
   drag = { k, off: at ? [p.x - at[0], p.z - at[1]] : [0, 0], y: p.y || 0 };
   e.stopImmediatePropagation(); e.preventDefault();
   V.controls.enabled = false;
+  V.canvas.style.cursor = "grabbing";
   V.canvas.setPointerCapture?.(e.pointerId);
 }, { capture: true });
 addEventListener("pointermove", (e) => {
@@ -695,6 +801,7 @@ function up() {
   drag = null;
   if (handle) pick(sel);
   V.controls.enabled = true;
+  V.canvas.style.cursor = "";
   changed();
 }
 addEventListener("pointerup", up, { capture: true });

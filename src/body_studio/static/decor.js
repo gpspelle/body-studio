@@ -847,7 +847,47 @@ export const GROUPS = ["tables", "table", "ceremony", "bar", "lights", "lounge"]
 export function starterShape(id, colour) {
   const def = STARTERS[id];
   if (!def) throw new Error("no such starter " + id);
-  return def.make(COLOURS[colour] || COLOURS[def.colour]);
+  return def.make(colourOf(colour, def.colour));
+}
+
+// ---------------------------------------------------------------- colours of your own
+// A colour is a name in COLOURS or "#rrggbb" (from the panel's picker, or typed as HEX or RGB).
+// One of your own keeps the finish of the starter's own colour (a gold chair painted blue is still
+// metal), so it gets its own array, registered once.
+const own = new Map();                             // "#rrggbb|default name" -> [r, g, b]
+export function colourOf(colour, fallback) {
+  if (COLOURS[colour]) return COLOURS[colour];
+  const base = COLOURS[fallback] || COLOURS.white, rgb = fromHex(colour);
+  if (!rgb) return base;
+  const key = colour.toLowerCase() + "|" + fallback;
+  if (!own.has(key)) {
+    const col = rgb.map((v) => v / 255);
+    if (finishes.has(base)) finishes.set(col, finishes.get(base));
+    own.set(key, col);
+  }
+  return own.get(key);
+}
+// "#c9a46a", "c9a46a" or "#fa0" -> [201, 164, 106] (0..255), else null
+export function fromHex(text) {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(text ?? "").trim());
+  if (!m) return null;
+  const h = m[1].length === 3 ? [...m[1]].map((c) => c + c).join("") : m[1];
+  return [0, 2, 4].map((k) => parseInt(h.slice(k, k + 2), 16));
+}
+// [201, 164, 106] -> "#c9a46a" (each rounded and kept within 0..255)
+export function toHex(rgb) {
+  return "#" + rgb.map((v) => Math.max(0, Math.min(255, Math.round(+v || 0))).toString(16).padStart(2, "0")).join("");
+}
+// "201, 164, 106", "rgb(201 164 106)" or "201;164;106" -> [201, 164, 106], else null
+export function fromRgb(text) {
+  const n = String(text ?? "").replace(/^\s*rgba?\s*\(|\)\s*$/gi, "").split(/[\s,;]+/).filter(Boolean);
+  if (n.length !== 3 || n.some((v) => !/^\d{1,3}$/.test(v) || +v > 255)) return null;
+  return n.map(Number);
+}
+// any colour the panel shows -> "#rrggbb"
+export function hexOf(colour, fallback) {
+  const rgb = fromHex(colour);
+  return rgb ? toHex(rgb) : toHex(colourOf(colour, fallback).map((v) => v * 255));
 }
 
 // ---------------------------------------------------------------- meshes made from photos

@@ -210,7 +210,9 @@ terminal. PyTorch is only needed for this. Results so far: [docs/anny.md](docs/a
 Film a room, or your whole house, from inside it, and the body stands in it: to its own scale, on
 its floor. Walk it round with **W A S D**: walls and furniture stop it (it slides along them).
 Press **F** next to the sofa or a chair to sit down, or next to a wall to lean on it; **F** again
-gets up. The camera stays inside the room.
+gets up. The camera stays inside the room. **First person** at the top (or **V**) shows the room
+through the body's eyes: drag to look round, **W A S D** walk the way you look; **Third person**
+(or **V** again) goes back behind the body.
 
 ![The body sitting on the sofa of the sample living room](docs/images/room-desktop.png)
 
@@ -221,6 +223,13 @@ gets up. The camera stays inside the room.
 - **Sample living room** is always in the list, so you can try it before filming anything: a
   furnished room drawn by the app (sofa, armchair, bookshelf, TV, dining table, plant), made in
   the data folder the first time the list opens (`workspace/_sample_room/`).
+- **Sample wedding venue** too, laid out like a real one's floor plan (Casa Arandella): the
+  deck and the reception, a vertical garden, the ante-room, the main hall (17.8 m by 8.6 m, oak
+  floor, panelled walls, tall windows, chandeliers), the stage, a pergola with a brick floor and a
+  garden with olive trees, hedges, a path to the gate and a bungalow; 80 m from the door to the
+  gate, to decorate a big place before filming one (`workspace/_sample_venue/`).
+
+  ![The sample wedding venue in first person: the hall set with round tables, the glass doors to the pergola and the garden](docs/images/venue-desktop.png)
 - **Sample tattoo studio** is there too: a tattoo bed, a reclining chair with arm rests, a flash
   wall of designs and a mirror (`workspace/_sample_studio/`). **Style your tattoos** in the menu
   puts the body in it. Tap a design on the flash wall to
@@ -265,7 +274,8 @@ walk the aisle.
   for any angle), the knob over it to raise or lower it (**Raised** does the same). A small
   toolbar above it turns it a step, duplicates it or removes it.
 - The things look like a furniture shop's: linen, brass, wood and glass in soft studio light,
-  a soft shadow under each, a picture of each in the catalogue. **Turn** (or `[` `]`), a colour, **Make a row** of up to 12, **Chairs
+  a soft shadow under each, a picture of each in the catalogue. **Turn** (or `[` `]`), a colour
+  (or your own: the last swatch opens a colour picker with **HEX** and **RGB**), **Make a row** of up to 12, **Chairs
   round it** for a table, **Set the table** (a place setting in front of each chair), **Remove**
   (or Delete).
 - **Add from a photo…**: a photo of one thing (an Instagram picture is fine), its name and its real
@@ -455,7 +465,9 @@ Resultados até agora (em inglês): [docs/anny.md](docs/anny.md).
 Filme um cômodo, ou a casa toda, por dentro, e o corpo fica nele: na escala certa, no chão dele.
 Ande com **W A S D**: as paredes e os móveis o param (ele desliza ao longo deles). Aperte **F**
 perto do sofá ou de uma cadeira para sentar, ou perto de uma parede para se encostar; **F** de novo
-levanta. A câmera fica dentro do cômodo.
+levanta. A câmera fica dentro do cômodo. **Primeira pessoa**, no alto (ou **V**), mostra o cômodo
+pelos olhos do corpo: arraste para olhar em volta, **W A S D** anda para onde você olha;
+**Terceira pessoa** (ou **V** de novo) volta para trás do corpo.
 
 - Escolha **Cômodos** no menu: o corpo vai para o último cômodo em que esteve (a sala de exemplo da
   primeira vez). **Cômodo**, no alto, abre então a lista dos cômodos já filmados. **Adicionar um cômodo…** recebe o
@@ -465,6 +477,12 @@ levanta. A câmera fica dentro do cômodo.
 - **Sala de exemplo** está sempre na lista, para experimentar antes de filmar qualquer coisa: uma
   sala mobiliada desenhada pelo app (sofá, poltrona, estante, TV, mesa de jantar, planta), criada
   na pasta de dados na primeira vez que a lista abre (`workspace/_sample_room/`).
+- **Espaço de casamento de exemplo** também, com a planta de um espaço de verdade (Casa
+  Arandella): o deck e a recepção, um jardim vertical, a antessala, o salão principal (17,8 m por
+  8,6 m, piso de carvalho, paredes com boiserie, janelas altas, lustres), o palco, um pergolado com
+  piso de tijolo e um jardim com oliveiras, cercas vivas, um caminho até o portão e um bangalô;
+  80 m da porta ao portão, para decorar um lugar grande antes de filmar um
+  (`workspace/_sample_venue/`).
 - **Estúdio de tatuagem de exemplo** também está lá: uma maca, uma cadeira reclinável com apoios
   de braço, uma parede de flash com desenhos e um espelho (`workspace/_sample_studio/`). **Escolher as
   tatuagens**, no menu, coloca o corpo nele. Toque num
@@ -507,7 +525,8 @@ decoração de um casamento: filme o espaço como um cômodo, monte a decoraçã
   para qualquer ângulo) e o botão em cima para erguer ou baixar (**Erguido** faz o mesmo). Uma
   pequena barra em cima dela gira um passo, duplica ou remove.
 - As coisas parecem as de uma loja de móveis: linho, latão, madeira e vidro numa luz suave de
-  estúdio, uma sombra suave embaixo de cada uma, uma foto de cada no catálogo. **Girar** (ou `[` `]`), uma cor, **Fazer uma fileira** de até 12,
+  estúdio, uma sombra suave embaixo de cada uma, uma foto de cada no catálogo. **Girar** (ou `[` `]`), uma cor
+  (ou a sua: a última amostra abre um seletor de cor com **HEX** e **RGB**), **Fazer uma fileira** de até 12,
   **Cadeiras em volta** de uma mesa, **Pôr a mesa** (um lugar posto na frente de cada cadeira),
   **Remover** (ou Delete).
 - **Adicionar de uma foto…**: uma foto de uma coisa só (uma foto do Instagram serve), o nome e a

@@ -114,12 +114,13 @@ class Server(unittest.TestCase):
             time.sleep(0.05)
         self.assertEqual((jobs[0]["status"], jobs[0]["kind"]), ("done", "room"))
         self.assertEqual(json.loads(self.get("/api/bodies")[1]), [])
-        for _ in range(900):                            # the sample rooms are made in another process
+        for _ in range(1800):                           # the sample rooms are made in another process
             rooms = json.loads(self.get("/api/rooms")[1])
-            if len(rooms) > 2:
+            if len(rooms) > 3:
                 break
             time.sleep(0.1)
-        self.assertEqual([(r["name"], r["sample"]) for r in rooms], [("Living_room", False), ("_sample_room", True), ("_sample_studio", True)])
+        self.assertEqual([(r["name"], r["sample"]) for r in rooms],
+                         [("Living_room", False), ("_sample_room", True), ("_sample_studio", True), ("_sample_venue", True)])
         self.assertEqual(self.post("/api/upload?name=house.zip&kind=room", b"PK")[0], 201)   # an iPhone capture
         self.assertEqual(self.post("/api/upload?name=house.zip", b"PK")[0], 400)             # but not a body
 

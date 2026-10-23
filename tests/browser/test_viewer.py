@@ -44,6 +44,7 @@ class Viewer(unittest.TestCase):
         library.mark_room(data.root, "Living_room")
         sample_room.ensure(data.root)       # made before the page opens, so it isn't made while tests run
         sample_room.ensure(data.root, library.STUDIO)
+        sample_room.ensure(data.root, library.VENUE)
         cls.design = Path(cls.tmp.name) / "design.png"
         cls.design.write_bytes(arrow_png())
         # decor from a photo: tests/fakes/photo3d.py stands in for TripoSR
@@ -409,6 +410,33 @@ class Viewer(unittest.TestCase):
         self.assertIsNone(page.evaluate("tattooStudio.walker().resting"))
         page.evaluate("tattooStudio.stepFor(3)")
         self.assertIsNone(page.evaluate("tattooStudio.walker().rest"))
+        # first person: V puts the camera at her eyes; a drag looks round; W walks the way it looks;
+        # V again, and the camera is behind her again
+        page.keyboard.press("v")
+        self.assertIsNotNone(page.evaluate("house.firstPerson()"))
+        self.assertEqual(page.locator("#eyeBtn").get_attribute("aria-pressed"), "true")
+        eyes = """(() => { const V = bodyApp.viewer, c = V.camera.position;
+            return c.distanceTo(V.holder.localToWorld(c.clone().set(...tattooStudio.joint('head')))); })()"""
+        page.wait_for_function(eyes + " < 0.3")
+        yaw = page.evaluate("house.firstPerson().yaw")
+        page.mouse.move(480, 300)
+        page.mouse.down()
+        page.mouse.move(380, 300, steps=4)
+        page.mouse.up()
+        self.assertLess(page.evaluate("house.firstPerson().yaw"), yaw - 0.1, "dragged left, the look turns right")
+        page.wait_for_function(f"Math.abs(house.firstPerson().yaw - {yaw}) > 0.1 && " + eyes + " < 0.3")
+        # (she turns to the way it looks as she walks: where she then goes depends on the furniture)
+        way = page.evaluate("""(() => { const V = bodyApp.viewer, w = tattooStudio.walker();
+            const d = V.camera.getWorldDirection(V.camera.position.clone()).applyQuaternion(V.holder.quaternion.clone().invert());
+            tattooStudio.walkFor(0.8, 'f');
+            const f = w.facing(), u = w.up, k = d.x * u[0] + d.y * u[1] + d.z * u[2];
+            const a = [d.x - k * u[0], d.y - k * u[1], d.z - k * u[2]];
+            return (a[0] * f[0] + a[1] * f[1] + a[2] * f[2]) / (Math.hypot(...a) * Math.hypot(...f)); })()""")
+        self.assertGreater(way, 0.9, "she walks the way the camera looks")
+        page.click("#eyeBtn")
+        self.assertIsNone(page.evaluate("house.firstPerson()"))
+        page.wait_for_function(eyes + " > 0.6")
+        page.evaluate("tattooStudio.stepFor(2)")
         # no room: she stands on the plain floor again, walls gone
         page.click("#roomBtn")
         page.locator("#roomList button").first.click()
@@ -537,6 +565,24 @@ class Viewer(unittest.TestCase):
         self.assertLess(dist([chair["x"], chair["z"]], page.evaluate("house.where()")), 6)
         page.locator("#decorColours button[data-colour=wood]").click()
         self.assertEqual(page.evaluate("decor.placed()[0].colour"), "wood")
+        # a colour of your own: typed as HEX, then as RGB; the mixer and the swatch follow
+        page.click("#decorOwn")
+        self.assertTrue(page.locator("#decorMix").is_visible())
+        page.fill("#decorHex", "#2E5E4E")
+        page.press("#decorHex", "Enter")
+        self.assertEqual(page.evaluate("decor.placed()[0].colour"), "#2e5e4e")
+        self.assertEqual([page.input_value(f"#decor{c}") for c in "RGB"], ["46", "94", "78"])
+        self.assertEqual(page.input_value("#decorWheel"), "#2e5e4e")
+        self.assertIn("on", page.get_attribute("#decorOwn", "class"))
+        page.fill("#decorR", "200")
+        page.press("#decorR", "Tab")
+        self.assertEqual(page.evaluate("decor.placed()[0].colour"), "#c85e4e")
+        self.assertEqual(page.input_value("#decorHex"), "#c85e4e")
+        page.fill("#decorHex", "#nothex")
+        page.press("#decorHex", "Enter")
+        self.assertEqual(page.evaluate("decor.placed()[0].colour"), "#c85e4e", "not a colour: kept as it was")
+        page.locator("#decorColours button[data-colour=wood]").click()
+        self.assertTrue(page.locator("#decorMix").is_hidden())
         page.select_option("#decorRowN", "5")
         page.click("#decorRow")
         self.assertEqual(page.evaluate("decor.placed().length"), 5)
@@ -571,7 +617,8 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("decor.handles() !== null")
         h = page.evaluate("decor.handles()")
         y0 = page.evaluate(f"decor.placed()[{k}].y")
-        page.mouse.move(*h["lift"])
+        page.mouse.move(h["lift"][0] + 12, h["lift"][1] + 8)                         # near is enough
+        page.wait_for_function("bodyApp.viewer.canvas.style.cursor === 'ns-resize'")   # the pointer says so
         page.mouse.down()
         page.mouse.move(h["lift"][0], h["lift"][1] - 40, steps=4)
         page.mouse.up()
@@ -603,7 +650,9 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("document.getElementById('decorBar').hidden")
         # the catalogue shows a picture of each thing, made by the page
         page.wait_for_function("document.querySelector('#decorItems .pic img')", timeout=300000)
-        self.assertTrue(page.evaluate("decor.pictures().worker"), "made in a worker, not holding up the page")
+        # all of them, by the worker or, should its graphics stall (as software ones can), by the page
+        page.wait_for_function("[...document.querySelectorAll('#decorItems .pic')].every((p) => p.querySelector('img'))",
+                               timeout=300000)
         # dragged along the floor with the mouse: a thing in view, not under the panel
         page.evaluate("decor.pick(-1); tattooStudio.stepFor(1)")
         at = page.evaluate("""(() => {

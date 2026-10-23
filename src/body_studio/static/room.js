@@ -220,3 +220,32 @@ export class Placement {
     return out;
   }
 }
+
+// ---------------------------------------------------------------- first person
+// Seeing the room through the body's eyes (house.js, V): the eye between the head joint and the top
+// of the head, a little in front of the face so the head stays behind the camera; the look turned
+// `yaw` about up from `ahead` (the way the body faces) and tilted `pitch` up, both in radians.
+// Everything in the body's coordinates; H the body's height. -> { eye, look } (look: 1 H ahead).
+export const EYE = { up: 0.55, ahead: 0.07, pitch: 1.4 };   // of head to top, of H, the most it tilts
+export function eyeView(head, top, ahead, up, yaw, pitch, H) {
+  const u = unit(up), f0 = unit(sub(ahead, scale(u, dot(ahead, u))));
+  const side = cross(u, f0);
+  const f = add(scale(f0, Math.cos(yaw)), scale(side, Math.sin(yaw)));
+  const p = Math.max(-EYE.pitch, Math.min(EYE.pitch, pitch));
+  const dir = add(scale(f, Math.cos(p)), scale(u, Math.sin(p)));
+  const eye = add(add(head, scale(sub(top, head), EYE.up)), scale(f, EYE.ahead * H));
+  return { eye, look: add(eye, scale(dir, H)), dir };
+}
+// a drag of (dx, dy) screen pixels turns the look as if the room were held and pulled (as the
+// orbit does): dragged right, the look turns left; dragged down, it tilts up. A full width is
+// about half a turn. (yaw grows to the left: side = up x ahead.)
+export function lookBy(yaw, pitch, dx, dy, width) {
+  const k = Math.PI / Math.max(1, width);
+  return [yaw + dx * k, Math.max(-EYE.pitch, Math.min(EYE.pitch, pitch + dy * k))];
+}
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const scale = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unit = (a) => { const l = Math.hypot(...a) || 1; return scale(a, 1 / l); };

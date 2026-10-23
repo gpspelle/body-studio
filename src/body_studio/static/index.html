@@ -29,6 +29,7 @@
   <span class="grow"></span>
   <button id="roomBtn" class="btn in-rooms" aria-controls="roomMenu" aria-expanded="false" data-i18n="room.btn"></button>
   <button id="decorBtn" class="btn in-rooms" aria-controls="decor" aria-expanded="false" data-i18n="decor.btn" hidden></button>
+  <button id="eyeBtn" class="btn in-rooms" aria-pressed="false" data-i18n="room.eye" hidden></button>
   <!-- (opened by the menu; the panels' code still listens to them) -->
   <div hidden>
     <button id="studioBtn" aria-controls="studio" aria-expanded="false" hidden></button>
@@ -202,6 +203,11 @@
       <label><span data-i18n="decor.lift"></span><input id="decorLift" type="range" min="0" max="300" step="1"><output id="decorLiftOut"></output></label>
     </div>
     <div class="chips swatches" id="decorColours" role="group" data-i18n-aria-label="decor.colour"></div>
+    <div id="decorMix" class="mix" hidden>
+      <label class="well"><input id="decorWheel" type="color" data-i18n-aria-label="decor.wheel"></label>
+      <label class="hex"><span>HEX</span><input id="decorHex" spellcheck="false" autocomplete="off" maxlength="7"></label>
+      <span class="rgb"><span>RGB</span><input id="decorR" type="number" min="0" max="255" step="1" aria-label="R"><input id="decorG" type="number" min="0" max="255" step="1" aria-label="G"><input id="decorB" type="number" min="0" max="255" step="1" aria-label="B"></span>
+    </div>
     <label id="decorHeightRow" class="inline small"><span data-i18n="decor.height"></span><input id="decorHeight" type="number" inputmode="decimal" min="2" max="600" step="1"></label>
     <div class="repeat">
       <label class="small"><span data-i18n="decor.count"></span>
@@ -267,6 +273,7 @@
       <dt><kbd data-i18n="guide.space"></kbd></dt><dd data-i18n="guide.jump"></dd>
       <dt><kbd>R</kbd></dt><dd data-i18n="guide.back"></dd>
       <dt><kbd>F</kbd></dt><dd data-i18n="guide.rest"></dd>
+      <dt><kbd>V</kbd></dt><dd data-i18n="guide.eye"></dd>
     </dl>
   </section>
   <section>

@@ -61,13 +61,15 @@ class Library(unittest.TestCase):
         touch(self.d / "workspace/living/run_2/splat/standard_30000_clean.ply", 100)
         touch(self.d / f"workspace/{library.STUDIO}/run_sample/splat/tattoo_studio_clean.ply", 300)
         touch(self.d / f"workspace/{library.SAMPLE}/run_sample/splat/living_room_clean.ply", 200)
+        touch(self.d / f"workspace/{library.VENUE}/run_sample/splat/wedding_venue_clean.ply", 250)
         library.mark_room(self.d, "living")
         self.assertEqual([(r["name"], r["sample"]) for r in library.rooms(self.d)],
-                         [("living", False), (library.SAMPLE, True), (library.STUDIO, True)])
+                         [("living", False), (library.SAMPLE, True), (library.STUDIO, True), (library.VENUE, True)])
         (self.d / "rooms.json").unlink()                # even when the list of rooms is lost
         names = [b["name"] for b in library.bodies(self.d)]
         self.assertNotIn(library.SAMPLE, names)
         self.assertNotIn(library.STUDIO, names)
+        self.assertNotIn(library.VENUE, names)
 
     def test_safe_path_stays_inside_workspace(self):
         touch(self.d / "workspace/x/run_1/splat/a.ply", 1)

@@ -5,7 +5,7 @@
 // walls and seats are) is room.py's, the maths room.js's; the walk and the sitting are walk.js's.
 import * as THREE from "three";
 import { SplatMesh } from "@sparkjsdev/spark";
-import { Placement, RoomMap } from "/static/room.js";
+import { Placement, RoomMap, eyeView, lookBy } from "/static/room.js";
 import { v3 } from "/static/pose.js";
 
 const $ = (id) => document.getElementById(id);
@@ -45,7 +45,7 @@ function list() {
   none.onclick = pick(null);
   $("roomList").replaceChildren(none, ...rooms.map((r) => {
     const b = document.createElement("button");
-    b.textContent = r.sample ? t(r.name === "_sample_studio" ? "room.sampleStudio" : "room.sample") : r.name.replace(/_/g, " ");
+    b.textContent = r.sample ? t({ _sample_studio: "room.sampleStudio", _sample_venue: "room.sampleVenue" }[r.name] || "room.sample") : r.name.replace(/_/g, " ");
     b.dataset.file = r.file;
     b.classList.toggle("on", r.file === want);
     b.onclick = pick(r.file);
@@ -165,7 +165,7 @@ function view() {
   }
   if (!best) return false;
   const k = R.P.k;
-  V.camera.near = 0.03 * k; V.camera.far = 60 * k; V.camera.updateProjectionMatrix();
+  V.camera.near = 0.03 * k; V.camera.far = 160 * k; V.camera.updateProjectionMatrix();      // (a venue is 80 m long)
   V.controls.minDistance = 0.4 * k; V.controls.maxDistance = 6 * k;
   V.holder.updateMatrixWorld();
   const target = V.holder.localToWorld(new THREE.Vector3(...R.P.toBody([at[0], body[1] * 0.85, at[1]])));
@@ -269,6 +269,7 @@ V.frameHooks.push((before) => {
   }
   if (!R || !R.P) return;
   if (++hintFrame % 15 === 0) hintNow();
+  if (fp) return;                               // (the eyes are inside already)
   V.holder.updateMatrixWorld();
   const target = V.holder.worldToLocal(V.controls.target.clone()), eye = V.holder.worldToLocal(V.camera.position.clone());
   const tm = R.P.toMap([target.x, target.y, target.z]), em = R.P.toMap([eye.x, eye.y, eye.z]);
@@ -278,6 +279,79 @@ V.frameHooks.push((before) => {
   V.camera.position.lerpVectors(V.controls.target, kept, Math.max(0.12, f - 0.04));
   V.camera.updateMatrixWorld();
 });
+
+// ---------------------------------------------------------------- first person
+// In a room, the room seen through the body's eyes (V, or the eye button): the camera at the eyes,
+// a drag looks round, W A S D walk the way it looks (tattoo.js moveDir takes the camera's way). The
+// orbit is off meanwhile; leaving it, the camera goes back behind the body (view()).
+let fp = null;                                  // { yaw, pitch, drag } while seeing as the body does
+function firstPerson(on) {
+  on = !!on && !!R;
+  if (on === !!fp) return;
+  if (on) {
+    fp = { yaw: 0, pitch: -0.12, drag: null };
+    V.controls.enabled = false; V.controls.autoRotate = false;
+    V.camera.near = 0.02 * (R.P?.k || 1); V.camera.updateProjectionMatrix();
+  } else {
+    fp = null;
+    V.controls.enabled = true;
+    view();
+  }
+  $("eyeBtn").setAttribute("aria-pressed", String(on));
+  $("eyeBtn").textContent = t(on ? "room.eyeOff" : "room.eye");
+  document.body.classList.toggle("first-person", on);
+  dispatchEvent(new Event("viewchange"));
+}
+// the eye and the look now, in the scene
+function eyeNow() {
+  const w = window.tattooStudio?.walker?.(), sk = w && w.sk;
+  if (!fp || !sk) return null;
+  const head = sk.P[sk.index("head")], top = sk.P[sk.index("head_end")] || head;
+  if (!head) return null;
+  const v = eyeView(head, top, w.facing(), w.up, fp.yaw, fp.pitch, w.H);
+  V.holder.updateMatrixWorld();
+  return { eye: V.holder.localToWorld(new THREE.Vector3(...v.eye)), look: V.holder.localToWorld(new THREE.Vector3(...v.look)) };
+}
+V.frameHooks.unshift((before) => {
+  if (!before || !fp) return;
+  const v = eyeNow();
+  if (!v) return;
+  V.camera.position.copy(v.eye);
+  V.controls.target.copy(v.look);
+  V.camera.lookAt(v.look);
+  V.camera.updateMatrixWorld();
+});
+// the body turns where it walks; the look stays where it was looking, so it keeps the yaw
+// measured from the body's way: turned back by as much as the body turned
+let facedWas = null;
+V.frameHooks.push((before) => {
+  const w = window.tattooStudio?.walker?.();
+  if (!before || !fp || !w) { facedWas = null; return; }
+  if (facedWas !== null && w.heading !== facedWas) fp.yaw -= w.heading - facedWas;
+  facedWas = w.heading;
+});
+$("eyeBtn").onclick = () => firstPerson(!fp);
+addEventListener("keydown", (e) => {
+  if (e.code !== "KeyV" || e.metaKey || e.ctrlKey || e.altKey || e.repeat || $("guide").open) return;
+  if (e.target.closest?.("input, textarea, select, [contenteditable]") || !R) return;
+  e.preventDefault();
+  firstPerson(!fp);
+});
+// a drag on the room looks round (what decor or the joints take, they take first)
+addEventListener("pointerdown", (e) => {
+  if (!fp || e.target !== V.canvas || e.button !== 0) return;
+  fp.drag = { x: e.clientX, y: e.clientY, id: e.pointerId };
+  V.canvas.setPointerCapture?.(e.pointerId);
+});
+addEventListener("pointermove", (e) => {
+  if (!fp || !fp.drag || e.pointerId !== fp.drag.id) return;
+  [fp.yaw, fp.pitch] = lookBy(fp.yaw, fp.pitch, e.clientX - fp.drag.x, e.clientY - fp.drag.y, innerWidth);
+  fp.drag.x = e.clientX; fp.drag.y = e.clientY;
+});
+addEventListener("pointerup", () => { if (fp) fp.drag = null; });
+addEventListener("pointercancel", () => { if (fp) fp.drag = null; });
+addEventListener("roomchange", () => { $("eyeBtn").hidden = !R; if (!R) firstPerson(false); });
+addEventListener("langchange", () => { $("eyeBtn").textContent = t(fp ? "room.eyeOff" : "room.eye"); });
 
 // ---------------------------------------------------------------- for tests and scripts
 window.house = {
@@ -302,6 +376,9 @@ window.house = {
   fixtures: () => (R && R.map.fixtures) || null,
   station: (fn) => { station = fn; },
   // whether the camera's view of the body is clear (1) or something is in the way (less)
+  // first person: on or off (firstPerson(on)), and where it looks ({ yaw, pitch } or null)
+  firstPerson: (on) => { if (on !== undefined) firstPerson(on); return fp && { yaw: fp.yaw, pitch: fp.pitch }; },
+  look: (yaw, pitch) => { if (fp) { fp.yaw = yaw; fp.pitch = pitch; } },
   sight: () => {
     if (!R || !R.P) return null;
     const target = V.holder.worldToLocal(V.controls.target.clone()), eye = V.holder.worldToLocal(V.camera.position.clone());

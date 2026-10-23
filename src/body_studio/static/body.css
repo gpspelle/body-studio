@@ -369,6 +369,23 @@ label.btn { display: inline-block; font-size: 13px; }
 #decor .swatches { gap: 8px; margin: 10px 0 4px; }
 .swatches button { width: 22px; height: 22px; padding: 0; border-radius: 50%; background: var(--swatch); border: 1px solid rgba(0, 0, 0, 0.12); }
 .swatches button.on { outline: 1.5px solid var(--ink, var(--text)); outline-offset: 2px; }
+/* your own colour: a colour wheel until one is chosen, then that colour */
+.swatches button.own { background: conic-gradient(from 90deg, #e6a5a1, #e8cf8f, #a9c79a, #94b9cf, #b3a3d1, #e6a5a1); position: relative; }
+.swatches button.own.set { background: var(--swatch); }
+.swatches button.own::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--paper, #fff); opacity: 0.9; }
+.swatches button.own.set::after { display: none; }
+#decor .mix[hidden] { display: none; }
+#decor .mix { display: grid; grid-template-columns: 40px 1fr; grid-template-rows: auto auto; gap: 8px 12px; align-items: center; margin: 10px 0 6px; padding: 12px; background: var(--card); border-radius: 12px; }
+#decor .mix .well { grid-row: span 2; width: 40px; height: 40px; border-radius: 10px; overflow: hidden; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+#decor .mix .well input { width: 64px; height: 64px; margin: -12px; padding: 0; border: 0; cursor: pointer; background: none; }
+#decor .mix .hex, #decor .mix .rgb { display: flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 0.06em; color: var(--soft); }
+#decor .mix .hex > span, #decor .mix .rgb > span { width: 28px; flex: none; }
+#decor .mix input:not([type=color]) { font: 13px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 7px; padding: 6px 7px; min-width: 0; letter-spacing: 0; }
+#decor .mix .hex input { width: 86px; text-transform: lowercase; }
+#decor .mix .rgb input { width: 52px; -moz-appearance: textfield; appearance: textfield; }
+#decor .mix .rgb input::-webkit-inner-spin-button { -webkit-appearance: none; }
+#decor .mix input:focus { outline: none; border-color: var(--ink); }
+#decor .mix input.bad { border-color: var(--bad, #b5523b); }
 #decor .repeat { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 4px; }
 #decor .repeat label { display: flex; align-items: center; gap: 6px; margin-right: 2px; }
 #decor .quiet { display: flex; gap: 16px; margin-top: 8px; }
