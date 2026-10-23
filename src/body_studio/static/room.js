@@ -243,6 +243,17 @@ export function lookBy(yaw, pitch, dx, dy, width) {
   const k = Math.PI / Math.max(1, width);
   return [yaw + dx * k, Math.max(-EYE.pitch, Math.min(EYE.pitch, pitch + dy * k))];
 }
+// From above: the camera high over the body, behind it, looking down at a slant onto it, high
+// enough to take in the room round it; the room's splats over `cut` metres are not drawn (house.js)
+// and the orbit never tips under `polar` from straight down. `at` the body's place [x, z] and
+// `face` its way on the map, `box` the map's size [x, z], in metres. -> { eye, look, height }
+export const SKY = { cut: 2.4, tilt: 0.5, polar: 1.15, low: 6, high: 28, reach: 0.35 };
+export function skyView(at, face, box) {
+  const n = Math.hypot(face[0], face[1]) || 1, f = [face[0] / n, face[1] / n];
+  const height = Math.max(SKY.low, Math.min(SKY.high, SKY.reach * Math.max(box[0], box[1])));
+  const back = height * Math.tan(SKY.tilt);
+  return { eye: [at[0] - f[0] * back, height, at[1] - f[1] * back], look: [at[0], 0, at[1]], height };
+}
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];

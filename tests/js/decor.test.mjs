@@ -330,3 +330,20 @@ test("colours of your own: HEX and RGB in, the starter's finish kept", () => {
   }
   assert.ok(frame > 50, "the chair has a gold frame");
 });
+
+test("the flower shop: many kinds of flowers and ways to show them, each light enough to draw many of", () => {
+  const shop = Object.entries(STARTERS).filter(([, s]) => s.group === "flowers");
+  assert.ok(shop.length >= 15, `${shop.length} in the flower shop`);
+  assert.ok(shop.some(([, s]) => s.on === "top") && shop.some(([, s]) => s.on === "floor") && shop.some(([, s]) => s.hangs),
+            "on tables, on the floor and hung from the roof");
+  for (const [id] of shop) assert.ok(starterShape(id).i.length / 3 < 120000, id + ": few enough triangles");
+  // a tropical bank is many colours, whatever colour it leans on
+  const c = starterShape("tropical_bank").c, hues = new Set();
+  for (let k = 0; k < c.length; k += 3) {
+    const [r, g, b] = [c[k], c[k + 1], c[k + 2]], hi = Math.max(r, g, b), lo = Math.min(r, g, b);
+    if (hi - lo < 0.3) continue;
+    const h = hi === r ? ((g - b) / (hi - lo) + 6) % 6 : hi === g ? (b - r) / (hi - lo) + 2 : (r - g) / (hi - lo) + 4;
+    hues.add(Math.floor(h * 2));              // (twelve hues: red, orange, yellow... apart)
+  }
+  assert.ok(hues.size >= 4, `${hues.size} hues in a tropical bank`);
+});

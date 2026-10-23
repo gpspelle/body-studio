@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Skeleton, q, v3 } from "../../src/body_studio/static/pose.js";
 import { Walker } from "../../src/body_studio/static/walk.js";
-import { Placement, ROOM, RoomMap, EYE, eyeView, lookBy } from "../../src/body_studio/static/room.js";
+import { Placement, ROOM, RoomMap, EYE, SKY, eyeView, lookBy, skyView } from "../../src/body_studio/static/room.js";
 
 const map = JSON.parse(readFileSync(process.env.ROOM_JSON, "utf8"));
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
@@ -207,4 +207,17 @@ test("first person: the eye in front of the face, the look turned and tilted", (
   near(yaw, Math.PI / 2, 1e-9, "a quarter turn for half the width");
   assert.ok(pitch > 0);
   assert.equal(lookBy(0, 1.3, 0, 5000, 1000)[1], EYE.pitch);
+});
+
+test("from above: high over the body and behind it, looking down at it at a slant", () => {
+  const small = skyView([1, 2], [0, 2], [5, 4]), big = skyView([10, 3], [1, 0], [80, 18]);
+  assert.equal(small.height, SKY.low, "a small room: low enough to see the body");
+  assert.equal(big.height, SKY.high, "a long venue: as high as it goes");
+  for (const [v, at, f] of [[small, [1, 2], [0, 1]], [big, [10, 3], [1, 0]]]) {
+    assert.deepEqual(v.look, [at[0], 0, at[1]], "looking at the body's feet");
+    const d = [v.look[0] - v.eye[0], v.look[1] - v.eye[1], v.look[2] - v.eye[2]], n = Math.hypot(...d);
+    assert.ok(Math.abs(Math.acos(-d[1] / n) - SKY.tilt) < 1e-9, "tilted from straight down");
+    assert.ok(d[0] * f[0] + d[2] * f[1] > 0, "from behind: looking the way the body faces");
+  }
+  assert.ok(SKY.polar > SKY.tilt && SKY.polar < Math.PI / 2, "the orbit stays above the floor");
 });

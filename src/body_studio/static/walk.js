@@ -19,19 +19,22 @@ const ease = (x, target, rate, dt) => x + (target - x) * (1 - Math.exp(-rate * d
 // forward as the left heel strikes, and the chest turns against it; the weight shifts over the
 // foot on the floor: both legs lean 2.5 degrees toward it (the left hip in, the right out), so with
 // that foot planted the pelvis moves over it (sway, for the left side: + toward the left).
-export function gait(p) {
-  const c = Math.cos(TAU * p);
+// r: how much of a hurry (0 a walk, 1 the brisk pace Shift asks for): longer steps, the knee
+// lifted higher, the arms swung further, the body leaning into it
+export function gait(p, r = 0) {
+  const c = Math.cos(TAU * p), s = 1 + STRIDE_RUN * r;
   return {
-    hip: 10 + 20 * c,
-    knee: 4 + 12 * bump(p, 0.12, 0.06) + 56 * bump(p, 0.72, 0.1),
+    hip: 10 + 7 * r + 20 * s * c,
+    knee: 4 + 12 * bump(p, 0.12, 0.06) + (56 + 24 * r) * bump(p, 0.72, 0.1),
     ankle: 2 + 9 * bump(p, 0.4, 0.1) - 18 * bump(p, 0.62, 0.06),
-    shoulder: -16 * c,
-    elbow: 18 - 10 * c,
-    pelvis: -5 * c,
-    chest: 10 * c,
+    shoulder: -16 * s * c,
+    elbow: 18 + 30 * r - 10 * s * c,
+    pelvis: -5 * s * c,
+    chest: 10 * s * c,
     sway: 2.5 * Math.sin(TAU * p),
   };
 }
+const STRIDE_RUN = 0.35;
 export const HIP_RANGE = [-10, 30];
 // how much the left foot is on the floor at phase p: from its heel strike (0) to its toe off (0.6)
 export const stance = (p) => {
@@ -49,7 +52,7 @@ const RAISED = {
 
 // sizes in the person's heights (H) and seconds: 1.2 m/s for someone 1.75 m tall, a jump of 35 cm;
 // view: how long (s) the camera takes to catch up with where the feet have carried the body
-export const WALK = { speed: 0.7, accel: 6, turn: 7, gravity: 9.81 / 1.75, jump: 0.2, crouch: 0.22, land: 0.24, view: 0.6 };
+export const WALK = { speed: 0.7, run: 1.9, accel: 6, turn: 7, gravity: 9.81 / 1.75, jump: 0.2, crouch: 0.22, land: 0.24, view: 0.6 };
 
 export class Walker {
   // sk: the Skeleton; rig: its rig (frame, height)
@@ -228,7 +231,7 @@ export class Walker {
 
   // One frame: move is the way to walk (on the floor, in the body's coordinates, length up to 1;
   // null or zero to stop), jump starts a jump. Returns whether the body moved.
-  update(dt, { move = null, jump = false } = {}) {
+  update(dt, { move = null, jump = false, run = false } = {}) {
     dt = Math.min(Math.max(dt, 0), 0.1);
     if (this.rest) return this._resting(dt, !!(move && v3.len(move) > 1e-3) || jump);
     const o = this.o, up = this.up, from = this.pos.slice();
@@ -267,14 +270,17 @@ export class Walker {
       this.heading += turn;
     }
     const grounded = !this.airborne;
-    if (grounded) this.speed = ease(this.speed, want * o.speed, o.accel, dt);
+    if (grounded) this.speed = ease(this.speed, want * o.speed * (run ? o.run : 1), o.accel, dt);
+    // (how much of a hurry: none up to a walk's speed, all at Shift's)
+    const hurry = Math.min(1, Math.max(0, (this.speed / o.speed - 1) / (o.run - 1)));
+    this.hurry = hurry;
     // turning on the spot comes before walking off: little speed while facing away
     const facing = this.facing();
     const along = want > 1e-3 ? Math.max(0, v3.dot(facing, v3.unit(m))) : 1;
     const v = this.speed * (0.35 + 0.65 * along);
     // in the air the body flies on; on the floor it is carried by the foot on the floor (below)
     if (!grounded) this.pos = v3.add(this.pos, v3.scale(facing, v * this.H * dt));
-    if (grounded) this.phase = (this.phase + v * this.H / this.stride * dt) % 1;
+    if (grounded) this.phase = (this.phase + v * this.H / (this.stride * (1 + STRIDE_RUN * hurry)) * dt) % 1;
     this.walking = ease(this.walking, smooth(this.speed / (0.25 * o.speed)), 10, dt);
 
     // the joint angles: the panel's pose, the walk cycle over it, the jump over both
@@ -287,17 +293,17 @@ export class Walker {
     };
     if (w > 1e-4) {
       for (const [s, p] of [["l", this.phase], ["r", (this.phase + 0.5) % 1]]) {
-        const g = gait(p);
+        const g = gait(p, hurry);
         set("hip_" + s, "flex", g.hip); set("hip_" + s, "side", 2); set("hip_" + s, "twist", 0);
         set("knee_" + s, "flex", g.knee); set("knee_" + s, "twist", 0);
         set("ankle_" + s, "flex", g.ankle); set("ankle_" + s, "side", 0);
         set("shoulder_" + s, "flex", g.shoulder); set("shoulder_" + s, "side", this.armSide); set("shoulder_" + s, "twist", 0);
         set("elbow_" + s, "flex", g.elbow);
       }
-      const g = gait(this.phase), pace = Math.min(1, this.speed / o.speed);
+      const g = gait(this.phase, hurry), pace = Math.min(1, this.speed / o.speed);
       set("chest", "twist", g.chest * pace);
       set("pelvis", "twist", g.pelvis * pace);
-      set("spine", "flex", 3 * pace);
+      set("spine", "flex", (3 + 5 * hurry) * pace);
       // the weight over the foot on the floor: both legs lean toward it
       for (const [s, k] of [["l", -1], ["r", 1]]) { const j = sk.index("hip_" + s); if (j >= 0 && A[j]) A[j].side += k * g.sway * w * pace; }
     }

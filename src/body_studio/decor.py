@@ -46,7 +46,8 @@ COLOURS = ("white", "ivory", "gold", "wood", "green", "blush", "black")
 # The page draws these (static/decor.js STARTERS has the same ids, in the same groups). on: "floor",
 # or "top" (stands on a table or anything else with a top). The names are the page's (i18n
 # "decor.item.<id>", "decor.group.<group>"). A wedding first: tables and seating, what goes on the
-# tables, flowers and the ceremony, the bar, lights, a lounge and the dance floor.
+# tables, flowers and the ceremony, the bar, lights, a lounge and the dance floor; then the flower
+# shop.
 STARTERS = (
     {"id": "chair", "group": "tables", "height": 0.9, "on": "floor"},
     {"id": "round_table", "group": "tables", "height": 0.76, "on": "floor"},
@@ -90,6 +91,32 @@ STARTERS = (
     {"id": "coffee_table", "group": "lounge", "height": 0.42, "on": "floor"},
     {"id": "rug", "group": "lounge", "height": 0.01, "on": "floor"},
     {"id": "dance_floor", "group": "lounge", "height": 0.02, "on": "floor"},
+    # the flower shop, and what its flowers stand among (from a beach wedding's photos)
+    {"id": "calla_vase", "group": "flowers", "height": 0.92, "on": "top"},
+    {"id": "gerbera_posy", "group": "flowers", "height": 0.24, "on": "top"},
+    {"id": "baby_breath_bank", "group": "flowers", "height": 0.52, "on": "floor"},
+    {"id": "tropical_bank", "group": "flowers", "height": 0.97, "on": "floor"},
+    {"id": "floral_ring", "group": "flowers", "height": 2.67, "on": "floor"},
+    {"id": "table_garland", "group": "flowers", "height": 0.23, "on": "top"},
+    {"id": "floating_candles", "group": "flowers", "height": 0.36, "on": "top"},
+    {"id": "grass_vase", "group": "flowers", "height": 0.46, "on": "top"},
+    {"id": "orchid_pot", "group": "flowers", "height": 0.62, "on": "top"},
+    {"id": "hydrangea_bowl", "group": "flowers", "height": 0.29, "on": "top"},
+    {"id": "pampas_vase", "group": "flowers", "height": 1.65, "on": "floor"},
+    {"id": "floor_arrangement", "group": "flowers", "height": 0.69, "on": "floor"},
+    {"id": "petals", "group": "flowers", "height": 0.01, "on": "floor"},
+    {"id": "wildflower_jar", "group": "flowers", "height": 0.42, "on": "top"},
+    {"id": "hanging_greenery", "group": "flowers", "height": 2.9, "on": "floor"},
+    {"id": "flower_cloud", "group": "flowers", "height": 2.9, "on": "floor"},
+    {"id": "eucalyptus_runner", "group": "flowers", "height": 0.05, "on": "top"},
+    {"id": "copper_lantern", "group": "lights", "height": 0.6, "on": "floor"},
+    {"id": "wicker_pendant", "group": "lights", "height": 2.9, "on": "floor"},
+    {"id": "wicker_lantern", "group": "lights", "height": 0.6, "on": "floor"},
+    {"id": "deck_aisle", "group": "ceremony", "height": 0.06, "on": "floor"},
+    {"id": "fabric_ceiling", "group": "ceremony", "height": 3, "on": "floor"},
+    {"id": "cane_chair", "group": "tables", "height": 0.88, "on": "floor"},
+    {"id": "farm_table", "group": "tables", "height": 0.76, "on": "floor"},
+    {"id": "rattan_setting", "group": "table", "height": 0.025, "on": "top"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}
 

@@ -10,7 +10,8 @@ from body_studio import library, room, sample_room, sample_venue as V
 class SampleVenueTest(unittest.TestCase):
     """The drawn wedding venue, laid out as the Casa Arandella plan: made once beside the other
     sample rooms, its map made with it, and the body can walk from the door through the hall and
-    the pergola into the garden, but not through the walls or onto the stage."""
+    the pergola into the garden and out onto the beach, but not through the walls, onto the stage
+    or into the sea."""
 
     @classmethod
     def setUpClass(cls):
@@ -44,9 +45,11 @@ class SampleVenueTest(unittest.TestCase):
 
     def test_its_size(self):
         self.assertAlmostEqual(self.map["frame"]["metres"], 1.0, delta=0.03)
-        long = V.GARDEN_X + V.GARDEN_LEFT - V.DECK[0]
-        self.assertAlmostEqual(self.map["nx"] * self.map["cell"], long + 0.4, delta=1.5)
-        self.assertAlmostEqual(self.map["nz"] * self.map["cell"], V.GARDEN_W + 0.4, delta=0.6)
+        # (from the door to the water's edge, the slanted far side's middle: its far corner is cut off
+        # as a few stray splats would be)
+        long = V.GARDEN_X + (V.GARDEN_LEFT + V.GARDEN_RIGHT) / 2 + V.BEACH - V.DECK[0]
+        self.assertAlmostEqual(self.map["nx"] * self.map["cell"], long + 0.4, delta=3.0)
+        self.assertAlmostEqual(self.map["nz"] * self.map["cell"], V.GARDEN_W + 0.4, delta=1.5)   # (the beach is slanted)
         self.assertLess(self.map["cell"], 0.11, "cells small enough for doorways, long as it is")
         self.assertLess(self.map["splats"], 900_000)
 
@@ -56,12 +59,13 @@ class SampleVenueTest(unittest.TestCase):
                              "vertical garden": (-11.5, 2.0), "ante-room": (-4.0, 2.0), "into the hall": (0.0, 2.8),
                              "hall": (9.0, 5.0), "by the half wall": (11.3, 4.2), "toilets' hall": (14.0, 1.6),
                              "glass doors": (17.8, 3.9), "pergola": (23.0, 7.0), "lawn": (38.0, 8.0),
-                             "beside the pergola": (22.0, 14.0), "by the gate": (52.4, 8.9)}.items():
+                             "beside the pergola": (22.0, 14.0), "by the far side": (52.4, 8.9),
+                             "on the beach": (V._garden_end(8.9) + 3.0, 8.9)}.items():
             self.assertTrue(self.free(x, z), name)
         for name, (x, z) in {"the kitchen": (-4.0, 6.0), "the ante-room's wall": (-4.0, 4.0), "the hall's side": (9.0, 8.6),
                              "the notch": (2.5, 0.7), "the half wall": (11.3, 1.5), "the stage": (24.0, 1.6),
-                             "an olive tree": V.TREES[0], "the bungalow's side": (43.0, 15.6), "the left hedge": (40.0, 17.3),
-                             "outside": (40.0, 19.0)}.items():
+                             "the bungalow's side": (V.BUNGALOW[0], 15.0), "the left wall": (40.0, V.GARDEN_W),
+                             "outside": (40.0, 19.0), "the sea": (V._garden_end(8.9) + V.BEACH + 6.0, 8.9)}.items():
             self.assertFalse(self.free(x, z), name)
 
     def test_the_body_starts_in_the_hall(self):
@@ -71,12 +75,20 @@ class SampleVenueTest(unittest.TestCase):
         bx, bz = self.to_map(x1, z1)
         self.assertTrue(min(ax, bx) < sx < max(ax, bx) and min(az, bz) < sz < max(az, bz))
 
-    def test_the_reception_bench_is_a_seat(self):
-        for name, ((x, z), h, way) in V.SEATS.items():
-            mx, mz = self.to_map(x, z)
-            near = [s for s in self.map["seats"] if (s["x"] - mx) ** 2 + (s["z"] - mz) ** 2 < 1.4 ** 2]
-            self.assertTrue(near, name)
-            self.assertAlmostEqual(near[0]["y"], h, delta=0.06, msg=name)
+    def test_only_what_the_plan_shows(self):
+        # no furniture, trees or lamps of its own: nothing to sit on until the Decor panel brings it
+        self.assertEqual(self.map["seats"], [])
+        for name in ("TREES", "olive", "chandelier", "reception", "hedge"):
+            self.assertFalse(hasattr(V, name), name)
+
+    def test_the_sea_is_seen_not_mapped(self):
+        rows = V.splats()
+        far = [r for r in rows if len(r) > 3]
+        self.assertGreater(len(far), 10000)
+        self.assertTrue(all(r[3] < room.OPAQUE for r in far))
+        # the map stops at the water: its far end within a few metres of the dry sand's
+        mx, _ = self.to_map(V._garden_end(V.GARDEN_W) + V.BEACH, V.GARDEN_W)
+        self.assertLess(abs(self.map["x0"] + self.map["nx"] * self.map["cell"] - mx), 4.0)
 
     def test_walls_with_holes(self):
         # a wall 4 m along, 3.4 high, less a door and a window: what is left covers the rest exactly

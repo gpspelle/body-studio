@@ -85,20 +85,37 @@ flash wall and to put the body on the bed or in the chair. What happens there: [
 ## The sample wedding venue
 
 Third in the menu: **Sample wedding venue** (`sample_venue.py`), laid out as the floor plan of a
-real venue (Casa Arandella, São Sebastião), with the plan's measures (it isn't drawn to scale):
-the deck and the reception (6 × 4 m), the vertical garden (4.5 m, a wall of leaves), the
-ante-room (9.3 m) with the closed kitchen beside it, the main hall (17.8 × 8.6 m, 1.5 m narrower
-for its first 5 m, light oak boards, panelled walls, five tall steel windows, beams and three brass
-chandeliers), a half wall to the toilets' hall, glass doors onto the pergola (10.8 × 7.4 m, oak
-beams and slats with vines, a herringbone brick floor), the stage beside it (8.6 × 3.2 m, 70 cm
-up, not walked on), and the garden (17.8 m wide, 20 m along the right and 30 m along the left: a
-striped lawn, hedges, olive trees, a gravel path to the gate in its slanted far side, the
-bungalow). 80 m from the door to the gate, about 720,000 splats (40 MB) a little bigger and
-further apart than the living room's. It is mapped when it is made (about 20 s, in the same
-background process), so the page doesn't wait; its map cells are about 10 cm (a long place gets as
-many cells as a square one of the same floor area, up to four times as many along its length).
-Ceilings are 3.4 m; the garden and the vertical garden are open to the sky. See it in **First
-person** (V) for its size.
+real venue (Casa Arandella, São Sebastião), with the plan's measures (it isn't drawn to scale), and
+nothing the plan doesn't show: the deck and the reception (6 × 4 m), the vertical garden (4.5 m, a
+wall of leaves), the ante-room (9.3 m, green walls both sides) with the closed kitchen beside it, the
+main hall (17.8 × 8.6 m, 1.5 m narrower for its first 5 m, light oak boards, panelled walls, five
+tall steel windows, beams), a half wall to the toilets' hall, glass doors onto the pergola
+(10.8 × 7.4 m: black steel posts and rafters under a glass roof, on sand), the stage beside it
+(8.6 × 3.2 m, 70 cm up, not walked on), the garden (17.8 m wide, 20 m along the right and 30 m
+along the left, a lawn inside low white walls, the bungalow), then the beach: 8 m of dry sand
+beyond the garden's slanted far side, the wet sand, the sea and the island's hills across it. The
+glass roof, the sand and the green walls are from the venue's photos. About 800,000 splats. It is
+mapped when it is made (about 20 s, in the same background process), so the page doesn't wait; the
+sea and the hills are drawn faint enough to be left out of the map, so they don't make it bigger.
+Its map cells are about 10 cm (a long place gets as many cells as a square one of the same floor
+area, up to four times as many along its length). Ceilings are 3.4 m; the garden and the vertical
+garden are open to the sky. See it in **First person** (V), or **From above**.
+
+## From above
+
+**From above** in the top bar, in a room: the camera high over the body (35% of the room's longest
+side, between 6 and 28 m up), looking down at it a little from behind, and everything above 2.4 m
+(or just under the ceiling, if lower) is hidden, so the ceiling is gone and you see into every
+room. Drag to orbit and zoom as usual, but never down to the floor's level; walking still works.
+**From above** again, **First person** or another room puts the ceiling back. The camera's place
+is `skyView` in `static/room.js`; the ceiling is cut on the graphics card by a Spark modifier that
+hides the room's splats above a height (`roofless` in `static/house.js`).
+
+## Walking faster
+
+Hold **Shift** while walking for a brisker pace (1.9 times the speed): longer steps, the knees
+higher, the arms swinging more and the body leaning a little forward. The feet stay planted; the
+speed still comes from the legs (`gait(p, hurry)` in `static/walk.js`).
 
 ## First person
 

@@ -253,7 +253,9 @@ def splats(seed: int = SEED) -> list:
 
 
 def write_ply(path: Path, rows: list) -> Path:
-    """A splat PLY as Brush writes it, y-down, with only the base colour (no higher bands)."""
+    """A splat PLY as Brush writes it, y-down, with only the base colour (no higher bands). A row
+    is (position, colour, scales), opaque, or with a fourth item, its opacity (0..1): what is seen
+    but not mapped (a sea far off) is under room.OPAQUE."""
     header = ("ply\nformat binary_little_endian 1.0\ncomment Made by body-studio (sample room)\n"
               "comment Vertical axis: 0 -1 0\n"
               f"element vertex {len(rows)}\n" + "".join(f"property float {p}\n" for p in PROPS) + "end_header\n")
@@ -263,8 +265,10 @@ def write_ply(path: Path, rows: list) -> Path:
     tmp = path.with_name(path.name + ".tmp")
     with open(tmp, "wb") as f:
         f.write(header.encode())
-        for (x, y, z), col, s in rows:
-            f.write(row.pack(x, -y, z, *((c - 0.5) / C0 for c in col), 5.0,
+        for r in rows:
+            (x, y, z), col, s = r[:3]
+            op = 5.0 if len(r) < 4 else math.log(r[3] / (1 - r[3]))
+            f.write(row.pack(x, -y, z, *((c - 0.5) / C0 for c in col), op,
                              *(math.log(v) for v in s), 1, 0, 0, 0))
     tmp.replace(path)
     return path
