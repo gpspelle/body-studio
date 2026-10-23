@@ -15,12 +15,12 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # The browser tests take the longest by far; skip them when nothing the page uses changed
-  # (only unit or JS tests, scripts, credits ...).
+  # The browser tests take the longest by far: each shard runs only when something its tests use
+  # changed (not for unit or JS tests, scripts, credits; not the clothes for decor alone ...).
   changes:
     runs-on: ubuntu-latest
     outputs:
-      browser: ${{ steps.diff.outputs.browser }}
+      shards: ${{ steps.diff.outputs.shards }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,7 +28,7 @@ jobs:
       - id: diff
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: echo "browser=$(python3 scripts/browser_needed.py "$BASE")" >> "$GITHUB_OUTPUT"
+        run: echo "shards=$(python3 scripts/browser_needed.py "$BASE")" >> "$GITHUB_OUTPUT"
 
   test:
     name: tests (${{ matrix.os }}, Python ${{ matrix.python }})
@@ -65,7 +65,7 @@ jobs:
   browser:
     name: app in a real browser (${{ matrix.shard }})
     needs: changes
-    if: needs.changes.outputs.browser == 'true'
+    if: needs.changes.outputs.shards != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 25             # pages rendered in software (no GPU): a few minutes each
     strategy:
@@ -85,18 +85,24 @@ jobs:
               test_tattoo_follows_the_body_as_it_moves test_walks_and_jumps_with_the_keyboard
     env:
       BODY_STUDIO_CHROMIUM: /usr/bin/google-chrome   # the runner's own Chrome: nothing to download or install
+    # (a matrix job can't be skipped as a whole by its shard: each step is, so it ends in seconds)
     steps:
       - uses: actions/checkout@v4
+        if: contains(fromJSON(needs.changes.outputs.shards), matrix.shard)
       - uses: actions/setup-python@v5
+        if: contains(fromJSON(needs.changes.outputs.shards), matrix.shard)
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: pyproject.toml
       - run: pip install . playwright
+        if: contains(fromJSON(needs.changes.outputs.shards), matrix.shard)
       - name: Sample rooms (drawn once per change to the app's Python, tests/fakes/samples.py)
+        if: contains(fromJSON(needs.changes.outputs.shards), matrix.shard)
         uses: actions/cache@v4
         with:
           path: ~/.cache/body-studio-tests
           key: samples-${{ hashFiles('src/body_studio/*.py') }}
       - name: Browser tests (${{ matrix.shard }})
+        if: contains(fromJSON(needs.changes.outputs.shards), matrix.shard)
         run: python -m unittest -v $(for t in ${{ matrix.tests }}; do echo tests.browser.test_viewer.Viewer.$t; done)
