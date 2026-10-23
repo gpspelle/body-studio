@@ -25,7 +25,7 @@ from tests.fakes.room import write_room
 from body_studio import library, sample_room
 
 try:
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout, sync_playwright
 except ImportError:  # pragma: no cover
     sync_playwright = None
 
@@ -644,10 +644,16 @@ class Viewer(unittest.TestCase):
         k = page.evaluate("decor.placed().findIndex((q) => q.item === 'candle')")
         page.evaluate(f"decor.pick({k})")
         page.wait_for_function("decor.handles() !== null")
-        h = page.evaluate("decor.handles()")
         y0 = page.evaluate(f"decor.placed()[{k}].y")
-        page.mouse.move(h["lift"][0] + 12, h["lift"][1] + 8)                         # near is enough
-        page.wait_for_function("bodyApp.viewer.canvas.style.cursor === 'ns-resize'")   # the pointer says so
+        for _ in range(6):                    # (the knob is where it was drawn: the view may still move)
+            h = page.evaluate("decor.handles()")
+            page.mouse.move(h["lift"][0] + 12, h["lift"][1] + 8)                     # near is enough
+            try:                                                                     # the pointer says so
+                page.wait_for_function("bodyApp.viewer.canvas.style.cursor === 'ns-resize'", timeout=5000)
+                break
+            except PlaywrightTimeout:
+                page.mouse.move(h["lift"][0] + 200, h["lift"][1] + 200)
+        self.assertEqual(page.evaluate("bodyApp.viewer.canvas.style.cursor"), "ns-resize")
         page.mouse.down()
         page.mouse.move(h["lift"][0], h["lift"][1] - 40, steps=4)
         page.mouse.up()
