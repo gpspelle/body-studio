@@ -83,6 +83,7 @@ async function choose(file) {
   if (!$("roomMenu").hidden) list();
   if (!file) return clear();
   if (R && R.file === file) return;
+  if (busy === file) return;                    // (on its way already: asked again by modes.js)
   const studio = window.tattooStudio;
   if (!V.file()) return;
   busy = file;

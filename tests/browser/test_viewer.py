@@ -527,6 +527,8 @@ class Viewer(unittest.TestCase):
         self.assertIn("round_table", tables)
         self.assertIn("bench", tables)
         self.assertNotIn("candle", tables)
+        # (their pictures first: on CI's software GPU, making them slows everything else down)
+        page.wait_for_function("decor.pictures().wanted === 0 && !decor.pictures().busy", timeout=300000)
         # a chair, a step ahead of her, facing her: the walk goes round it
         page.locator("#decorItems button[data-item=chair]").click()
         self.assertEqual(page.evaluate("decor.drawn()"), 1)
@@ -601,6 +603,7 @@ class Viewer(unittest.TestCase):
         page.wait_for_function("document.getElementById('decorBar').hidden")
         # the catalogue shows a picture of each thing, made by the page
         page.wait_for_function("document.querySelector('#decorItems .pic img')", timeout=300000)
+        self.assertTrue(page.evaluate("decor.pictures().worker"), "made in a worker, not holding up the page")
         # dragged along the floor with the mouse: a thing in view, not under the panel
         page.evaluate("decor.pick(-1); tattooStudio.stepFor(1)")
         at = page.evaluate("""(() => {
@@ -624,8 +627,11 @@ class Viewer(unittest.TestCase):
         self.assertGreater(dist([after["x"], after["z"]], [before[k]["x"], before[k]["z"]]), 0.05)
         # kept for the room: there again after a reload
         page.wait_for_function("!decor.saving")
-        page.reload()
-        page.wait_for_function("window.decor && decor.placed().length === 24", timeout=300000)
+        # the old page may still be drawing the catalogue's pictures, so its "load" can be slow on
+        # CI's software GPU: wait for the new page's state instead (the old one is marked)
+        page.evaluate("window.oldPage = true")
+        page.reload(wait_until="commit", timeout=120000)
+        page.wait_for_function("!window.oldPage && window.decor && decor.layouts && decor.layouts() && decor.placed().length === 24", timeout=300000)
         self.assertEqual(page.evaluate("decor.layouts().layouts.length"), 1)
         page.click("#decorBtn")
         page.click("#decorRoomTab")                                                # the layouts are with what is in the room

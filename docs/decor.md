@@ -73,7 +73,8 @@ a game's build mode. What the shops and the makers' own sites do, and what we to
   planners):** a catalogue of product pictures on a pale ground, three-quarters from the front,
   soft light and a contact shadow, the name under it; one calm panel; the room is what matters.
   Taken: the catalogue is a grid of pictures of each piece, rendered by the page itself (so a
-  colour change is a new picture), on warm paper.
+  colour change is a new picture), on warm paper. They are made in a worker on an OffscreenCanvas
+  (`static/decorpics.js`), so the page never waits for them; where a browser can't, between frames.
 - **Design houses (Vitra, HAY, Muuto, &Tradition, Gubi; their 3D viewers and configurators):**
   real materials (linen that doesn't shine, brass that reflects, glass you see through), studio
   light from soft boxes, generous space, a serif or a refined sans for names, hairlines rather

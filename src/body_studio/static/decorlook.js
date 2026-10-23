@@ -2,7 +2,9 @@
 // FINISHES: linen, china, wood, brass, glass, a flame), lit by a soft studio light reflected in
 // them, a soft shadow under each thing, and the pictures of the starters for the panel, rendered
 // the same way, like a shop's product shots. Design: docs/decor.md ("Look and feel").
-import * as THREE from "three";
+// (three by its URL rather than "three": the same module, and it loads in the worker that makes
+// the pictures, decorpics.js, where there is no import map.)
+import * as THREE from "/vendor/three/three.module.min.js";
 import { FINISHES, thumbView } from "/static/decor.js";
 
 // ---------------------------------------------------------------- the light
@@ -75,7 +77,7 @@ export function geometry(s) {
 let shadeTex = null;
 export function shadow() {
   if (!shadeTex) {
-    const c = document.createElement("canvas");
+    const c = typeof document === "undefined" ? new OffscreenCanvas(128, 128) : document.createElement("canvas");
     c.width = c.height = 128;
     const x = c.getContext("2d"), gr = x.createRadialGradient(64, 64, 4, 64, 64, 64);
     gr.addColorStop(0, "rgba(0,0,0,0.55)"); gr.addColorStop(0.45, "rgba(0,0,0,0.3)"); gr.addColorStop(1, "rgba(0,0,0,0)");
@@ -87,20 +89,21 @@ export function shadow() {
 
 // ---------------------------------------------------------------- pictures for the panel
 // A starter photographed on its own, three-quarters from the front and a little above, lit by
-// the studio, on a transparent ground with its shadow: a PNG data URL (size x size pixels). It
-// has its own small renderer (and so its own light and materials), apart from the page's, which
-// Spark keeps busy.
+// the studio, on a transparent ground with its shadow (size x size CSS pixels, drawn at twice
+// that). It has its own small renderer (and so its own light and materials), apart from the
+// page's, which Spark keeps busy; in decorpics.js it runs in a worker on an OffscreenCanvas, so
+// the page never waits for it. Returns the canvas holding the picture.
 let cam = null;
-function camera() {
+function camera(canvas) {
   if (cam) return cam;
-  const canvas = document.createElement("canvas");
+  canvas ||= document.createElement("canvas");
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setClearColor(0x000000, 0);
   cam = { renderer, mats: materials(renderer, true) };
   return cam;
 }
-export function picture(geom, bounds, size = 120) {
-  const { renderer, mats } = camera(), px = size * 2;
+export function picture(geom, bounds, size = 120, canvas = null) {
+  const { renderer, mats } = camera(canvas), px = size * 2;
   if (renderer.domElement.width !== px) renderer.setSize(px, px, false);
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffffff, 0x8a8178, 1.1));
@@ -117,5 +120,5 @@ export function picture(geom, bounds, size = 120) {
   renderer.clear();
   renderer.render(scene, c);
   ground.geometry.dispose(); ground.material.dispose();
-  return renderer.domElement.toDataURL("image/png");
+  return renderer.domElement;
 }

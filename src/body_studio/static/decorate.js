@@ -144,22 +144,37 @@ function picFor(id, colour) {
   }
   return span;
 }
+// made by a worker (decorpics.js) where the browser can; else here, between frames
+let painter = null, flying = null;
+try {
+  painter = new Worker("/static/decorpics.js", { type: "module" });
+  painter.onmessage = ({ data: { key, blob } }) => shown(key, blob && URL.createObjectURL(blob));
+  painter.onerror = (e) => { e.preventDefault(); painter = null; if (flying) wanted.unshift(flying); picking = false; pump(); };
+} catch { painter = null; }
+function shown(key, url) {
+  flying = null;
+  if (url) {
+    pics.set(key, url);
+    for (const el of document.querySelectorAll(`[data-pic="${key}"]`)) {
+      const img = new Image(); img.src = url; img.alt = ""; el.replaceChildren(img);
+    }
+  }
+  picking = false;
+  pump();
+}
 function pump() {
   // (only while the panel is open: they are for it, and the room shouldn't wait for them)
   if (picking || !wanted.length || $("decor").hidden) return;
   picking = true;
+  const key = wanted.shift(), [id, colour] = key.split("|");
+  if (painter && STARTERS[id]) { flying = key; painter.postMessage({ key, id, colour }); return; }
   requestAnimationFrame(() => setTimeout(() => {
-    const key = wanted.shift(), [id, colour] = key.split("|");
+    let url = null;
     try {
       const g = geomFor({ item: id, colour: colour || undefined });
-      if (g) pics.set(key, picture(g, bounds(g.attributes.position.array)));
+      if (g) url = picture(g, bounds(g.attributes.position.array)).toDataURL("image/png");
     } catch (e) { console.warn("decor picture", id, e); }
-    const url = pics.get(key);
-    if (url) for (const el of document.querySelectorAll(`[data-pic="${key}"]`)) {
-      const img = new Image(); img.src = url; img.alt = ""; el.replaceChildren(img);
-    }
-    picking = false;
-    pump();
+    shown(key, url);
   }, 0));
 }
 
@@ -724,7 +739,7 @@ window.decor = {
     return [h, [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]];
   })) : null),
   refresh: refreshItems,
-  pictures: () => ({ wanted: wanted.length, made: [...pics.values()].filter(Boolean).length, busy: picking }),
+  pictures: () => ({ wanted: wanted.length, made: [...pics.values()].filter(Boolean).length, busy: picking, worker: !!painter }),
   shelf: (g) => { if (g) { shelf = g; inventory(); } return shelf; },
   glowing: () => (group ? group.children.filter((c) => c.isMesh && c.geometry.groups.some((g) => FINISHES[g.materialIndex].glow)).length : 0),
 };
