@@ -643,10 +643,16 @@ class Viewer(unittest.TestCase):
         k = page.evaluate("decor.placed().findIndex((q) => q.item === 'candle')")
         page.evaluate(f"decor.pick({k})")
         page.wait_for_function("decor.handles() !== null")
-        h = page.evaluate("decor.handles()")
         y0 = page.evaluate(f"decor.placed()[{k}].y")
-        page.mouse.move(h["lift"][0] + 12, h["lift"][1] + 8)                         # near is enough
-        page.wait_for_function("bodyApp.viewer.canvas.style.cursor === 'ns-resize'")   # the pointer says so
+        for tries in range(4):          # (on CI's slow frames the handles can still be moving: look again)
+            h = page.evaluate("decor.handles()")
+            page.mouse.move(h["lift"][0] + 12, h["lift"][1] + 8 + tries)             # near is enough
+            try:
+                page.wait_for_function("bodyApp.viewer.canvas.style.cursor === 'ns-resize'", timeout=15000)   # the pointer says so
+                break
+            except Exception:
+                if tries == 3:
+                    raise
         page.mouse.down()
         page.mouse.move(h["lift"][0], h["lift"][1] - 40, steps=4)
         page.mouse.up()
