@@ -161,6 +161,7 @@ body.is-busy, body.is-busy * { cursor: progress !important; }
 .views button.on { opacity: 1; border-color: var(--text); }
 .views[hidden] { display: none; }
 .walk-hint[hidden], .with-studio .walk-hint, .with-panel .walk-hint { display: none; }
+.from-above .walk-hint, .flying .walk-hint { display: none; }   /* (no body to walk: house.js) */
 /* The Guide: a card in the middle, keys on the left, what they do on the right. */
 .guide {
   width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto;

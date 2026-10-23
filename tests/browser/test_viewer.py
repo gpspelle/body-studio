@@ -457,6 +457,7 @@ class Viewer(unittest.TestCase):
         self.assertGreater(page.evaluate(high), 5, "metres over the floor")
         self.assertLess(page.evaluate("house.mesh().roomCut.value.w"), 1e8, "the ceiling taken off")
         page.wait_for_function("house.bodyHidden()")                    # (the body isn't drawn from above)
+        page.evaluate("tattooStudio.stepFor(2)")                        # (done slowing down from the walk)
         where = page.evaluate("house.where()")
         page.evaluate("tattooStudio.walkFor(0.5, 'f')")
         self.assertTrue(page.evaluate("house.fromAbove()"), "W from above")
