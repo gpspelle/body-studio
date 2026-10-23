@@ -22,9 +22,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Install ffmpeg
-        run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then brew install ffmpeg; else sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg; fi
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      # Linux: a static ffmpeg and ffprobe, cached (apt's mirror has taken 20 minutes for its 60 packages)
+      - name: Install ffmpeg (Linux)
+        if: runner.os == 'Linux'
+        uses: FedericoCarboni/setup-ffmpeg@v3
+      - name: Install ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
       - run: pip install .          # also installs the pinned splat-studio and OpenCV
       - run: python scripts/test.py            # each test class in its own process, side by side
       - name: End to end (real splat-studio pipeline, its stand-in COLMAP and Brush)
