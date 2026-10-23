@@ -1353,6 +1353,581 @@ Object.assign(STARTERS, {
   },
 });
 
+// ---------------------------------------------------------------- from the decorators' proposals
+// What two local decorators show for a wedding at the venue: clouds of greenery, bougainvillea and
+// orchids hung over the tables with filament bulbs and woven lamps among them, a half-moon arch,
+// a flower swing, red ginger on moss, a canoe of flowers, rattan lounges on jute rugs, backdrops
+// for photos (bamboo, a green wall, woven plates), and the small furniture they stand on.
+const CORDYLINE = [0.62, 0.12, 0.32], BOUGAIN = [0.86, 0.14, 0.46], MONSTERA = [0.13, 0.3, 0.17], MOSS = [0.3, 0.33, 0.17];
+const JUTE = [0.72, 0.6, 0.42], CLAY = [0.72, 0.4, 0.28], BAMBOO = [0.76, 0.66, 0.45], TRUNK = [0.45, 0.31, 0.2];
+const CUSHION = [0.95, 0.94, 0.9], BEIGE = [0.82, 0.76, 0.66], SNAP = [0.97, 0.96, 0.9];
+for (const [cols, f] of [[[JUTE, BAMBOO, TRUNK], F.wood], [[CLAY], F.satin]]) for (const c of cols) finishes.set(c, f);
+// what f() adds moved by (dx, dy, dz)
+function at(dx, dy, dz, f) { const was = place; place = (x, y, z) => (was ? was(x + dx, y + dy, z + dz) : [x + dx, y + dy, z + dz]); try { f(); } finally { place = was; } }
+// a filament bulb hung on a cord from `top` down to y: a glowing drop under a small dark cap
+function bulb(s, x, top, y, z) {
+  rod(s, [x, top, z], [x, y + 0.05, z], 0.002, WIRE, 3);
+  cyl(s, 0.012, 0.012, 0.03, x, y + 0.03, z, WIRE, 8);
+  lit(() => blob(s, 0.028, 0.04, 0.028, x, y, z, BULB, 0, 8));
+}
+// the lampshades of the photos, each `h` tall with its foot at y: their outlines from the foot (t 0)
+// to the top (1), the cord above
+const SHADES = {
+  bell: (t) => 0.06 + 0.24 * (1 - t) ** 1.6, dome: (t) => 0.03 + 0.27 * Math.cos(t * Math.PI / 2),
+  gourd: (t) => 0.03 + 0.16 * Math.sin(Math.PI * Math.min(1, 0.15 + t * 0.95)) ** 2 + 0.05 * (1 - t),
+  egg: (t) => 0.02 + 0.17 * Math.sin(Math.PI * (0.08 + 0.88 * t)), drum: () => 0.17,
+};
+function shade(s, kind, h, x, y, z, top, col) {
+  rod(s, [x, top, z], [x, y + h, z], 0.003, WIRE, 3);
+  woven(s, h, SHADES[kind], x, y, z, col, kind === "drum" ? 10 : 8, kind === "drum" ? 26 : 18);
+  lit(() => ball(s, 0.03, x, y + h * 0.45, z, BULB, 8));
+}
+// a canopy hung at y (its top), w by d: palm fronds, broad leaves and red cordyline falling from
+// it; `extra(x, y, z, k)` adds what is tucked into it at a point under it
+function canopy(s, w, d, y, n, seed, mix, extra) {
+  const rnd = rng(seed);
+  for (let k = 0; k < n; k++) {
+    const x = (rnd() - 0.5) * w * 0.9, z = (rnd() - 0.5) * d * 0.9, a = rnd() * 6.3, kind = mix[k % mix.length];
+    const p = [x, y - 0.12 * rnd(), z];
+    if (kind === "palm") frond(s, p, a, 0.4 + 0.3 * rnd(), k % 2 ? PALM : DARK_LEAF);
+    else if (kind === "monstera") leaf(s, p, tipped(a, 1.9 + 0.5 * rnd()), 0.36 + 0.14 * rnd(), 0.45, MONSTERA);
+    else if (kind === "cordyline") leaf(s, p, tipped(a, 1.2 + 1.2 * rnd()), 0.34, 0.17, k % 3 ? CORDYLINE : RED);
+    else if (kind === "fern") leaf(s, p, tipped(a, 2.5 + 0.4 * rnd()), 0.5 + 0.3 * rnd(), 0.12, k % 2 ? LEAF : PALM);
+    if (extra) extra(x, y, z, k, rnd);
+  }
+}
+// cords from the roof (at h) to the canopy's top
+function hangers(s, h, y, xs) { for (const x of xs) rod(s, [x, h, 0], [x, y, 0], 0.003, WIRE, 3); }
+// a cascade of phalaenopsis down from p, len long
+function cascade(s, p, len, col, seed) {
+  const rnd = rng(seed);
+  let prev = p;
+  for (let k = 1; k <= 7; k++) {
+    const q = [p[0] + 0.04 * Math.sin(k + seed), p[1] - len * k / 7, p[2] + 0.04 * Math.cos(k * 1.3 + seed)];
+    rod(s, prev, q, 0.003, STEM, 3);
+    facing(tipped(rnd() * 6.3, 1.3), q, () => orchid(s, 0.11, col));
+    prev = q;
+  }
+}
+// a woven cube or drum, w across and h high, at (cx, cz): rattan or jute, banded as it is braided
+function braided(s, w, d, h, cx, cz, col) {
+  soft(s, w, h, d, cx, 0, cz, col, 0.04, 5);
+  for (let k = 1; k < 6; k++) box(s, w + 0.006, 0.012, d + 0.006, cx, (h * k) / 6, cz, col.map((v) => v * 0.82));
+}
+// a round braided rug, r across, its rings a shade apart
+function jute(s, r, col) {
+  for (let k = 0; k < 7; k++) cyl(s, r * (1 - k / 7), r * (1 - k / 7), 0.006 + 0.0005 * k, 0, 0, 0, col.map((v) => v * (k % 2 ? 0.9 : 1)), 48);
+}
+
+// a dense rope of small mixed florets along points p(t), r thick: the mass under an arch's flowers
+function florets(s, n, path, r, mix, seed) {
+  const rnd = rng(seed);
+  made("satin", () => { for (let k = 0; k < n; k++) {
+    const p = path(rnd()), q = rnd() * 6.3, d = r * Math.sqrt(rnd());
+    ball(s, 0.016 + 0.014 * rnd(), p[0] + Math.cos(q) * d * 0.7, p[1] + Math.sin(q) * d * 0.7, p[2] + Math.sin(q * 1.7) * d, mix[k % mix.length], 4);
+  } });
+}
+Object.assign(STARTERS, {
+  // ------------------------------------------------ hung overhead
+  edison_bulbs: {
+    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "black", size: { r: 0.5 }, block: false,
+    make() {
+      // a cluster of bare filament bulbs on cords of every length, as over the cake table
+      const s = shape(), rnd = rng(61);
+      for (let k = 0; k < 22; k++) {
+        const a = k * 2.4, r = 0.52 * Math.sqrt((k + 0.5) / 22);
+        bulb(s, Math.sin(a) * r, 2.9, 1.9 + 0.75 * rnd(), Math.cos(a) * r);
+      }
+      return s;
+    },
+  },
+  rattan_pendants: {
+    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { w: 1.7, d: 1.15 }, block: false,
+    make(col) {
+      // a cluster of woven lamps of different shapes at different heights: bells, domes, gourds,
+      // eggs and a drum, each with its bulb
+      const s = shape();
+      for (const [kind, h, x, y, z] of [["bell", 0.4, -0.55, 2.1, -0.2], ["egg", 0.5, -0.1, 1.95, 0.25], ["dome", 0.32, 0.35, 2.3, -0.25],
+                                        ["gourd", 0.55, 0.62, 1.85, 0.22], ["drum", 0.45, 0.05, 2.25, -0.3], ["bell", 0.34, -0.3, 2.35, 0.3]])
+        shade(s, kind, h, x, y, z, 2.9, col);
+      return s;
+    },
+  },
+  jute_pendant: {
+    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { r: 0.2 }, block: false,
+    make(col) {
+      // a tall jute shade, a fringe of fibre hanging straight, a bulb glowing through it
+      const s = shape();
+      rod(s, [0, 2.9, 0], [0, 2.5, 0], 0.003, WIRE, 3);
+      made("wood", () => { for (let k = 0; k < 90; k++) { const a = (k / 90) * 2 * Math.PI; rod(s, [0.18 * Math.sin(a), 2.5, 0.18 * Math.cos(a)], [0.19 * Math.sin(a), 1.95, 0.19 * Math.cos(a)], 0.0045, k % 3 ? col : col.map((v) => v * 0.85), 3); } });
+      cyl(s, 0.18, 0.04, 0.03, 0, 2.48, 0, col, 24);
+      lit(() => ball(s, 0.035, 0, 2.2, 0, BULB, 10));
+      return s;
+    },
+  },
+  globe_lanterns: {
+    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "white", size: { w: 1.4, d: 0.8 }, block: false,
+    make(col) {
+      // white paper globes at different heights, glowing softly
+      const s = shape(), rnd = rng(67);
+      for (let k = 0; k < 9; k++) {
+        const x = -0.55 + (k % 5) * 0.28 + 0.05 * rnd(), z = (k % 2 ? 0.25 : -0.2) + 0.1 * (rnd() - 0.5), r = 0.1 + 0.07 * rnd(), y = 1.95 + 0.6 * rnd();
+        rod(s, [x, 2.9, z], [x, y + r, z], 0.002, WIRE, 3);
+        lit(() => ball(s, r, x, y, z, col.map((v) => Math.min(1, v * 1.02)), 16));
+      }
+      return s;
+    },
+  },
+  tropical_cloud: {
+    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "coral", size: { w: 2.9, d: 1.7 }, block: false,
+    make(col) {
+      // a cloud of palm fronds and red cordyline hung over a table, a few flowers in it and filament
+      // bulbs hanging from under it
+      const s = shape();
+      hangers(s, 2.9, 2.6, [-0.7, 0.7]);
+      canopy(s, 2.2, 1.2, 2.6, 200, 71, ["palm", "cordyline", "monstera", "palm", "cordyline"], (x, y, z, k, rnd) => {
+        if (k % 9 === 0) bulb(s, x, y - 0.1, y - 0.5 - 0.3 * rnd(), z);
+        else if (k % 9 === 4) facing(tipped(rnd() * 6, 2.4), [x, y - 0.15, z], () => torch(s, 0.14, k % 2 ? RED : col));
+      });
+      return s;
+    },
+  },
+  bougainvillea_cloud: {
+    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "blush", size: { w: 2.5, d: 1.6 }, block: false,
+    make() {
+      // a hung mass of magenta bougainvillea with its leaves, strands of greenery falling from it
+      const s = shape(), rnd = rng(73), deep = BOUGAIN.map((v) => v * 0.78);
+      hangers(s, 2.9, 2.62, [-0.8, 0.8]);
+      canopy(s, 2.2, 1.0, 2.6, 40, 75, ["fern", "palm"]);
+      made("satin", () => { for (let k = 0; k < 2400; k++) {
+        const x = (rnd() - 0.5) * 2.2, z = (rnd() - 0.5) * 1.0, u = (x / 1.1) ** 2 + (z / 0.5) ** 2;
+        if (u > 1) continue;
+        const y = 2.62 - 0.4 * Math.sqrt(1 - u) * rnd() - 0.05;
+        blob(s, 0.022, 0.012, 0.022, x, y, z, k % 4 ? BOUGAIN : deep, rnd() * 6, 4);
+      } });
+      return s;
+    },
+  },
+  orchid_cloud: {
+    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "white", size: { w: 2.2, d: 1.5 }, block: false,
+    make(col) {
+      // broad monstera leaves hung overhead and white orchids cascading down from among them
+      const s = shape();
+      hangers(s, 2.9, 2.6, [-0.7, 0.7]);
+      canopy(s, 2.0, 1.1, 2.6, 60, 79, ["monstera", "fern", "monstera"], (x, y, z, k) => {
+        if (k % 2 === 0) cascade(s, [x, y - 0.05, z], 0.4 + 0.08 * (k % 4), col, k);
+      });
+      return s;
+    },
+  },
+  green_cloud: {
+    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "green", size: { w: 2.7, d: 1.9 }, block: false,
+    make() {
+      // a cloud of ferns and palm leaves, filament bulbs hanging thick under it
+      const s = shape();
+      hangers(s, 2.9, 2.6, [-0.8, 0.8]);
+      canopy(s, 2.2, 1.1, 2.6, 120, 83, ["fern", "palm", "fern"], (x, y, z, k, rnd) => { if (k % 5 === 0) bulb(s, x, y - 0.1, y - 0.45 - 0.35 * rnd(), z); });
+      return s;
+    },
+  },
+  ficus_pendants: {
+    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { w: 1.8, d: 1.1 }, block: false,
+    make(col) {
+      // a canopy of small-leaved greenery with woven lamps hung close under it
+      const s = shape(), rnd = rng(89);
+      hangers(s, 2.9, 2.65, [-0.6, 0.6]);
+      made("cloth", () => { for (let k = 0; k < 1500; k++) {
+        const x = (rnd() - 0.5) * 1.7, z = (rnd() - 0.5) * 1.0;
+        blob(s, 0.03, 0.005, 0.02, x, 2.65 - 0.25 * rnd(), z, k % 3 ? LEAF : DARK_LEAF, rnd() * 6, 4);
+      } });
+      for (const [kind, x, z] of [["bell", -0.5, -0.2], ["gourd", 0, 0.2], ["bell", 0.5, -0.15], ["egg", -0.2, 0.25]])
+        shade(s, kind, 0.4, x, 1.95, z, 2.4, col);
+      return s;
+    },
+  },
+  hanging_pots: {
+    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "white", size: { w: 2.0, d: 0.5 }, block: false,
+    make(col) {
+      // a row of white pots hung on cords, ferns and philodendron spilling from each
+      const s = shape(), rnd = rng(97);
+      for (let k = 0; k < 5; k++) {
+        const x = -0.8 + k * 0.4, y = 2.0 + 0.15 * (k % 2);
+        for (const a of [0, 2.1, 4.2]) rod(s, [x, 2.9, 0], [x + 0.11 * Math.sin(a), y + 0.16, 0.11 * Math.cos(a)], 0.002, WIRE, 3);
+        cyl(s, 0.09, 0.12, 0.16, x, y, 0, col, 20);
+        for (let j = 0; j < 9; j++) leaf(s, [x, y + 0.15, 0], tipped(rnd() * 6.3, 0.9 + 1.1 * rnd()), 0.22 + 0.1 * rnd(), j % 2 ? 0.4 : 0.14, j % 3 ? LEAF : MONSTERA);
+      }
+      return s;
+    },
+  },
+  voile_swags: {
+    group: "ceremony", height: 3.0, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 3 }, block: false,
+    make(col) {
+      // long lengths of voile hung loose across a roof, side by side, each gathered in soft folds
+      // across its width and sagging deep between its ends
+      const s = shape();
+      made("cloth", () => { for (const [z, dip, w] of [[-1.15, 0.75, 0.55], [-0.38, 0.95, 0.6], [0.38, 0.8, 0.6], [1.15, 0.95, 0.55]]) {
+        const pts = [], U = 32, V = 10;
+        for (let i = 0; i <= U; i++) for (let j = 0; j <= V; j++) {
+          const t = i / U, v = j / V - 0.5, sag = dip * Math.sin(Math.PI * t), wide = w * (0.35 + 0.65 * Math.sin(Math.PI * t));
+          const fold = 0.035 * Math.sin(v * Math.PI * 6) * (0.3 + Math.sin(Math.PI * t));
+          pts.push(vert(s, -2 + 4 * t, 3.0 - sag + fold - 0.08 * v * v, z + v * wide, col));
+        }
+        for (let i = 0; i < U; i++) for (let j = 0; j < V; j++)
+          quad(s, pts[i * (V + 1) + j], pts[i * (V + 1) + j + 1], pts[(i + 1) * (V + 1) + j + 1], pts[(i + 1) * (V + 1) + j]);
+      } });
+      for (const x of [-2, 2]) rod(s, [x, 3.0, -1.5], [x, 3.0, 1.5], 0.006, WIRE, 4);
+      return s;
+    },
+  },
+  // ------------------------------------------------ flowers that stand
+  ginger_moss: {
+    group: "flowers", height: 0.89, on: "top", colour: "coral", size: { w: 1.44, d: 0.46 }, block: false,
+    make() {
+      // red ginger standing up out of a long mound of moss on a table, long leaves among them
+      const s = shape(), rnd = rng(101);
+      made("cloth", () => { for (let k = 0; k < 26; k++) blob(s, 0.09 + 0.05 * rnd(), 0.06, 0.08, -0.62 + k * 0.05, 0.03, (rnd() - 0.5) * 0.12, k % 3 ? MOSS : MOSS.map((v) => v * 0.8), rnd() * 6, 6); });
+      for (let k = 0; k < 13; k++) {
+        const x = -0.6 + k * 0.1 + 0.03 * rnd(), z = (rnd() - 0.5) * 0.14, len = 0.4 + 0.3 * rnd(), d = tipped(rnd() * 6.3, 0.15 * rnd());
+        const top = [x + d[0] * len, 0.05 + d[1] * len, z + d[2] * len];
+        rod(s, [x, 0.04, z], top, 0.005, STEM, 4);
+        facing(d, top, () => torch(s, 0.12, k % 4 ? RED : CORDYLINE));
+        leaf(s, [x, 0.06, z], tipped(rnd() * 6.3, 0.35 + 0.4 * rnd()), 0.45, 0.13, k % 2 ? LEAF : DARK_LEAF);
+      }
+      return grounded(s);
+    },
+  },
+  bromeliad: {
+    group: "flowers", height: 0.46, on: "floor", colour: "coral", size: { r: 0.26 }, block: false,
+    make(col) {
+      // a bromeliad in a woven basket: a rosette of striped leaves, its red heart in the middle
+      const s = shape();
+      woven(s, 0.22, (t) => 0.15 + 0.04 * t, 0, 0, 0, RATTAN, 6, 16);
+      for (let k = 0; k < 16; k++) leaf(s, [0, 0.2, 0], tipped(k * 2.4, 0.5 + 0.8 * (k / 16)), 0.32, 0.12, k % 2 ? [0.55, 0.7, 0.45] : [0.85, 0.36, 0.4]);
+      facing([0, 1, 0], [0, 0.24, 0], () => torch(s, 0.12, col === COLOURS.coral ? RED : col));
+      return s;
+    },
+  },
+  white_garden: {
+    group: "flowers", height: 0.81, on: "floor", colour: "white", size: { w: 1.6, d: 0.86 }, block: false,
+    make(col) {
+      // a bank of white flowers for an aisle or under a cake table: roses, snapdragon spires,
+      // orchids and baby's breath among broad leaves
+      const s = shape(), rnd = rng(107);
+      for (let k = 0; k < 14; k++) leaf(s, [(rnd() - 0.5) * 1.2, 0.05, (rnd() - 0.5) * 0.4], tipped(rnd() * 6.3, 1.0), 0.42, 0.4, k % 2 ? MONSTERA : DARK_LEAF);
+      for (let k = 0; k < 7; k++) cloud(s, 160, 0.18, -0.6 + k * 0.2, 0.05, (rnd() - 0.5) * 0.3, SNOW, 110 + k, 1.6);
+      for (let k = 0; k < 28; k++) {
+        const x = (rnd() - 0.5) * 1.3, z = (rnd() - 0.5) * 0.5, y = 0.22 + 0.15 * rnd();
+        facing(tipped(rnd() * 6.3, 0.6 * rnd()), [x, y, z], () => bloom(s, 0.06, 0, 0, 0, k % 4 ? col : COLOURS.ivory, rnd() * 6));
+      }
+      for (let k = 0; k < 9; k++) plume(s, 0.45 + 0.2 * rnd(), 0.035, [(rnd() - 0.5) * 1.2, 0.2, (rnd() - 0.5) * 0.3], SNAP, 120 + k, rnd() * 6, 0.15);
+      for (let k = 0; k < 4; k++) cascade(s, [-0.5 + k * 0.33, 0.55, 0.15], 0.28, col, 130 + k);
+      return grounded(s);
+    },
+  },
+  clay_vases: {
+    group: "flowers", height: 0.45, on: "top", colour: "coral", size: { w: 0.44, d: 0.24 }, block: false,
+    make(col) {
+      // three terracotta gourd vases, a few stems in each, for a lounge's side table
+      const s = shape(), rnd = rng(113);
+      for (const [x, z, h] of [[-0.13, 0, 0.2], [0.04, 0.04, 0.26], [0.15, -0.03, 0.16]]) {
+        made("satin", () => { const q = (t) => 0.02 + 0.06 * Math.sin(Math.PI * Math.min(1, 0.1 + t * 0.95)) ** 1.5; for (let j = 0; j < 8; j++) cyl(s, q(j / 8), q((j + 1) / 8), h / 8, x, (h * j) / 8, z, CLAY, 18); });
+        for (let k = 0; k < 3; k++) {
+          const d = tipped(rnd() * 6.3, 0.25 * rnd()), len = 0.12 + 0.06 * rnd(), top = [x + d[0] * len, h + d[1] * len, z + d[2] * len];
+          rod(s, [x, h - 0.02, z], top, 0.003, STEM, 3);
+          facing(d, top, () => (k ? bloom(s, 0.035, 0, 0, 0, col, k) : daisy(s, 0.05, PINK)));
+        }
+      }
+      return s;
+    },
+  },
+  flower_canoe: {
+    group: "flowers", height: 0.71, on: "floor", colour: "coral", size: { w: 3.6, d: 0.95 }, block: true,
+    make(col) {
+      // an old wooden canoe on the lawn, filled with flowers and leaves
+      const s = shape(), L = 1.8, B = 0.4, H = 0.34;
+      made("wood", () => {
+        const U = 36, V = 12, pts = [];
+        for (let i = 0; i <= U; i++) for (let j = 0; j <= V; j++) {
+          // along it (t, the ends pointed and rising) and round its hull (v, from one gunwale to the other)
+          const t = -1 + (2 * i) / U, v = -1 + (2 * j) / V, w = B * Math.sqrt(Math.max(0, 1 - t ** 4)), rim = H + 0.12 * t ** 4;
+          pts.push(vert(s, t * L, rim - H * (1 - 0.5 * t * t) * Math.cos((v * Math.PI) / 2), w * Math.sin((v * Math.PI) / 2), j % 3 ? DECK : DECK.map((q) => q * 0.82)));
+        }
+        for (let i = 0; i < U; i++) for (let j = 0; j < V; j++) quad(s, pts[i * (V + 1) + j], pts[i * (V + 1) + j + 1], pts[(i + 1) * (V + 1) + j + 1], pts[(i + 1) * (V + 1) + j]);
+        for (const side of [-1, 1]) { let prev = null; for (let i = 0; i <= U; i++) { const t = -1 + (2 * i) / U, q = [t * L, H + 0.12 * t ** 4, side * B * Math.sqrt(Math.max(0, 1 - t ** 4))]; if (prev) rod(s, prev, q, 0.018, DECK.map((c) => c * 0.75), 5); prev = q; } }
+      });
+      at(0, 0.2, 0, () => tropical(s, 2.3, 0.5, 0.3, col, 117));
+      return grounded(s);
+    },
+  },
+  // ------------------------------------------------ the ceremony
+  crescent_arch: {
+    group: "ceremony", height: 2.65, on: "floor", colour: "coral", size: { w: 2.1, d: 0.85 }, block: "posts", posts: [[-0.3, 0]],
+    make(col) {
+      // a half-moon of flowers: a ring left open on one side, thick with tropical flowers and
+      // leaves, its foot in a low bank of the same
+      const s = shape(), R = 1.05, cy = 1.3, rnd = rng(127);
+      hoop(s, R, 0, cy, 0, 0.02, WIRE, -1.75, 1.2, 40);
+      const mix = [col, RED, MAGENTA, ORANGE, PINK, YELLOW];
+      for (let k = 0; k < 100; k++) {
+        const a = -1.75 + rnd() * 2.95, q = rnd() * 6.3, d = 0.18 * Math.sqrt(rnd()), rr = R + Math.cos(q) * d;
+        const p = [rr * Math.cos(a), cy + rr * Math.sin(a), Math.sin(q) * d], out = [Math.cos(a) * Math.cos(q) * 0.6, Math.sin(a) * Math.cos(q) * 0.6, Math.sin(q) + 0.2];
+        const n = Math.hypot(...out), dir = out.map((v) => v / n);
+        if (k % 4 === 0) leaf(s, p, dir, 0.3, 0.2, k % 8 ? DARK_LEAF : CORDYLINE);
+        else if (k % 4 === 1) facing(dir, p, () => orchid(s, 0.09, k % 8 === 1 ? ORCHID : MAGENTA));
+        else facing(dir, p, () => bloom(s, 0.06, 0, 0, 0, mix[k % mix.length], rnd() * 6));
+      }
+      florets(s, 2200, (t) => { const a = -1.75 + t * 2.95; return [R * Math.cos(a), cy + R * Math.sin(a), 0]; }, 0.17, [DARK_LEAF, LEAF, col, RED, MAGENTA, PINK, DARK_LEAF, ORANGE], 133);
+      at(0.2, 0, 0, () => tropical(s, 1.5, 0.5, 0.45, col, 131));
+      return grounded(s);
+    },
+  },
+  tropical_arch: {
+    group: "ceremony", height: 2.78, on: "floor", colour: "coral", size: { w: 2.7, d: 0.74 }, block: "posts", posts: [[-1.05, 0], [1.05, 0]],
+    make(col) {
+      // an arch thick with tropical flowers and leaves from the ground over the top, for the altar
+      const s = shape(), rnd = rng(137), mix = [col, RED, MAGENTA, ORANGE, PINK, YELLOW, CORAL];
+      const path = (t) => { const a = Math.PI * Math.min(1, Math.max(0, (t - 0.3) / 0.4)); return t < 0.3 ? [-1.05, (t / 0.3) * 1.6, 0] : t > 0.7 ? [1.05, ((1 - t) / 0.3) * 1.6, 0] : [-1.05 * Math.cos(a), 1.6 + 0.9 * Math.sin(a), 0]; };
+      for (let k = 0; k < 40; k++) rod(s, path(k / 40), path((k + 1) / 40), 0.025, WIRE, 6);
+      florets(s, 3200, path, 0.2, [DARK_LEAF, LEAF, col, RED, MAGENTA, PINK, DARK_LEAF, ORANGE, YELLOW], 139);
+      for (let k = 0; k < 140; k++) {
+        const t = rnd(), p0 = path(t), q = rnd() * 6.3, d = 0.18 * Math.sqrt(rnd());
+        const p = [p0[0] + Math.cos(q) * d * (t > 0.3 && t < 0.7 ? 0.3 : 1), p0[1] + Math.cos(q) * d * (t > 0.3 && t < 0.7 ? 1 : 0.2), Math.sin(q) * d];
+        const dir = tipped(q, 1.3), kind = k % 5;
+        if (kind === 0) leaf(s, p, tipped(rnd() * 6.3, 1.2), 0.3, 0.22, k % 10 ? DARK_LEAF : CORDYLINE);
+        else if (kind === 1) facing(dir, p, () => torch(s, 0.12, RED));
+        else if (kind === 2) facing(dir, p, () => orchid(s, 0.09, MAGENTA));
+        else facing(dir, p, () => bloom(s, 0.06, 0, 0, 0, mix[k % mix.length], rnd() * 6));
+      }
+      return grounded(s);
+    },
+  },
+  altar_table: {
+    group: "ceremony", height: 0.95, on: "floor", colour: "wood", size: { w: 1.0, d: 0.5 }, block: true, top: 0.95,
+    make(col) {
+      // the small wooden table the celebrant stands behind
+      const s = shape();
+      box(s, 1.0, 0.04, 0.5, 0, 0.91, 0, col);
+      for (const x of [-0.44, 0.44]) for (const z of [-0.2, 0.2]) box(s, 0.05, 0.91, 0.05, x, 0, z, col.map((v) => v * 0.88));
+      box(s, 0.88, 0.08, 0.02, 0, 0.82, 0.2, col.map((v) => v * 0.88));
+      box(s, 0.88, 0.03, 0.03, 0, 0.18, 0, col.map((v) => v * 0.88));
+      return s;
+    },
+  },
+  altar_deck: {
+    group: "ceremony", height: 0.2, on: "floor", colour: "wood", size: { w: 3, d: 2 }, block: false, top: 0.2,
+    make(col) {
+      // a low wooden platform for the altar, its boards running across
+      const s = shape();
+      box(s, 3, 0.16, 2, 0, 0, 0, col.map((v) => v * 0.7));
+      for (let k = 0; k < 14; k++) box(s, 3.02, 0.04, 0.14, 0, 0.16, -0.93 + k * 0.143, col.map((v) => v * (0.92 + 0.08 * ((k * 5) % 3) / 2)));
+      return s;
+    },
+  },
+  flower_swing: {
+    group: "ceremony", height: 2.66, on: "floor", colour: "ivory", size: { w: 3.0, d: 1.7 }, block: "posts", posts: [[0, 0]],
+    make(col) {
+      // a ring of pampas and eucalyptus round a wooden swing seat, over an oval jute rug, for photos
+      const s = shape(), R = 1.0, cy = 1.28, rnd = rng(139);
+      made("wood", () => { for (let k = 0; k < 6; k++) { const pts = []; const r = 1.1 * (1 - k / 7); for (let j = 0; j <= 48; j++) { const a = (j / 48) * 2 * Math.PI; pts.push([r * 1.05 * Math.sin(a), 0.004 + 0.001 * k, r * 0.75 * Math.cos(a)]); } for (let j = 0; j < 48; j++) rod(s, pts[j], pts[j + 1], 0.012, k % 2 ? JUTE : JUTE.map((v) => v * 0.88), 4); } });
+      hoop(s, R, 0, cy, 0, 0.02, WIRE);
+      box(s, 0.9, 0.04, 0.3, 0, 0.5, 0, DECK);
+      for (const x of [-0.4, 0.4]) rod(s, [x, 0.54, 0], [x * 0.6, cy + R * 0.98, 0], 0.006, JUTE, 4);
+      for (let k = 0; k < 130; k++) {
+        const a = rnd() * 6.3, p = [R * Math.cos(a), cy + R * Math.sin(a), (rnd() - 0.5) * 0.1];
+        const out = tipped(rnd() * 6.3, 1.0);
+        if (k % 3) plume(s, 0.38 + 0.2 * rnd(), 0.07, p, k % 2 ? PAMPAS : col, 140 + k, Math.atan2(Math.cos(a), 0.3), 0.6 + rnd());
+        else sprig(s, p, out, 0.25, k);
+      }
+      return grounded(s);
+    },
+  },
+  bamboo_screen: {
+    group: "ceremony", height: 2.4, on: "floor", colour: "wood", size: { w: 2.4, d: 0.12 }, block: true,
+    make() {
+      // a backdrop of bamboo poles side by side, ringed at their knots
+      const s = shape(), rnd = rng(149);
+      for (let k = 0; k < 30; k++) {
+        const x = -1.16 + k * 0.08, r = 0.035 + 0.008 * rnd(), h = 2.25 + 0.15 * rnd(), c = BAMBOO.map((v) => v * (0.85 + 0.2 * rnd()));
+        cyl(s, r, r, h, x, 0, (rnd() - 0.5) * 0.04, c, 10);
+        for (let j = 1; j < 5; j++) cyl(s, r + 0.004, r + 0.004, 0.015, x, (h * j) / 5 + 0.1 * rnd(), 0, c.map((v) => v * 0.85), 10);
+      }
+      return s;
+    },
+  },
+  green_wall: {
+    group: "ceremony", height: 2.4, on: "floor", colour: "green", size: { w: 2.4, d: 0.3 }, block: true,
+    make() {
+      // a wall of leaves for photos, on a frame
+      const s = shape(), rnd = rng(151);
+      box(s, 2.4, 2.4, 0.08, 0, 0, -0.1, DARK_LEAF);
+      for (let k = 0; k < 900; k++) {
+        const x = (rnd() - 0.5) * 2.3, y = 0.05 + rnd() * 2.3;
+        leaf(s, [x, y, -0.04], [0.3 * (rnd() - 0.5), -0.2 + 0.4 * rnd(), 0.9].map((v, _, a) => v / Math.hypot(...a)), 0.12 + 0.06 * rnd(), 0.3,
+             [LEAF, DARK_LEAF, PALM, MONSTERA][k % 4]);
+      }
+      return grounded(s);
+    },
+  },
+  woven_wall: {
+    group: "ceremony", height: 2.4, on: "floor", colour: "rattan", size: { w: 2.4, d: 0.3 }, block: true,
+    make(col) {
+      // a green wall hung with woven placemats and fans of every size, for photos
+      const s = shape(), rnd = rng(157);
+      box(s, 2.4, 2.4, 0.08, 0, 0, -0.1, DARK_LEAF);
+      for (let k = 0; k < 300; k++) leaf(s, [(rnd() - 0.5) * 2.3, 0.05 + rnd() * 2.3, -0.04], [0, 0, 1], 0.14, 0.3, k % 2 ? LEAF : DARK_LEAF);
+      for (let k = 0; k < 22; k++) {
+        const r = 0.1 + 0.16 * rnd(), x = (rnd() - 0.5) * (2.2 - r), y = r + rnd() * (2.3 - 2 * r);
+        facing([0, 0, 1], [x, y, 0.02 + 0.002 * k], () => jute(s, r, k % 3 ? col : JUTE));
+      }
+      return s;
+    },
+  },
+  // ------------------------------------------------ the lounge and what things stand on
+  rattan_sofa: {
+    group: "lounge", height: 0.8, on: "floor", colour: "rattan", size: { w: 1.8, d: 0.85 }, block: true,
+    seats: [{ x: -0.42, y: 0.44, z: 0.05, back: true }, { x: 0.42, y: 0.44, z: 0.05, back: true }],
+    make(col) {
+      // a rattan sofa, its back and arms one rounded sweep, white cushions and a few patterned ones
+      const s = shape();
+      braided(s, 1.8, 0.8, 0.32, 0, 0, col);
+      soft(s, 1.8, 0.42, 0.16, 0, 0.32, -0.33, col, 0.07, 5);
+      for (const x of [-0.86, 0.86]) soft(s, 0.14, 0.26, 0.8, x, 0.32, 0, col, 0.06, 5);
+      for (const x of [-0.42, 0.42]) soft(s, 0.8, 0.12, 0.6, x, 0.32, 0.06, CUSHION, 0.04, 5);
+      for (const [x, c] of [[-0.6, CUSHION], [-0.25, EUCALYPTUS], [0.25, BEIGE], [0.6, CUSHION]]) soft(s, 0.38, 0.36, 0.13, x, 0.42, -0.2, c, 0.05, 5);
+      return s;
+    },
+  },
+  rattan_round_chair: {
+    group: "lounge", height: 0.82, on: "floor", colour: "rattan", size: { w: 0.95, d: 0.9 }, block: true, seat: { y: 0.42, z: 0.08, back: true },
+    make(col) {
+      // a round rattan armchair, a bowl of woven cane on a low foot, a deep white cushion in it
+      const s = shape(), U = 14, A = 32, pts = [];
+      made("wood", () => {
+        for (let u = 0; u <= U; u++) for (let v = 0; v <= A; v++) {
+          const t = u / U, a = -2.4 + (v / A) * 4.8, r = 0.46 * Math.sin(Math.PI * (0.15 + 0.6 * t)) + 0.02;
+          const y = 0.1 + 0.72 * t * (0.55 + 0.45 * Math.cos(a / 2.4 * Math.PI / 2) ** 2);
+          pts.push(vert(s, r * Math.sin(a + Math.PI), Math.min(y, 0.1 + 0.72 * t), r * Math.cos(a + Math.PI) * 0.95, (u + v) % 2 ? col : col.map((q) => q * 0.88)));
+        }
+        for (let u = 0; u < U; u++) for (let v = 0; v < A; v++) quad(s, pts[u * (A + 1) + v], pts[u * (A + 1) + v + 1], pts[(u + 1) * (A + 1) + v + 1], pts[(u + 1) * (A + 1) + v]);
+      });
+      cyl(s, 0.2, 0.26, 0.1, 0, 0, 0, col, 24);
+      soft(s, 0.7, 0.14, 0.62, 0, 0.3, 0.06, CUSHION, 0.06, 5);
+      return grounded(s);
+    },
+  },
+  wicker_pouf: {
+    group: "lounge", height: 0.42, on: "floor", colour: "rattan", size: { w: 0.5, d: 0.5 }, block: true, seat: { y: 0.42, z: 0, back: false },
+    make(col) { const s = shape(); braided(s, 0.5, 0.5, 0.42, 0, 0, col); return s; },
+  },
+  jute_rug: {
+    group: "lounge", height: 0.01, on: "floor", colour: "rattan", size: { r: 1.0 }, block: false,
+    make(col) { const s = shape(); jute(s, 1.0, col); return s; },
+  },
+  trunk_table: {
+    group: "lounge", height: 0.5, on: "floor", colour: "wood", size: { r: 0.25 }, block: true, top: 0.5,
+    make() {
+      // a slice of tree trunk for a side table: bark round it, the rings on top
+      const s = shape();
+      cyl(s, 0.24, 0.22, 0.47, 0, 0, 0, TRUNK, 20);
+      for (let k = 0; k < 4; k++) cyl(s, 0.23 - k * 0.05, 0.23 - k * 0.05, 0.03 + 0.001 * k, 0, 0.47, 0, k % 2 ? DECK : DECK.map((v) => v * 1.1), 24);
+      return s;
+    },
+  },
+  cage_table: {
+    group: "lounge", height: 0.46, on: "floor", colour: "black", size: { r: 0.3 }, block: true, top: 0.46,
+    make(col) {
+      // a round side table: a black wire cage under a wooden top
+      const s = shape();
+      const ring = (y) => { const out = []; for (let k = 0; k <= 32; k++) { const a = (k / 32) * 2 * Math.PI; out.push([0.27 * Math.sin(a), y, 0.27 * Math.cos(a)]); } return out; };
+      for (const y of [0.01, 0.21, 0.42]) { const r = ring(y); for (let k = 0; k < 32; k++) rod(s, r[k], r[k + 1], 0.006, col, 4); }
+      for (let k = 0; k < 14; k++) { const a = (k / 14) * 2 * Math.PI; rod(s, [0.27 * Math.sin(a), 0, 0.27 * Math.cos(a)], [0.27 * Math.sin(a + 0.3), 0.42, 0.27 * Math.cos(a + 0.3)], 0.005, col, 4); }
+      cyl(s, 0.3, 0.3, 0.04, 0, 0.42, 0, DECK, 32);
+      return s;
+    },
+  },
+  dresser: {
+    group: "bar", height: 0.88, on: "floor", colour: "green", size: { w: 1.56, d: 0.52 }, block: true, top: 0.88,
+    make(col) {
+      // an old painted chest of drawers for a cake table, brass knobs on its drawers
+      const s = shape(), edge = col.map((v) => v * 0.8);
+      box(s, 1.5, 0.74, 0.48, 0, 0.1, 0, col);
+      box(s, 1.56, 0.04, 0.52, 0, 0.84, 0, edge);
+      for (const x of [-0.7, 0.7]) for (const z of [-0.2, 0.2]) box(s, 0.06, 0.1, 0.06, x, 0, z, edge);
+      for (const [y, h, xs] of [[0.62, 0.18, [-0.37, 0.37]], [0.38, 0.2, [0]], [0.14, 0.2, [0]]]) for (const x of xs) {
+        const w = xs.length > 1 ? 0.66 : 1.38;
+        box(s, w, h, 0.012, x, y, 0.24, col.map((v) => v * 1.05));
+        for (const kx of xs.length > 1 ? [x] : [-0.35, 0.35]) ball(s, 0.016, kx, y + h / 2, 0.26, COLOURS.gold, 8);
+      }
+      return s;
+    },
+  },
+  wicker_stand: {
+    group: "bar", height: 0.62, on: "floor", colour: "rattan", size: { r: 0.22 }, block: true, top: 0.62,
+    make(col) {
+      // a waisted wicker stand to raise a cake or a tray, a wooden top on it
+      const s = shape();
+      woven(s, 0.58, (t) => 0.12 + 0.08 * (2 * t - 1) ** 2, 0, 0, 0, col, 10, 18);
+      cyl(s, 0.22, 0.22, 0.04, 0, 0.58, 0, DECK, 32);
+      return s;
+    },
+  },
+  bamboo_chair: {
+    group: "tables", height: 0.92, on: "floor", colour: "wood", size: { w: 0.46, d: 0.56 }, block: true, seat: { y: 0.45, z: 0, back: true },
+    make(col) {
+      // a folding chair of dark bamboo, its legs crossed at the side, a slatted seat and back
+      const s = shape(), c = col.map((v) => v * 0.8);
+      for (const x of [-0.21, 0.21]) {
+        rod(s, [x, 0, 0.26], [x, 0.92, -0.2], 0.016, c, 8);
+        rod(s, [x, 0, -0.24], [x, 0.44, 0.2], 0.016, c, 8);
+        for (const y of [0.15]) rod(s, [x, y, -0.2], [x, y, 0.2], 0.01, c, 6);
+      }
+      for (let k = 0; k < 6; k++) rod(s, [-0.21, 0.44, -0.18 + k * 0.07], [0.21, 0.44, -0.18 + k * 0.07], 0.014, c, 6);
+      for (let k = 0; k < 4; k++) { const y = 0.6 + k * 0.08; rod(s, [-0.21, y, -0.2 + (0.92 - y) * 0.0], [0.21, y, -0.2 + (0.92 - y) * 0.0], 0.012, c, 6); }
+      box(s, 0.38, 0.01, 0.36, 0, 0.455, 0, RATTAN);
+      return grounded(s);
+    },
+  },
+  chiavari_chair: {
+    group: "tables", height: 0.92, on: "floor", colour: "wood", size: { w: 0.42, d: 0.46 }, block: true, seat: { y: 0.46, z: 0, back: true },
+    make(col) {
+      // a slim chiavari chair, spindles in its back, a white seat pad
+      const s = shape();
+      for (const [x, z] of [[-0.18, 0.19], [0.18, 0.19]]) rod(s, [x * 1.08, 0, z * 1.05], [x, 0.44, z], 0.013, col, 8);
+      for (const x of [-0.18, 0.18]) rod(s, [x * 1.08, 0, -0.21], [x * 0.95, 0.92, -0.22], 0.013, col, 8);
+      box(s, 0.4, 0.03, 0.42, 0, 0.42, 0, col);
+      soft(s, 0.38, 0.04, 0.38, 0, 0.45, 0.01, CUSHION, 0.015, 3);
+      for (const y of [0.62, 0.74, 0.9]) rod(s, [-0.17, y, -0.22], [0.17, y, -0.22], 0.01, col, 6);
+      for (const y of [0.12, 0.26]) rod(s, [-0.19, y, 0.2], [0.19, y, 0.2], 0.007, col, 6);
+      return s;
+    },
+  },
+  rope_lantern: {
+    group: "lights", height: 0.44, on: "floor", colour: "rattan", size: { r: 0.1 }, block: false,
+    make(col) {
+      // a glass cylinder lantern with a wooden base and a rope handle, a candle inside
+      const s = shape();
+      cyl(s, 0.1, 0.1, 0.03, 0, 0, 0, DECK, 20);
+      cyl(s, 0.09, 0.09, 0.3, 0, 0.03, 0, GLASS, 20);
+      cyl(s, 0.1, 0.1, 0.02, 0, 0.33, 0, DECK, 20);
+      cyl(s, 0.035, 0.035, 0.12, 0, 0.03, 0, WAX, 12); lit(() => ball(s, 0.012, 0, 0.165, 0, FLAME, 8));
+      made("wood", () => hoop(s, 0.08, 0, 0.35, 0, 0.008, col, 0, Math.PI, 14));
+      return s;
+    },
+  },
+  tall_lanterns: {
+    group: "lights", height: 1.0, on: "floor", colour: "rattan", size: { w: 0.5, d: 0.3 }, block: false,
+    make(col) {
+      // a pair of tall slatted floor lanterns, candles glowing inside
+      const s = shape();
+      for (const [x, h, r] of [[-0.12, 1.0, 0.11], [0.14, 0.75, 0.1]]) {
+        woven(s, h, (t) => r * (0.85 + 0.15 * Math.sin(Math.PI * t)), x, 0, 0, col, 4, 20);
+        cyl(s, 0.035, 0.035, 0.15, x, 0.01, 0, WAX, 12); lit(() => ball(s, 0.013, x, 0.18, 0, FLAME, 8));
+      }
+      return s;
+    },
+  },
+});
+
 // the groups the panel shows the starters in, in order
 export const GROUPS = ["tables", "flowers", "table", "ceremony", "bar", "lights", "lounge"];
 
