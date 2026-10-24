@@ -144,6 +144,10 @@ class Server(unittest.TestCase):
         self.assertEqual([r["name"] for r in rooms if r.get("making")], ["_sample_venue"])
         self.assertEqual(self.post("/api/upload?name=house.zip&kind=room", b"PK")[0], 201)   # an iPhone capture
         self.assertEqual(self.post("/api/upload?name=house.zip", b"PK")[0], 400)             # but not a body
+        for _ in range(200):                           # (its run done before the folder goes: tearDown)
+            if all(j["status"] in ("done", "failed") for j in json.loads(self.get("/api/jobs")[1])):
+                break
+            time.sleep(0.05)
 
     def test_room_map_is_made_once_in_the_background(self):
         from tests.fakes.room import write_room
