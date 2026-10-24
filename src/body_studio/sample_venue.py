@@ -30,13 +30,14 @@ The plan isn't to scale ("planta sem escala"), so the sizes are its measures:
 """
 from __future__ import annotations
 
+import json
 import math
 import random
 from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 5
+VERSION = 6
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -501,62 +502,33 @@ def garden(rnd, out):
     cover(rnd, out)
     bungalow(rnd, out)
     for t in TREES:
-        tree(rnd, out, *t)
+        trunk(rnd, out, *t)
 
 
-# the trees the walkthrough shows (x, z, kind, height, crown's radius): a broad tree in the sand
+# the trees the walkthrough shows (x, z, the decor starter that draws it): a broad tree in the sand
 # past the rain cover, a big one beside the bungalow, two beach almonds at the sand's edge by the
-# sea, and coconut palms standing out of the beds along the walls
-TREES = ((44.5, 3.2, "broad", 5.5, 2.6), (52.5, 10.8, "broad", 7.0, 3.4),
-         (_garden_end(3.0) + 2.5, 3.0, "almond", 6.0, 3.2), (_garden_end(13.0) + 2.0, 13.0, "almond", 5.5, 3.0),
-         (34.0, 0.6, "palm", 8.0, 2.2), (47.0, 0.6, "palm", 9.0, 2.2), (36.0, GARDEN_W - 0.6, "palm", 8.5, 2.2))
+# sea, and coconut palms standing out of the beds along the walls. The page draws them as it draws
+# the decor (decor.js), from the fixtures make() writes; here only their trunks' feet, inside those,
+# so the map walks round them
+TREES = ((44.5, 3.2, "broad_tree"), (52.5, 10.8, "broad_tree"),
+         (_garden_end(3.0) + 2.5, 3.0, "beach_almond"), (_garden_end(13.0) + 2.0, 13.0, "beach_almond"),
+         (34.0, 0.6, "coconut_palm"), (47.0, 0.6, "coconut_palm"), (36.0, GARDEN_W - 0.6, "coconut_palm"))
+TRUNK = {"broad_tree": 0.1, "beach_almond": 0.1, "coconut_palm": 0.07}
 
 
-def tree(rnd, out, x, z, kind, h, r):
-    """A tree: a trunk (a palm's thin, ringed and leaning a little) under a crown of leaves, light
-    on top and darker under it; a palm's crown is fronds hanging out from its top."""
-    bark, leaf = ((0.55, 0.50, 0.42), (0.30, 0.48, 0.22)) if kind == "palm" else ((0.36, 0.30, 0.24), (0.22, 0.38, 0.17))
-    thick = 0.13 if kind == "palm" else 0.22
-    lean = (0.5, 0.0) if kind == "palm" else (0.0, 0.0)
-    top = h if kind == "palm" else h * 0.45
-    y = 0.0
-    while y < top:
-        f = y / top
-        cx, cz = x + lean[0] * f * f, z + lean[1] * f * f
+def trunk(rnd, out, x, z, item):
+    """A tree's trunk to 1.9 m, well inside the one the page draws over it (so it never shows)."""
+    r, y = TRUNK[item], 0.0
+    while y < 1.9:
         for k in range(10):
             a = 2 * math.pi * (k + rnd.random()) / 10
-            ring = 0.85 if kind == "palm" and int(y / 0.12) % 2 else 1.0
-            out.append(((cx + thick * math.cos(a), y, cz + thick * math.sin(a)), tuple(v * ring for v in bark), [0.06, 0.06, 0.06]))
-        y += 0.06
-    cx, cz = x + lean[0], z + lean[1]
-    if kind == "palm":
-        for k in range(14):                          # fronds: arching out and down from the top
-            a = 2 * math.pi * k / 14 + rnd.uniform(-0.15, 0.15)
-            for i in range(30):
-                t = i / 30
-                px, pz = cx + r * t * math.cos(a), cz + r * t * math.sin(a)
-                py = h + 0.5 * t - 1.6 * t * t
-                for side in (-1, 1):
-                    w = 0.35 * math.sin(math.pi * t)
-                    out.append(((px - side * w * math.sin(a), py - 0.1 * w, pz + side * w * math.cos(a)), leaf, [0.07, 0.02, 0.07]))
-        return
-    # branches up into the crown, then the crown: flattened (an almond's in tiers)
-    for k in range(4):
-        a = 2 * math.pi * k / 4 + 0.4
-        for i in range(12):
-            t = i / 12
-            out.append(((cx + 0.5 * r * t * math.cos(a), top + (h * 0.35) * t, cz + 0.5 * r * t * math.sin(a)), bark, [0.07, 0.07, 0.07]))
-    n = int(1100 * r * r)
-    for _ in range(n):
-        u, v, w = rnd.uniform(-1, 1), rnd.uniform(-1, 1), rnd.uniform(-1, 1)
-        if u * u + v * v + w * w > 1:
-            continue
-        py = h * 0.8 + w * h * (0.18 if kind == "broad" else 0.12)
-        if kind == "almond":
-            py = h * 0.62 + round(w * 1.5) / 1.5 * h * 0.18
-        shade = 0.75 + 0.35 * (w + 1) / 2
-        t = rnd.uniform(-0.04, 0.05)
-        out.append(((cx + u * r, py, cz + v * r), tuple((c + t) * shade for c in leaf), [0.09, 0.05, 0.09]))
+            out.append(((x + r * math.cos(a), y, z + r * math.sin(a)), (0.42, 0.36, 0.30), [0.03, 0.03, 0.03]))
+        y += 0.05
+
+
+def fixtures() -> dict:
+    """What the page is told besides the splat (room.py's map, in its metres): the trees."""
+    return {"trees": [{"item": item, "at": [x, 0.0, z]} for x, z, item in TREES]}
 
 
 def bed_x(rnd, z, x0, x1, side, out):
@@ -687,6 +659,10 @@ def make(d: Path) -> Path:
     # kitchen and the stage on the wrong sides of the walk in from the door)
     base.write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(1.6, 1.2), centre=(8.0, -5.0))
     ply = base.write_drawn(d / "splat" / PLY, splats, mirror=True)
+    from .room import fixtures_file
+    # (in the file's coordinates: y down, and mirrored as the splats are)
+    fx = {"trees": [dict(t, at=[t["at"][0], -t["at"][1], -t["at"][2]]) for t in fixtures()["trees"]]}
+    fixtures_file(ply).write_text(json.dumps(fx, indent=1))
     from . import room
     room.build_and_save(ply)
     return ply

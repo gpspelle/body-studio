@@ -85,6 +85,18 @@ class SampleVenueTest(unittest.TestCase):
         # no furniture or lamps of its own: nothing to sit on until the Decor panel brings it (the
         # trees are the ones the walkthrough shows, in the garden and on the beach)
         self.assertTrue(all(t[0] > V.GARDEN_X for t in V.TREES))
+        # the page draws them as decor (starters), where the map says; the body walks round their trunks
+        trees = self.map["fixtures"]["trees"]
+        self.assertEqual(len(trees), len(V.TREES))
+        for t, (x, z, item) in zip(trees, V.TREES):
+            self.assertEqual(t["item"], item)
+            mx, mz = self.to_map(x, z)
+            self.assertAlmostEqual(t["at"][0], mx, delta=0.05)
+            self.assertAlmostEqual(t["at"][2], mz, delta=0.05)
+            self.assertAlmostEqual(t["at"][1], 0.0, delta=0.05)
+            self.assertFalse(self.free(x, z), item)
+        from body_studio import decor
+        self.assertTrue({t[2] for t in V.TREES} <= {s["id"] for s in decor.STARTERS})
         self.assertEqual(self.map["seats"], [])
         for name in ("olive", "chandelier", "reception", "hedge"):
             self.assertFalse(hasattr(V, name), name)
@@ -94,10 +106,9 @@ class SampleVenueTest(unittest.TestCase):
         far = [r for r in rows if len(r) > 3]
         self.assertGreater(len(far), 10000)
         self.assertTrue(all(r[3] < room.OPAQUE for r in far))
-        # the map stops at the water: its far end within a few metres of the dry sand's (the
-        # beach almonds' crowns reach out over it)
+        # the map stops at the water: its far end within a few metres of the dry sand's
         mx, _ = self.to_map(V._garden_end(V.GARDEN_W) + V.BEACH, V.GARDEN_W)
-        self.assertLess(abs(self.map["x0"] + self.map["nx"] * self.map["cell"] - mx), 5.0)
+        self.assertLess(abs(self.map["x0"] + self.map["nx"] * self.map["cell"] - mx), 4.5)   # (its thin slanted corner is cut off)
 
     def test_sides_as_the_plan(self):
         # walking in from the door (along +x, y up), the kitchen and the bungalow are on the right,

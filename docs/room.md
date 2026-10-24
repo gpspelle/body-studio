@@ -113,7 +113,8 @@ over its first 12 m, the bungalow: an open wooden deck under a timber frame), th
 of dry sand beyond the garden's slanted far side, the wet sand, the sea and the island's hills
 across it. What each surface is made of comes from the venue's photos and a walkthrough filmed
 there. The trees are the ones the walkthrough shows (two broad trees, two beach almonds,
-three palms in the beds). The file is written mirrored (z to -z) so that, as the page turns the
+three palms in the beds), drawn by the page as the decor is (the Garden starters), from the
+venue's fixtures; the splat has only their trunks' feet, for the map. The file is written mirrored (z to -z) so that, as the page turns the
 y-down file round, the kitchen and the bungalow are on the right as you walk in, as on the plan. About 860,000 splats. It is
 mapped when it is made (about 20 s, in the same background process), so the page doesn't wait; the
 sea and the hills are drawn faint enough to be left out of the map, so they don't make it bigger.

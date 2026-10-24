@@ -542,12 +542,31 @@ const mats = () => (MATS ||= materials(V.renderer));
 let shades = null;
 const SHADE_PLANE = new THREE.PlaneGeometry(1, 1), SHADE = shadow();
 
+function shade(d, p) {
+  const sh = new THREE.Mesh(SHADE_PLANE, SHADE), sz = d.size, w = sz.r !== undefined ? 2 * sz.r : sz.w, dd = sz.r !== undefined ? 2 * sz.r : sz.d;
+  sh.rotation.set(-Math.PI / 2, p.turn || 0, 0, "YXZ");
+  sh.position.set(p.x, (p.y || 0) - (p.lift || 0) + 0.004, p.z);
+  sh.scale.set(w * 1.35, dd * 1.35, 1);
+  sh.renderOrder = -1;
+  shades.add(sh);
+}
 function draw() {
   if (!group) return;
   for (const c of [...group.children]) if (c.isMesh) group.remove(c);
   if (!shades) { shades = new THREE.Group(); shades.userData.shades = true; }
   if (shades.parent !== group) group.add(shades);
   for (const c of [...shades.children]) shades.remove(c);
+  // the room's own trees (its fixtures: the sample venue's), drawn as the decor is but part of the
+  // room: not picked, moved or saved
+  for (const t of H()?.fixtures()?.trees || []) {
+    if (!STARTERS[t.item]) continue;
+    const m = new THREE.Mesh(geomFor({ item: t.item }), mats());
+    m.position.set(t.at[0], t.at[1], t.at[2]);
+    m.rotation.y = t.turn || 0;
+    m.userData.fixed = true;
+    group.add(m);
+    shade(defs(t.item), { x: t.at[0], y: t.at[1], z: t.at[2], turn: t.turn || 0 });
+  }
   placed().forEach((p, k) => {
     const g = geomFor(p);
     if (!g) return;
@@ -559,14 +578,7 @@ function draw() {
     m.userData.index = k;
     group.add(m);
     // a soft shadow under what stands (not under what lies flat or hangs)
-    if (d.height > 0.05 && !STARTERS[p.item]?.hangs) {
-      const sh = new THREE.Mesh(SHADE_PLANE, SHADE), sz = d.size, w = sz.r !== undefined ? 2 * sz.r : sz.w, dd = sz.r !== undefined ? 2 * sz.r : sz.d;
-      sh.rotation.set(-Math.PI / 2, p.turn || 0, 0, "YXZ");
-      sh.position.set(p.x, (p.y || 0) - (p.lift || 0) + 0.004, p.z);
-      sh.scale.set(w * 1.35, dd * 1.35, 1);
-      sh.renderOrder = -1;
-      shades.add(sh);
-    }
+    if (d.height > 0.05 && !STARTERS[p.item]?.hangs) shade(d, p);
   });
   placeGizmo();
   const map = H()?.map();
@@ -684,7 +696,7 @@ function aim(e) {
 }
 function hit(e) {
   aim(e);
-  const h = ray.intersectObjects(group.children.filter((c) => c.isMesh), false)[0];
+  const h = ray.intersectObjects(group.children.filter((c) => c.isMesh && !c.userData.fixed), false)[0];
   return h ? h.object.userData.index : -1;
 }
 // the handle under the pointer: "turn" (the ring or its knob), "lift", or null
@@ -836,7 +848,7 @@ window.decor = {
   pick,
   selected: () => sel,
   open: () => setOpen(true),
-  drawn: () => (group ? group.children.filter((c) => c.isMesh).length : 0),
+  drawn: () => (group ? group.children.filter((c) => c.isMesh && !c.userData.fixed).length : 0),
   group: () => group,
   move: (k, x, z, turn) => { const p = placed()[k]; p.x = x; p.z = z; if (turn != null) p.turn = turn; p.y = standY(defs(p.item), placed(), defs, p, roomTop); changed(); },
   tab: (which) => { if (which) setTab(which); return tab; },

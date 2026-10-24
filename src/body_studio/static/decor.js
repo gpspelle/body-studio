@@ -994,6 +994,84 @@ function tropical(s, w, d, h, col, seed) {
     }
   }
 }
+// ---------------------------------------------------------------- trees
+const BARK = [0.42, 0.36, 0.3], PALM_BARK = [0.6, 0.54, 0.45], CANOPY = [[0.2, 0.36, 0.16], [0.26, 0.43, 0.19], [0.17, 0.3, 0.14], [0.32, 0.47, 0.22]];
+// a limb from a to b, thinning from r0 to r1 and bending a little (sag: how far its middle drops)
+function limb(s, a, b, r0, r1, col, sag = 0, n = 5) {
+  let prev = a;
+  for (let k = 1; k <= n; k++) {
+    const t = k / n, q = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - sag * Math.sin(Math.PI * t), a[2] + (b[2] - a[2]) * t];
+    rod(s, prev, q, r0 + (r1 - r0) * (t - 0.5 / n), col, 8);
+    if (k < n) ball(s, r0 + (r1 - r0) * t, q[0], q[1], q[2], col, 8);   // (the joint, rounded)
+    prev = q;
+  }
+}
+// a clump of foliage round c, r across: a soft mass of leaf (so no sky shows through it) and leaves
+// standing out of it all round, each its own green, lighter on top where the sun is
+function clump(s, c, r, rnd, flat = 1) {
+  const col = CANOPY[Math.floor(rnd() * CANOPY.length)];
+  blob(s, r * 0.82, r * 0.62 * flat, r * 0.82, c[0], c[1], c[2], col.map((v) => v * 0.8), rnd() * 6, 10);
+  for (let k = 0; k < Math.round(70 * r * r * flat + 10); k++) {
+    const a = rnd() * 2 * Math.PI, up = rnd() * 2 - 1 + 0.3, h = Math.sqrt(Math.max(0, 1 - up * up));
+    const n = [h * Math.sin(a), up * flat, h * Math.cos(a)], p = [c[0] + n[0] * r * 0.75, c[1] + n[1] * r * 0.6, c[2] + n[2] * r * 0.75];
+    const lit = 0.85 + 0.3 * Math.max(0, up);
+    const shade = CANOPY[Math.floor(rnd() * CANOPY.length)].map((v) => Math.min(1, v * lit));
+    leaf(s, p, tipped(a, 0.4 + 0.9 * rnd()), 0.16 + 0.1 * rnd(), 0.42, shade);
+  }
+}
+function broadTree(s, h, r, seed) {
+  // a trunk forking into four limbs, a rounded crown of clumps over them
+  const rnd = rng(seed), fork = h * 0.38;
+  made("wood", () => limb(s, [0, 0, 0], [0.08, fork, 0.05], 0.24, 0.17, BARK, 0, 4));
+  made("wood", () => cyl(s, 0.36, 0.24, 0.3, 0, 0, 0, BARK, 14));          // (its foot, flared)
+  const ends = [];
+  for (let k = 0; k < 4; k++) {
+    const a = k * 1.6 + rnd() * 0.6, out = r * (0.45 + 0.2 * rnd());
+    const e = [0.08 + out * Math.sin(a), h * (0.66 + 0.1 * rnd()), 0.05 + out * Math.cos(a)];
+    made("wood", () => limb(s, [0.08, fork, 0.05], e, 0.15, 0.06, BARK, -0.25));
+    ends.push(e);
+  }
+  for (let k = 0; k < 16; k++) {
+    const a = rnd() * 2 * Math.PI, d = Math.sqrt(rnd()) * r * 0.62;
+    const y = h * 0.74 + (1 - d / r) * h * 0.14 + (rnd() - 0.5) * 0.4;
+    clump(s, [0.08 + d * Math.sin(a), y, 0.05 + d * Math.cos(a)], r * (0.34 + 0.12 * rnd()), rnd);
+  }
+}
+function almondTree(s, h, r, seed) {
+  // a beach almond: a straight trunk, branches in level whorls, each tier a flat spread of leaves,
+  // wider down low
+  const rnd = rng(seed), tiers = 4;
+  made("wood", () => limb(s, [0, 0, 0], [0, h * 0.86, 0], 0.22, 0.07, BARK, 0, 6));
+  made("wood", () => cyl(s, 0.32, 0.22, 0.25, 0, 0, 0, BARK, 14));
+  for (let t = 0; t < tiers; t++) {
+    const y = h * (0.42 + 0.15 * t), w = r * (1 - 0.2 * t);
+    for (let k = 0; k < 5; k++) {
+      const a = k * 1.257 + t * 0.6 + rnd() * 0.3, e = [w * Math.sin(a), y + 0.25, w * Math.cos(a)];
+      made("wood", () => limb(s, [0, y, 0], e, 0.08 - 0.01 * t, 0.03, BARK, -0.1, 3));
+      for (let j = 0; j < 3; j++) {
+        const f = 0.45 + 0.28 * j;
+        clump(s, [e[0] * f + (rnd() - 0.5) * 0.3, y + 0.25 * f + 0.15, e[2] * f + (rnd() - 0.5) * 0.3], w * 0.3, rnd, 0.45);
+      }
+    }
+  }
+}
+function coconutPalm(s, h, seed) {
+  // a coconut palm: a thin ringed trunk curving up, a crown of long arching fronds, a few nuts
+  const rnd = rng(seed), lean = 0.6, at = (t) => [lean * t * t, h * t, 0];
+  made("wood", () => {
+    for (let k = 0; k < 24; k++) {
+      const a = at(k / 24), b = at((k + 1) / 24), r = 0.16 - 0.04 * (k / 24);
+      rod(s, a, b, r, k % 2 ? PALM_BARK : PALM_BARK.map((v) => v * 0.86), 10);
+    }
+  });
+  const top = at(1);
+  blob(s, 0.2, 0.3, 0.2, top[0], top[1], top[2], [0.35, 0.42, 0.22], 0, 10);
+  for (let k = 0; k < 16; k++) {
+    const a = (k / 16) * 2 * Math.PI + rnd() * 0.2, len = 2.2 + 0.6 * rnd();
+    frond(s, [top[0], top[1] + 0.15, top[2]], a, len, CANOPY[k % CANOPY.length]);
+  }
+  for (let k = 0; k < 5; k++) { const a = k * 1.3; ball(s, 0.1, top[0] + 0.2 * Math.sin(a), top[1] - 0.2, top[2] + 0.2 * Math.cos(a), [0.42, 0.33, 0.18], 10); }
+}
 // a woven shell (wicker, rattan) of rings and staves: radius r(t) from t = 0 (foot) to 1 (top)
 function woven(s, h, r, cx, cy, cz, col, rings = 8, staves = 14) {
   const at = (t, a) => [cx + r(t) * Math.sin(a), cy + h * t, cz + r(t) * Math.cos(a)];
@@ -1823,6 +1901,19 @@ Object.assign(STARTERS, {
     group: "lounge", height: 0.01, on: "floor", colour: "rattan", size: { r: 1.0 }, block: false,
     make(col) { const s = shape(); jute(s, 1.0, col); return s; },
   },
+  // trees, as in the venue's garden (and for any garden)
+  broad_tree: {
+    group: "garden", height: 5.65, on: "floor", colour: "green", size: { r: 2.4 }, block: "posts", posts: [[0.04, 0.03]],
+    make() { const s = shape(); broadTree(s, 5.5, 2.6, 11); return grounded(s); },
+  },
+  beach_almond: {
+    group: "garden", height: 5.89, on: "floor", colour: "green", size: { r: 3.6 }, block: "posts", posts: [[0, 0]],
+    make() { const s = shape(); almondTree(s, 6.0, 3.0, 23); return grounded(s); },
+  },
+  coconut_palm: {
+    group: "garden", height: 8.34, on: "floor", colour: "green", size: { w: 6.0, d: 5.2 }, block: "posts", posts: [[0, 0]],
+    make() { const s = shape(); coconutPalm(s, 8.0, 5); return grounded(s); },
+  },
   // seen at Casa Arandella (the walkthrough filmed there, 2026-10-24)
   blue_bookcase: {
     group: "lounge", height: 1.9, on: "floor", colour: "blue", size: { w: 0.9, d: 0.4 }, block: true,
@@ -2015,7 +2106,7 @@ Object.assign(STARTERS, {
 });
 
 // the groups the panel shows the starters in, in order
-export const GROUPS = ["tables", "flowers", "table", "ceremony", "bar", "lights", "lounge"];
+export const GROUPS = ["tables", "flowers", "table", "ceremony", "bar", "lights", "lounge", "garden"];
 
 // A starter's shape in a colour (a name in COLOURS; its own colour if none).
 export function starterShape(id, colour) {
