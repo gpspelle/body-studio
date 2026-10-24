@@ -96,7 +96,7 @@ async function load() {
   loading = file;
   $("studioBody").hidden = true;
   status(t("studio.finding"));
-  // (and the loading screen, index.html, until it can move)
+  // (and the loading screen, viewer.js, until it can move)
   app.busy(file, t("studio.finding"), { slow: t("load.slowRig") });
   try {
     let rig = null;
@@ -557,7 +557,7 @@ const typing = (e) => !!e.target.closest?.("input, textarea, select, [contentedi
 addEventListener("keydown", async (e) => {
   hurry = e.shiftKey;
   if (e.metaKey || e.ctrlKey || e.altKey || typing(e) || $("guide").open) return;
-  if (e.code === "KeyR") {                   // back where it was scanned (index.html frames it again)
+  if (e.code === "KeyR") {                   // back where it was scanned (viewer.js frames it again)
     if (S) { S.walker.home(); follow.set(0, 0, 0); drawPose(); save(); }
     return;
   }

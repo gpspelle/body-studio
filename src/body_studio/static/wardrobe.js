@@ -41,7 +41,7 @@ addEventListener("studioready", async (e) => {
   W = { file, rig, weights, mesh, centres, transforms, caps, hands, worn: new Map(), fit: null, cover: null, hidden: new Map(),
         tinted: new Map(), busy: 0, model: "standard" };
   window.wardrobe.ready = false;
-  // the loading screen (index.html) stays until the clothes are fitted, what was worn is back on
+  // the loading screen (viewer.js) stays until the clothes are fitted, what was worn is back on
   // and the shop stands round the body
   const app = window.bodyApp, step = "wear:" + file;
   app.busy(step, t("wear.fitting"), { slow: t("load.slowRig") });

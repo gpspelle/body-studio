@@ -1,4 +1,4 @@
-// When the page draws a frame (index.html's loop): only when something changed, so the GPU (and a
+// When the page draws a frame (viewer.js's loop): only when something changed, so the GPU (and a
 // laptop's fan) rests while the body stands still. A frame is due when the camera moved (a drag,
 // its damping, the turntable, a part moving it), while a part animates (keep: a walk through a
 // room), until a moment after redraw(ms) (Spark has something new to show, a pose, any input),

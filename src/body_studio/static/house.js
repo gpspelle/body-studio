@@ -91,7 +91,7 @@ async function choose(file) {
   const studio = window.tattooStudio;
   if (!V.file()) return;
   busy = file;
-  // (and the loading screen, index.html, until the body stands in the room)
+  // (and the loading screen, viewer.js, until the body stands in the room)
   const step = (text) => { say(text); app.busy("room", text); };
   try {
     step(t("room.body"));
@@ -132,7 +132,7 @@ async function choose(file) {
     say("");
     V.controls.autoRotate = false;
     document.body.classList.add("in-room");
-    dispatchEvent(new Event("roomchange"));      // (index.html frames the body again: view())
+    dispatchEvent(new Event("roomchange"));      // (viewer.js frames the body again)
     if (!$("roomMenu").hidden) list();
   } finally {
     if (busy === file) busy = null;
@@ -161,7 +161,7 @@ function place() {
 
 // The camera where it sees most of the room with the body in it: from the side of the body with
 // the most free room behind the camera (in front of the body if it can), at eye height.
-// (index.html's frame() asks for it in a room.) Whether it did.
+// (viewer.js's frame() asks for it in a room.) Whether it did.
 function view() {
   const w = window.tattooStudio.walker(), sk = w && w.sk;
   if (!R || !R.P || !sk) return false;
