@@ -255,6 +255,17 @@
   820,000.
 - A sample room drawn again after an update (a new version) is shown again by itself once it is
   ready, and the page's code is never kept by the browser over an update.
+- The sample venue looks like the real one, from a walkthrough filmed there: rustic tiles and a
+  concrete ceiling in the hall, grey cement floors, a reed roof over the pergola, a black stage with
+  a screen and curtains, a sand garden with tropical beds under a glass rain cover, the bungalow as
+  an open wooden deck, a tiled kitchen and dark wooden doors.
+- The sample venue is no longer shown mirrored: the kitchen, the bungalow and the hall's windows
+  are on the right as you walk in, the stage on the left, as on the plan. Its trees are there
+  too: two broad trees in the garden, two beach almonds by the sea and three palms in the beds.
+  A layout already made in it comes back mirrored.
+- Seven decor starters seen at the venue: a blue bookcase, iron shelves, a high wooden table, an
+  egg planter, a striped daybed, a diamond rug and a wicker bench. Coral, rattan and copper (and
+  the new grey blue) can be saved in a layout.
 - The sample venue's kitchen can be walked into: it has a floor now and its door stands open on
   the hall.
 - First person walks straight: the view no longer turns by itself as the body turns into the

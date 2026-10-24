@@ -251,10 +251,14 @@ def look_files(ply: Path) -> tuple:
     return d / Path(ply).name, d / (Path(ply).stem + ".shell.bin")
 
 
-def write_drawn(ply: Path, make_splats) -> Path:
+def write_drawn(ply: Path, make_splats, mirror: bool = False) -> Path:
     """A drawn room's splat (everything: room.py maps it) and its look (the shell, and the splats
-    it leaves)."""
+    it leaves); mirrored (z to -z) if asked."""
     rows, rest, sheets = drawing(make_splats)
+    if mirror:
+        m = lambda v: (v[0], v[1], 0.0 - v[2])
+        rows, rest = ([(m(r[0]), *r[1:]) for r in rs] for rs in (rows, rest))
+        sheets = [(m(o), m(du), m(dv), *r) for (o, du, dv, *r) in sheets]
     look, shell = look_files(ply)
     write_ply(look, rest)
     write_shell(shell, sheets)
