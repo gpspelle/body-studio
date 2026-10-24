@@ -9,7 +9,7 @@ import { Skeleton, SkinWeights, SurfaceMap, dualQuats, skinPoint, q, v3 } from "
 import { Walker } from "../../src/body_studio/static/walk.js";
 import { CH, MAX_CAPSULES, PARTS, SHADE, SWING, BULGE, Swing, bodyCapsules, channelLevels, curl, darknessAt, handFrames,
          looseness, smoothOver, swingPoint, occlusion, inkFactor, HEALED, PIGMENT, shapeKg, shapeOffsets, SkinField, partsOf, penetration, posedCapsules, pushOut, restOffsets, shadowBlobs, boneParts,
-         FOLD, TWIST, foldNeighbours, twistFractions, twistState, twistPoint } from "../../src/body_studio/static/flesh.js";
+         FOLD, TWIST, foldNeighbours, twistFractions, twistState, twistPoint, GRADIENT_SPLATS, weightGradients } from "../../src/body_studio/static/flesh.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { up: U, front: F, left: L } = rig.frame;
@@ -383,4 +383,40 @@ test("a bent elbow or knee folds the skin instead of passing through", () => {
   const out = pushOut(p, shin, C, caps.length, H, 0, FOLD.margin, nb[shin]);
   assert.ok(penetration(out, shin, C, caps.length, H, FOLD.margin, nb[shin]) < 1e-6 * H, "pushed out of it");
   assert.ok(v3.len(v3.sub(out, p)) < 0.08 * H, "by a few centimetres");
+});
+
+// a strip of skin 20 cm wide where bone 2's share grows from 0 to 1 along x, as many splats to the
+// square metre as a body has: the gradient of its share is 5 per metre along x, whether every
+// splat is used for the fit or every few (a big body)
+const slabLength = (n) => n / 300000 / 0.2;
+function slab(n, seed = 3) {
+  let s = seed;
+  const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+  const centres = new Float32Array(n * 3), bones = new Uint8Array(n * 4), weights = new Uint8Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const x = 0.2 * rnd(), y = slabLength(n) * rnd(), z = 0.004 * rnd();
+    centres.set([x, y, z], i * 3);
+    const w2 = Math.round(255 * x / 0.2);
+    bones.set([1, 2, 0, 0], i * 4); weights.set([255 - w2, w2, 0, 0], i * 4);
+  }
+  return { centres, bones, weights };
+}
+test("the weights' gradient: where skin passes from one bone to the next, big bodies too", () => {
+  for (const n of [20000, 5 * GRADIENT_SPLATS]) {
+    const { centres, bones, weights } = slab(n), g = weightGradients(centres, bones, weights, n, 0.02);
+    const along = [];
+    for (let i = 0; i < n; i++) {
+      const x = centres[i * 3], y = centres[i * 3 + 1];
+      if (x < 0.03 || x > 0.17 || y < 0.03 || y > slabLength(n) - 0.03) continue;   // (away from the edges)
+      // from the heavier bone to the other: 1 to 2 on the first half, 2 to 1 on the second
+      if (Math.abs(x - 0.1) < 0.005) continue;
+      assert.equal(g[i * 4 + 3], x < 0.1 ? 1 * 256 + 2 : 2 * 256 + 1);
+      along.push(x < 0.1 ? g[i * 4] : -g[i * 4]);                         // (the other bone's share)
+      assert.ok(Math.hypot(g[i * 4 + 1], g[i * 4 + 2]) < 0.6, `${n}: across ${g[i * 4 + 1]}, ${g[i * 4 + 2]}`);
+    }
+    along.sort((a, b) => a - b);
+    const mid = along[along.length >> 1];
+    assert.ok(Math.abs(mid - 5) < 0.25, `${n}: ${mid} per metre`);
+    assert.ok(along[Math.floor(0.02 * along.length)] > 4, `${n}: ${along[Math.floor(0.02 * along.length)]}`);
+  }
 });

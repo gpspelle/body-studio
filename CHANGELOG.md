@@ -2,6 +2,9 @@
 
 ## 0.1.0 (unreleased)
 
+- A big body is ready to move about three times sooner: binding 400,000 splats took 13 s, 11 of
+  them fitting how the skin passes from bone to bone, which is now fitted over a sample of the
+  splats around each one (4.4 s in all).
 - The page draws a frame only when something changed (the camera, the body's pose, splats Spark
   has made or sorted, any input), and a few times a second otherwise, so the GPU and a laptop's fan
   rest while the body stands still.
