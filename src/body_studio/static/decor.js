@@ -10,7 +10,7 @@ import { b64bytes } from "./pose.js";
 export const COLOURS = {
   white: [0.95, 0.95, 0.93], ivory: [0.93, 0.88, 0.78], gold: [0.82, 0.67, 0.36], wood: [0.52, 0.36, 0.22],
   green: [0.33, 0.48, 0.31], blush: [0.92, 0.7, 0.69], black: [0.13, 0.13, 0.13],
-  coral: [0.93, 0.42, 0.33], rattan: [0.74, 0.57, 0.37], copper: [0.83, 0.52, 0.4],
+  coral: [0.93, 0.42, 0.33], rattan: [0.74, 0.57, 0.37], copper: [0.83, 0.52, 0.4], blue: [0.55, 0.63, 0.66],
 };
 const LEAF = [0.29, 0.45, 0.27], FLAME = [1.0, 0.78, 0.35], WAX = [0.97, 0.95, 0.88], GLASS = [0.86, 0.9, 0.9];
 
@@ -1822,6 +1822,92 @@ Object.assign(STARTERS, {
   jute_rug: {
     group: "lounge", height: 0.01, on: "floor", colour: "rattan", size: { r: 1.0 }, block: false,
     make(col) { const s = shape(); jute(s, 1.0, col); return s; },
+  },
+  // seen at Casa Arandella (the walkthrough filmed there, 2026-10-24)
+  blue_bookcase: {
+    group: "lounge", height: 1.9, on: "floor", colour: "blue", size: { w: 0.9, d: 0.4 }, block: true,
+    make(col) {
+      // a painted bookcase, an X brace down each side, wooden shelves and a dark back
+      const s = shape(), x = 0.43;
+      for (const sx of [-x, x]) {
+        for (const z of [-0.18, 0.18]) box(s, 0.05, 1.9, 0.05, sx, 0, z, col);
+        box(s, 0.05, 0.05, 0.4, sx, 0, 0, col);
+        box(s, 0.05, 0.05, 0.4, sx, 1.83, 0, col);
+        rod(s, [sx, 0.06, -0.16], [sx, 1.82, 0.16], 0.018, col, 4);
+        rod(s, [sx, 0.06, 0.16], [sx, 1.82, -0.16], 0.018, col, 4);
+      }
+      box(s, 0.92, 0.06, 0.42, 0, 1.88, 0, col);
+      made("wood", () => { for (const y of [0.1, 0.55, 1.0, 1.42]) box(s, 0.82, 0.03, 0.36, 0, y, 0.01, COLOURS.wood); });
+      made("wood", () => box(s, 0.82, 1.78, 0.02, 0, 0.08, -0.18, TRUNK));
+      return s;
+    },
+  },
+  iron_shelves: {
+    group: "lounge", height: 2.0, on: "floor", colour: "black", size: { w: 1.0, d: 0.36 }, block: true,
+    make(col) {
+      // open shelves: four black iron posts, five thick wooden boards
+      const s = shape();
+      made("metal", () => { for (const x of [-0.48, 0.48]) for (const z of [-0.16, 0.16]) box(s, 0.03, 2.0, 0.03, x, 0, z, col); });
+      made("wood", () => { for (let k = 0; k < 5; k++) box(s, 1.0, 0.04, 0.36, 0, 0.12 + k * 0.45, 0, DECK); });
+      return s;
+    },
+  },
+  high_table: {
+    group: "bar", height: 1.1, on: "floor", colour: "wood", size: { r: 0.3 }, block: true, top: 1.1,
+    make(col) {
+      // a standing table in wood: a round top on a post, three splayed feet
+      const s = shape();
+      made("wood", () => {
+        cyl(s, 0.3, 0.3, 0.04, 0, 1.06, 0, col, 28);
+        cyl(s, 0.035, 0.035, 1.0, 0, 0.06, 0, col, 10);
+        for (let k = 0; k < 3; k++) { const a = (k / 3) * 2 * Math.PI; rod(s, [0, 0.36, 0], [0.32 * Math.sin(a), 0.01, 0.32 * Math.cos(a)], 0.025, col, 6); }
+      });
+      return s;
+    },
+  },
+  egg_planter: {
+    group: "flowers", height: 1.23, on: "floor", colour: "white", size: { r: 0.32 }, block: true,
+    make(col) {
+      // a big egg-shaped pot, matt white, a peace lily's broad leaves standing out of it
+      const s = shape();
+      blob(s, 0.32, 0.4, 0.32, 0, 0.4, 0, col, 0, 14);
+      cyl(s, 0.18, 0.18, 0.02, 0, 0.78, 0, TRUNK, 16);
+      for (let k = 0; k < 9; k++) leaf(s, [0, 0.78, 0], tipped(k * 0.7, 0.25 + 0.06 * (k % 3)), 0.5, 0.32, k % 2 ? DARK_LEAF : LEAF);
+      return s;
+    },
+  },
+  daybed: {
+    group: "lounge", height: 0.42, on: "floor", colour: "wood", size: { w: 1.9, d: 0.8 }, block: true, seat: { y: 0.42, z: 0, back: false },
+    make(col) {
+      // a low wooden daybed, a mattress in a fine black and white stripe on it
+      const s = shape();
+      made("wood", () => { box(s, 1.9, 0.22, 0.8, 0, 0.04, 0, col); for (const x of [-0.9, 0.9]) for (const z of [-0.35, 0.35]) box(s, 0.08, 0.04, 0.08, x, 0, z, col); });
+      for (let k = 0; k < 18; k++) soft(s, 1.84 / 18, 0.16, 0.76, -0.92 + (k + 0.5) * (1.84 / 18), 0.26, 0, k % 2 ? COLOURS.black : CUSHION, 0.01, 2);
+      return s;
+    },
+  },
+  diamond_rug: {
+    group: "lounge", height: 0.01, on: "floor", colour: "black", size: { w: 1.6, d: 1.0 }, block: false,
+    make(col) {
+      // a flat-woven rug, black diamonds in rows on off-white
+      const s = shape();
+      box(s, 1.6, 0.004, 1.0, 0, 0, 0, CUSHION);
+      for (let i = 0; i < 8; i++) for (let k = 0; k < 5; k++) {
+        const x = -0.7 + i * 0.2, z = -0.4 + k * 0.2;
+        at(x, 0.004, z, () => { const a = s.p.length / 3; for (const [dx, dz] of [[0.07, 0], [0, 0.07], [-0.07, 0], [0, -0.07]]) vert(s, dx, 0.001, dz, col); quad(s, a, a + 1, a + 2, a + 3); });
+      }
+      return s;
+    },
+  },
+  wicker_bench: {
+    group: "lounge", height: 0.45, on: "floor", colour: "rattan", size: { w: 1.2, d: 0.45 }, block: true, seat: { y: 0.45, z: 0, back: false },
+    make(col) {
+      // a woven bench, a white cushion along it
+      const s = shape();
+      braided(s, 1.2, 0.45, 0.36, 0, 0, col);
+      soft(s, 1.16, 0.09, 0.42, 0, 0.36, 0, CUSHION, 0.03, 4);
+      return s;
+    },
   },
   trunk_table: {
     group: "lounge", height: 0.5, on: "floor", colour: "wood", size: { r: 0.25 }, block: true, top: 0.5,

@@ -101,14 +101,18 @@ flash wall and to put the body on the bed or in the chair. What happens there: [
 Third in the menu: **Sample wedding venue** (`sample_venue.py`), laid out as the floor plan of a
 real venue (Casa Arandella, São Sebastião), with the plan's measures (it isn't drawn to scale), and
 nothing the plan doesn't show: the deck and the reception (6 × 4 m), the vertical garden (4.5 m, a
-wall of leaves), the ante-room (9.3 m, green walls both sides) with the closed kitchen beside it, the
-main hall (17.8 × 8.6 m, 1.5 m narrower for its first 5 m, light oak boards, panelled walls, five
-tall steel windows, beams), a half wall to the toilets' hall, glass doors onto the pergola
-(10.8 × 7.4 m: black steel posts and rafters under a glass roof, on sand), the stage beside it
-(8.6 × 3.2 m, 70 cm up, not walked on), the garden (17.8 m wide, 20 m along the right and 30 m
-along the left, a lawn inside low white walls, the bungalow), then the beach: 8 m of dry sand
-beyond the garden's slanted far side, the wet sand, the sea and the island's hills across it. The
-glass roof, the sand and the green walls are from the venue's photos. About 800,000 splats. It is
+wall of leaves both sides), the ante-room (9.3 m, green walls, a dark slatted ceiling) with the
+kitchen beside it (white tiles, a high row of windows), the main hall (17.8 × 8.6 m, 1.5 m narrower
+for its first 5 m, glazed rustic tiles, a bare concrete ceiling, a band of windows with linen
+curtains), a half wall to the toilets' hall (pale blue-grey, two dark wooden doors), glass doors
+onto the pergola (10.8 × 7.4 m: grey cement under a woven reed roof on dark timber, a rough cement
+wall on its far side), the stage beside it (8.6 × 3.2 m, 70 cm up, black, a white screen before
+black curtains, not walked on), the garden (17.8 m wide, 20 m along the right and 30 m along the
+left, sand inside low white walls with tropical beds along them, a glass rain cover on dark steel
+over its first 12 m, the bungalow: an open wooden deck under a timber frame), then the beach: 8 m
+of dry sand beyond the garden's slanted far side, the wet sand, the sea and the island's hills
+across it. What each surface is made of comes from the venue's photos and a walkthrough filmed
+there. About 860,000 splats. It is
 mapped when it is made (about 20 s, in the same background process), so the page doesn't wait; the
 sea and the hills are drawn faint enough to be left out of the map, so they don't make it bigger.
 Its map cells are about 10 cm (a long place gets as many cells as a square one of the same floor

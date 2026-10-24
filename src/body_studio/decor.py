@@ -41,7 +41,7 @@ HEIGHT = (0.02, 6.0)            # m: the heights an item may have
 CELLS = 160                     # the mesh is simplified to at most this many cells across its height
 MAX_ITEMS = 2000                # placed items in one layout
 MAX_LAYOUTS = 40
-COLOURS = ("white", "ivory", "gold", "wood", "green", "blush", "black")
+COLOURS = ("white", "ivory", "gold", "wood", "green", "blush", "black", "coral", "rattan", "copper", "blue")
 
 # The page draws these (static/decor.js STARTERS has the same ids, in the same groups). on: "floor",
 # or "top" (stands on a table or anything else with a top). The names are the page's (i18n
@@ -144,6 +144,13 @@ STARTERS = (
     {"id": "woven_wall", "group": "ceremony", "height": 2.4, "on": "floor"},
     {"id": "rattan_sofa", "group": "lounge", "height": 0.8, "on": "floor"},
     {"id": "rattan_round_chair", "group": "lounge", "height": 0.82, "on": "floor"},
+    {"id": "blue_bookcase", "group": "lounge", "height": 1.9, "on": "floor"},
+    {"id": "iron_shelves", "group": "lounge", "height": 2.0, "on": "floor"},
+    {"id": "high_table", "group": "bar", "height": 1.1, "on": "floor"},
+    {"id": "egg_planter", "group": "flowers", "height": 1.23, "on": "floor"},
+    {"id": "daybed", "group": "lounge", "height": 0.42, "on": "floor"},
+    {"id": "diamond_rug", "group": "lounge", "height": 0.01, "on": "floor"},
+    {"id": "wicker_bench", "group": "lounge", "height": 0.45, "on": "floor"},
     {"id": "wicker_pouf", "group": "lounge", "height": 0.42, "on": "floor"},
     {"id": "jute_rug", "group": "lounge", "height": 0.01, "on": "floor"},
     {"id": "trunk_table", "group": "lounge", "height": 0.5, "on": "floor"},

@@ -62,13 +62,15 @@ class SampleVenueTest(unittest.TestCase):
         for name, (x, z) in {"deck": (-20.8, 2.0), "reception": (-16.8, 2.0), "reception door": (-19.8, 2.0),
                              "vertical garden": (-11.5, 2.0), "ante-room": (-4.0, 2.0), "into the hall": (0.0, 2.8),
                              "hall": (9.0, 5.0), "the kitchen": (-4.0, 6.0), "the kitchen door": (0.0, 7.4), "by the half wall": (11.3, 4.2), "toilets' hall": (14.0, 1.6),
-                             "glass doors": (17.8, 3.9), "pergola": (23.0, 7.0), "lawn": (38.0, 8.0),
+                             "glass doors": (17.8, 3.9), "pergola": (23.0, 7.0), "garden, under its cover": (38.0, 8.0),
+                             "on the bungalow's deck": (46.0, 15.0),
                              "beside the pergola": (22.0, 14.0), "by the far side": (52.4, 8.9),
                              "on the beach": (V._garden_end(8.9) + 3.0, 8.9)}.items():
             self.assertTrue(self.free(x, z), name)
         for name, (x, z) in {"the kitchen's back wall": (-9.3, 6.0), "the ante-room's wall": (-4.0, 4.0), "the hall's side": (9.0, 8.6),
                              "the notch": (2.5, 0.7), "the half wall": (11.3, 1.5), "the stage": (24.0, 1.6),
-                             "the bungalow's side": (V.BUNGALOW[0], 15.0), "the left wall": (40.0, V.GARDEN_W),
+                             "the pergola's far wall": (22.0, V.PERGOLA[3]),
+                             "the beds along the garden's wall": (40.0, 0.6), "the left wall": (40.0, V.GARDEN_W),
                              "outside": (40.0, 19.0), "the sea": (V._garden_end(8.9) + V.BEACH + 6.0, 8.9)}.items():
             self.assertFalse(self.free(x, z), name)
 
@@ -93,6 +95,30 @@ class SampleVenueTest(unittest.TestCase):
         # the map stops at the water: its far end within a few metres of the dry sand's
         mx, _ = self.to_map(V._garden_end(V.GARDEN_W) + V.BEACH, V.GARDEN_W)
         self.assertLess(abs(self.map["x0"] + self.map["nx"] * self.map["cell"] - mx), 4.0)
+
+    def test_as_the_videos_show_it(self):
+        # the hall's rustic tiles: each between terracotta and dark brown, a grout line between them
+        import random
+        rnd = random.Random(1)
+        for x, z in ((1.13, 2.27), (5.71, 6.05), (9.9, 0.33)):
+            r, g, b = V._rustic(x, 0.0, z, rnd)
+            self.assertTrue(r > g > b and 0.2 < r < 0.7, (x, z))
+        self.assertEqual(V._rustic(0.0, 0.0, 1.13, rnd), V._rustic(5.1, 0.0, 0.0, rnd))
+        # bare brick in stretcher bond: each course half a brick on from the last
+        brick = V._brickwork(2)
+        self.assertNotEqual(brick(0, 0.04, 0.05, rnd), brick(0, 0.115, 0.05, rnd))
+        self.assertEqual(brick(0, 0.04, 0.221, rnd), brick(0, 0.115, 0.111, rnd))
+        rows = V.splats()
+        # the stage's screen, the pergola's reed roof, the garden's glass cover seen through (and so
+        # not mapped)
+        x0, x1, z0, z1 = V.PERGOLA
+        reed = [r for r in rows if x0 < r[0][0] < x1 and z0 < r[0][2] < z1 and abs(r[0][1] - V.PERGOLA_ROOF - 0.01) < 1e-6]
+        self.assertGreater(len(reed), 20000)
+        glass = [r for r in rows if V.GARDEN_X < r[0][0] < V.GARDEN_X + V.COVER_LEN and r[0][1] > 3.4 and len(r) > 3]
+        self.assertGreater(len(glass), 1000)
+        self.assertTrue(all(r[3] < room.OPAQUE for r in glass))
+        screen = [r for r in rows if abs(r[0][2] - 0.06) < 1e-6 and V.STAGE[0] < r[0][0] < V.STAGE[1] and min(r[1]) > 0.8]
+        self.assertGreater(len(screen), 1000)
 
     def test_walls_with_holes(self):
         # a wall 4 m along, 3.4 high, less a door and a window: what is left covers the rest exactly
