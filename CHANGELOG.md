@@ -2,6 +2,16 @@
 
 ## 0.1.0 (unreleased)
 
+- A big body is ready to move about three times sooner: binding 400,000 splats took 13 s, 11 of
+  them fitting how the skin passes from bone to bone, which is now fitted over a sample of the
+  splats around each one (4.4 s in all).
+- The page draws a frame only when something changed (the camera, the body's pose, splats Spark
+  has made or sorted, any input), and a few times a second otherwise, so the GPU and a laptop's fan
+  rest while the body stands still.
+- Faster to open: the clothes shop round the body (its forty-odd items and their textures) is
+  only set out once Clothes is open, not for tattoos, the studio or a room; and a reload no longer
+  downloads the page's code, three.js, Spark or the body again when they haven't changed (the
+  server answers 304 to the browser's ETag).
 - The sample venue's planted walls, garden beds and glass rain cover are drawn as the decor is
   (four new Garden starters: small tree, tropical border, living wall, glass roof), not as leaf
   splats. As the walkthrough shows, only a small tree stands under the glass; the palms stand

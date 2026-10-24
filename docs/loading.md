@@ -34,17 +34,17 @@ step is done.
 ## What the page does
 
 `static/busy.js` (tested by `tests/js/busy.test.mjs`) keeps the steps under way and decides what
-shows; `index.html` draws it, and each part adds its steps through `bodyApp.busy(key, text)`.
+shows; `viewer.js` draws it, and each part adds its steps through `bodyApp.busy(key, text)`.
 Each step starts before the one it follows ends (the event that starts the next one is sent
 first), so the screen stays up from the first to the last.
 
 | Step | Where | Said |
 |---|---|---|
-| The page opening | index.html | Opening… |
-| The splat file downloading | index.html | Loading Mia… |
+| The page opening | viewer.js | Opening… |
+| The splat file downloading | viewer.js | Loading Mia… |
 | Finding the skeleton (`/api/rig`) | tattoo.js | Finding the skeleton… This happens once per body. |
 | Binding the splats to it, the pose and tattoos back | tattoo.js | Getting the body ready to move… |
-| The shop set out (meshes and textures) | wardrobe.js | Setting out the clothes around the body… |
+| The shop set out (meshes and textures; only in Clothes or no mode, else when Clothes opens) | wardrobe.js | Setting out the clothes around the body… |
 | Fitting the clothes (`/api/fit`), then what was worn | wardrobe.js | Fitting the clothes to this body…, Putting on T-shirt and jeans… |
 | A remembered room | house.js | Getting the body ready…, Finding the floor…, Loading the room… |
 

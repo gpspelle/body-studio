@@ -41,11 +41,11 @@ addEventListener("studioready", async (e) => {
   W = { file, rig, weights, mesh, centres, transforms, caps, hands, worn: new Map(), fit: null, cover: null, hidden: new Map(),
         tinted: new Map(), busy: 0, model: "standard" };
   window.wardrobe.ready = false;
-  // the loading screen (index.html) stays until the clothes are fitted, what was worn is back on
+  // the loading screen (viewer.js) stays until the clothes are fitted, what was worn is back on
   // and the shop stands round the body
-  const app = window.bodyApp, step = "wear:" + file, shopStep = "shop:" + file;
+  const app = window.bodyApp, step = "wear:" + file;
   app.busy(step, t("wear.fitting"), { slow: t("load.slowRig") });
-  app.busy(shopStep, t("wear.shop"));
+  setOut(W);
   try {
     if (!catalog) {
       catalog = await (await fetch("/api/wardrobe")).json();
@@ -53,7 +53,6 @@ addEventListener("studioready", async (e) => {
     }
     if (models.includes(store.get("fitModel"))) W.model = store.get("fitModel");
     ui();
-    placeShop(W).finally(() => app.busy(shopStep, null));
     if (W.model === "anny") app.busy(step, t("wear.fittingAnny"), { slow: t("load.slowRig") });
     if (await loadFit(W) && W.file === file) {
       for (const id of store.get("wear:" + file) || []) {
@@ -63,9 +62,6 @@ addEventListener("studioready", async (e) => {
       }
     }
     if (W && W.file === file) window.wardrobe.ready = true;
-  } catch (err) {
-    app.busy(shopStep, null);
-    throw err;
   } finally {
     app.busy(step, null);
   }
@@ -460,6 +456,15 @@ const MATERIALS = { wood: 0xc8a57a, metal: 0x6b6f75, hanger: 0x8d6a45, back: 0xe
 const SHAPE = { hang, fold, shoes: pair };
 let shop = null;                 // {group, objects: Map id -> its group on the racks, pickable meshes}
 let shopLoad = null;
+// The shop is set out round a body only once it can be seen (Clothes, or no mode yet): its forty-odd
+// items and their textures (megabytes of hair) aren't loaded for the tattoos, the studio or a room.
+function setOut(w) {
+  if (!w || w.shopPlaced || !shopMode()) return;
+  w.shopPlaced = true;
+  const step = "shop:" + w.file;
+  window.bodyApp.busy(step, t("wear.shop"));
+  placeShop(w).finally(() => window.bodyApp.busy(step, null));
+}
 
 function shopShape(V, kind, head) {
   return SHAPE[kind] ? SHAPE[kind](V) : onHead(V, head);
@@ -577,7 +582,7 @@ function showShop() {
 // how wide a view the camera should take in (window.bodyApp.reframe): the shop, while shown (on a
 // phone only the racks nearest the body, or the body would be too small to see; turn to see more)
 addEventListener("roomchange", () => { showShop(); window.bodyApp.reframe(); });
-addEventListener("modechange", () => { showShop(); window.bodyApp.reframe(); });
+addEventListener("modechange", () => { setOut(W); showShop(); window.bodyApp.reframe(); });
 window.bodyApp.room = () => (shop && W && !$("studio").hidden && shopMode() && !window.bodyApp.house?.shown() ? Math.min(2 * shop.half, innerWidth <= 600 ? 1.4 : 9) * W.rig.height : 0);
 new MutationObserver(showShop).observe($("studio"), { attributes: true, attributeFilter: ["hidden"] });
 

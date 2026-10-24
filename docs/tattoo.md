@@ -12,7 +12,7 @@ and why it was built this way.
    `GET /api/rig?body=…` from the page, which builds it in the background). Saved next to the body
    as `<body>.rig.json`; built again only when the body changes. A few seconds for a 300k-splat body.
 2. **Skin weights**: how much each bone moves each part of the body, stored on a voxel grid.
-3. **Posing on the page** (`static/pose.js`, `static/tattoo.js`): joint angles are turned into one
+3. **Posing on the page** (`static/pose.js`, `static/skin.js`, `static/tattoo.js`): joint angles are turned into one
    rotation and translation per bone; Spark's `SplatSkinning` moves every splat with dual quaternion
    skinning on the GPU.
 4. **The tattoo** is a grid laid on the skin itself (walked out over the splats from the point

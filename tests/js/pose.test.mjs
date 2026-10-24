@@ -4,7 +4,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, placeInk, INK_OUT, skinPoint, q, v3, DOF, RHYTHM } from "../../src/body_studio/static/pose.js";
+import { BodyVolume, Skeleton, SkinWeights, SurfaceMap, dualQuats, palmNormals, skinPoint, q, v3, DOF, RHYTHM } from "../../src/body_studio/static/pose.js";
+import { SkinSurface, inkSamples, inkUnder, placeInk, INK_OUT } from "../../src/body_studio/static/skin.js";
 
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
 const { left: L, up: U, front: F } = rig.frame;

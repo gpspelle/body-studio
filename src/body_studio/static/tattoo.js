@@ -8,7 +8,8 @@
 // the ink too, and whichever splat is in front shows it. Design and sources: docs/tattoo.md.
 import * as THREE from "three";
 import { SplatEdit, SplatEditSdf, SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
-import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, INK_OUT, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
+import { BodyVolume, Skeleton, SkinWeights, SurfaceMap, dualQuats, palmNormals, q as quat, skinPoint, v3 } from "/static/pose.js";
+import { SkinSurface, inkSamples, inkUnder, INK_OUT, placeInk } from "/static/skin.js";
 const q = quat;
 import { Life, Walker } from "/static/walk.js";
 import { bodyCapsules, channelLevels, copyLayers, fillLayers, HEALED, inkFactor, handFrames, posedCapsules, shapeKg, shapeOffsets, SkinField, Swing, SWING, twistState, weightGradients } from "/static/flesh.js";
@@ -96,7 +97,7 @@ async function load() {
   loading = file;
   $("studioBody").hidden = true;
   status(t("studio.finding"));
-  // (and the loading screen, index.html, until it can move)
+  // (and the loading screen, viewer.js, until it can move)
   app.busy(file, t("studio.finding"), { slow: t("load.slowRig") });
   try {
     let rig = null;
@@ -242,6 +243,7 @@ function drawPose(idle = false) {
   const qv = new THREE.Quaternion(), tv = new THREE.Vector3();
   tr.forEach(({ q, t: tt }, b) => skinning.setBoneQuatPos(b, qv.set(q[0], q[1], q[2], q[3]), tv.set(tt[0], tt[1], tt[2])));
   skinning.updateBones();
+  V.redraw();                                // (the page draws only when something changed)
   const walk = S.walker.walking, fist = Math.max(S.hands, 0.3 * walk);   // hands relax a little to walk
   S.life.fist = { l: fist, r: fist };
   S.fleshState = { caps: posedCapsules(S.caps, tr), nCaps: S.caps.length, chans: channelLevels(sk, S.life), shape: S.shape, swing: swing(),
@@ -556,7 +558,7 @@ const typing = (e) => !!e.target.closest?.("input, textarea, select, [contentedi
 addEventListener("keydown", async (e) => {
   hurry = e.shiftKey;
   if (e.metaKey || e.ctrlKey || e.altKey || typing(e) || $("guide").open) return;
-  if (e.code === "KeyR") {                   // back where it was scanned (index.html frames it again)
+  if (e.code === "KeyR") {                   // back where it was scanned (viewer.js frames it again)
     if (S) { S.walker.home(); follow.set(0, 0, 0); drawPose(); save(); }
     return;
   }

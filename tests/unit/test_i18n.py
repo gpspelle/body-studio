@@ -18,7 +18,7 @@ class I18n(unittest.TestCase):
         self.assertNotIn('id="lang"', (STATIC / "index.html").read_text())
 
     def test_page_uses_only_known_keys(self):
-        page = "".join((STATIC / f).read_text() for f in ("index.html", "progress.js", "tattoo.js", "decorate.js"))
+        page = "".join((STATIC / f).read_text() for f in ("index.html", "viewer.js", "progress.js", "tattoo.js", "decorate.js"))
         used = set(re.findall(r'(?:data-i18n(?:-aria-label)?="|\bt\(")([\w.]+)', page))
         used |= set(re.findall(r'"(prog\.\w+)"', page))               # row labels passed to t() later
         used = {k for k in used if not k.endswith(".")}                  # "joint." + name: see below

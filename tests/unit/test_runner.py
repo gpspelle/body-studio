@@ -25,6 +25,7 @@ class Runner(unittest.TestCase):
         self.assertIn("test_pose_js", runner.pick(["src/body_studio/static/pose.js"], MODULES))
         self.assertIn("test_pose_js", runner.pick(["tests/js/walk.test.mjs"], MODULES))   # a JS test it runs
         self.assertIn("test_rig", runner.pick(["src/body_studio/rig.py"], MODULES))
+        self.assertIn("test_decor_js", runner.pick(["src/body_studio/static/decor/wedding.js"], MODULES))   # its folder
         self.assertIn("test_i18n", runner.pick(["src/body_studio/static/i18n.js"], MODULES))
         self.assertIn("test_measure", runner.pick(["tests/unit/test_measure.py"], MODULES))
         self.assertIn("test_ci", runner.pick([".github/workflows/ci.yml"], MODULES))

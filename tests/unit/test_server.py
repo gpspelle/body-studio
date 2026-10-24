@@ -85,6 +85,21 @@ class Server(unittest.TestCase):
         self.assertEqual(self.get("/vendor/spark/spark.module.min.js")[0], 200)
         self.assertEqual(self.get("/static/body.css")[0], 200)
 
+    def test_a_file_the_browser_has_is_not_sent_again(self):
+        with urllib.request.urlopen(self.base + "/static/body.css") as r:
+            tag, body = r.headers["ETag"], r.read()
+            self.assertEqual(r.headers["Cache-Control"], "no-cache")      # (it still asks every time)
+        self.assertTrue(tag and body)
+        req = urllib.request.Request(self.base + "/static/body.css", headers={"If-None-Match": tag})
+        with self.assertRaises(urllib.error.HTTPError) as e:              # (urllib raises on a 304)
+            urllib.request.urlopen(req)
+        self.assertEqual(e.exception.code, 304)
+        self.assertEqual(e.exception.read(), b"")
+        # another version of the file is sent in full
+        req = urllib.request.Request(self.base + "/static/body.css", headers={"If-None-Match": '"0-0"'})
+        with urllib.request.urlopen(req) as r:
+            self.assertEqual((r.status, r.read()), (200, body))
+
     def test_upload_runs_and_the_body_appears(self):
         status, job = self.post("/api/upload?name=Anna%20front.mov", b"\x00" * 1024)
         self.assertEqual(status, 201)
@@ -129,6 +144,10 @@ class Server(unittest.TestCase):
         self.assertEqual([r["name"] for r in rooms if r.get("making")], ["_sample_venue"])
         self.assertEqual(self.post("/api/upload?name=house.zip&kind=room", b"PK")[0], 201)   # an iPhone capture
         self.assertEqual(self.post("/api/upload?name=house.zip", b"PK")[0], 400)             # but not a body
+        for _ in range(200):                           # (its run done before the folder goes: tearDown)
+            if all(j["status"] in ("done", "failed") for j in json.loads(self.get("/api/jobs")[1])):
+                break
+            time.sleep(0.05)
 
     def test_room_map_is_made_once_in_the_background(self):
         from tests.fakes.room import write_room

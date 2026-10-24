@@ -14,12 +14,12 @@
   One module: `python3 scripts/test.py test_rig`. Push and let CI run the rest; look at a CI
   failure only when your change caused it.
 - Browser tests take minutes each in software rendering: run only the one you touched
-  (`python -m unittest tests.browser.test_viewer.Viewer.test_...`). A new one starts from
+  (`python -m unittest tests.browser.test_clothes`). A new one goes in its part's file and starts from
   `self.open_page()` and waits with `settled(page)` / `pick(page, item)`, never a fixed delay. A
   check that is maths (where things go, how skin moves) belongs in a JS test under `tests/js/`,
   which runs in seconds and never flakes, not in a browser test.
 - Every feature touches: `static/i18n.js` (English only), `CHANGELOG.md`, `CREDITS.md`
-  for any outside asset, a CI shard for a new browser test, unit tests for new code.
+  for any outside asset, a CI shard for a new browser test file, unit tests for new code.
 - README, its screenshots and docs/images: at milestones or when asked, not on every push. A PR
   that skips them says `No docs needed: <reason>`. Screenshots: `python3 scripts/screenshots.py
   <name>` for just the one you changed; look at it at 100% before committing.
@@ -32,47 +32,28 @@
   Don't copy its code here. If the pipeline needs a change, make it in splat-studio, merge it,
   then bump the pin here in its own PR. `tests/unit/test_pipeline.py` checks that the pinned
   splat-studio still accepts every flag we pass.
-- **This repo**: body defaults (`pipeline.py`), the library of bodies (`library.py`), the local
-  server (`server.py`) and the single page (`static/index.html`, `static/body.css`). The page's
-  modes (clothes, tattoos, rooms, progress) and the Body Studio menu that picks them in
-  `static/modes.js`: `<body data-mode>` and body.css hide the other modes' tools. The loading
-  screen until the body can be used in `static/busy.js` (tested by `tests/js/busy.test.mjs`; see
-  `docs/loading.md`). Tattoo &
-  pose: skeleton and skin weights in `rig.py` (once per body, `<body>.rig.json`), posing and tattoo
-  maths in `static/pose.js` (tested by `tests/js/pose.test.mjs` through `tests/unit/test_pose_js.py`),
-  the panel in `static/tattoo.js`. Splats are moved by Spark's `SplatSkinning`; don't fit a body
-  model with a non-commercial licence (SMPL and its family). See `docs/tattoo.md`.
-  Clothes: MakeHuman's base mesh fitted to the body in `fit.py` (once per body, `<body>.fit.json`),
-  the catalogue and each item's fit in `wardrobe.py` (data packed by `scripts/wardrobe_pack.py` into
-  `wardrobe/` and `static/wardrobe/`; the styled outfits and accessories, our own, by
-  `scripts/wardrobe_styles.py`), items as splats in `static/dress.js` (tested by
-  `tests/js/dress.test.mjs`), the Clothes section and the shop around the body in `static/wardrobe.js`
-(its layout and how each item is hung, folded or shown on a mannequin head in `static/racks.js`,
-tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no extra splats). Only CC0 or CC-BY items,
-  each listed in `CREDITS.md`. See `docs/wardrobe.md`.
-  Life and flesh: breathing, blinks, head look and planted feet in `static/walk.js`; what skin does
-  beyond the bones (contact shading, bulges, stretch, clothes out of the body, swing, "what if"
-  sliders) as maths in `static/flesh.js` (tested by `tests/js/flesh.test.mjs`) and as one Spark
-  object modifier in `static/fleshgpu.js`; the floor shadow in `static/ground.js`. See `docs/flesh.md`.
-  A room around the body: room runs and `rooms.json` in `pipeline.py` and `library.py`, the room's
-  map (floor, size, walls, seats) in `room.py` (once per room, `<room>.room.json`), walls, seats,
-  the camera's view and where the room sits round the body as maths in `static/room.js` (tested by
-  `tests/js/room.test.mjs`), sitting and leaning in `static/walk.js`, the page side (the Room menu,
-  F, the camera kept inside) in `static/house.js`. The sample living room (drawn, listed before
-  any room is filmed) in `sample_room.py`. The fake room for tests is `tests/fakes/room.py`. See
-  `docs/room.md`.
-  The tattoo studio: the sample studio and its fixtures (where the bed, chair, rests, flash wall
-  and mirror are; room.py puts them in the map) in `sample_studio.py`, the flash wall's layout,
-  where a tattoo is made and the camera's views as maths in `static/flash.js` (tested by
-  `tests/js/flash.test.mjs`), lying on the bed and the chair's recline and arm rest in
-  `static/walk.js`, the page side (sheets, F at the bed or chair, clothes off, Room/Artist/Mirror) in
-  `static/parlour.js`. Starter designs in `static/flash/` (ours, CC0). See `docs/tattoo.md`.
-  Decor in a room: the inventory, items made from photos and the layouts per room in `decor.py`
-  (`decor/` in the data folder), a photo to a mesh with TripoSR in its own process in `photo3d.py`
-  (installed by setup or on first use, never imported by the server), the starters' shapes and where
-  things go as maths in `static/decor.js` (tested by `tests/js/decor.test.mjs`), the Decor panel and
-  dragging in `static/decorate.js`. The stand-in for TripoSR in tests is `tests/fakes/photo3d.py`
-  (`BODY_STUDIO_PHOTO3D`). See `docs/decor.md`.
+- **This repo**, by feature. Python in `src/body_studio/`, the page in `src/body_studio/static/`
+  (S/ below). Maths a page part needs is kept free of three.js in its own file with a JS test in
+  `tests/js/`, run by a unit test of the same name (`pose.js` -> `pose.test.mjs` -> `test_pose_js.py`);
+  three.js and the DOM stay in the page file. A browser test file per part, `tests/browser/test_<part>.py`
+  (the shared fixture in `tests/browser/base.py`).
+
+  | Feature | Python (once per body or room, cached) | Page: maths (JS test) | Page: three.js and DOM | Browser test | Doc |
+  |---|---|---|---|---|---|
+  | The page, body, server | `pipeline.py` (body defaults), `library.py`, `server.py` | S/`busy.js` (loading screen), S/`draw.js` (a frame only when something changed: a part that changes the scene calls `bodyApp.redraw()`) | S/`index.html` (markup), S/`viewer.js` (renderer, camera, body, `window.bodyApp`; heads with the list of window globals and events the parts talk by), S/`body.css`, S/`modes.js` (the menu: `<body data-mode>` hides the other modes' tools), S/`i18n.js` | `test_body`, `test_menu` | `docs/loading.md` |
+  | Tattoo and pose | `rig.py` (`<body>.rig.json`) | S/`pose.js` (skeleton, limits, skinning, weights), S/`skin.js` (the skin a tattoo lies on, ink as splats) | S/`tattoo.js` | `test_tattoo` | `docs/tattoo.md` |
+  | Life and flesh | | S/`walk.js` (breathing, blinks, feet, sitting, lying), S/`flesh.js` | S/`fleshgpu.js` (one Spark modifier), S/`ground.js` (floor shadow) | `test_body` | `docs/flesh.md` |
+  | Clothes | `fit.py` (`<body>.fit.json`), `wardrobe.py`, `anny_fit.py` (trial); data by `scripts/wardrobe_pack.py`, `scripts/wardrobe_styles.py` | S/`dress.js`, S/`racks.js` (the shop's layout) | S/`wardrobe.js` | `test_clothes` | `docs/wardrobe.md`, `docs/anny.md` |
+  | A room | `room.py` (`<room>.room.json`), `sample_room.py` (the drawn living room); fake: `tests/fakes/room.py` | S/`room.js`, S/`shell.js` | S/`house.js` | `test_room` | `docs/room.md` |
+  | Tattoo studio | `sample_studio.py` (fixtures; room.py maps them) | S/`flash.js` | S/`parlour.js`, designs in S/`flash/` | `test_studio` | `docs/tattoo.md` |
+  | Decor | `decor.py` (`decor/` in the data folder), `photo3d.py` (TripoSR), `sample_venue.py`; fake: `tests/fakes/photo3d.py` | S/`decor.js` (where things go), S/`decor/*.js` (the starters' shapes) | S/`decorate.js`, S/`decorlook.js`, S/`decorpics.js` (worker) | `test_decor` | `docs/decor.md` |
+  | Progress | `history.py`, `measure.py` | | S/`progress.js` | `test_progress` | `docs/progress.md`, `docs/body-fat.md` |
+
+  Rules per feature: splats are moved by Spark's `SplatSkinning`; don't fit a body model with a
+  non-commercial licence (SMPL and its family). Clothes are only CC0 or CC-BY items, each listed in
+  `CREDITS.md`, and the shop is plain three.js meshes, so Spark sorts no extra splats. TripoSR runs
+  in its own process (`photo3d.py`, installed by setup or on first use, never imported by the
+  server; `BODY_STUDIO_PHOTO3D` swaps in the fake). Starter tattoo designs are ours, CC0.
 - Runs go through splat-studio's job runner (`splat_studio.server.jobs.Runner`): pty, measured
   time left, lock files, timeline.jsonl, advice in seconds of video. Don't write a second runner.
 - three.js and Spark are served from the installed splat-studio package (`/vendor/...`), so
