@@ -263,6 +263,10 @@
   are on the right as you walk in, the stage on the left, as on the plan. Its trees are there
   too: two broad trees in the garden, two beach almonds by the sea and three palms in the beds.
   A layout already made in it comes back mirrored.
+- The sample venue, checked against the walkthrough with Gabriel: the hall's windows in three sets
+  of three with dark shutters, a brick wall with a square opening, a window at the end of the
+  narrow part, the vertical garden under glass, living walls in the garden, the rain cover to the
+  end of the garden, and a 40 cm stage you can sit on.
 - The drawn rooms (living room, tattoo studio, wedding venue) are lit like the furniture: their
   walls, floors and ceilings take the decor's light and reflections; the venue's garden sand is
   smooth like its floors. Filmed rooms are shown as filmed.

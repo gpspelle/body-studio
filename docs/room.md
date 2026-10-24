@@ -101,15 +101,15 @@ flash wall and to put the body on the bed or in the chair. What happens there: [
 Third in the menu: **Sample wedding venue** (`sample_venue.py`), laid out as the floor plan of a
 real venue (Casa Arandella, São Sebastião), with the plan's measures (it isn't drawn to scale), and
 nothing the plan doesn't show: the deck and the reception (6 × 4 m), the vertical garden (4.5 m, a
-wall of leaves both sides), the ante-room (9.3 m, green walls, a dark slatted ceiling) with the
+wall of leaves both sides, a glass roof), the ante-room (9.3 m, green walls, a dark slatted ceiling) with the
 kitchen beside it (white tiles, a high row of windows), the main hall (17.8 × 8.6 m, 1.5 m narrower
-for its first 5 m, glazed rustic tiles, a bare concrete ceiling, a band of windows with linen
-curtains), a half wall to the toilets' hall (pale blue-grey, two dark wooden doors), glass doors
+for its first 5 m, glazed rustic tiles, a bare concrete ceiling, three sets of three windows with dark
+shutters, linen curtains between the sets, a bare brick wall with a square opening), a half wall to the toilets' hall (pale blue-grey, two dark wooden doors), glass doors
 onto the pergola (10.8 × 7.4 m: grey cement under a woven reed roof on dark timber, a rough cement
-wall on its far side), the stage beside it (8.6 × 3.2 m, 70 cm up, black, a white screen before
+wall on its far side), the stage beside it (8.6 × 3.2 m, 40 cm up, black, sat on along its edge, a white screen before
 black curtains, not walked on), the garden (17.8 m wide, 20 m along the right and 30 m along the
-left, sand inside low white walls with tropical beds along them, a glass rain cover on dark steel
-over its first 12 m, the bungalow: an open wooden deck under a timber frame), then the beach: 8 m
+left, sand inside low living walls of leaves with tropical beds along them, a glass rain cover on dark steel
+to the end of its wall, the bungalow: an open wooden deck under a timber frame), then the beach: 8 m
 of dry sand beyond the garden's slanted far side, the wet sand, the sea and the island's hills
 across it. What each surface is made of comes from the venue's photos and a walkthrough filmed
 there. The trees are the ones the walkthrough shows (two broad trees, two beach almonds,

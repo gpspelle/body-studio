@@ -22,7 +22,7 @@ The plan isn't to scale ("planta sem escala"), so the sizes are its measures:
 - the main hall, 17.8 m by 8.6 m (narrower by 1.5 m for its first 5 m), rustic tiles under a
   concrete ceiling, a band of windows along the right, a half wall (3.24 m) before the hall to the
   toilets on the left; glass doors at its end;
-- the stage, 8.6 m by 3.2 m and 70 cm high, black, a screen before black curtains, beside the
+- the stage, 8.6 m by 3.2 m and 40 cm high, black, a screen before black curtains, beside the
   pergola (10.8 m by 7.4 m), which opens on the garden;
 - the garden, 17.8 m wide, 20 m along the left and 30 m along the right, walled along its sides,
   sand with planted beds, the bungalow (an open deck) on the right near its end; its slanted far
@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 7
+VERSION = 8
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -46,11 +46,11 @@ HALL = (0.0, 17.8, 0.0, 8.6)        # x0, x1, z0, z1
 NOTCH = (0.0, 5.0, 1.5)             # the hall's first 5 m are 1.5 m narrower on the left
 HALF_WALL = (11.3, 3.24)            # x, how far it comes out from the left wall
 WC = (11.3, 20.0, 3.2)              # the hall to the toilets: x0, x1, how wide
-STAGE = (20.0, 28.6, 0.0, 3.2, 0.7)  # x0, x1, z0, z1, its height
+STAGE = (20.0, 28.6, 0.0, 3.2, 0.4)  # x0, x1, z0, z1, its height
 PERGOLA = (17.8, 28.6, 3.2, 10.6)
 GARDEN_X = 28.6                     # where the garden starts
 GARDEN_W = 17.8
-COVER_LEN = 12.0                    # m of the garden under the glass rain cover, from the pergola on
+COVER_LEN = 20.0                    # m of the garden under the glass rain cover: from the pergola to the end of its wall
 PERGOLA_ROOF = 3.2                  # the pergola's flat reed roof
 GARDEN_RIGHT, GARDEN_LEFT = 20.0, 30.0   # (along z = 0 and z = GARDEN_W: the plan's own right and left, as drawn)
 ANTE = (-9.3, 0.0, 0.0, 4.0)
@@ -225,6 +225,11 @@ def _view(x, y, z, rnd):
     return (0.80 + 0.1 * k, 0.86 + 0.07 * k, 0.90 + 0.05 * k)
 
 
+def _shutters(x, y, z, rnd):
+    """Dark wooden shutters behind a window's glass: slats 5 cm, a line of light between them."""
+    return (0.42, 0.40, 0.36) if y % 0.05 < 0.008 else (0.16, 0.13, 0.11)
+
+
 def _lawn(x, y, z, rnd):
     """Grass, a little patchy."""
     patch = 0.035 * math.sin(x * 0.7 + 2 * math.sin(z * 0.5)) * math.sin(z * 0.9)
@@ -326,6 +331,7 @@ def house(rnd, out):
     base._surface(rnd, (hx1, WC[1], 0, 0, 0, WC[2]), _shaded(_cement(CEMENT), (hx1 - 6, WC[1], 0, WC[2])), out, FLOOR_STEP)
     base._surface(rnd, (*DECK[:2], 0, 0, *DECK[2:]), _boards((0.56, 0.44, 0.32)), out, 0.04)   # (finer: the map's end)
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), _slats, out, 0.05)
+    base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), CEILING, out, CEIL_STEP)
     base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), CEILING, out, CEIL_STEP)
     for (x0, x1, z0, z1) in ((hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1), (hx1, STAGE[1], 0, WC[2])):
         base._surface(rnd, (x0, x1, H, H, z0, z1), _rough(CONCRETE), out, CEIL_STEP)
@@ -353,6 +359,7 @@ def house(rnd, out):
         frame_z(x, 0.8, 3.2, 0.0, 2.8, out, rnd, colour=TIMBER, t=0.08, d=0.12)
     # the ante-room into the hall (where the hall is narrower), the kitchen's back wall beside it
     wall_z(0.0, 0.0, 4.0, [(NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9)], hall_wall, out, rnd)
+    frame_z(0.0, NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9, out, rnd, colour=TIMBER, t=0.16, d=0.2)   # (tall wooden posts)
     # the kitchen's door, on the hall: open, swung in against the kitchen's side
     wall_z(0.0, 4.0, hz1, [KITCHEN_DOOR + (0.0, 2.2)], hall_wall, out, rnd)
     frame_z(0.0, *KITCHEN_DOOR, 0.0, 2.2, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
@@ -362,28 +369,38 @@ def house(rnd, out):
     # the hall: the notch on the left, the half wall, the toilets' hall and the stage beside it
     wc_wall = _wall(WC_WALL, skirting=None)
     wall_x(NOTCH[2], 0.0, NOTCH[1], [], hall_wall, out, rnd)
-    wall_z(NOTCH[1], 0.0, NOTCH[2], [], hall_wall, out, rnd)
+    wall_z(NOTCH[1], 0.0, NOTCH[2], [(0.2, NOTCH[2] - 0.2, 1.0, 2.3)], hall_wall, out, rnd)
+    frame_z(NOTCH[1], 0.2, NOTCH[2] - 0.2, 1.0, 2.3, out, rnd, colour=GREY_FRAME, t=0.04)
+    base._surface(rnd, (NOTCH[1] - 0.03, NOTCH[1] - 0.03, 1.0, 2.3, 0.2, NOTCH[2] - 0.2), _view, out, 0.04)
     wall_x(0.0, NOTCH[1], HALF_WALL[0], [], hall_wall, out, rnd)
     wall_x(0.0, HALF_WALL[0], WC[1], [(13.0, 13.9, 0.0, 2.2), (15.2, 16.1, 0.0, 2.2)], wc_wall, out, rnd)
     door_x(0.0, 13.0, 13.9, out, rnd)
     door_x(0.0, 15.2, 16.1, out, rnd)
     hx, reach = HALF_WALL
-    base._surface(rnd, (hx - 0.1, hx + 0.1, 0.0, 1.1, 0.0, reach), _wall((0.90, 0.88, 0.84)), out, 0.04)
-    base._surface(rnd, (hx - 0.13, hx + 0.13, 1.1, 1.14, 0.0, reach + 0.03), OAK, out, 0.03)
+    # (bare brick, to the ceiling, a square opening through it)
+    for x in (hx - 0.1, hx + 0.1):
+        wall_z(x, 0.0, reach, [(1.2, 1.9, 0.9, 1.6)], _brickwork(2), out, rnd, step=0.04)
+    base._surface(rnd, (hx - 0.1, hx + 0.1, 0.0, H, reach, reach), _brickwork(0), out, 0.04)
+    for (y0, y1, z0, z1) in ((0.9, 0.9, 1.2, 1.9), (1.6, 1.6, 1.2, 1.9), (0.9, 1.6, 1.2, 1.2), (0.9, 1.6, 1.9, 1.9)):
+        base._surface(rnd, (hx - 0.1, hx + 0.1, y0, y1, z0, z1), (0.62, 0.40, 0.29), out, 0.03)
     wall_x(WC[2], WC[1] - 2.5, WC[1], [], wc_wall, out, rnd)
     # the toilets' hall's end, the stage's side: bare brick
     wall_z(WC[1], 0.0, WC[2], [], _brickwork(2), out, rnd)
-    # the windows along the right: a high band, dark grey frames, a curtain of linen each side
-    windows = [(1.2 + 3.2 * k, 2.6 + 3.2 * k) for k in range(5)]
-    w0, w1 = 1.5, 2.8
+    # the windows along the right: dark grey frames, linen curtains
+    # (three sets of three, the same space between the sets; dark shutters behind the glass)
+    gap = (hx1 - hx0 - 3 * 3 * 1.1) / 4
+    windows = [(hx0 + gap * (j + 1) + 3.3 * j + 1.1 * k, hx0 + gap * (j + 1) + 3.3 * j + 1.1 * (k + 1) - 0.08)
+               for j in range(3) for k in range(3)]
+    w0, w1 = 1.0, 2.0
     wall_x(hz1, hx0, hx1, [(a, b, w0, w1) for a, b in windows], hall_wall, out, rnd)
     for a, b in windows:
         frame_x(hz1, a, b, w0, w1, out, rnd, colour=GREY_FRAME, t=0.04)
-        for m in (a + (b - a) / 3, a + 2 * (b - a) / 3):
-            base._surface(rnd, (m - 0.015, m + 0.015, w0, w1, hz1 - 0.02, hz1 + 0.02), GREY_FRAME, out, 0.03)
-        base._surface(rnd, (a, b, w0, w1, hz1 + 0.03, hz1 + 0.03), _view, out, 0.04)
-        for c in (a - 0.55, b + 0.05):
-            base._surface(rnd, (c, c + 0.5, 0.05, H - 0.15, hz1 - 0.1, hz1 - 0.1), _folds(LINEN, 0), out, 0.04)
+        base._surface(rnd, (a, b, (w0 + w1) / 2 - 0.015, (w0 + w1) / 2 + 0.015, hz1 - 0.02, hz1 + 0.02), GREY_FRAME, out, 0.03)
+        base._surface(rnd, (a, b, w0, w1, hz1 + 0.03, hz1 + 0.03), _shutters, out, 0.03)
+    for j in range(3):                               # the curtains, between the sets
+        a, b = windows[3 * j][0], windows[3 * j + 2][1]
+        for c in (a - 0.5, b + 0.04):
+            base._surface(rnd, (c, c + 0.46, 0.05, H - 0.15, hz1 - 0.1, hz1 - 0.1), _folds(LINEN, 0), out, 0.04)
     # its end: glass doors onto the pergola, open; glass above them
     doors = [(3.4 + 1.3 * k, 4.4 + 1.3 * k) for k in range(4)]
     wall_z(hx1, WC[2], hz1, [(a, b, 0.0, 2.6) for a, b in doors] + [(WC[2] + 0.1, hz1 - 0.1, 2.7, 3.3)], hall_wall, out, rnd)
@@ -395,7 +412,7 @@ def house(rnd, out):
     for z in (2.6, 6.0):
         base._surface(rnd, (hx0 + 0.5, hx1 - 0.5, H - 0.04, H, z - 0.02, z + 0.02), STEEL, out, 0.03)
 
-    # the stage: 70 cm up, all in black carpet, black curtains behind and a big white screen
+    # the stage: 40 cm up, all in black carpet, black curtains behind and a big white screen
     sx0, sx1, sz0, sz1, sh = STAGE
     base._surface(rnd, (sx0, sx1, sh, sh, sz0, sz1), BLACK, out, FLOOR_STEP)
     base._surface(rnd, (sx0, sx1, 0.0, sh, sz1, sz1), (0.13, 0.13, 0.13), out, 0.04)
@@ -406,8 +423,8 @@ def house(rnd, out):
 
 
 def skylight(rnd, out):
-    """The reception's roof: glass between dark timber beams, the sky through it."""
-    x0, x1, z0, z1 = RECEPTION
+    """The vertical garden's roof: glass between dark timber beams, the sky through it."""
+    x0, x1, z0, z1 = VERTICAL
     for k in range(int((x1 - x0) / 1.0) + 1):
         x = min(x1 - 0.06, x0 + 0.06 + k * 1.0)
         base._surface(rnd, (x - 0.06, x + 0.06, H - 0.2, H, z0, z1), TIMBER, out, 0.05)
@@ -488,10 +505,16 @@ def garden(rnd, out):
     base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _sand, out, LAWN_STEP)
     # its walls, along the left (on from the house's) and the right, and across beside the pergola,
     # whitewashed, 2 m high, to where the sand starts; tropical beds along them behind a kerb
-    white = _wall(WHITEWASH)
-    wall_x(0.0, GARDEN_X, _garden_end(0.0), [], white, out, rnd, h=2.0)
-    wall_x(GARDEN_W, PERGOLA[0], _garden_end(GARDEN_W), [], white, out, rnd, h=2.0)
-    wall_z(PERGOLA[0], PERGOLA[3], GARDEN_W, [], white, out, rnd, h=2.0)
+    # (living walls, covered in leaves, as the vertical garden's)
+    live = lambda x, y, z, rnd: _greenwall(x, y, z, rnd)
+    wall_x(0.0, GARDEN_X, _garden_end(0.0), [], live, out, rnd, h=2.0)
+    wall_x(GARDEN_W, PERGOLA[0], _garden_end(GARDEN_W), [], live, out, rnd, h=2.0)
+    wall_z(PERGOLA[0], PERGOLA[3], GARDEN_W, [], live, out, rnd, h=2.0)
+    for (z, x0, x1, side) in ((0.0, GARDEN_X, _garden_end(0.0), +1), (GARDEN_W, PERGOLA[0], _garden_end(GARDEN_W), -1)):
+        for _ in range(int(250 * (x1 - x0))):
+            x, y = rnd.uniform(x0, x1), rnd.uniform(0.1, 2.0)
+            t = rnd.uniform(-0.06, 0.08)
+            out.append(((x, y, z + side * rnd.uniform(0.02, 0.14)), (0.20 + t, 0.40 + t, 0.18 + t), [0.04, 0.04, 0.012]))
     bed_x(rnd, 0.0, GARDEN_X, _garden_end(0.0) - 1.0, +1, out)
     bed_x(rnd, GARDEN_W, PERGOLA[0] + 1.0, _garden_end(GARDEN_W) - 1.0, -1, out)
     cover(rnd, out)
@@ -531,7 +554,7 @@ def bed_x(rnd, z, x0, x1, side, out):
     bromeliads in many greens, a few red, 1 to 1.6 m high, a scalloped cement kerb along its front."""
     deep = 1.2
     base._surface(rnd, (x0, x1, 0.0, 0.0, *sorted((z, z + side * deep))), (0.30, 0.24, 0.17), out, 0.08)
-    for _ in range(int(450 * (x1 - x0))):
+    for _ in range(int(320 * (x1 - x0))):
         x, d = rnd.uniform(x0, x1), rnd.uniform(0.05, deep - 0.1)
         top = 1.0 + 0.6 * (1 - d / deep) * math.sin(x * 1.9) ** 2
         y = rnd.uniform(0.05, top)
@@ -560,9 +583,13 @@ def cover(rnd, out):
     for z in (z0, z1, zm, (z0 + zm) / 2, (zm + z1) / 2):   # the eaves' beams, the purlins and the ridge
         base._surface(rnd, (x0, x1, roof(z) - 0.08, roof(z), z - 0.03, z + 0.03), STEEL, out, 0.05)
     # the glass: faint, so the sky shows through it (and the map leaves it out)
+    # (open round a tree that stands up through it)
+    holes = [(t[0], t[1]) for t in TREES if x0 < t[0] < x1]
     for k in range(int((x1 - x0) / 0.3)):
         for m in range(int((z1 - z0) / 0.3)):
             x, z = x0 + (k + rnd.random()) * 0.3, z0 + (m + rnd.random()) * 0.3
+            if any(math.hypot(x - a, z - b) < 2.4 for a, b in holes):
+                continue
             out.append(((x, roof(z) + 0.02, z), (0.86, 0.91, 0.93), [0.22, 0.01, 0.22], 0.06))
 
 

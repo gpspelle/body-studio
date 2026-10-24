@@ -97,7 +97,13 @@ class SampleVenueTest(unittest.TestCase):
             self.assertFalse(self.free(x, z), item)
         from body_studio import decor
         self.assertTrue({t[2] for t in V.TREES} <= {s["id"] for s in decor.STARTERS})
-        self.assertEqual(self.map["seats"], [])
+        # (but the stage, 40 cm up, can be sat on along its front edge)
+        sx0, sx1, _, sz1, sh = V.STAGE
+        for st in self.map["seats"]:
+            x0, z0 = self.to_map(sx0, sz1)
+            x1, _ = self.to_map(sx1, sz1)
+            self.assertTrue(min(x0, x1) <= st["x"] <= max(x0, x1) and abs(st["z"] - z0) < 0.5, st)
+            self.assertAlmostEqual(st["y"], sh, delta=0.08)
         for name in ("olive", "chandelier", "reception", "hedge"):
             self.assertFalse(hasattr(V, name), name)
 
