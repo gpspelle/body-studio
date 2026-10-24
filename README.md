@@ -298,7 +298,7 @@ export SPLAT_STUDIO_SRC="$(python3 scripts/splat_studio_src.py)"
 python -m unittest tests.integration.test_end_to_end
 
 pip install playwright && python -m playwright install chromium
-python -m unittest tests.browser.test_viewer        # the app in a real browser
+python -m unittest discover -s tests/browser -t .   # the app in a real browser (one file per part of the page)
 python3 scripts/screenshots.py                      # regenerates docs/images/
 ```
 

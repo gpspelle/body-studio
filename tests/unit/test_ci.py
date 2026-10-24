@@ -1,4 +1,4 @@
-"""CI runs the browser tests in shards side by side: each test must be in exactly one of them."""
+"""CI runs the browser tests in shards side by side: each test file must be in exactly one of them."""
 import json
 import re
 import subprocess
@@ -17,8 +17,8 @@ class BrowserShards(unittest.TestCase):
         browser = ci[ci.index("\n  browser:\n"):]
         matrix = browser[browser.index("matrix:"):browser.index("\n    env:")]
         sharded = re.findall(r"\btest_\w+", matrix)
-        tests = re.findall(r"^    def (test_\w+)", (ROOT / "tests" / "browser" / "test_viewer.py").read_text(), re.M)
-        self.assertEqual(len(sharded), len(set(sharded)), "a test in two shards")
+        tests = [f.stem for f in (ROOT / "tests" / "browser").glob("test_*.py")]
+        self.assertEqual(len(sharded), len(set(sharded)), "a test file in two shards")
         self.assertEqual(sorted(sharded), sorted(tests))
 
 
@@ -32,7 +32,7 @@ class BrowserNeeded(unittest.TestCase):
     def test_shared_or_unknown_changes_run_them_all(self):
         for f in ("src/body_studio/static/pose.js", "src/body_studio/static/walk.js", "src/body_studio/server.py",
                   "src/body_studio/static/index.html", "src/body_studio/static/flash.js",   # (tattoo.js imports it)
-                  "tests/browser/test_viewer.py", "tests/fakes/makehuman.py", "pyproject.toml",
+                  "tests/browser/base.py", "tests/browser/test_clothes.py", "tests/fakes/makehuman.py", "pyproject.toml",
                   ".github/workflows/ci.yml", "scripts/browser_needed.py", "src/body_studio/static/notes.md",
                   "something_new.txt"):
             self.assertEqual(browser_needed.shards(["README.md", f]), ["clothes", "rooms", "body"], f)

@@ -71,18 +71,15 @@ jobs:
     strategy:
       fail-fast: false
       # the tests split by how long they take on CI, so the shards end about together
-      # (tests/unit/test_ci.py checks that every browser test is in one)
+      # (tests/unit/test_ci.py checks that every browser test file is in one)
       matrix:
         include:
           - shard: clothes
-            tests: test_clothes_go_on_and_come_off
+            tests: test_clothes
           - shard: rooms
-            tests: test_decorates_a_room test_the_menu_shows_each_mode_its_tools test_a_tattoo_in_the_tattoo_studio
+            tests: test_decor test_menu test_studio
           - shard: body
-            tests: >-
-              test_body_loads_upright_without_errors test_progress_panel_follows_a_person
-              test_stands_walks_and_sits_in_a_room test_switches_the_body_model
-              test_tattoo_follows_the_body_as_it_moves test_walks_and_jumps_with_the_keyboard
+            tests: test_body test_progress test_room test_tattoo
     env:
       BODY_STUDIO_CHROMIUM: /usr/bin/google-chrome   # the runner's own Chrome: nothing to download or install
     # (a matrix job can't be skipped as a whole by its shard: each step is, so it ends in seconds)
@@ -105,4 +102,4 @@ jobs:
           key: samples-${{ hashFiles('src/body_studio/*.py') }}
       - name: Browser tests (${{ matrix.shard }})
         if: contains(fromJSON(needs.changes.outputs.shards), matrix.shard)
-        run: python -m unittest -v $(for t in ${{ matrix.tests }}; do echo tests.browser.test_viewer.Viewer.$t; done)
+        run: python -m unittest -v $(for t in ${{ matrix.tests }}; do echo tests.browser.$t; done)

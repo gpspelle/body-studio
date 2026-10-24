@@ -2,6 +2,10 @@
 
 ## 0.1.0 (unreleased)
 
+- Faster to open: the clothes shop round the body (its forty-odd items and their textures) is
+  only set out once Clothes is open, not for tattoos, the studio or a room; and a reload no longer
+  downloads the page's code, three.js, Spark or the body again when they haven't changed (the
+  server answers 304 to the browser's ETag).
 - The sample venue's planted walls, garden beds and glass rain cover are drawn as the decor is
   (four new Garden starters: small tree, tropical border, living wall, glass roof), not as leaf
   splats. As the walkthrough shows, only a small tree stands under the glass; the palms stand

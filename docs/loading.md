@@ -44,7 +44,7 @@ first), so the screen stays up from the first to the last.
 | The splat file downloading | index.html | Loading Mia… |
 | Finding the skeleton (`/api/rig`) | tattoo.js | Finding the skeleton… This happens once per body. |
 | Binding the splats to it, the pose and tattoos back | tattoo.js | Getting the body ready to move… |
-| The shop set out (meshes and textures) | wardrobe.js | Setting out the clothes around the body… |
+| The shop set out (meshes and textures; only in Clothes or no mode, else when Clothes opens) | wardrobe.js | Setting out the clothes around the body… |
 | Fitting the clothes (`/api/fit`), then what was worn | wardrobe.js | Fitting the clothes to this body…, Putting on T-shirt and jeans… |
 | A remembered room | house.js | Getting the body ready…, Finding the floor…, Loading the room… |
 

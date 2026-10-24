@@ -171,10 +171,21 @@ def make_handler(data: DataDir, runner: Runner):
             ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
             if path.suffix == ".js":
                 ctype = "text/javascript"
+            st = path.stat()
+            # the browser asks each time (after an update, the page's new code at once) but keeps
+            # what it has while the file is the same: a reload moves no splats, three.js nor Spark
+            tag = '"%x-%x"' % (st.st_mtime_ns, st.st_size)
+            if tag in (self.headers.get("If-None-Match") or "").replace(" ", "").split(","):
+                self.send_response(304)
+                self.send_header("ETag", tag)
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                return
             self.send_response(200)
             self.send_header("Content-Type", ctype)
-            self.send_header("Cache-Control", "no-cache")      # (after an update, the page's new code at once)
-            self.send_header("Content-Length", str(path.stat().st_size))
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("ETag", tag)
+            self.send_header("Content-Length", str(st.st_size))
             self.end_headers()
             with open(path, "rb") as f:
                 while True:
