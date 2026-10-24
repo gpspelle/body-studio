@@ -15,7 +15,7 @@ from unittest import mock
 from splat_studio.server import jobs as splat_jobs
 from splat_studio.server.library import DataDir
 
-from body_studio import server
+from body_studio import sample_room, server
 from tests.fakes.bodyply import write_body
 
 # Stands in for splat-studio: reports its stages and writes a body where splat-studio would.
@@ -116,11 +116,17 @@ class Server(unittest.TestCase):
         self.assertEqual(json.loads(self.get("/api/bodies")[1]), [])
         for _ in range(1800):                           # the sample rooms are made in another process
             rooms = json.loads(self.get("/api/rooms")[1])
-            if len(rooms) > 3:
+            if len(rooms) > 3 and not any(r.get("making") for r in rooms):
                 break
             time.sleep(0.1)
         self.assertEqual([(r["name"], r["sample"]) for r in rooms],
                          [("Living_room", False), ("_sample_room", True), ("_sample_studio", True), ("_sample_venue", True)])
+        self.assertTrue(all(r.get("shell") and not r.get("making") for r in rooms if r["sample"]))
+        # an older drawing (the app updated): listed as it is, marked as being made again
+        (self.d / "data" / "workspace" / "_sample_venue" / "run_sample" / "sample.json").write_text('{"version": 0}')
+        with mock.patch.object(sample_room, "start", return_value=False):
+            rooms = json.loads(self.get("/api/rooms")[1])
+        self.assertEqual([r["name"] for r in rooms if r.get("making")], ["_sample_venue"])
         self.assertEqual(self.post("/api/upload?name=house.zip&kind=room", b"PK")[0], 201)   # an iPhone capture
         self.assertEqual(self.post("/api/upload?name=house.zip", b"PK")[0], 400)             # but not a body
 

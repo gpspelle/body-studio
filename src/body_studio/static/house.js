@@ -63,7 +63,10 @@ async function refresh() {
   try { rooms = await (await fetch("/api/rooms")).json(); } catch { rooms = []; }
   // the sample rooms are made in the background the first time: listed again until they are there
   const samples = rooms.filter((r) => r.sample).length;
-  if (samples < 2 && samplesTries++ < 60) setTimeout(refresh, 2000);
+  if ((samples < 2 || rooms.some((r) => r.making)) && samplesTries++ < 90) setTimeout(refresh, 2000);
+  // the room shown, drawn again meanwhile (a new version of a sample room): shown again
+  const now = R && rooms.find((r) => r.file === R.file);
+  if (now && !now.making && R.updated && now.updated !== R.updated && !busy) { const f = R.file; clear(); choose(f); }
   if (want && !rooms.some((r) => r.file === want) && samples >= 2) want = null;
   if (!$("roomMenu").hidden && rooms.map((r) => r.file).join("|") !== was) list();
   if (want && !R && !busy && V.file() && rooms.some((r) => r.file === want)) choose(want);
@@ -122,7 +125,7 @@ async function choose(file) {
     roofless(mesh, map.frame);
     const room = new RoomMap(map);
     const shell = shellBytes && shellMesh(shellBytes, map.frame);
-    R = { file, map, room, mesh, shell, size: +(store.get("room:size:" + file) || 1), ahead: room.openWay() };
+    R = { file, map, room, mesh, shell, updated: entry && entry.updated, size: +(store.get("room:size:" + file) || 1), ahead: room.openWay() };
     V.holder.add(mesh);
     if (shell) V.holder.add(shell);
     place();

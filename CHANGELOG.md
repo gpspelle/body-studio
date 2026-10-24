@@ -250,6 +250,8 @@
   and lawn as smooth surfaces instead of soft splats, the way the Decor's furniture is drawn; a
   room you film is shown as scanned. They draw faster too: the venue has 140,000 splats left of
   820,000.
+- A sample room drawn again after an update (a new version) is shown again by itself once it is
+  ready, and the page's code is never kept by the browser over an update.
 - The sample venue's kitchen can be walked into: it has a floor now and its door stands open on
   the hall.
 - First person walks straight: the view no longer turns by itself as the body turns into the

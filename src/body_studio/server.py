@@ -173,6 +173,7 @@ def make_handler(data: DataDir, runner: Runner):
                 ctype = "text/javascript"
             self.send_response(200)
             self.send_header("Content-Type", ctype)
+            self.send_header("Cache-Control", "no-cache")      # (after an update, the page's new code at once)
             self.send_header("Content-Length", str(path.stat().st_size))
             self.end_headers()
             with open(path, "rb") as f:
@@ -206,7 +207,11 @@ def make_handler(data: DataDir, runner: Runner):
                     sample_room.start(data.root)        # the drawn living room and tattoo studio: listed once made
                 except OSError:
                     pass
-                return self._json(library.rooms(data.root))
+                out = library.rooms(data.root)
+                for r in out:                           # (an older drawing, being made again: the page asks again)
+                    if r["sample"] and not sample_room.ready(data.root, r["name"]):
+                        r["making"] = True
+                return self._json(out)
             if p == "/api/room":
                 state, out = self._built(maps, "room")
                 return self._file(out) if state == "ready" else None
