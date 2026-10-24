@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 8
+VERSION = 9
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -448,13 +448,9 @@ def kitchen(rnd, out):
 
 
 def green_x(rnd, z, x0, x1, side, out):
-    """A wall of leaves along x at z (the room on its `side`): ferns and ivy, light and dark, the
-    leaves standing out from it."""
+    """A wall of leaves along x at z (the room on its `side`): here only its backing, green; the page
+    draws the planted wall over it (living_wall, from fixtures())."""
     base._surface(rnd, (x0, x1, 0.0, H, z + 0.005 * side, z + 0.005 * side), _greenwall, out, 0.04)
-    for _ in range(int(3000 * (x1 - x0))):
-        x, y = rnd.uniform(x0 + 0.05, x1 - 0.05), rnd.uniform(0.15, H - 0.2)
-        t = rnd.uniform(-0.06, 0.08)
-        out.append(((x, y, z + side * rnd.uniform(0.02, 0.16)), (0.20 + t, 0.40 + t, 0.18 + t), [0.03, 0.03, 0.012]))
 
 
 # ---------------------------------------------------------------- outside: the pergola and the garden
@@ -505,33 +501,29 @@ def garden(rnd, out):
     base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _sand, out, LAWN_STEP)
     # its walls, along the left (on from the house's) and the right, and across beside the pergola,
     # whitewashed, 2 m high, to where the sand starts; tropical beds along them behind a kerb
-    # (living walls, covered in leaves, as the vertical garden's)
+    # (planted all along: the page draws the borders in front of them, from fixtures())
     live = lambda x, y, z, rnd: _greenwall(x, y, z, rnd)
     wall_x(0.0, GARDEN_X, _garden_end(0.0), [], live, out, rnd, h=2.0)
     wall_x(GARDEN_W, PERGOLA[0], _garden_end(GARDEN_W), [], live, out, rnd, h=2.0)
     wall_z(PERGOLA[0], PERGOLA[3], GARDEN_W, [], live, out, rnd, h=2.0)
-    for (z, x0, x1, side) in ((0.0, GARDEN_X, _garden_end(0.0), +1), (GARDEN_W, PERGOLA[0], _garden_end(GARDEN_W), -1)):
-        for _ in range(int(250 * (x1 - x0))):
-            x, y = rnd.uniform(x0, x1), rnd.uniform(0.1, 2.0)
-            t = rnd.uniform(-0.06, 0.08)
-            out.append(((x, y, z + side * rnd.uniform(0.02, 0.14)), (0.20 + t, 0.40 + t, 0.18 + t), [0.04, 0.04, 0.012]))
-    bed_x(rnd, 0.0, GARDEN_X, _garden_end(0.0) - 1.0, +1, out)
-    bed_x(rnd, GARDEN_W, PERGOLA[0] + 1.0, _garden_end(GARDEN_W) - 1.0, -1, out)
-    cover(rnd, out)
+    # the planted beds along the walls: the page draws them (tropical_border); here their tops, a metre
+    # up and green, so the map keeps the body out of them
+    for z0, z1, x0, x1 in ((0.0, 1.5, GARDEN_X, _garden_end(0.0) - 0.5), (GARDEN_W - 1.5, GARDEN_W, PERGOLA[0] + 0.3, _garden_end(GARDEN_W) - 0.5)):
+        base._surface(rnd, (x0, x1, 1.0, 1.0, z0, z1), (0.20, 0.36, 0.17), out, 0.08)
     bungalow(rnd, out)
     for t in TREES:
         trunk(rnd, out, *t)
 
 
-# the trees the walkthrough shows (x, z, the decor starter that draws it): a broad tree in the sand
-# past the rain cover, a big one beside the bungalow, two beach almonds at the sand's edge by the
-# sea, and coconut palms standing out of the beds along the walls. The page draws them as it draws
+# the trees the walkthrough shows (x, z, the decor starter that draws it): a small tree in the sand
+# under the rain cover, a big one beside the bungalow, two beach almonds at the sand's edge by the
+# sea, and coconut palms standing up behind the garden's walls. The page draws them as it draws
 # the decor (decor.js), from the fixtures make() writes; here only their trunks' feet, inside those,
 # so the map walks round them
-TREES = ((44.5, 3.2, "broad_tree"), (52.5, 10.8, "broad_tree"),
+TREES = ((44.5, 3.2, "small_tree"), (52.5, 10.8, "broad_tree"),
          (_garden_end(3.0) + 2.5, 3.0, "beach_almond"), (_garden_end(13.0) + 2.0, 13.0, "beach_almond"),
-         (34.0, 0.6, "coconut_palm"), (47.0, 0.6, "coconut_palm"), (36.0, GARDEN_W - 0.6, "coconut_palm"))
-TRUNK = {"broad_tree": 0.1, "beach_almond": 0.1, "coconut_palm": 0.07}
+         (34.0, -1.4, "coconut_palm"), (47.0, -1.4, "coconut_palm"), (36.0, GARDEN_W + 1.4, "coconut_palm"))
+TRUNK = {"small_tree": 0.05, "broad_tree": 0.1, "beach_almond": 0.1, "coconut_palm": 0.07}
 
 
 def trunk(rnd, out, x, z, item):
@@ -544,53 +536,32 @@ def trunk(rnd, out, x, z, item):
         y += 0.05
 
 
+def _along(item, x0, x1, z, turn, width, depth=0.0):
+    """Copies of a decor starter `width` wide in a row along x from x0 to x1 at z, each stretched a
+    little so the row fits; `depth` out from z (on the side it faces)."""
+    n = max(1, math.ceil((x1 - x0) / width - 0.01))
+    w = (x1 - x0) / n
+    zz = z + depth * math.cos(turn)
+    return [{"item": item, "at": [x0 + (k + 0.5) * w, 0.0, round(zz, 3)], "turn": turn, "scale": [round(w / width, 4), 1, 1]}
+            for k in range(n)]
+
+
 def fixtures() -> dict:
-    """What the page is told besides the splat (room.py's map, in its metres): the trees."""
-    return {"trees": [{"item": item, "at": [x, 0.0, z]} for x, z, item in TREES]}
-
-
-def bed_x(rnd, z, x0, x1, side, out):
-    """A planted bed along a wall at z (the garden on its `side`), 1.2 m deep: palms, ferns and
-    bromeliads in many greens, a few red, 1 to 1.6 m high, a scalloped cement kerb along its front."""
-    deep = 1.2
-    base._surface(rnd, (x0, x1, 0.0, 0.0, *sorted((z, z + side * deep))), (0.30, 0.24, 0.17), out, 0.08)
-    for _ in range(int(320 * (x1 - x0))):
-        x, d = rnd.uniform(x0, x1), rnd.uniform(0.05, deep - 0.1)
-        top = 1.0 + 0.6 * (1 - d / deep) * math.sin(x * 1.9) ** 2
-        y = rnd.uniform(0.05, top)
-        t = rnd.uniform(-0.07, 0.08)
-        c = (0.62, 0.14, 0.13) if rnd.random() < 0.03 and y < 0.5 else (0.17 + t, 0.38 + t * 1.3, 0.14 + t)
-        out.append(((x, y, z + side * d), c, [0.05, 0.03, 0.05]))
-    zk = z + side * deep
-    for k in range(int((x1 - x0) / 0.3)):
-        a = x0 + k * 0.3
-        base._surface(rnd, (a + 0.02, a + 0.28, 0.0, 0.12, zk - 0.04, zk + 0.04), (0.72, 0.70, 0.66), out, 0.05)
-
-
-def cover(rnd, out):
-    """The garden's rain cover, from the pergola on: a pitched glass roof on dark steel rafters,
-    the posts in the beds along the walls."""
-    x0, x1, z0, z1 = GARDEN_X, GARDEN_X + COVER_LEN, 0.6, GARDEN_W - 0.6
-    eave, ridge, zm = 3.4, 4.8, (z0 + z1) / 2
-    roof = lambda z: eave + (ridge - eave) * (1 - abs(z - zm) / ((z1 - z0) / 2))
-    bars = [x0 + 0.05 + k * (x1 - x0 - 0.1) / 6 for k in range(7)]
-    for x in bars:
-        for z in (z0, z1):
-            base._surface(rnd, (x - 0.05, x + 0.05, 0.0, eave, z - 0.05, z + 0.05), STEEL, out, 0.05)
-        for k in range(int((z1 - z0) / 0.03)):
-            z = z0 + (k + 0.5) * 0.03
-            out.append(((x, roof(z), z), STEEL, [0.03, 0.04, 0.02]))
-    for z in (z0, z1, zm, (z0 + zm) / 2, (zm + z1) / 2):   # the eaves' beams, the purlins and the ridge
-        base._surface(rnd, (x0, x1, roof(z) - 0.08, roof(z), z - 0.03, z + 0.03), STEEL, out, 0.05)
-    # the glass: faint, so the sky shows through it (and the map leaves it out)
-    # (open round a tree that stands up through it)
-    holes = [(t[0], t[1]) for t in TREES if x0 < t[0] < x1]
-    for k in range(int((x1 - x0) / 0.3)):
-        for m in range(int((z1 - z0) / 0.3)):
-            x, z = x0 + (k + rnd.random()) * 0.3, z0 + (m + rnd.random()) * 0.3
-            if any(math.hypot(x - a, z - b) < 2.4 for a, b in holes):
-                continue
-            out.append(((x, roof(z) + 0.02, z), (0.86, 0.91, 0.93), [0.22, 0.01, 0.22], 0.06))
+    """What the page is told besides the splat (room.py's map, in its metres): the trees, and the
+    things it draws as it draws the decor (decor.js starters), so they look as the decor does: the
+    planted walls, the borders along the garden's walls and the glass rain cover over it."""
+    props = [{"item": item, "at": [x, 0.0, z]} for x, z, item in TREES]
+    for x0, x1 in (VERTICAL[:2], ANTE[:2]):
+        props += _along("living_wall", x0, x1, 0.0, 0.0, 2.0, 0.15)
+        props += _along("living_wall", x0 + (0.3 if x0 == ANTE[0] else 0.0), x1 - (0.3 if x0 == ANTE[0] else 0.0), 4.0, math.pi, 2.0, 0.15)
+    # the garden's walls, 2 m high, planted all over too, the beds in front of them
+    for z, turn, x0 in ((0.0, 0.0, GARDEN_X), (GARDEN_W, math.pi, PERGOLA[0])):
+        props += [dict(p, scale=[p["scale"][0], round(2.0 / 3.4, 4), 1]) for p in _along("living_wall", x0, _garden_end(z), z, turn, 2.0, 0.15)]
+        props += _along("tropical_border", x0 + 0.3, _garden_end(z) - 0.5, z, turn, 2.0, 0.95)
+    bays = round(COVER_LEN / 3.3)
+    props += [{"item": "glass_roof", "at": [round(GARDEN_X + (k + 0.5) * COVER_LEN / bays, 3), 0.0, GARDEN_W / 2],
+               "scale": [round(COVER_LEN / bays / 3.3, 4), 1, 1]} for k in range(bays)]
+    return {"trees": props}
 
 
 def beach(rnd, out):

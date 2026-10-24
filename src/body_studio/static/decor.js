@@ -1072,6 +1072,59 @@ function coconutPalm(s, h, seed) {
   }
   for (let k = 0; k < 5; k++) { const a = k * 1.3; ball(s, 0.1, top[0] + 0.2 * Math.sin(a), top[1] - 0.2, top[2] + 0.2 * Math.cos(a), [0.42, 0.33, 0.18], 10); }
 }
+function smallTree(s, h, r, seed) {
+  // a small garden tree: three slim stems from the sand, fanning out, a light open crown
+  const rnd = rng(seed);
+  for (let k = 0; k < 3; k++) {
+    const a = k * 2.1 + 0.3, top = [0.35 * r * Math.sin(a), h * 0.62, 0.35 * r * Math.cos(a)];
+    made("wood", () => limb(s, [0.05 * Math.sin(a), 0, 0.05 * Math.cos(a)], top, 0.06, 0.035, BARK, -0.1, 4));
+  }
+  for (let k = 0; k < 11; k++) {
+    const a = rnd() * 2 * Math.PI, d = Math.sqrt(rnd()) * r * 0.6;
+    clump(s, [d * Math.sin(a), h * 0.72 + (1 - d / r) * h * 0.12 + (rnd() - 0.5) * 0.3, d * Math.cos(a)], r * (0.3 + 0.1 * rnd()), rnd, 0.8);
+  }
+}
+// a small palm or a cycad for a bed: a short trunk, fronds out of its top
+function bedPalm(s, x, z, h, len, n, rnd) {
+  made("wood", () => { for (let k = 0; k < 6; k++) rod(s, [x, h * k / 6, z], [x, h * (k + 1) / 6, z], 0.07 - 0.005 * k, k % 2 ? PALM_BARK : PALM_BARK.map((v) => v * 0.85), 8); });
+  for (let k = 0; k < n; k++) frond(s, [x, h, z], (k / n) * 2 * Math.PI + rnd(), len * (0.8 + 0.3 * rnd()), CANOPY[k % CANOPY.length]);
+}
+// a planted border w long (x) by d deep (z, the front at +z): palms at the back, ferns and
+// monstera leaves in the middle, bromeliads and low leaves at the front, packed so no soil shows
+function border(s, w, d, seed) {
+  const rnd = rng(seed);
+  box(s, w, 0.04, d, 0, 0, 0, [0.3, 0.24, 0.17]);
+  for (let k = 0; k < Math.round(w / 1.0); k++) bedPalm(s, -w / 2 + (k + 0.5) * (w / Math.round(w / 1.0)) + (rnd() - 0.5) * 0.2, -d / 2 + 0.25, 1.2 + 0.9 * rnd(), 1.1, 9, rnd);
+  for (let k = 0; k < Math.round(w * 26); k++) {
+    const x = (rnd() - 0.5) * w * 0.96, z = -d / 2 + 0.3 + rnd() * (d * 0.45), base = [x, 0.04, z];
+    leaf(s, base, tipped(rnd() * 6.28, 0.25 + 0.45 * rnd()), 0.6 + 0.5 * rnd(), 0.32, k % 3 ? DARK_LEAF : MONSTERA);
+  }
+  for (let k = 0; k < Math.round(w * 3); k++) {
+    const x = (rnd() - 0.5) * w * 0.9, z = d / 2 - 0.25 - rnd() * 0.15, red = rnd() < 0.4;
+    for (let j = 0; j < 12; j++) leaf(s, [x, 0.04, z], tipped(j * 2.4 + rnd(), 0.6 + 0.6 * (j / 12)), 0.32, 0.14, red && j % 2 ? CORDYLINE : [0.4, 0.58, 0.32]);
+  }
+}
+// one bay of a glass roof on dark steel: posts at its two ends, a pitched rafter, purlins along,
+// two panes of glass; w along (x), d across (z)
+function roofBay(s, w, d, eave, ridge) {
+  const roof = (z) => eave + (ridge - eave) * (1 - Math.abs(z) / (d / 2));
+  made("metal", () => {
+    for (const z of [-d / 2, d / 2]) box(s, 0.1, eave, 0.1, 0, 0, z, STEEL_DARK);
+    for (const z of [-d / 2, d / 2]) rod(s, [0, roof(z), z], [0, ridge, 0], 0.04, STEEL_DARK, 6);
+    for (const f of [0, 0.25, 0.5, 0.75, 1]) for (const side of [-1, 1]) {
+      const z = side * f * d / 2;
+      rod(s, [-w / 2, roof(z) + 0.02, z], [w / 2, roof(z) + 0.02, z], 0.025, STEEL_DARK, 6);
+    }
+  });
+  made("glass", () => {
+    for (const side of [-1, 1]) {
+      const a = vert(s, -w / 2, ridge + 0.05, 0, GLASS), b = vert(s, w / 2, ridge + 0.05, 0, GLASS);
+      const c = vert(s, w / 2, eave + 0.05, side * d / 2, GLASS), e = vert(s, -w / 2, eave + 0.05, side * d / 2, GLASS);
+      quad(s, a, b, c, e);
+    }
+  });
+}
+const STEEL_DARK = [0.13, 0.13, 0.14];
 // a woven shell (wicker, rattan) of rings and staves: radius r(t) from t = 0 (foot) to 1 (top)
 function woven(s, h, r, cx, cy, cz, col, rings = 8, staves = 14) {
   const at = (t, a) => [cx + r(t) * Math.sin(a), cy + h * t, cz + r(t) * Math.cos(a)];
@@ -1902,6 +1955,32 @@ Object.assign(STARTERS, {
     make(col) { const s = shape(); jute(s, 1.0, col); return s; },
   },
   // trees, as in the venue's garden (and for any garden)
+  small_tree: {
+    group: "garden", height: 3.3, on: "floor", colour: "green", size: { w: 2.4, d: 2.5 }, block: "posts", posts: [[0, 0]],
+    make() { const s = shape(); smallTree(s, 3.2, 1.6, 31); return grounded(s); },
+  },
+  tropical_border: {
+    group: "garden", height: 2.05, on: "floor", colour: "green", size: { w: 3.0, d: 2.2 }, block: true,
+    make() { const s = shape(); border(s, 2.0, 1.3, 41); return grounded(s); },
+  },
+  living_wall: {
+    group: "garden", height: 3.4, on: "floor", colour: "green", size: { w: 2.0, d: 0.3 }, block: true,
+    make() {
+      // a wall planted all over: ferns and leaves on a dark green backing, 3.4 m high
+      const s = shape(), rnd = rng(173);
+      box(s, 2.0, 3.4, 0.08, 0, 0, -0.1, DARK_LEAF);
+      for (let k = 0; k < 1400; k++) {
+        const x = (rnd() - 0.5) * 1.96, y = 0.05 + rnd() * 3.3;
+        leaf(s, [x, y, -0.04], [0.3 * (rnd() - 0.5), -0.35 + 0.4 * rnd(), 0.9].map((v, _, a) => v / Math.hypot(...a)), 0.14 + 0.08 * rnd(), 0.3,
+             [LEAF, DARK_LEAF, PALM, MONSTERA][k % 4]);
+      }
+      return grounded(s);
+    },
+  },
+  glass_roof: {
+    group: "garden", height: 4.85, on: "floor", colour: "black", size: { w: 3.3, d: 16.6 }, block: "posts", posts: [[0, -8.3], [0, 8.3]],
+    make() { const s = shape(); roofBay(s, 3.3, 16.6, 3.4, 4.8); return s; },
+  },
   broad_tree: {
     group: "garden", height: 5.65, on: "floor", colour: "green", size: { r: 2.4 }, block: "posts", posts: [[0.04, 0.03]],
     make() { const s = shape(); broadTree(s, 5.5, 2.6, 11); return grounded(s); },

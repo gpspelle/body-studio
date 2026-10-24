@@ -53,7 +53,7 @@ class SampleVenueTest(unittest.TestCase):
         # as a few stray splats would be)
         long = V.GARDEN_X + (V.GARDEN_LEFT + V.GARDEN_RIGHT) / 2 + V.BEACH - V.DECK[0]
         self.assertAlmostEqual(self.map["nx"] * self.map["cell"], long + 0.4, delta=3.0)
-        self.assertAlmostEqual(self.map["nz"] * self.map["cell"], V.GARDEN_W + 0.4, delta=1.5)   # (the beach is slanted)
+        self.assertAlmostEqual(self.map["nz"] * self.map["cell"], V.GARDEN_W + 0.4, delta=2.0)   # (the beach is slanted, and is more of the splats now the garden is drawn by the page)
         self.assertLess(self.map["cell"], 0.11, "cells small enough for doorways, long as it is")
         self.assertLess(self.map["splats"], 900_000)
 
@@ -86,8 +86,10 @@ class SampleVenueTest(unittest.TestCase):
         # trees are the ones the walkthrough shows, in the garden and on the beach)
         self.assertTrue(all(t[0] > V.GARDEN_X for t in V.TREES))
         # the page draws them as decor (starters), where the map says; the body walks round their trunks
-        trees = self.map["fixtures"]["trees"]
-        self.assertEqual(len(trees), len(V.TREES))
+        props = self.map["fixtures"]["trees"]
+        trees = props[:len(V.TREES)]
+        # and the planted walls, the beds' borders and the glass roof, as decor too
+        self.assertEqual({t["item"] for t in props[len(V.TREES):]}, {"living_wall", "tropical_border", "glass_roof"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -139,14 +141,11 @@ class SampleVenueTest(unittest.TestCase):
         self.assertNotEqual(brick(0, 0.04, 0.05, rnd), brick(0, 0.115, 0.05, rnd))
         self.assertEqual(brick(0, 0.04, 0.221, rnd), brick(0, 0.115, 0.111, rnd))
         rows = V.splats()
-        # the stage's screen, the pergola's reed roof, the garden's glass cover seen through (and so
-        # not mapped)
+        # the stage's screen, the pergola's reed roof (the garden's glass cover is the page's: no splats)
         x0, x1, z0, z1 = V.PERGOLA
         reed = [r for r in rows if x0 < r[0][0] < x1 and z0 < r[0][2] < z1 and abs(r[0][1] - V.PERGOLA_ROOF - 0.01) < 1e-6]
         self.assertGreater(len(reed), 20000)
-        glass = [r for r in rows if V.GARDEN_X < r[0][0] < V.GARDEN_X + V.COVER_LEN and r[0][1] > 3.4 and len(r) > 3]
-        self.assertGreater(len(glass), 1000)
-        self.assertTrue(all(r[3] < room.OPAQUE for r in glass))
+        self.assertFalse([r for r in rows if V.GARDEN_X < r[0][0] < V.GARDEN_X + V.COVER_LEN and r[0][1] > 3.2])
         screen = [r for r in rows if abs(r[0][2] - 0.06) < 1e-6 and V.STAGE[0] < r[0][0] < V.STAGE[1] and min(r[1]) > 0.8]
         self.assertGreater(len(screen), 1000)
 

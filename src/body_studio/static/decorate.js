@@ -546,7 +546,7 @@ function shade(d, p) {
   const sh = new THREE.Mesh(SHADE_PLANE, SHADE), sz = d.size, w = sz.r !== undefined ? 2 * sz.r : sz.w, dd = sz.r !== undefined ? 2 * sz.r : sz.d;
   sh.rotation.set(-Math.PI / 2, p.turn || 0, 0, "YXZ");
   sh.position.set(p.x, (p.y || 0) - (p.lift || 0) + 0.004, p.z);
-  sh.scale.set(w * 1.35, dd * 1.35, 1);
+  sh.scale.set(w * 1.35 * (p.sx || 1), dd * 1.35 * (p.sz || 1), 1);
   sh.renderOrder = -1;
   shades.add(sh);
 }
@@ -561,14 +561,17 @@ function draw() {
   for (const c of [...shades.children]) shades.remove(c);
   // the room's own trees (its fixtures: the sample venue's), drawn as the decor is but part of the
   // room: not picked, moved or saved
+  // (and its planted walls, borders and glass roof, each stretched along its row by `scale`)
   for (const t of H()?.fixtures()?.trees || []) {
     if (!STARTERS[t.item]) continue;
-    const m = new THREE.Mesh(geomFor({ item: t.item }), mats());
+    const m = new THREE.Mesh(geomFor({ item: t.item }), mats()), sc = t.scale || [1, 1, 1];
     m.position.set(t.at[0], t.at[1], t.at[2]);
     m.rotation.y = t.turn || 0;
+    m.scale.set(sc[0], sc[1], sc[2]);
     m.userData.fixed = true;
     group.add(m);
-    shade(defs(t.item), { x: t.at[0], y: t.at[1], z: t.at[2], turn: t.turn || 0 });
+    // (a roof overhead casts no soft shadow at its feet)
+    if (t.item !== "glass_roof") shade(defs(t.item), { x: t.at[0], y: t.at[1], z: t.at[2], turn: t.turn || 0, sx: sc[0], sz: sc[2] });
   }
   placed().forEach((p, k) => {
     const g = geomFor(p);

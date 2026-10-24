@@ -2,6 +2,10 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's planted walls, garden beds and glass rain cover are drawn as the decor is
+  (four new Garden starters: small tree, tropical border, living wall, glass roof), not as leaf
+  splats. As the walkthrough shows, only a small tree stands under the glass; the palms stand
+  behind the garden's walls.
 - One look on every panel, taken from Decor: ink on warm paper, hairlines, serif titles. Picked
   chips are inked with a card behind them, Save and Add are filled, Remove and Delete turn red on
   hover, every panel closes with the same round x. Blue is kept for focus and charts.
