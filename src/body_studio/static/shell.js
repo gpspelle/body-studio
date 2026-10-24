@@ -36,8 +36,9 @@ export function parseShell(buffer) {
 const linear = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
 
 // The sheets as triangles: { position, color (linear), index } typed arrays. `up` is the file's way
-// up (sample rooms are y-down: [0, -1, 0]).
-export function shellGeometry(sheets, up = [0, -1, 0]) {
+// up (sample rooms are y-down: [0, -1, 0]). `lit`: drawn with lights (as the decor is), so no
+// shading is put in the colours.
+export function shellGeometry(sheets, up = [0, -1, 0], lit = false) {
   let nv = 0, nt = 0;
   for (const s of sheets) {
     nv += (s.na + 1) * (s.nb + 1);
@@ -50,7 +51,7 @@ export function shellGeometry(sheets, up = [0, -1, 0]) {
     const { o, du, dv, na, nb, cells } = s;
     // how it faces the light: its normal in the room's metres (the file's up turned to y)
     const n = unit(cross(du, dv)), facing = Math.abs(L[0] * n[0] + L[1] * dot(n, U) + L[2] * n[2]);
-    const shade = SHELL.ambient + (1 - SHELL.ambient) * facing;
+    const shade = lit ? 1 : SHELL.ambient + (1 - SHELL.ambient) * facing;
     for (let k = 0; k <= nb; k++)
       for (let i = 0; i <= na; i++) {
         const v = v0 + k * (na + 1) + i, u = i / na, w = k / nb;

@@ -499,15 +499,21 @@ V.renderer.localClippingEnabled = true;
 
 // ---------------------------------------------------------------- the shell
 // A drawn room's walls, floors and ceilings as one mesh of vertex-coloured quads (shell.js), in the
-// splat file's coordinates like the splats, so it takes the same matrix. Unlit: the colours have
-// their shading in them, as the splats' do.
+// splat file's coordinates like the splats, so it takes the same matrix. Lit as the decor is
+// (matt like plaster and stone, under the decor's lights; decorate.js gives it the decor's studio
+// reflections too), so the room and what is put in it look alike.
+let SHELL_MAT = null;
 function shellMesh(bytes, frame) {
-  const g = shellGeometry(parseShell(bytes), frame.up);
+  const g = shellGeometry(parseShell(bytes), frame.up, true);
   const geom = new THREE.BufferGeometry();
   geom.setAttribute("position", new THREE.BufferAttribute(g.position, 3));
   geom.setAttribute("color", new THREE.BufferAttribute(g.color, 3));
   geom.setIndex(new THREE.BufferAttribute(g.index, 1));
-  const mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  geom.computeVertexNormals();
+  SHELL_MAT ||= new THREE.MeshStandardMaterial({
+    vertexColors: true, side: THREE.DoubleSide, roughness: 0.85, metalness: 0,
+  });
+  const mesh = new THREE.Mesh(geom, SHELL_MAT.clone());
   mesh.matrixAutoUpdate = false;
   mesh.userData.room = true;                    // (still drawn without the body)
   mesh.name = "room-shell";

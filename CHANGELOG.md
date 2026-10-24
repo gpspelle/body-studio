@@ -263,6 +263,9 @@
   are on the right as you walk in, the stage on the left, as on the plan. Its trees are there
   too: two broad trees in the garden, two beach almonds by the sea and three palms in the beds.
   A layout already made in it comes back mirrored.
+- The drawn rooms (living room, tattoo studio, wedding venue) are lit like the furniture: their
+  walls, floors and ceilings take the decor's light and reflections; the venue's garden sand is
+  smooth like its floors. Filmed rooms are shown as filmed.
 - Trees drawn like the furniture: a broad tree, a beach almond and a coconut palm, in a new
   Garden tab in Decor; the sample venue's trees are these, part of the room (not picked or moved).
 - Seven decor starters seen at the venue: a blue bookcase, iron shelves, a high wooden table, an

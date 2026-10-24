@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 6
+VERSION = 7
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -479,16 +479,11 @@ def garden(rnd, out):
     def ground(x, y, z, rnd):
         near = bx0 - 2.0 < x < bx1 + 1.0 and bz0 - 2.0 < z
         return _lawn(x, y, z, rnd) if near else _sand(x, y, z, rnd)
-    z = 0.0
-    while z < GARDEN_W:
-        x = GARDEN_X
-        end = _garden_end(z)
-        while x < end:
-            p = (x + rnd.random() * LAWN_STEP, 0.0, z + rnd.random() * LAWN_STEP)
-            if p[0] < end:
-                out.append((p, ground(*p, rnd), [LAWN_STEP * 0.75, LAWN_STEP * 0.09, LAWN_STEP * 0.75]))
-            x += LAWN_STEP
-        z += LAWN_STEP
+    # (one sheet, so the page draws it smooth: the cells past the slanted far side left out)
+    long = max(GARDEN_LEFT, GARDEN_RIGHT)
+    base.sheet(rnd, (GARDEN_X, 0.0, 0.0), (long, 0.0, 0.0), (0.0, 0.0, GARDEN_W), round(long / LAWN_STEP),
+               round(GARDEN_W / LAWN_STEP), ground, out, [LAWN_STEP * 0.75, LAWN_STEP * 0.09, LAWN_STEP * 0.75],
+               keep=lambda x, z: x < _garden_end(z))
     # beside the pergola, to the garden's right wall
     base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _sand, out, LAWN_STEP)
     # its walls, along the left (on from the house's) and the right, and across beside the pergola,
