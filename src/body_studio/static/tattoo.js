@@ -8,7 +8,8 @@
 // the ink too, and whichever splat is in front shows it. Design and sources: docs/tattoo.md.
 import * as THREE from "three";
 import { SplatEdit, SplatEditSdf, SplatMesh, SplatSkinning } from "@sparkjsdev/spark";
-import { BodyVolume, Skeleton, SkinSurface, SkinWeights, SurfaceMap, dualQuats, palmNormals, inkSamples, inkUnder, INK_OUT, placeInk, q as quat, skinPoint, v3 } from "/static/pose.js";
+import { BodyVolume, Skeleton, SkinWeights, SurfaceMap, dualQuats, palmNormals, q as quat, skinPoint, v3 } from "/static/pose.js";
+import { SkinSurface, inkSamples, inkUnder, INK_OUT, placeInk } from "/static/skin.js";
 const q = quat;
 import { Life, Walker } from "/static/walk.js";
 import { bodyCapsules, channelLevels, copyLayers, fillLayers, HEALED, inkFactor, handFrames, posedCapsules, shapeKg, shapeOffsets, SkinField, Swing, SWING, twistState, weightGradients } from "/static/flesh.js";
