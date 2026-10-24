@@ -42,6 +42,10 @@ class SampleVenueTest(unittest.TestCase):
         sample_room.ensure_all(self.d)
         self.assertEqual([r["name"] for r in library.rooms(self.d)], [library.SAMPLE, library.STUDIO, library.VENUE])
         self.assertEqual(library.bodies(self.d), [])
+        # each listed with its look: the surfaces as a smooth shell, and the splats left (sample_room.write_drawn)
+        for r in library.rooms(self.d):
+            self.assertTrue((self.d / r["shell"]).is_file() and (self.d / r["look"]).is_file(), r["name"])
+            self.assertLess((self.d / r["look"]).stat().st_size, (self.d / r["file"]).stat().st_size / 2)
 
     def test_its_size(self):
         self.assertAlmostEqual(self.map["frame"]["metres"], 1.0, delta=0.03)

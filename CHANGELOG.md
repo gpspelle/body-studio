@@ -246,6 +246,10 @@
   above and a new fly through, at eye height and fast, through walls. From above and flying,
   the body isn't drawn and W A S D move the camera; after a flight the body stands where it ended.
   The First person and From above buttons moved from the top bar to these chips.
+- The drawn rooms (living room, tattoo studio, wedding venue) show their walls, floors, ceilings
+  and lawn as smooth surfaces instead of soft splats, the way the Decor's furniture is drawn; a
+  room you film is shown as scanned. They draw faster too: the venue has 140,000 splats left of
+  820,000.
 - The sample venue's kitchen can be walked into: it has a floor now and its door stands open on
   the hall.
 - First person walks straight: the view no longer turns by itself as the body turns into the

@@ -24,7 +24,7 @@ from pathlib import Path
 
 from . import library
 
-VERSION = 1
+VERSION = 2
 NAME = library.SAMPLE               # its folder in workspace/ and its name in rooms.json
 RUN = "run_sample"
 PLY = "living_room_clean.ply"
@@ -181,6 +181,86 @@ def parts(rnd) -> list:
     return p + legs + _books(rnd)
 
 
+# ---------------------------------------------------------------- the shell
+# A drawn room's flat surfaces (walls, floors, ceilings, the lawn) are also written as a shell:
+# smooth sheets the page draws as meshes in place of their splats, which up close show as soft
+# blobs a few centimetres across; the splat file keeps them all, for room.py's map. A sheet is a
+# grid of cells over a parallelogram (corner o, sides du and dv), each cell the colour of the splat
+# drawn in it (none: no cell). While `drawing()` is on, _surface and sheet() note theirs here.
+_shell = None                       # {"sheets": [(o, du, dv, na, nb, cells)], "meshed": ids of their splats' positions}
+SHELL_MAGIC, SHELL_VERSION = b"BSSH", 1
+
+
+def drawing(make_splats):
+    """The splats make_splats() draws, and the shell: (rows, the rows not in the shell, sheets)."""
+    global _shell
+    _shell = {"sheets": [], "meshed": set()}
+    try:
+        rows = make_splats()
+        shell = _shell
+    finally:
+        _shell = None
+    rest = [r for r in rows if id(r[0]) not in shell["meshed"]]
+    return rows, rest, shell["sheets"]
+
+
+def _note(o, du, dv, na, nb, cells, points):
+    if _shell is not None:
+        _shell["sheets"].append((tuple(o), tuple(du), tuple(dv), na, nb, cells))
+        _shell["meshed"].update(id(p) for p in points)
+
+
+def sheet(rnd, o, du, dv, na, nb, colour, out, scale, keep=None):
+    """A splat in each cell of the grid over o + u du + v dv (u, v in 0..1, na by nb cells) whose
+    point `keep(x, z)` keeps (all, if None), coloured colour(x, y, z, rnd); scales as given."""
+    cells, points = [None] * (na * nb), []
+    for k in range(nb):
+        for i in range(na):
+            u, v = (i + rnd.random()) / na, (k + rnd.random()) / nb
+            p = tuple(o[j] + u * du[j] + v * dv[j] for j in range(3))
+            if keep and not keep(p[0], p[2]):
+                continue
+            c = colour(*p, rnd) if callable(colour) else colour
+            out.append((p, c, scale))
+            cells[k * na + i] = c
+            points.append(p)
+    _note(o, du, dv, na, nb, cells, points)
+
+
+def write_shell(path: Path, sheets: list) -> Path:
+    """The sheets, in the splat file's coordinates (y-down, as write_ply): "BSSH", version, count,
+    then each sheet's o, du, dv (9 float32), na, nb (uint32) and its cells as RGBA bytes, row by
+    row (alpha 0: no cell)."""
+    flip = lambda v: (v[0], 0.0 - v[1], v[2])
+    out = bytearray(SHELL_MAGIC + struct.pack("<II", SHELL_VERSION, len(sheets)))
+    for o, du, dv, na, nb, cells in sheets:
+        out += struct.pack("<9f2I", *flip(o), *flip(du), *flip(dv), na, nb)
+        for c in cells:
+            out += bytes((0, 0, 0, 0)) if c is None else bytes(
+                [round(255 * min(1.0, max(0.0, v))) for v in c[:3]] + [255])
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(bytes(out))
+    return path
+
+
+def look_files(ply: Path) -> tuple:
+    """Where a drawn room's look is kept beside its run (not in splat/, so it is never taken for
+    the room's splat): the splats the shell leaves, and the shell."""
+    d = Path(ply).parent.parent / "look"
+    return d / Path(ply).name, d / (Path(ply).stem + ".shell.bin")
+
+
+def write_drawn(ply: Path, make_splats) -> Path:
+    """A drawn room's splat (everything: room.py maps it) and its look (the shell, and the splats
+    it leaves)."""
+    rows, rest, sheets = drawing(make_splats)
+    look, shell = look_files(ply)
+    write_ply(look, rest)
+    write_shell(shell, sheets)
+    return write_ply(ply, rows)
+
+
 def _surface(rnd, box, colour, out, step=STEP, jitter=0.025):
     """Flat splats about `step` apart over the faces of a box (a box flat on one axis is one face),
     each colour a little off by up to `jitter`."""
@@ -198,6 +278,7 @@ def _surface(rnd, box, colour, out, step=STEP, jitter=0.025):
                  (2, z0, (0, x0, x1), (1, y0, y1)), (2, z1, (0, x0, x1), (1, y0, y1))]
     for axis, v, (a, a0, a1), (b, b0, b1) in faces:
         na, nb = max(1, round((a1 - a0) / step)), max(1, round((b1 - b0) / step))
+        cells, points = [None] * (na * nb), []
         for i in range(na):
             for k in range(nb):
                 p = [0.0, 0.0, 0.0]
@@ -207,7 +288,15 @@ def _surface(rnd, box, colour, out, step=STEP, jitter=0.025):
                 c = colour(*p, rnd) if callable(colour) else colour
                 s = [step * 0.75] * 3
                 s[axis] = flat
-                out.append((p, tuple(min(1.0, max(0.0, ch + rnd.uniform(-jitter, jitter))) for ch in c), s))
+                c = tuple(min(1.0, max(0.0, ch + rnd.uniform(-jitter, jitter))) for ch in c)
+                out.append((p, c, s))
+                cells[k * na + i] = c
+                points.append(p)
+        if _shell is not None:
+            o, du, dv = [0.0] * 3, [0.0] * 3, [0.0] * 3
+            o[axis], o[a], o[b] = v, a0, b0
+            du[a], dv[b] = a1 - a0, b1 - b0
+            _note(o, du, dv, na, nb, cells, points)
 
 
 def _cylinder(rnd, cx, cz, r0, r1, y0, y1, colour, out, top=True, step=STEP):
@@ -320,7 +409,7 @@ def _quat(R):
 
 def _make_living_room(d: Path) -> Path:
     write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(0.7, 0.5), centre=(0.0, -0.3))
-    return write_ply(d / "splat" / PLY, splats())
+    return write_drawn(d / "splat" / PLY, splats)
 
 
 def _samples() -> dict:

@@ -72,6 +72,20 @@ camera loop 1.45 m up), so it is mapped and shown like a filmed room, and listed
 the first time the rooms are listed (a few seconds, 26 MB) and again only when its `VERSION`
 changes.
 
+### Smooth surfaces in the drawn rooms
+
+Up close, a splat is a soft blob: a wall of 5 to 8 cm splats looks grainy and painted next to the
+Decor's furniture, which is real geometry. So the drawn rooms (the living room, the tattoo studio,
+the wedding venue) also write their flat surfaces (walls, floors, ceilings, doors, the lawn and the
+dry sand) as a **shell**: sheets of cells, each the colour of the splat drawn in it
+(`run_sample/look/<name>.shell.bin`, `write_shell` in `sample_room.py`), beside the splats they
+leave (`look/<name>.ply`: leaves, lamps, glass, the sea and the hills). The page draws the shell as
+one mesh, each corner the mean colour of the cells round it, a little shaded by how it faces the
+light (`static/shell.js`, tested by `tests/js/shell.test.mjs`), and only the splats it leaves. The
+room's own splat in `splat/` still has everything, so the map is made as from a filmed room, and a
+filmed room is still shown as it was scanned. From above, the shell is cut at the same height as the
+splats (a clipping plane).
+
 ## The sample tattoo studio
 
 Also in the menu, after the living room: **Sample tattoo studio** (`sample_studio.py`), 5 × 4.2 m,

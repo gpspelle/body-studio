@@ -20,7 +20,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 4
+VERSION = 5
 PLY = "tattoo_studio_clean.ply"
 SEED = 11
 
@@ -242,7 +242,7 @@ def to_file(fx: dict) -> dict:
 def make(d: Path) -> Path:
     """The studio's splat, cameras and fixtures in run folder d."""
     base.write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(0.5, 0.35), centre=(0.5, 1.1))
-    ply = base.write_ply(d / "splat" / PLY, splats())
+    ply = base.write_drawn(d / "splat" / PLY, splats)
     from .room import fixtures_file
     fixtures_file(ply).write_text(json.dumps(to_file(fixtures()), indent=1))
     return ply

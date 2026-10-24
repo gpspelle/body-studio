@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { SplatMesh, dyno } from "@sparkjsdev/spark";
 import { FLY, Placement, RoomMap, SKY, eyeView, flyStep, lookBy, panSpeed, skyView, steadyEye } from "/static/room.js";
 import { v3 } from "/static/pose.js";
+import { parseShell, shellGeometry } from "/static/shell.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -105,19 +106,25 @@ async function choose(file) {
       break;
     }
     step(t("room.loading"));
-    const res = await fetch("/files/" + file.split("/").map(encodeURIComponent).join("/"));
-    if (!res.ok || want !== file) { if (want === file) say(t("room.failed", { advice: "" })); return; }
-    const bytes = new Uint8Array(await res.arrayBuffer());
-    if (want !== file) return;
-    const mesh = new SplatMesh({ fileBytes: bytes, fileName: file });
+    // a drawn room: its surfaces as a smooth shell, and only the splats it leaves (shell.js)
+    const entry = rooms.find((r) => r.file === file), drawn = entry && entry.look && entry.shell;
+    const get = async (f) => {
+      const res = await fetch("/files/" + f.split("/").map(encodeURIComponent).join("/"));
+      return res.ok ? res.arrayBuffer() : null;
+    };
+    const [splat, shellBytes] = await Promise.all([get(drawn ? entry.look : file), drawn ? get(entry.shell) : null]);
+    if (!splat || (drawn && !shellBytes) || want !== file) { if (want === file) say(t("room.failed", { advice: "" })); return; }
+    const mesh = new SplatMesh({ fileBytes: new Uint8Array(splat), fileName: file });
     await mesh.initialized;
     if (want !== file) { mesh.dispose?.(); return; }
     clear();
     mesh.matrixAutoUpdate = false;
     roofless(mesh, map.frame);
     const room = new RoomMap(map);
-    R = { file, map, room, mesh, size: +(store.get("room:size:" + file) || 1), ahead: room.openWay() };
+    const shell = shellBytes && shellMesh(shellBytes, map.frame);
+    R = { file, map, room, mesh, shell, size: +(store.get("room:size:" + file) || 1), ahead: room.openWay() };
     V.holder.add(mesh);
+    if (shell) V.holder.add(shell);
     place();
     say("");
     V.controls.autoRotate = false;
@@ -138,6 +145,7 @@ function place() {
   R.P = new Placement(rig, R.room, k, R.ahead);
   R.mesh.matrix.fromArray(R.P.plyMatrix(R.map.frame));
   R.mesh.matrixWorldNeedsUpdate = true;
+  if (R.shell) { R.shell.matrix.copy(R.mesh.matrix); R.shell.matrixWorldNeedsUpdate = true; }
   const o = rig.frame.origin;
   R.toMap = (pos) => { const p = R.P.toMap(v3.add(o, pos)); return [p[0], p[2]]; };
   R.toPos = (xz) => v3.sub(R.P.toBody([xz[0], 0, xz[1]]), o);
@@ -181,6 +189,7 @@ function clear() {
   if (R) {
     V.holder.remove(R.mesh);
     R.mesh.dispose?.();
+    if (R.shell) { V.holder.remove(R.shell); R.shell.geometry.dispose(); R.shell.material.dispose(); }
     R = null;
   }
   const w = window.tattooStudio?.walker?.();
@@ -403,7 +412,7 @@ V.frameHooks.unshift((before) => {
   let v = null;
   if (fp) v = eyeNow(dt);
   else if (fly) v = flyNow(dt);
-  else if (sky) slide(dt);
+  else if (sky) { slide(dt); cutShell(); }
   if (!v) return;
   V.camera.position.copy(v.eye);
   V.controls.target.copy(v.look);
@@ -472,6 +481,34 @@ function cutAt(metres) {
   const fr = R.map.frame;
   R.mesh.roomCut.value.w = metres === null ? 1e9 : fr.floor + metres / fr.metres;
   R.mesh.updateVersion?.();
+  if (R.shell) R.shell.material.clippingPlanes = metres === null ? [] : [shellCut];
+}
+// the same cut on the shell: a clipping plane in the scene, from the room's (kept up to date by
+// the frame hook: the room moves with the holder)
+const shellCut = new THREE.Plane();
+function cutShell() {
+  if (!R || !R.shell || !R.shell.material.clippingPlanes.length) return;
+  const up = R.map.frame.up, w = R.mesh.roomCut.value.w;
+  R.shell.updateMatrixWorld();
+  shellCut.set(new THREE.Vector3(-up[0], -up[1], -up[2]), w).applyMatrix4(R.shell.matrixWorld);
+}
+V.renderer.localClippingEnabled = true;
+
+// ---------------------------------------------------------------- the shell
+// A drawn room's walls, floors and ceilings as one mesh of vertex-coloured quads (shell.js), in the
+// splat file's coordinates like the splats, so it takes the same matrix. Unlit: the colours have
+// their shading in them, as the splats' do.
+function shellMesh(bytes, frame) {
+  const g = shellGeometry(parseShell(bytes), frame.up);
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute("position", new THREE.BufferAttribute(g.position, 3));
+  geom.setAttribute("color", new THREE.BufferAttribute(g.color, 3));
+  geom.setIndex(new THREE.BufferAttribute(g.index, 1));
+  const mesh = new THREE.Mesh(geom, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  mesh.matrixAutoUpdate = false;
+  mesh.userData.room = true;                    // (still drawn without the body)
+  mesh.name = "room-shell";
+  return mesh;
 }
 function above() {
   const C = V.controls;
@@ -547,6 +584,7 @@ window.house = {
   where: () => { const w = window.tattooStudio?.walker?.(); return R && R.P && w ? R.toMap(w.pos) : null; },
   map: () => R && R.room,
   mesh: () => R && R.mesh,
+  shell: () => (R && R.shell) || null,           // a drawn room's smooth surfaces (shell.js)
   placement: () => R && R.P,
   nearby: () => { const n = nearby(); return n && n.kind; },
   rest: () => restNow(),

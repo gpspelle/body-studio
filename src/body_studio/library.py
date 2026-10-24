@@ -61,9 +61,15 @@ def rooms(data_dir: Path) -> list[dict]:
         f = run_dir.parent.name in names and room_file(run_dir)
         if not f:
             continue
-        out.append({"id": f"{run_dir.parent.name}/{run_dir.name}", "name": run_dir.parent.name,
-                    "file": f.relative_to(data_dir).as_posix(), "updated": f.stat().st_mtime,
-                    "sample": run_dir.parent.name in SAMPLES})
+        r = {"id": f"{run_dir.parent.name}/{run_dir.name}", "name": run_dir.parent.name,
+             "file": f.relative_to(data_dir).as_posix(), "updated": f.stat().st_mtime,
+             "sample": run_dir.parent.name in SAMPLES}
+        # a drawn room's look (sample_room.py): its flat surfaces as a shell to draw smooth, and
+        # the splats it leaves
+        look, shell = run_dir / "look" / f.name, run_dir / "look" / (f.stem + ".shell.bin")
+        if look.is_file() and shell.is_file():
+            r["look"], r["shell"] = look.relative_to(data_dir).as_posix(), shell.relative_to(data_dir).as_posix()
+        out.append(r)
     # filmed rooms newest first, then the samples in their order
     return sorted(out, key=lambda b: (SAMPLES.index(b["name"]) if b["sample"] else -1, -b["updated"]))
 

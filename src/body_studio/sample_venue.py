@@ -32,7 +32,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 3
+VERSION = 4
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -411,16 +411,10 @@ def _garden_end(z):
 
 def garden(rnd, out):
     # the lawn, from the stage's end (where the house ends) and the pergola to the far side
-    z = 0.0
-    while z < GARDEN_W:
-        x = GARDEN_X
-        end = _garden_end(z)
-        while x < end:
-            p = (x + rnd.random() * LAWN_STEP, 0.0, z + rnd.random() * LAWN_STEP)
-            if p[0] < end:
-                out.append((p, _lawn(*p, rnd), [LAWN_STEP * 0.75, LAWN_STEP * 0.09, LAWN_STEP * 0.75]))
-            x += LAWN_STEP
-        z += LAWN_STEP
+    long = GARDEN_RIGHT + GARDEN_LEFT
+    base.sheet(rnd, (GARDEN_X, 0.0, 0.0), (long, 0.0, 0.0), (0.0, 0.0, GARDEN_W),
+               round(long / LAWN_STEP), round(GARDEN_W / LAWN_STEP), _lawn, out,
+               [LAWN_STEP * 0.75, LAWN_STEP * 0.09, LAWN_STEP * 0.75], keep=lambda x, z: x < _garden_end(z))
     # beside the pergola, the lawn to the garden's left wall
     base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _lawn, out, LAWN_STEP)
     # its walls, along the right (on from the house's) and the left, and across beside the pergola,
@@ -443,11 +437,11 @@ def beach(rnd, out):
         return (a[0] + t[0] * u + n[0] * v, a[1] + t[1] * u + n[1] * v)
     # dry sand along the garden's width, for the body to walk out on
     step = LAWN_STEP
-    for i in range(int(L / step)):
-        for k in range(int(BEACH / step)):
-            x, z = at((i + rnd.random()) * step, (k + rnd.random()) * step)
-            y = -0.004 * k * step                    # (sloping a few centimetres to the water)
-            out.append(((x, y, z), _sand(x, y, z, rnd), [step * 0.75, step * 0.09, step * 0.75]))
+    na, nb = int(L / step), int(BEACH / step)
+    o, u, v = at(0.0, 0.0), at(na * step, 0.0), at(0.0, nb * step)
+    base.sheet(rnd, (o[0], 0.0, o[1]), (u[0] - o[0], 0.0, u[1] - o[1]),
+               (v[0] - o[0], -0.004 * nb * step, v[1] - o[1]),      # (sloping a few centimetres to the water)
+               na, nb, _sand, out, [step * 0.75, step * 0.09, step * 0.75])
     # the beach on along the shore each way, and the wet sand at the water: seen, not walked
     far = lambda p, c, s: out.append((p, c, s, FAR))
     for u0, u1, v0, v1, colour, st in ((-40.0, 0.0, 0.0, BEACH, SAND, 0.3), (L, L + 40.0, 0.0, BEACH, SAND, 0.3),
@@ -537,7 +531,7 @@ def make(d: Path) -> Path:
     """The venue's splat and cameras in run folder d (the cameras held round the hall's middle),
     and its map, made here (it is big: a minute's work the page shouldn't wait for)."""
     base.write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(1.6, 1.2), centre=(8.0, 5.0))
-    ply = base.write_ply(d / "splat" / PLY, splats())
+    ply = base.write_drawn(d / "splat" / PLY, splats)
     from . import room
     room.build_and_save(ply)
     return ply
