@@ -26,8 +26,8 @@ class SampleVenueTest(unittest.TestCase):
         cls.tmp.cleanup()
 
     def to_map(self, x, z):
-        """The venue's metres (y up) -> the map's x and z."""
-        fr, q = self.map["frame"], (x, 0.0, z)
+        """The venue's metres (y up) -> the map's x and z (the file is written mirrored, z to -z)."""
+        fr, q = self.map["frame"], (x, 0.0, -z)
         return [sum(a * b for a, b in zip(q, fr[k])) * fr["metres"] for k in ("x", "z")]
 
     def free(self, x, z):
@@ -82,9 +82,11 @@ class SampleVenueTest(unittest.TestCase):
         self.assertTrue(min(ax, bx) < sx < max(ax, bx) and min(az, bz) < sz < max(az, bz))
 
     def test_only_what_the_plan_shows(self):
-        # no furniture, trees or lamps of its own: nothing to sit on until the Decor panel brings it
+        # no furniture or lamps of its own: nothing to sit on until the Decor panel brings it (the
+        # trees are the ones the walkthrough shows, in the garden and on the beach)
+        self.assertTrue(all(t[0] > V.GARDEN_X for t in V.TREES))
         self.assertEqual(self.map["seats"], [])
-        for name in ("TREES", "olive", "chandelier", "reception", "hedge"):
+        for name in ("olive", "chandelier", "reception", "hedge"):
             self.assertFalse(hasattr(V, name), name)
 
     def test_the_sea_is_seen_not_mapped(self):
@@ -92,9 +94,20 @@ class SampleVenueTest(unittest.TestCase):
         far = [r for r in rows if len(r) > 3]
         self.assertGreater(len(far), 10000)
         self.assertTrue(all(r[3] < room.OPAQUE for r in far))
-        # the map stops at the water: its far end within a few metres of the dry sand's
+        # the map stops at the water: its far end within a few metres of the dry sand's (the
+        # beach almonds' crowns reach out over it)
         mx, _ = self.to_map(V._garden_end(V.GARDEN_W) + V.BEACH, V.GARDEN_W)
-        self.assertLess(abs(self.map["x0"] + self.map["nx"] * self.map["cell"] - mx), 4.0)
+        self.assertLess(abs(self.map["x0"] + self.map["nx"] * self.map["cell"] - mx), 5.0)
+
+    def test_sides_as_the_plan(self):
+        # walking in from the door (along +x, y up), the kitchen and the bungalow are on the right,
+        # the stage on the left, by the long straight wall. The page shows the y-down file turned round (x, -y, -z
+        # of the file), as the map's frame does: its z is the view's, and +z is on the right
+        self.assertAlmostEqual(self.map["frame"]["z"][2], -1.0, places=3)
+        hall = self.to_map(9.0, V.HALL[3] / 2)[1]
+        for name, (x, z) in {"kitchen": (-4.0, 6.0), "bungalow": (46.0, 15.0)}.items():
+            self.assertGreater(self.to_map(x, z)[1], hall, name)
+        self.assertLess(self.to_map(24.0, 1.6)[1], hall, "stage")
 
     def test_as_the_videos_show_it(self):
         # the hall's rustic tiles: each between terracotta and dark brown, a grout line between them

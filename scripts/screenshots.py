@@ -326,10 +326,10 @@ def venue_scene(page, above=False) -> None:
     page.wait_for_function("house.shown() && decor.group()", timeout=600000)
     page.click("#decorBtn")
     n = page.evaluate("""(async () => {
-        // (the venue's metres -> the map's: x along, z across the other way)
-        const at = (x, z) => [x, -z], zc = 6.9;
+        // (the venue's metres -> the map's: x along, z across)
+        const at = (x, z) => [x, z], zc = 6.9;
         const w = tattooStudio.walker(), P = house.placement(), o = tattooStudio.rig().frame.origin;
-        const b = P.toBody([27.4, 0, -zc]);
+        const b = P.toBody([27.4, 0, zc]);
         w.pos = [b[0] - o[0], b[1] - o[1], b[2] - o[2]]; w.settle(); tattooStudio.redraw();   // (settle: the skeleton there too)
         const put = async (id, x, z, turn = 0) => {
           await decor.add(id); const k = decor.placed().length - 1;

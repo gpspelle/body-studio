@@ -13,18 +13,19 @@ splats further apart, and what is far off (the sea, the island across the channe
 through enough that the map leaves it out.
 
 In metres, y up, the floor at 0 (the file is y-down). x runs along the house from the entrance
-(x < 0) to the beach; z across it, from the long straight wall on the right (z = 0) to the left.
+(x < 0) to the beach; z across it, from the long straight wall on the left (z = 0) to the right
+as you walk in from the door (written mirrored: see make()).
 The plan isn't to scale ("planta sem escala"), so the sizes are its measures:
 
 - the deck at the door, the reception (6 m), the vertical garden (4.5 m, a wall of leaves) and the
   ante-room (9.3 m), each 4 m wide; the kitchen (4.7 m) beside the ante-room, its door open on the hall;
 - the main hall, 17.8 m by 8.6 m (narrower by 1.5 m for its first 5 m), rustic tiles under a
-  concrete ceiling, a band of windows along the left, a half wall (3.24 m) before the hall to the
-  toilets on the right; glass doors at its end;
+  concrete ceiling, a band of windows along the right, a half wall (3.24 m) before the hall to the
+  toilets on the left; glass doors at its end;
 - the stage, 8.6 m by 3.2 m and 70 cm high, black, a screen before black curtains, beside the
   pergola (10.8 m by 7.4 m), which opens on the garden;
-- the garden, 17.8 m wide, 20 m along the right and 30 m along the left, walled along its sides,
-  sand with planted beds, the bungalow (an open deck) on the left near its end; its slanted far
+- the garden, 17.8 m wide, 20 m along the left and 30 m along the right, walled along its sides,
+  sand with planted beds, the bungalow (an open deck) on the right near its end; its slanted far
   side opens on the beach.
 """
 from __future__ import annotations
@@ -35,14 +36,14 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 4
+VERSION = 5
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
 H = 3.4                             # the ceiling, everywhere under a roof
 HALL = (0.0, 17.8, 0.0, 8.6)        # x0, x1, z0, z1
-NOTCH = (0.0, 5.0, 1.5)             # the hall's first 5 m are 1.5 m narrower on the right
-HALF_WALL = (11.3, 3.24)            # x, how far it comes out from the right wall
+NOTCH = (0.0, 5.0, 1.5)             # the hall's first 5 m are 1.5 m narrower on the left
+HALF_WALL = (11.3, 3.24)            # x, how far it comes out from the left wall
 WC = (11.3, 20.0, 3.2)              # the hall to the toilets: x0, x1, how wide
 STAGE = (20.0, 28.6, 0.0, 3.2, 0.7)  # x0, x1, z0, z1, its height
 PERGOLA = (17.8, 28.6, 3.2, 10.6)
@@ -50,7 +51,7 @@ GARDEN_X = 28.6                     # where the garden starts
 GARDEN_W = 17.8
 COVER_LEN = 12.0                    # m of the garden under the glass rain cover, from the pergola on
 PERGOLA_ROOF = 3.2                  # the pergola's flat reed roof
-GARDEN_RIGHT, GARDEN_LEFT = 20.0, 30.0
+GARDEN_RIGHT, GARDEN_LEFT = 20.0, 30.0   # (along z = 0 and z = GARDEN_W: the plan's own right and left, as drawn)
 ANTE = (-9.3, 0.0, 0.0, 4.0)
 KITCHEN = (-9.3, 0.0, 4.0, 8.6)
 KITCHEN_DOOR = (6.9, 8.0)               # z: its door on the hall
@@ -329,12 +330,12 @@ def house(rnd, out):
         base._surface(rnd, (x0, x1, H, H, z0, z1), _rough(CONCRETE), out, CEIL_STEP)
     skylight(rnd, out)
 
-    # the long straight wall on the right (z = 0): the reception's door is at the deck end
+    # the long straight wall on the left (z = 0): the reception's door is at the deck end
     wall_x(0.0, RECEPTION[0], RECEPTION[1], [], wall, out, rnd)
     green_x(rnd, 0.0, VERTICAL[0], VERTICAL[1], +1, out)
     # (the ante-room has walls of ferns and leaves too, the venue's own: "decoração natural permanente")
     green_x(rnd, 0.0, ANTE[0], ANTE[1], +1, out)
-    # the left side of the reception, the vertical garden (green both sides) and the ante-room; the kitchen behind
+    # the right side of the reception, the vertical garden (green both sides) and the ante-room; the kitchen behind
     wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.8, -17.6, 0.9, 2.6)], wall, out, rnd)
     frame_x(4.0, -18.8, -17.6, 0.9, 2.6, out, rnd)
     base._surface(rnd, (-18.8, -17.6, 0.9, 2.6, 4.02, 4.02), _view, out, 0.04)
@@ -357,7 +358,7 @@ def house(rnd, out):
     a0, a1 = KITCHEN_DOOR
     base._surface(rnd, (-(a1 - a0), -0.06, 0.0, 2.2, a1 - 0.04, a1 - 0.04), DOOR, out, 0.03)
 
-    # the hall: the notch on the right, the half wall, the toilets' hall and the stage beside it
+    # the hall: the notch on the left, the half wall, the toilets' hall and the stage beside it
     wc_wall = _wall(WC_WALL, skirting=None)
     wall_x(NOTCH[2], 0.0, NOTCH[1], [], hall_wall, out, rnd)
     wall_z(NOTCH[1], 0.0, NOTCH[2], [], hall_wall, out, rnd)
@@ -371,7 +372,7 @@ def house(rnd, out):
     wall_x(WC[2], WC[1] - 2.5, WC[1], [], wc_wall, out, rnd)
     # the toilets' hall's end, the stage's side: bare brick
     wall_z(WC[1], 0.0, WC[2], [], _brickwork(2), out, rnd)
-    # the windows along the left: a high band, dark grey frames, a curtain of linen each side
+    # the windows along the right: a high band, dark grey frames, a curtain of linen each side
     windows = [(1.2 + 3.2 * k, 2.6 + 3.2 * k) for k in range(5)]
     w0, w1 = 1.5, 2.8
     wall_x(hz1, hx0, hx1, [(a, b, w0, w1) for a, b in windows], hall_wall, out, rnd)
@@ -487,9 +488,9 @@ def garden(rnd, out):
                 out.append((p, ground(*p, rnd), [LAWN_STEP * 0.75, LAWN_STEP * 0.09, LAWN_STEP * 0.75]))
             x += LAWN_STEP
         z += LAWN_STEP
-    # beside the pergola, to the garden's left wall
+    # beside the pergola, to the garden's right wall
     base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _sand, out, LAWN_STEP)
-    # its walls, along the right (on from the house's) and the left, and across beside the pergola,
+    # its walls, along the left (on from the house's) and the right, and across beside the pergola,
     # whitewashed, 2 m high, to where the sand starts; tropical beds along them behind a kerb
     white = _wall(WHITEWASH)
     wall_x(0.0, GARDEN_X, _garden_end(0.0), [], white, out, rnd, h=2.0)
@@ -499,6 +500,63 @@ def garden(rnd, out):
     bed_x(rnd, GARDEN_W, PERGOLA[0] + 1.0, _garden_end(GARDEN_W) - 1.0, -1, out)
     cover(rnd, out)
     bungalow(rnd, out)
+    for t in TREES:
+        tree(rnd, out, *t)
+
+
+# the trees the walkthrough shows (x, z, kind, height, crown's radius): a broad tree in the sand
+# past the rain cover, a big one beside the bungalow, two beach almonds at the sand's edge by the
+# sea, and coconut palms standing out of the beds along the walls
+TREES = ((44.5, 3.2, "broad", 5.5, 2.6), (52.5, 10.8, "broad", 7.0, 3.4),
+         (_garden_end(3.0) + 2.5, 3.0, "almond", 6.0, 3.2), (_garden_end(13.0) + 2.0, 13.0, "almond", 5.5, 3.0),
+         (34.0, 0.6, "palm", 8.0, 2.2), (47.0, 0.6, "palm", 9.0, 2.2), (36.0, GARDEN_W - 0.6, "palm", 8.5, 2.2))
+
+
+def tree(rnd, out, x, z, kind, h, r):
+    """A tree: a trunk (a palm's thin, ringed and leaning a little) under a crown of leaves, light
+    on top and darker under it; a palm's crown is fronds hanging out from its top."""
+    bark, leaf = ((0.55, 0.50, 0.42), (0.30, 0.48, 0.22)) if kind == "palm" else ((0.36, 0.30, 0.24), (0.22, 0.38, 0.17))
+    thick = 0.13 if kind == "palm" else 0.22
+    lean = (0.5, 0.0) if kind == "palm" else (0.0, 0.0)
+    top = h if kind == "palm" else h * 0.45
+    y = 0.0
+    while y < top:
+        f = y / top
+        cx, cz = x + lean[0] * f * f, z + lean[1] * f * f
+        for k in range(10):
+            a = 2 * math.pi * (k + rnd.random()) / 10
+            ring = 0.85 if kind == "palm" and int(y / 0.12) % 2 else 1.0
+            out.append(((cx + thick * math.cos(a), y, cz + thick * math.sin(a)), tuple(v * ring for v in bark), [0.06, 0.06, 0.06]))
+        y += 0.06
+    cx, cz = x + lean[0], z + lean[1]
+    if kind == "palm":
+        for k in range(14):                          # fronds: arching out and down from the top
+            a = 2 * math.pi * k / 14 + rnd.uniform(-0.15, 0.15)
+            for i in range(30):
+                t = i / 30
+                px, pz = cx + r * t * math.cos(a), cz + r * t * math.sin(a)
+                py = h + 0.5 * t - 1.6 * t * t
+                for side in (-1, 1):
+                    w = 0.35 * math.sin(math.pi * t)
+                    out.append(((px - side * w * math.sin(a), py - 0.1 * w, pz + side * w * math.cos(a)), leaf, [0.07, 0.02, 0.07]))
+        return
+    # branches up into the crown, then the crown: flattened (an almond's in tiers)
+    for k in range(4):
+        a = 2 * math.pi * k / 4 + 0.4
+        for i in range(12):
+            t = i / 12
+            out.append(((cx + 0.5 * r * t * math.cos(a), top + (h * 0.35) * t, cz + 0.5 * r * t * math.sin(a)), bark, [0.07, 0.07, 0.07]))
+    n = int(1100 * r * r)
+    for _ in range(n):
+        u, v, w = rnd.uniform(-1, 1), rnd.uniform(-1, 1), rnd.uniform(-1, 1)
+        if u * u + v * v + w * w > 1:
+            continue
+        py = h * 0.8 + w * h * (0.18 if kind == "broad" else 0.12)
+        if kind == "almond":
+            py = h * 0.62 + round(w * 1.5) / 1.5 * h * 0.18
+        shade = 0.75 + 0.35 * (w + 1) / 2
+        t = rnd.uniform(-0.04, 0.05)
+        out.append(((cx + u * r, py, cz + v * r), tuple((c + t) * shade for c in leaf), [0.09, 0.05, 0.09]))
 
 
 def bed_x(rnd, z, x0, x1, side, out):
@@ -506,7 +564,7 @@ def bed_x(rnd, z, x0, x1, side, out):
     bromeliads in many greens, a few red, 1 to 1.6 m high, a scalloped cement kerb along its front."""
     deep = 1.2
     base._surface(rnd, (x0, x1, 0.0, 0.0, *sorted((z, z + side * deep))), (0.30, 0.24, 0.17), out, 0.08)
-    for _ in range(int(600 * (x1 - x0))):
+    for _ in range(int(450 * (x1 - x0))):
         x, d = rnd.uniform(x0, x1), rnd.uniform(0.05, deep - 0.1)
         top = 1.0 + 0.6 * (1 - d / deep) * math.sin(x * 1.9) ** 2
         y = rnd.uniform(0.05, top)
@@ -625,8 +683,10 @@ def splats(seed: int = SEED) -> list:
 def make(d: Path) -> Path:
     """The venue's splat and cameras in run folder d (the cameras held round the hall's middle),
     and its map, made here (it is big: a minute's work the page shouldn't wait for)."""
-    base.write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(1.6, 1.2), centre=(8.0, 5.0))
-    ply = base.write_drawn(d / "splat" / PLY, splats)
+    # (written mirrored, z to -z: the page shows the y-down file turned round, which would put the
+    # kitchen and the stage on the wrong sides of the walk in from the door)
+    base.write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(1.6, 1.2), centre=(8.0, -5.0))
+    ply = base.write_drawn(d / "splat" / PLY, splats, mirror=True)
     from . import room
     room.build_and_save(ply)
     return ply
