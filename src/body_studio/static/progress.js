@@ -213,7 +213,7 @@ function render(d) {
     const li = el("li");
     const parts = ROWS.filter(([k]) => e[k] != null).map(([k, label, unit]) => `${t(label)} ${num(e[k])} ${unit}`);
     li.append(el("span", "", `${day(e.date)}: ${parts.join(", ")}`));
-    const del = el("button", "link", "✕");
+    const del = el("button", "link danger", "✕");
     del.setAttribute("aria-label", t("prog.delete"));
     del.onclick = async () => {
       if (!confirm(t("prog.deleteAsk", { date: day(e.date) }))) return;

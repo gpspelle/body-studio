@@ -2,6 +2,9 @@
 
 ## 0.1.0 (unreleased)
 
+- One look on every panel, taken from Decor: ink on warm paper, hairlines, serif titles. Picked
+  chips are inked with a card behind them, Save and Add are filled, Remove and Delete turn red on
+  hover, every panel closes with the same round x. Blue is kept for focus and charts.
 - English only for now: the Portuguese translation and the Language entry in the menu are gone.
 - First version: one page with the body in the centre (turntable, drag to orbit, no pan),
   a row of bodies, drop a video anywhere to start a run.

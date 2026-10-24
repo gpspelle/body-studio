@@ -84,6 +84,10 @@ tested by `tests/js/racks.test.mjs`; plain three.js meshes, so Spark sorts no ex
   (`body-studio room`, splat-studio's `--scene`) is a different kind of run, not an option: the
   room is what it keeps, and fog removal still runs.
 - Standard library only on the Python side, like splat-studio.
+- One look (top of `body.css`): colours only from the tokens in `:root`, no panel sets its own;
+  text as title (serif), body, caption, overline or the one big number; buttons as `btn primary`
+  (one per place), `btn`, `.chips button` or `link` (`danger` if it takes something away, `close`
+  for a panel's x). `tests/unit/test_css.py` checks it.
 - Keep the page minimal: the body in the centre, small controls at the edges. New controls
   need a reason in the PR description.
 - Data stays in splat-studio's layout (`videos/`, `frames/`, `workspace/<name>/run_*/`), so

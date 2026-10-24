@@ -87,14 +87,14 @@
 <aside id="progress" class="panel" data-i18n-aria-label="prog.open" hidden>
   <div class="panel-head">
     <select id="who" data-i18n-aria-label="prog.person"></select>
-    <button id="closeProgress" class="link" data-i18n-aria-label="prog.close">✕</button>
+    <button id="closeProgress" class="link close" data-i18n-aria-label="prog.close">✕</button>
   </div>
   <form id="personForm" class="form" hidden>
     <p class="quiet" data-i18n="prog.intro"></p>
     <label><span data-i18n="prog.name"></span><input name="name" required autocomplete="off"></label>
     <label><span data-i18n="prog.sex"></span><select name="sex"><option value="f" data-i18n="prog.female"></option><option value="m" data-i18n="prog.male"></option></select></label>
     <label><span data-i18n="prog.height"></span><input name="height_cm" type="number" inputmode="decimal" step="0.1" min="80" max="250" required></label>
-    <button class="btn" data-i18n="prog.save"></button>
+    <button class="btn primary" data-i18n="prog.save"></button>
     <p class="err" role="alert"></p>
   </form>
   <div id="personView" hidden>
@@ -127,7 +127,7 @@
         <label><span data-i18n="prog.waist"></span><input name="waist_cm" type="number" inputmode="decimal" step="0.1" placeholder="cm"></label>
         <label><span data-i18n="prog.neck"></span><input name="neck_cm" type="number" inputmode="decimal" step="0.1" placeholder="cm"></label>
         <label><span data-i18n="prog.hips"></span><input name="hip_cm" type="number" inputmode="decimal" step="0.1" placeholder="cm"></label>
-        <button class="btn" data-i18n="prog.add"></button>
+        <button class="btn primary" data-i18n="prog.add"></button>
         <p class="err" role="alert"></p>
       </form>
       <details id="entries"><summary></summary><ul></ul></details>
@@ -138,7 +138,7 @@
   <div class="panel-head">
     <strong data-i18n="studio.open"></strong>
     <span class="grow"></span>
-    <button id="closeStudio" class="link" data-i18n-aria-label="studio.close">✕</button>
+    <button id="closeStudio" class="link close" data-i18n-aria-label="studio.close">✕</button>
   </div>
   <p id="studioStatus" class="small" role="status"></p>
   <div id="studioBody" hidden>
@@ -167,7 +167,7 @@
         <label><span data-i18n="tat.size"></span><input id="tatSize" type="range" min="1" max="60" step="0.5"><output id="tatSizeOut"></output></label>
         <label><span data-i18n="tat.angle"></span><input id="tatAngle" type="range" min="-180" max="180" step="1"><output id="tatAngleOut"></output></label>
         <label><span data-i18n="tat.ink"></span><input id="tatInk" type="range" min="0.2" max="1" step="0.05"><output id="tatInkOut"></output></label>
-        <button id="tatRemove" class="link" data-i18n="tat.remove"></button>
+        <button id="tatRemove" class="link danger" data-i18n="tat.remove"></button>
       </div>
       <label class="inline small"><span data-i18n="tat.height"></span><input id="tatHeight" type="number" inputmode="decimal" min="80" max="250" step="0.5"></label>
     </section>
@@ -195,7 +195,7 @@
   <div class="panel-head">
     <strong class="shop-title" data-i18n="decor.title"></strong>
     <span class="grow"></span>
-    <button id="closeDecor" class="link" data-i18n-aria-label="decor.close">✕</button>
+    <button id="closeDecor" class="link close" data-i18n-aria-label="decor.close">✕</button>
   </div>
   <section id="decorEdit" class="picked" hidden>
     <div class="picked-head">
@@ -222,8 +222,8 @@
       <button id="decorSet" class="btn" data-i18n="decor.set"></button>
     </div>
     <div class="quiet">
-      <button id="decorRemove" class="link" data-i18n="decor.remove"></button>
-      <button id="decorForget" class="link" data-i18n="decor.forget"></button>
+      <button id="decorRemove" class="link danger" data-i18n="decor.remove"></button>
+      <button id="decorForget" class="link danger" data-i18n="decor.forget"></button>
     </div>
   </section>
   <div class="tabs" role="tablist">
@@ -239,7 +239,7 @@
       <p class="small" data-i18n="decor.addHow"></p>
       <label><span data-i18n="decor.name"></span><input name="label" maxlength="40" autocomplete="off"></label>
       <label><span data-i18n="decor.height"></span><input name="height" type="number" inputmode="decimal" min="2" max="600" step="1" required></label>
-      <div class="inline-chips"><button class="btn" data-i18n="decor.make"></button><button type="button" id="decorCancel" class="link" data-i18n="decor.cancel"></button></div>
+      <div class="inline-chips"><button class="btn primary" data-i18n="decor.make"></button><button type="button" id="decorCancel" class="link" data-i18n="decor.cancel"></button></div>
       <p class="err" role="alert"></p>
     </form>
     <p id="decorStatus" class="small" role="status"></p>
@@ -252,7 +252,7 @@
       <select id="decorLayout" data-i18n-aria-label="decor.layout"></select>
       <button id="decorNew" class="link" data-i18n="decor.new"></button>
       <button id="decorCopy" class="link" data-i18n="decor.copy"></button>
-      <button id="decorDelete" class="link" data-i18n="decor.delete"></button>
+      <button id="decorDelete" class="link danger" data-i18n="decor.delete"></button>
     </div>
   </section>
 </aside>
@@ -269,7 +269,7 @@
   <div class="panel-head">
     <strong id="guideTitle" data-i18n="guide.title"></strong>
     <span class="grow"></span>
-    <button id="closeGuide" class="link" data-i18n-aria-label="guide.close">✕</button>
+    <button id="closeGuide" class="link close" data-i18n-aria-label="guide.close">✕</button>
   </div>
   <section>
     <h2 data-i18n="guide.move"></h2>
