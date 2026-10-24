@@ -37,7 +37,7 @@ class Decor(Viewer):
         self.assertTrue(page.locator("#studio").is_hidden())                       # ...steps aside for decor
         # the starters, by kind: tables and chairs first
         page.evaluate("decor.shelf('tables')")
-        self.assertEqual(page.locator("#decorGroups button").count(), 7)
+        self.assertEqual(page.locator("#decorGroups button").count(), 8)          # (decor.js GROUPS)
         tables = page.evaluate("[...document.querySelectorAll('#decorItems button')].map((b) => b.dataset.item)")
         self.assertIn("round_table", tables)
         self.assertIn("bench", tables)
