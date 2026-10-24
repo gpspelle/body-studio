@@ -40,7 +40,7 @@
 
   | Feature | Python (once per body or room, cached) | Page: maths (JS test) | Page: three.js and DOM | Browser test | Doc |
   |---|---|---|---|---|---|
-  | The page, body, server | `pipeline.py` (body defaults), `library.py`, `server.py` | S/`busy.js` (loading screen) | S/`index.html` (viewer), S/`body.css`, S/`modes.js` (the menu: `<body data-mode>` hides the other modes' tools), S/`i18n.js` | `test_body`, `test_menu` | `docs/loading.md` |
+  | The page, body, server | `pipeline.py` (body defaults), `library.py`, `server.py` | S/`busy.js` (loading screen), S/`draw.js` (a frame only when something changed: a part that changes the scene calls `bodyApp.redraw()`) | S/`index.html` (viewer), S/`body.css`, S/`modes.js` (the menu: `<body data-mode>` hides the other modes' tools), S/`i18n.js` | `test_body`, `test_menu` | `docs/loading.md` |
   | Tattoo and pose | `rig.py` (`<body>.rig.json`) | S/`pose.js` | S/`tattoo.js` | `test_tattoo` | `docs/tattoo.md` |
   | Life and flesh | | S/`walk.js` (breathing, blinks, feet, sitting, lying), S/`flesh.js` | S/`fleshgpu.js` (one Spark modifier), S/`ground.js` (floor shadow) | `test_body` | `docs/flesh.md` |
   | Clothes | `fit.py` (`<body>.fit.json`), `wardrobe.py`, `anny_fit.py` (trial); data by `scripts/wardrobe_pack.py`, `scripts/wardrobe_styles.py` | S/`dress.js`, S/`racks.js` (the shop's layout) | S/`wardrobe.js` | `test_clothes` | `docs/wardrobe.md`, `docs/anny.md` |

@@ -326,6 +326,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { Ground } from "/static/ground.js";
 import { Busy } from "/static/busy.js";
+import { Drawing } from "/static/draw.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -362,12 +363,20 @@ addEventListener("resize", () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  redraw();
   if (fit) frame();
 });
 // before and after each frame is drawn: f(true), f(false) (house.js keeps the camera inside a room)
 const frameHooks = [];
-renderer.setAnimationLoop(() => {
-  controls.update();
+// a frame is drawn only when something changed (draw.js): Spark has splats made or sorted to show,
+// any input, a part asks (redraw(): a pose; keepDrawing: a walk through a room)
+const drawing = new Drawing(), keepDrawing = [];
+const redraw = (ms = 0) => drawing.redraw(performance.now(), ms);
+spark.onDirty = () => redraw();
+for (const type of ["pointerdown", "pointermove", "pointerup", "wheel", "keydown", "keyup"])
+  addEventListener(type, () => redraw(300), { capture: true, passive: true });
+renderer.setAnimationLoop((now) => {
+  if (!drawing.due(now, controls.update(), keepDrawing.some((f) => f()))) return;
   for (const f of frameHooks) f(true);
   renderer.render(scene, camera);
   for (const f of frameHooks) f(false);
@@ -581,10 +590,11 @@ window.bodyApp = {
   current: () => bodyList.find((b) => b.file === current) || null,
   show: (id) => { const b = bodyList.find((x) => x.id === id); if (b) show(b); },
   reframe: () => { if (fit) frame(); },
+  redraw,                                    // (something changed in the scene: draw a frame)
   busy: (key, text, opts) => busy.set(key, text, opts),   // (tattoo.js: the skeleton, getting ready to move)
   upload,                                    // (house.js: a room's video)
   // for the tattoo and pose panel (tattoo.js)
-  viewer: { scene, spark, holder, ground, camera, controls, renderer, canvas, frameHooks, mesh: () => mesh, file: () => current,
+  viewer: { scene, spark, holder, ground, camera, controls, renderer, canvas, frameHooks, keepDrawing, redraw, mesh: () => mesh, file: () => current,
             loaded: () => !!mesh && meshFile === current },   // (the body picked may still be on its way)
 };
 refreshBodies(); refreshJobs();

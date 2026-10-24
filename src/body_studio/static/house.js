@@ -407,6 +407,7 @@ function eyeNow(dt) {
   return { eye: V.holder.localToWorld(new THREE.Vector3(...eye)), look: V.holder.localToWorld(new THREE.Vector3(...look)) };
 }
 let lastHook = 0;
+V.keepDrawing.push(() => !!(fp || fly || sky));   // (the views move the camera every frame)
 V.frameHooks.unshift((before) => {
   if (!before) return;
   const now = performance.now(), dt = lastHook ? (now - lastHook) / 1000 : 1 / 60;

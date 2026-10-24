@@ -242,6 +242,7 @@ function drawPose(idle = false) {
   const qv = new THREE.Quaternion(), tv = new THREE.Vector3();
   tr.forEach(({ q, t: tt }, b) => skinning.setBoneQuatPos(b, qv.set(q[0], q[1], q[2], q[3]), tv.set(tt[0], tt[1], tt[2])));
   skinning.updateBones();
+  V.redraw();                                // (the page draws only when something changed)
   const walk = S.walker.walking, fist = Math.max(S.hands, 0.3 * walk);   // hands relax a little to walk
   S.life.fist = { l: fist, r: fist };
   S.fleshState = { caps: posedCapsules(S.caps, tr), nCaps: S.caps.length, chans: channelLevels(sk, S.life), shape: S.shape, swing: swing(),

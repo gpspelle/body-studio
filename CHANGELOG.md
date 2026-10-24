@@ -2,6 +2,9 @@
 
 ## 0.1.0 (unreleased)
 
+- The page draws a frame only when something changed (the camera, the body's pose, splats Spark
+  has made or sorted, any input), and a few times a second otherwise, so the GPU and a laptop's fan
+  rest while the body stands still.
 - Faster to open: the clothes shop round the body (its forty-odd items and their textures) is
   only set out once Clothes is open, not for tattoos, the studio or a room; and a reload no longer
   downloads the page's code, three.js, Spark or the body again when they haven't changed (the
