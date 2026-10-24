@@ -455,12 +455,12 @@ def pergola(rnd, out):
         base._surface(rnd, (x - 0.05, x + 0.05, 0.6, 2.8, z1 - 0.02, z1 - 0.02), TIMBER, out, 0.02)
         for side in (-0.7, 0.7):
             base._surface(rnd, (x + side - 0.06, x + side + 0.06, 2.4, 2.52, z1 - 0.03, z1 - 0.03), (0.08, 0.08, 0.08), out, 0.02)
-    # the roof: beams across, posts on the garden side, the reed matting over them
+    # the roof: beams across, a post at each end of the garden side, the reed matting over them
     for k in range(5):
         x = x0 + 0.1 + k * (x1 - x0 - 0.2) / 4
         base._surface(rnd, (x - 0.08, x + 0.08, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z1), TIMBER, out, 0.05)
     base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z0 + 0.16), TIMBER, out, 0.05)
-    for z in (z0 + 0.1, (z0 + z1) / 2, z1 - 0.3):
+    for z in (z0 + 0.1, z1 - 0.3):
         base._surface(rnd, (x1 - 0.18, x1 - 0.02, 0.0, PERGOLA_ROOF - 0.22, z - 0.08, z + 0.08), TIMBER, out, 0.05)
     base._surface(rnd, (x0, x1, PERGOLA_ROOF + 0.01, PERGOLA_ROOF + 0.01, z0, z1), _reeds, out, 0.05)
 
