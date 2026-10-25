@@ -519,7 +519,7 @@ function knobsUI() {
   }));
   const finish = p.opts?.finish || "";
   for (const b of $("decorMaterials").children) b.classList.toggle("on", b.dataset.finish === finish);
-  $("decorKeepName").placeholder = t("decor.keepName", { name: t("decor.item." + p.item) });
+  $("decorKeepName").placeholder = t("decor.keepName", { name: t("decor.item." + p.item).toLowerCase() });
 }
 function materialChips() {
   $("decorMaterials").replaceChildren(...["", ...MATERIALS].map((f) => {
