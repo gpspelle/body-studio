@@ -1,10 +1,11 @@
 // Compare a room with a video of the real place (opened from the Decor panel): the video's frame
-// over the 3D view, faded in and out, stepped half a second at a time; the camera flies (house.js)
-// to line the room up with it, its lens and height set here. A view lined up is kept with a
+// and the room side by side, the same size, a crosshair at the same spot on both; the video
+// stepped half a second at a time, the camera flying (house.js) to line the room up with it, its
+// lens and height set here (its whole view drawn in the room's place: viewIn). A view lined up is kept with a
 // picture of both; a click on the frame tags what is missing or wrong there, in your words. All
 // of it is kept per room by compare.py (/api/compare...) and exported as one zip to work from.
-// The maths (where the frame sits, the clock) is matchview.js's.
-import { KINDS, around, clock, frameRect, fromFrame, step, toFrame, viewAt } from "/static/matchview.js";
+// The maths (where the two sit, the clock) is matchview.js's.
+import { KINDS, around, clock, fromFrame, sideBySide, step, toFrame, viewAt, viewIn } from "/static/matchview.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -18,6 +19,7 @@ let room = null;            // the room's file while open
 let S = { video: null, views: [] };                 // compare.py's state for it
 let cur = null;             // the kept view shown (at the video's time), or null
 let tagging = false, pending = null, wasFov = null, url = null;
+let L = null;               // where the frame and the room are drawn (sideBySide), while open
 
 const q = () => "room=" + encodeURIComponent(room);
 const say = (k, params) => ($("compareStatus").textContent = k ? t(k, params) : "");
@@ -40,6 +42,7 @@ async function open() {
   document.body.classList.add("comparing");
   wasFov = V.camera.fov;
   if (H.mode() !== "fly") H.mode("fly");
+  place();
   lens(+$("compareLens").value || LENS);
   eye(+$("compareEye").value / 100 || EYE);
   try { S = await api("/api/compare"); } catch { S = { video: null, views: [] }; }
@@ -59,8 +62,15 @@ function close() {
   document.body.classList.remove("comparing");
   video.pause();
   setTagging(false);
-  if (wasFov) { V.camera.fov = wasFov; V.camera.updateProjectionMatrix(); V.redraw(); }
+  cross(null);
+  L = null;
+  V.camera.aspect = innerWidth / innerHeight;
+  V.camera.clearViewOffset();
+  if (wasFov) V.camera.fov = wasFov;
+  V.camera.updateProjectionMatrix();
   $("decorBtn").click();                             // back to the Decor panel it was opened from
+  app.reframe();
+  V.redraw();
 }
 $("compareBtn").onclick = open;
 $("closeCompare").onclick = close;
@@ -112,15 +122,16 @@ addEventListener("keydown", (e) => {
   else if (e.key === "]") seek(step(now(), STEP, video.duration));
 });
 
-// how much of the video shows over the room, 0 to 100
-function fade(pc) {
-  video.style.opacity = String(pc / 100);
-  $("compareFade").nextElementSibling.textContent = pc + "%";
-}
-$("compareFade").oninput = (e) => fade(+e.target.value);
-fade(+$("compareFade").value);
-
 // ---------------------------------------------------------------- the camera
+// before each frame while open: the camera's whole view, its lens and the frame's shape, in the
+// room's place beside the video (whatever else set the view, as the Decor panel's room did)
+function project() {
+  if (!L) return;
+  const o = viewIn(L.room, innerWidth, innerHeight);
+  V.camera.aspect = o.aspect;
+  V.camera.setViewOffset(o.fullWidth, o.fullHeight, o.x, o.y, o.width, o.height);
+}
+V.frameHooks.push((before) => before && project());
 function lens(deg) {
   V.camera.fov = deg;
   V.camera.updateProjectionMatrix();
@@ -181,12 +192,12 @@ function frameShot() {
   c.getContext("2d").drawImage(video, 0, 0);
   return jpeg(c);
 }
-// the room as drawn, cut to where the frame lies over it (the same pixels compared)
+// the room as drawn, cut to its place beside the frame (the same view, the same shape)
 function renderShot() {
   for (const f of V.frameHooks) f(true);
   V.renderer.render(V.scene, V.camera);
   for (const f of V.frameHooks) f(false);
-  const k = V.canvas.width / innerWidth, r = frameRect(video.videoWidth, video.videoHeight, innerWidth, innerHeight);
+  const k = V.canvas.width / innerWidth, r = L.room;
   const c = document.createElement("canvas");
   c.width = Math.round(r.width * k); c.height = Math.round(r.height * k);
   c.getContext("2d").drawImage(V.canvas, r.left * k, r.top * k, r.width * k, r.height * k, 0, 0, c.width, c.height);
@@ -208,24 +219,37 @@ function setTagging(on) {
   if (!on) note(null);
 }
 $("compareTag").onclick = () => setTagging(!tagging);
+// a point in the window -> [u, v] on the frame, from the video or the room beside it; or null
+const spot = (x, y) => (L ? toFrame(x, y, L.video) || toFrame(x, y, L.room) : null);
 $("compareFrame").addEventListener("click", (e) => {
   if (!tagging || e.target.closest("form")) return;
-  const r = frameRect(video.videoWidth, video.videoHeight, innerWidth, innerHeight), uv = toFrame(e.clientX, e.clientY, r);
-  if (uv) note(uv);
+  const uv = spot(e.clientX, e.clientY);
+  if (uv) note(uv, [e.clientX, e.clientY]);
 });
+// the crosshair: where the pointer is on one, the same spot on the other
+function cross(uv) {
+  for (const [id, r] of [["compareCrossVideo", L?.video], ["compareCrossRoom", L?.room]]) {
+    const c = $(id);
+    c.hidden = !uv || !r;
+    if (c.hidden) continue;
+    const [x, y] = fromFrame(uv[0], uv[1], r);
+    c.style.left = x + "px"; c.style.top = y + "px";
+  }
+}
+addEventListener("pointermove", (e) => { if (L) cross(spot(e.clientX, e.clientY)); });
 for (const k of KINDS) {
   const b = document.createElement("button");
   b.type = "button"; b.dataset.kind = k; b.textContent = t("compare.kind." + k);
   b.onclick = () => { for (const x of $("compareKinds").children) x.classList.toggle("on", x === b); };
   $("compareKinds").append(b);
 }
-// the note's form by the spot clicked, or put away (null)
-function note(uv) {
+// the note's form by the spot clicked (at: where in the window), or put away (null)
+function note(uv, at) {
   pending = uv;
   $("compareNote").hidden = !uv;
   pins();
   if (!uv) return;
-  const [x, y] = fromFrame(uv[0], uv[1], frameRect(video.videoWidth, video.videoHeight, innerWidth, innerHeight));
+  const [x, y] = at || fromFrame(uv[0], uv[1], L.video);
   const f = $("compareNote");
   f.style.left = Math.min(innerWidth - 280, Math.max(8, x + 12)) + "px";
   f.style.top = Math.min(innerHeight - 200, Math.max(8, y - 20)) + "px";
@@ -261,24 +285,37 @@ async function untag(k) {
 }
 
 // ---------------------------------------------------------------- what the panel and the frame show
-function place() {
-  const r = frameRect(video.videoWidth, video.videoHeight, innerWidth, innerHeight);
-  Object.assign(video.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
-  pins();
+// the window less the panel (beside it on a wide screen, above it on a phone), under the top bar
+function area() {
+  const b = $("compareBar").getBoundingClientRect();
+  if (innerWidth <= 600) return { left: 8, top: 56, width: innerWidth - 16, height: Math.max(80, b.top - 64) };
+  return { left: 16, top: 64, width: Math.max(80, b.left - 32), height: innerHeight - 80 };
 }
-addEventListener("resize", () => { if (!$("compare").hidden) place(); });
+const box = (el, r) => Object.assign(el.style, { left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px" });
+function place() {
+  if ($("compare").hidden) return;
+  L = sideBySide(video.videoWidth || 9, video.videoHeight || 16, area());   // (a phone's frame until the video says)
+  box(video, L.video);
+  box($("compareRoom"), L.room);
+  pins();
+  project();
+  V.redraw();
+}
+addEventListener("resize", place);
+// the tags as numbered pins, on the frame and on the room
 function pins() {
-  const box = $("comparePins"), r = frameRect(video.videoWidth, video.videoHeight, innerWidth, innerHeight);
-  box.replaceChildren();
+  const el = $("comparePins");
+  el.replaceChildren();
+  if (!L) return;
   const all = (cur ? cur.tags : []).map((g, k) => [g.x, g.y, String(k + 1), g.kind]);
   if (pending) all.push([pending[0], pending[1], "+", "new"]);
-  for (const [x, y, label, kind] of all) {
+  for (const r of [L.video, L.room]) for (const [x, y, label, kind] of all) {
     const p = document.createElement("span");
     const [px, py] = fromFrame(x, y, r);
     p.className = "pin " + kind;
     p.textContent = label;
     p.style.left = px + "px"; p.style.top = py + "px";
-    box.append(p);
+    el.append(p);
   }
 }
 function show() {
@@ -306,7 +343,7 @@ function show() {
 }
 
 window.compare = {
-  open, close, state: () => S, current: () => cur, time: () => now(), seek, keep, tag,
+  open, close, state: () => S, current: () => cur, time: () => now(), seek, keep, tag, layout: () => L,
   use: async (blob, name) => {             // (tests: a video made in the page, uploaded as if picked)
     S = await api("/api/compare/video?name=" + encodeURIComponent(name), { method: "POST", body: blob });
     use(blob);

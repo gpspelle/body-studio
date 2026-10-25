@@ -261,8 +261,11 @@
      view, and a panel to line them up, keep the view and tag what is missing or wrong. -->
 <div id="compare" hidden>
   <div id="compareFrame" class="compare-frame">
+    <div id="compareRoom" class="compare-room"></div>
     <video id="compareVideo" muted playsinline preload="auto"></video>
     <div id="comparePins"></div>
+    <span id="compareCrossVideo" class="compare-cross" hidden></span>
+    <span id="compareCrossRoom" class="compare-cross" hidden></span>
   </div>
   <form id="compareNote" class="panel note" hidden>
     <div class="chips" id="compareKinds" role="group" data-i18n-aria-label="compare.kind"></div>
@@ -291,7 +294,6 @@
           <button id="compareOn" data-i18n="compare.on"></button>
         </div>
         <div class="sliders">
-          <label><span data-i18n="compare.fade"></span><input id="compareFade" type="range" min="0" max="100" step="1" value="50"><output></output></label>
           <label><span data-i18n="compare.lens"></span><input id="compareLens" type="range" min="30" max="120" step="1" value="70"><output id="compareLensOut"></output></label>
           <label><span data-i18n="compare.eye"></span><input id="compareEye" type="range" min="50" max="250" step="1" value="150"><output id="compareEyeOut"></output></label>
         </div>

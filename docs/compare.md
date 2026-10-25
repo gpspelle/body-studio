@@ -17,8 +17,10 @@ per room; **Use another video** replaces it). After that, it loads by itself.
 
 ## Lining up a view
 
-- The video's frame is drawn over the room, centred and as tall as the window. **Video** sets how
-  much of it shows (0 % shows only the room, 100 % only the video).
+- The video's frame is on the left and the room on the right, the same size and as big as fit
+  beside the panel (on a phone, one over the other). The room is the camera's whole view, so what
+  sits at a spot on the frame should sit at the same spot on the room. A crosshair follows the
+  pointer on either picture and marks the same spot on the other.
 - **The video**: drag the time bar, or step **−0.5 s** / **+0.5 s** (the keys `[` and `]`), or
   **Play**.
 - **Fly** until the room sits on the frame: drag to look round, W A S D to move (Shift is faster).
@@ -26,7 +28,7 @@ per room; **Use another video** replaces it). After that, it loads by itself.
   about 70°, and at 0.5× it is wider. **Height** is the camera's height above the floor (0.5 m to
   2.5 m). A phone held to film is usually at about 1.4 to 1.5 m.
 - **Keep this view** saves the video's time, where the camera is, its lens and its height, along
-  with a picture of the frame and a picture of the room as drawn, cut to the same area. When the
+  with a picture of the frame and a picture of the room as drawn, as it shows beside the frame. When the
   video is at a kept view's time (within a quarter of a second), the button says **Keep it as it
   is now** and saves over it. **Forget this view** deletes it.
 - **Views kept** lists the kept views by time, with how many tags each has. Pick one, or use ◀ ▶,
@@ -34,9 +36,9 @@ per room; **Use another video** replaces it). After that, it loads by itself.
 
 ## Tagging
 
-Press **Tag**, then click on the frame where something is off. Choose what it is (**Missing**,
+Press **Tag**, then click on the frame or on the room where something is off. Choose what it is (**Missing**,
 **Wrong**, **Remove** or **Note**), write what should be there, and **Save the tag**. A view that
-wasn't kept is kept first. Tags show on the frame as numbered pins (wrong and remove in red) and are
+wasn't kept is kept first. Tags show on both as numbered pins (wrong and remove in red) and are
 listed in the panel, where ✕ removes one. Press **Tag** again to go back to flying.
 
 ## Exporting

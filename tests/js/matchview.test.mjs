@@ -1,7 +1,7 @@
 // The Compare tool's maths (src/body_studio/static/matchview.js). Run by tests/unit/test_matchview_js.py.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { KINDS, around, clock, frameRect, fromFrame, step, toFrame, viewAt } from "../../src/body_studio/static/matchview.js";
+import { KINDS, around, clock, frameRect, fromFrame, sideBySide, step, toFrame, viewAt, viewIn } from "../../src/body_studio/static/matchview.js";
 
 test("a portrait frame fills the window's height, centred", () => {
   const r = frameRect(480, 848, 1280, 800);
@@ -48,4 +48,31 @@ test("the kept view at a time, and those either side", () => {
   assert.equal(around(views, 12).prev, null);
   assert.equal(around(views, 84).next, null);
   assert.deepEqual(KINDS, ["missing", "wrong", "remove", "note"]);   // (compare.py KINDS)
+});
+
+test("the frame and the room side by side, the same size, centred as a pair", () => {
+  const area = { left: 0, top: 0, width: 908, height: 800 };      // a 1280 x 800 window less the panel
+  const { video, room, across } = sideBySide(480, 848, area);
+  assert.ok(across);
+  assert.equal(video.height, room.height);
+  assert.equal(video.width, room.width);
+  assert.ok(Math.abs(video.width / video.height - 480 / 848) < 1e-9);
+  assert.ok(Math.abs(room.left - (video.left + video.width + 8)) < 1e-9);
+  assert.ok(Math.abs((video.left + room.left + room.width) / 2 - 454) < 1e-9);   // (the pair centred)
+  assert.ok(video.height <= 800 && 2 * video.width + 8 <= 908 + 1e-9);
+  // a phone (the panel below): one over the other
+  const tall = sideBySide(480, 848, { left: 0, top: 0, width: 390, height: 440 });
+  assert.ok(!tall.across);
+  assert.ok(Math.abs(tall.room.top - (tall.video.top + tall.video.height + 8)) < 1e-9);
+  assert.equal(tall.room.left, tall.video.left);
+});
+
+test("the camera's whole view lands in the room's rect", () => {
+  const r = { left: 460, top: 20, width: 400, height: 700 };
+  const o = viewIn(r, 1280, 800);
+  assert.deepEqual(o, { fullWidth: 400, fullHeight: 700, x: -460, y: -20, width: 1280, height: 800, aspect: 400 / 700 });
+  // (three.js: a canvas pixel px is at (px + x) / fullWidth across the camera's view: the rect's edges at 0 and 1)
+  assert.equal((r.left + o.x) / o.fullWidth, 0);
+  assert.equal((r.left + r.width + o.x) / o.fullWidth, 1);
+  assert.equal((r.top + r.height + o.y) / o.fullHeight, 1);
 });

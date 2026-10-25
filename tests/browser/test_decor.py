@@ -248,11 +248,25 @@ class Decor(Viewer):
         page.wait_for_function("document.getElementById('compareVideo').readyState >= 2", timeout=60000)
         self.assertTrue(page.locator("#compareTools").is_visible())
         self.assertEqual(page.evaluate("compare.state().video"), "video.webm")
-        # the frame over the room, as tall as the window, half see-through
+        # the frame and the room side by side, left of the panel, the same size; the camera's
+        # whole view drawn in the room's place
         box = page.locator("#compareVideo").bounding_box()
-        self.assertAlmostEqual(box["height"], 800, delta=1)
-        self.assertAlmostEqual(box["x"] + box["width"] / 2, 640, delta=1)
-        self.assertEqual(page.evaluate("getComputedStyle(document.getElementById('compareVideo')).opacity"), "0.5")
+        room_box = page.locator("#compareRoom").bounding_box()
+        bar = page.locator("#compareBar").bounding_box()
+        self.assertAlmostEqual(box["width"] / box["height"], 120 / 200, delta=0.01)
+        self.assertAlmostEqual(room_box["width"], box["width"], delta=1)
+        self.assertAlmostEqual(room_box["y"], box["y"], delta=1)
+        self.assertGreater(room_box["x"], box["x"] + box["width"])
+        self.assertLess(room_box["x"] + room_box["width"], bar["x"])
+        view = page.evaluate("(() => { const c = bodyApp.viewer.camera; return { aspect: c.aspect, ...c.view }; })()")
+        self.assertAlmostEqual(view["aspect"], 120 / 200, delta=0.01)
+        self.assertAlmostEqual(view["fullHeight"], room_box["height"], delta=1)
+        self.assertAlmostEqual(-view["offsetX"], room_box["x"], delta=1)
+        # the crosshair at the same spot on both
+        page.mouse.move(box["x"] + box["width"] * 0.25, box["y"] + box["height"] * 0.5)
+        cross = page.locator("#compareCrossRoom").bounding_box()
+        self.assertAlmostEqual(cross["x"] + cross["width"] / 2, room_box["x"] + room_box["width"] * 0.25, delta=1)
+        self.assertAlmostEqual(cross["y"] + cross["height"] / 2, room_box["y"] + room_box["height"] * 0.5, delta=1)
         # a wider lens and a lower eye, then the view kept with a picture of both
         page.fill("#compareLens", "90")
         page.dispatch_event("#compareLens", "input")
@@ -267,7 +281,7 @@ class Decor(Viewer):
         # a tag: Tag, a click on the frame, its kind and words
         self.assertTrue(page.locator("#compareNote").is_hidden())
         page.click("#compareTag")
-        page.mouse.click(box["x"] + box["width"] * 0.3, box["y"] + box["height"] * 0.6)
+        page.mouse.click(room_box["x"] + room_box["width"] * 0.3, room_box["y"] + room_box["height"] * 0.6)   # (on the room)
         self.assertTrue(page.locator("#compareNote").is_visible())
         page.locator("#compareKinds button[data-kind=missing]").click()
         page.fill("#compareNote textarea", "An exit sign over the door")
@@ -277,7 +291,7 @@ class Decor(Viewer):
         self.assertEqual((tag["kind"], tag["note"]), ("missing", "An exit sign over the door"))
         self.assertAlmostEqual(tag["x"], 0.3, delta=0.01)
         self.assertAlmostEqual(tag["y"], 0.6, delta=0.01)
-        self.assertEqual(page.locator("#comparePins .pin").count(), 1)
+        self.assertEqual(page.locator("#comparePins .pin").count(), 2)              # (on both)
         self.assertIn("An exit sign over the door", page.text_content("#compareTags"))
         # all of it in the export: the list, the views, the two pictures
         q = urllib.parse.quote(room)
@@ -296,6 +310,7 @@ class Decor(Viewer):
         page.click("#closeCompare")
         self.assertTrue(page.locator("#decor").is_visible())
         self.assertEqual(page.evaluate("bodyApp.viewer.camera.fov"), 35)
+        self.assertAlmostEqual(page.evaluate("bodyApp.viewer.camera.aspect"), 1280 / 800, delta=0.01)
         self.assertEqual(errors, [])
 
 
