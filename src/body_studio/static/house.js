@@ -7,7 +7,7 @@ import * as THREE from "three";
 import { SplatMesh, dyno } from "@sparkjsdev/spark";
 import { FLY, Placement, RoomMap, SKY, eyeView, flyStep, lookBy, panSpeed, skyView, steadyEye } from "/static/room.js";
 import { v3 } from "/static/pose.js";
-import { parseShell, shellGeometry } from "/static/shell.js";
+import { finishMaps, parseShell, shellGeometry } from "/static/shell.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -192,7 +192,7 @@ function clear() {
   if (R) {
     V.holder.remove(R.mesh);
     R.mesh.dispose?.();
-    if (R.shell) { V.holder.remove(R.shell); R.shell.geometry.dispose(); R.shell.material.dispose(); }
+    if (R.shell) { V.holder.remove(R.shell); R.shell.geometry.dispose(); for (const m of R.shell.material) m.dispose(); }
     R = null;
   }
   const w = window.tattooStudio?.walker?.();
@@ -485,13 +485,13 @@ function cutAt(metres) {
   const fr = R.map.frame;
   R.mesh.roomCut.value.w = metres === null ? 1e9 : fr.floor + metres / fr.metres;
   R.mesh.updateVersion?.();
-  if (R.shell) R.shell.material.clippingPlanes = metres === null ? [] : [shellCut];
+  if (R.shell) for (const m of R.shell.material) m.clippingPlanes = metres === null ? [] : [shellCut];
 }
 // the same cut on the shell: a clipping plane in the scene, from the room's (kept up to date by
 // the frame hook: the room moves with the holder)
 const shellCut = new THREE.Plane();
 function cutShell() {
-  if (!R || !R.shell || !R.shell.material.clippingPlanes.length) return;
+  if (!R || !R.shell || !R.shell.material[0].clippingPlanes.length) return;
   const up = R.map.frame.up, w = R.mesh.roomCut.value.w;
   R.shell.updateMatrixWorld();
   shellCut.set(new THREE.Vector3(-up[0], -up[1], -up[2]), w).applyMatrix4(R.shell.matrixWorld);
@@ -501,20 +501,67 @@ V.renderer.localClippingEnabled = true;
 // ---------------------------------------------------------------- the shell
 // A drawn room's walls, floors and ceilings as one mesh of vertex-coloured quads (shell.js), in the
 // splat file's coordinates like the splats, so it takes the same matrix. Lit as the decor is
-// (matt like plaster and stone, under the decor's lights; decorate.js gives it the decor's studio
-// reflections too), so the room and what is put in it look alike.
-let SHELL_MAT = null;
+// (under the decor's lights; decorate.js gives it the decor's studio reflections too), so the room
+// and what is put in it look alike. A material per finish (plaster, cement, tile...) with that
+// finish's fine detail, and the corners' shading baked in (shell.js): both made once, so a frame
+// costs what flat colours did.
+const FINISH_MAPS = new Map();          // finish -> { map, normalMap, roughnessMap, mean }, made once
+function finishMaterial(finish) {
+  if (!FINISH_MAPS.has(finish)) {
+    const f = finishMaps(finish);
+    let maps = null;
+    if (f) {
+      const tex = (data, srgb) => {
+        const t = new THREE.DataTexture(data, f.size, f.size);
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.repeat.set(1 / f.metres, 1 / f.metres);
+        t.magFilter = THREE.LinearFilter;
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        t.generateMipmaps = true;
+        t.anisotropy = Math.min(8, V.renderer.capabilities.getMaxAnisotropy());
+        t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        t.needsUpdate = true;
+        return t;
+      };
+      maps = { map: tex(f.color, false), normalMap: tex(f.normal, false), roughnessMap: tex(f.rough, false), mean: f.mean };
+    }
+    FINISH_MAPS.set(finish, maps);
+  }
+  const maps = FINISH_MAPS.get(finish);
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, side: THREE.DoubleSide, roughness: maps ? 1 : 0.85, metalness: 0 });
+  if (maps) {
+    Object.assign(m, { map: maps.map, normalMap: maps.normalMap, roughnessMap: maps.roughnessMap });
+    m.normalScale.set(1, 1);
+    m.color.setScalar(1 / maps.mean);             // (the detail's mean is 1: the room keeps its colours)
+  }
+  // the baked corners' shading, the side seen's: on the light from round about (the sky, the
+  // reflections) and half of it on the sun's
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute vec2 ao2;\nvarying vec2 vAo2;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvAo2 = ao2;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec2 vAo2;")
+      .replace("#include <aomap_fragment>", `
+        float shellAo = gl_FrontFacing ? vAo2.x : vAo2.y;
+        reflectedLight.indirectDiffuse *= shellAo;
+        reflectedLight.indirectSpecular *= shellAo;
+        reflectedLight.directDiffuse *= mix(1.0, shellAo, 0.5);`);
+  };
+  m.customProgramCacheKey = () => "shell-ao";
+  return m;
+}
 function shellMesh(bytes, frame) {
   const g = shellGeometry(parseShell(bytes), frame.up, true);
   const geom = new THREE.BufferGeometry();
   geom.setAttribute("position", new THREE.BufferAttribute(g.position, 3));
   geom.setAttribute("color", new THREE.BufferAttribute(g.color, 3));
+  geom.setAttribute("uv", new THREE.BufferAttribute(g.uv, 2));
+  geom.setAttribute("ao2", new THREE.BufferAttribute(g.ao, 2));
   geom.setIndex(new THREE.BufferAttribute(g.index, 1));
   geom.computeVertexNormals();
-  SHELL_MAT ||= new THREE.MeshStandardMaterial({
-    vertexColors: true, side: THREE.DoubleSide, roughness: 0.85, metalness: 0,
-  });
-  const mesh = new THREE.Mesh(geom, SHELL_MAT.clone());
+  const mats = g.groups.map((gr, i) => { geom.addGroup(gr.start, gr.count, i); return finishMaterial(gr.finish); });
+  const mesh = new THREE.Mesh(geom, mats.length ? mats : [finishMaterial("")]);
   mesh.matrixAutoUpdate = false;
   mesh.userData.room = true;                    // (still drawn without the body)
   mesh.name = "room-shell";

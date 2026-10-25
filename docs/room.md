@@ -86,6 +86,15 @@ room's own splat in `splat/` still has everything, so the map is made as from a 
 filmed room is still shown as it was scanned. From above, the shell is cut at the same height as the
 splats (a clipping plane).
 
+Each sheet also says what it is made of (its colour's finish: plaster, cement, tile, wood along x
+or z, sand, grass, concrete; `FINISHES` in `sample_room.py` and `shell.js`, shell version 2). When
+the room loads, `shell.js` makes each finish's fine detail as three small maps that tile (colour,
+bumps and shine, from noise: ours, nothing downloaded) and bakes ambient occlusion into the mesh:
+rays from points 25 cm apart on both sides of every sheet, darker where another sheet is near
+(corners, under beams, round door frames). The page gives each finish its own material and reads
+the side seen's occlusion in the shader. All of it is made once (about a second for the venue), so
+moving round the room draws no more than flat colours did.
+
 ## The sample tattoo studio
 
 Also in the menu, after the living room: **Sample tattoo studio** (`sample_studio.py`), 5 × 4.2 m,

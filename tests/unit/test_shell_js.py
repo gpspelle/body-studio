@@ -1,4 +1,5 @@
-"""Writes a small drawn room's shell (sample_room.py: a floor, a wall and a lawn cut on a slant)
+"""Writes a small drawn room's shell (sample_room.py: a cement floor, a plaster wall on its edge and
+a lawn cut on a slant)
 and runs tests/js/shell.test.mjs on it with Node. Skipped when Node isn't installed."""
 import os
 import random
@@ -17,8 +18,8 @@ NODE = shutil.which("node")
 
 def splats():
     rnd, out = random.Random(1), []
-    base._surface(rnd, (0.0, 2.0, 0.0, 0.0, 0.0, 1.0), (0.6, 0.6, 0.6), out, 0.5, jitter=0.0)
-    base._surface(rnd, (0.0, 0.0, 0.0, 2.5, 0.0, 1.0), (0.9, 0.8, 0.7), out, 0.5)
+    base._surface(rnd, (0.0, 2.0, 0.0, 0.0, 0.0, 1.0), base.finish("cement", (0.6, 0.6, 0.6)), out, 0.5, jitter=0.0)
+    base._surface(rnd, (0.0, 0.0, 0.0, 2.5, 0.0, 1.0), base.finish("plaster", (0.9, 0.8, 0.7)), out, 0.5)
     base.sheet(rnd, (3.0, 0.0, 0.0), (2.0, 0.0, 0.0), (0.0, 0.0, 2.0), 8, 8, (0.2, 0.5, 0.2), out,
                [0.2, 0.02, 0.2], keep=lambda x, z: x - 3.0 < 2.0 - z)
     out.append(((9.0, 1.0, 9.0), (0.5, 0.5, 0.9), [0.1, 0.1, 0.1]))       # (not a surface: a splat)

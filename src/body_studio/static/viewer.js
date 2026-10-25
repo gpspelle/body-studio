@@ -48,6 +48,8 @@ const canvas = $("stage");
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
+// the meshes' light rolled off softly where it would go past white (the splats are drawn as they are)
+renderer.toneMapping = THREE.NeutralToneMapping;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.01, 1000);
 const spark = new SparkRenderer({ renderer });

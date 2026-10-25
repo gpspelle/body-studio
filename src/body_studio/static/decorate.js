@@ -554,7 +554,7 @@ function draw() {
   if (!group) return;
   // a drawn room's shell (house.js) takes the decor's studio reflections, as the decor does
   const sh = V.holder.getObjectByName("room-shell");
-  if (sh && !sh.material.envMap) { sh.material.envMap = studio(V.renderer); sh.material.needsUpdate = true; }
+  for (const m of sh ? [].concat(sh.material) : []) if (!m.envMap) { m.envMap = studio(V.renderer); m.needsUpdate = true; }
   for (const c of [...group.children]) if (c.isMesh) group.remove(c);
   if (!shades) { shades = new THREE.Group(); shades.userData.shades = true; }
   if (shades.parent !== group) group.add(shades);

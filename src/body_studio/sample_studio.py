@@ -99,10 +99,10 @@ def parts(rnd) -> list:
     cx, cz, seat = CHAIR["x"], CHAIR["z"], CHAIR["seat"]
     p = [
         # the room: tiles, a dark ceiling, the teal back wall, plaster round the rest, black skirting
-        ((X0, X1, 0, 0, Z0, Z1), _tiles),
-        ((X0, X1, H, H, Z0, Z1), CEIL),
-        ((X0, X1, 0, H, Z0, Z0), TEAL), ((X0, X1, 0, H, Z1, Z1), PLASTER),
-        ((X0, X0, 0, H, Z0, Z1), PLASTER), ((X1, X1, 0, H, Z0, Z1), PLASTER),
+        ((X0, X1, 0, 0, Z0, Z1), base.finish("tile", _tiles)),
+        ((X0, X1, H, H, Z0, Z1), base.finish("plaster", CEIL)),
+        ((X0, X1, 0, H, Z0, Z0), base.finish("plaster", TEAL)), ((X0, X1, 0, H, Z1, Z1), base.finish("plaster", PLASTER)),
+        ((X0, X0, 0, H, Z0, Z1), base.finish("plaster", PLASTER)), ((X1, X1, 0, H, Z0, Z1), base.finish("plaster", PLASTER)),
         ((X0, X1, 0, 0.1, Z0, Z0 + 0.012), BLACK), ((X0, X1, 0, 0.1, Z1 - 0.012, Z1), BLACK),
         ((X0, X0 + 0.012, 0, 0.1, Z0, Z1), BLACK), ((X1 - 0.012, X1, 0, 0.1, Z0, Z1), BLACK),
         # the flash wall, the mirror, the door, two prints by the counter
