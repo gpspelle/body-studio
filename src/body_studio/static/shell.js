@@ -224,7 +224,7 @@ function hemisphere(n) {
 // far one tile goes. Made from noise here, so ours (no outside images) and nothing to download.
 const LOOKS = {
   //            metres, colour change, bump, roughness and its change, and the noise that makes them
-  plaster:  { metres: 1.6, tone: 0.06, bump: 1.2, rough: 0.9, rv: 0.06, kind: "cloud" },
+  plaster:  { metres: 1.6, tone: 0.04, bump: 0.45, rough: 0.9, rv: 0.06, kind: "cloud" },   // (smooth paint)
   cement:   { metres: 2.0, tone: 0.05, bump: 0.15, rough: 0.45, rv: 0.15, kind: "cloud", pores: 0.003 },   // (polished, smooth)
   tile:     { metres: 1.0, tone: 0.04, bump: 0.5, rough: 0.28, rv: 0.12, kind: "cloud" },
   wood_x:   { metres: 1.2, tone: 0.16, bump: 1.6, rough: 0.6, rv: 0.12, kind: "grain" },

@@ -11,6 +11,10 @@
   stand, a macaron tower, a cloche, a fruit bowl, taper and hurricane candles, driftwood and
   shells; a modular bar, a champagne bucket, drinks dispensers; a tiki torch, a straw parasol, a
   deck chair, crates, a hexagon arch and a macramé backdrop.
+- The sample venue by the front door: its cladding and leaves a dark matte brown, daylight and
+  orange steps outside, black track spots with white rims, a dark nosing on the landing, a
+  near-black side door with an exit sign, a notice and a fire sign beside it, smoother whiter
+  walls, and the floor's cut lines showing.
 - The sample venue, from the second set of tags: inside the front door a landing a step up with a
   dark edge; the front wall clad in rust-brown panels like the door's two big leaves (one shut, one
   swung in); no speaker by the door; the track's spots are bigger white cans on stems; a light

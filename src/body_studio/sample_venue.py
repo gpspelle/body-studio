@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 13
+VERSION = 14
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -92,7 +92,7 @@ RUST = (0.31, 0.18, 0.13)           # the front door's pivoting leaves
 CONCRETE = (0.60, 0.58, 0.55)       # the hall's bare concrete ceiling
 HALL_WALL = (0.88, 0.88, 0.87)
 WC_WALL = (0.78, 0.81, 0.84)        # pale blue-grey
-PLASTER = (0.90, 0.88, 0.85)
+PLASTER = (0.93, 0.92, 0.90)        # smooth white paint (the walkthrough's walls)
 TERRACOTTA = (0.74, 0.40, 0.17)     # the hall's rustic tiles, glazed orange, worn black in patches
 DARK_TILE = (0.17, 0.11, 0.08)
 TIMBER = (0.40, 0.27, 0.19)         # beams, strips and posts in dark wood
@@ -122,11 +122,12 @@ FAR = 0.42                          # how opaque what is far off is drawn: under
 
 # ---------------------------------------------------------------- what the surfaces look like
 
-def _cement(colour, joint=1.5, cloud=0.025):
-    """Smooth grey cement, poured in squares `joint` apart with a cut line, a little cloudy."""
+def _cement(colour, joint=1.5, cloud=0.025, line=0.008, cut=0.82):
+    """Smooth grey cement, poured in squares `joint` apart with a cut line `line` wide (as dark as
+    `cut`), a little cloudy."""
     def f(x, y, z, rnd):
-        if x % joint < 0.008 or z % joint < 0.008:
-            return tuple(c * 0.82 for c in colour)
+        if x % joint < line or z % joint < line:
+            return tuple(c * cut for c in colour)
         t = cloud * math.sin(x * 1.3 + 2 * math.sin(z * 0.7)) * math.sin(z * 1.1 + x * 0.4) + rnd.uniform(-cloud * 0.4, cloud * 0.4)
         return tuple(c + t for c in colour)
     return base.finish("cement", f)
@@ -341,10 +342,10 @@ def door_z(x, a0, a1, out, rnd, h=2.2):
     frame_z(x, a0, a1, 0.0, h, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
 
 
-def door_x(z, a0, a1, out, rnd, h=2.2):
-    base._surface(rnd, (a0, a1, 0.0, h, z, z), DOOR, out, 0.03)
+def door_x(z, a0, a1, out, rnd, h=2.2, colour=DOOR, frame=DOOR_FRAME):
+    base._surface(rnd, (a0, a1, 0.0, h, z, z), colour, out, 0.03)
     base._surface(rnd, (a1 - 0.14, a1 - 0.06, 1.0, 1.04, z - 0.03, z + 0.03), (0.70, 0.70, 0.68), out, 0.01)
-    frame_x(z, a0, a1, 0.0, h, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
+    frame_x(z, a0, a1, 0.0, h, out, rnd, colour=frame, t=0.07, d=0.04)
 
 
 # ---------------------------------------------------------------- the house
@@ -355,7 +356,7 @@ def house(rnd, out):
     # the floors: smooth grey cement from the door to the toilets, the hall's rustic tiles, the
     # kitchen's white tiles, and the ceilings over them
     for r in (RECEPTION, VERTICAL):
-        base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(_cement(POLISHED, joint=2.0, cloud=0.008), r, dark=0.9), out, FLOOR_STEP)
+        base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(_cement(POLISHED, joint=1.5, cloud=0.008, line=FLOOR_STEP, cut=0.86), r, dark=0.9), out, FLOOR_STEP)
     base._surface(rnd, (ANTE[0], ANTE[1], 0, 0, ANTE[2], ANTE[3]), _shaded(_cement(SLAB, joint=1.0), ANTE, dark=0.85), out, FLOOR_STEP)
     base._surface(rnd, (KITCHEN[0], KITCHEN[1], 0, 0, KITCHEN[2], KITCHEN[3]), _tiles(TILE_WHITE, 0.45), out, FLOOR_STEP)
     hx0, hx1, hz0, hz1 = HALL
@@ -369,7 +370,11 @@ def house(rnd, out):
     base._surface(rnd, (RECEPTION[0], RECEPTION[0], -STEP_DOWN, 0.0, *DECK[2:]), CEMENT, out, 0.02)
     lx = RECEPTION[0] + LANDING[0]
     base._surface(rnd, (RECEPTION[0], lx, LANDING[1], LANDING[1], 0.05, 3.95), _cement(POLISHED, joint=2.0, cloud=0.008), out, 0.03)
-    base._surface(rnd, (lx, lx, 0.0, LANDING[1], 0.05, 3.95), (0.22, 0.15, 0.11), out, 0.015)
+    base._surface(rnd, (lx, lx, 0.0, LANDING[1], 0.05, 3.95), (0.17, 0.11, 0.08), out, 0.015)
+    base._surface(rnd, (lx - 0.05, lx, LANDING[1] + 0.002, LANDING[1] + 0.002, 0.05, 3.95), (0.17, 0.11, 0.08), out, 0.015)   # (its dark nosing)
+    # (outside the door, daylight: orange steps down off the deck, and the bright street beyond)
+    base._surface(rnd, (RECEPTION[0] - 0.45, RECEPTION[0], -STEP_DOWN + 0.002, -STEP_DOWN + 0.002, 0.8, 3.2), (0.86, 0.56, 0.34), out, 0.03)
+    base._surface(rnd, (DECK[0] - 0.3, DECK[0] - 0.3, -STEP_DOWN, H, -0.5, 4.5), (0.96, 0.95, 0.92), out, 0.06)
     # (the ante-room's jute ceiling hangs under a black one: the page draws it, from fixtures())
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), base.finish("plaster", (0.12, 0.12, 0.12)), out, CEIL_STEP)
     base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
@@ -400,7 +405,12 @@ def house(rnd, out):
     # the right side of the reception (a dark door near the front), the vertical garden (green both
     # sides) and the ante-room; the kitchen behind
     wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.7, -17.8, 0.0, 2.2)], wall, out, rnd)
-    door_x(4.0, -18.7, -17.8, out, rnd)
+    door_x(4.0, -18.7, -17.8, out, rnd, colour=(0.10, 0.09, 0.08), frame=(0.14, 0.12, 0.11))
+    # (beside it: an exit sign, a white notice and a small red fire sign)
+    exit_sign(rnd, out, -17.4, 1.95, 3.988, 0)
+    base._surface(rnd, (-17.15, -16.94, 1.45, 1.75, 3.988, 3.988), (0.94, 0.94, 0.92), out, 0.012)
+    base._surface(rnd, (-17.47, -17.33, 1.45, 1.65, 3.988, 3.988), (0.80, 0.15, 0.12), out, 0.012)
+    base._surface(rnd, (-17.42, -17.38, 1.5, 1.6, 3.986, 3.986), (0.95, 0.95, 0.93), out, 0.008)
     wall_x(4.0, VERTICAL[0], VERTICAL[1], [], wall, out, rnd)
     green_x(rnd, 4.0, VERTICAL[0], VERTICAL[1], -1, out)
     # (linen curtains tied back at each end of its planted walls, each on a short black rod from the
@@ -555,11 +565,14 @@ def track(rnd, out, x0, x1, z):
     while x < x1:
         near = x < x0 + 1.6
         base._surface(rnd, (x - 0.012, x + 0.012, H - 0.12, H - 0.04, z - 0.012, z + 0.012), STEEL, out, 0.01)
-        _cylinder_x(rnd, out, x - 0.08, x + 0.08, H - 0.17, z, 0.05, (0.86, 0.85, 0.82))   # (white cans)
-        f = x - 0.081 if near else x + 0.081
-        for k in range(40):
-            a, r = 2 * math.pi * rnd.random(), 0.042 * math.sqrt(rnd.random())
-            out.append(((f, H - 0.17 + r * math.sin(a), z + r * math.cos(a)), WARM, [0.008, 0.008, 0.008]))
+        _cylinder_x(rnd, out, x - 0.07, x + 0.07, H - 0.17, z, 0.045, STEEL, step=0.01)   # (black cans)
+        f = x - 0.071 if near else x + 0.071
+        for k in range(36):                             # (a white rim round each lit face)
+            a = 2 * math.pi * k / 36
+            out.append(((f, H - 0.17 + 0.045 * math.sin(a), z + 0.045 * math.cos(a)), (0.92, 0.92, 0.9), [0.006] * 3))
+        for k in range(50):
+            a, r = 2 * math.pi * rnd.random(), 0.035 * math.sqrt(rnd.random())
+            out.append(((f, H - 0.17 + r * math.sin(a), z + r * math.cos(a)), WARM, [0.006] * 3))
         x += 0.4 if near else 0.9
 
 
@@ -600,11 +613,11 @@ def curtain_rod(rnd, out, x, z0, z1):
 
 
 def _cladding(x, y, z, rnd):
-    """Rust-brown metal panels, 60 cm wide, a dark seam between them, streaked a little."""
-    if z % 0.6 < 0.012:
-        return (0.16, 0.10, 0.08)
-    t = 0.03 * math.sin(y * 7.0 + z * 31.0) + rnd.uniform(-0.02, 0.02)
-    return (0.36 + t, 0.22 + t * 0.7, 0.16 + t * 0.5)
+    """Dark rust-brown metal panels, matte, 1.2 m wide, a darker seam between them."""
+    if z % 1.2 < 0.03:
+        return (0.13, 0.08, 0.06)
+    t = rnd.uniform(-0.012, 0.012)
+    return (0.23 + t, 0.145 + t * 0.7, 0.11 + t * 0.5)
 
 
 def leaf(rnd, out, x, hinge, width, swing, h=2.85, step=0.03):
