@@ -10,9 +10,16 @@
   sky over dark shutters tilted out. The stage has a plain jute ceiling, and the garden's glass
   cover is painted maroon. The toilets can be walked into: a counter with two bowls and round
   mirrors, cubicles with lattice doors and a painted leaf wall in the ladies', a long trough in
-  the gents'.
+  the gents'. A louvred door off the hall leads down a short passage to a small room with glass
+  doors onto a planted patio. The kitchen is reached along a reed-clad passage with a serving
+  hatch, and has its sinks, stove and hood. The hall's end is open to the pergola beside a brick
+  column, with a lit beam where the hall widens and wall fans. The garden's walls are dark, with a
+  cement path, climbers over the pergola's edge, rattan lamps under the cover, plants round the
+  bungalow, and a low stone wall with a hedge where it meets the beach. Uplights warm the
+  ante-room's walls, baked in, so nothing more is drawn per frame.
 - New in the Decor catalogue: a garden bench (the venue's thick hardwood ones), a glass roof
-  light, and draped jute ceilings with or without black bands.
+  light, draped jute ceilings with or without black bands, a striped rug, woven wall plates, a
+  woven sun and a wall fan.
 
 - Drawn rooms look less flat: walls, floors and ceilings have their material's fine detail
   (plaster, polished cement, glazed tile, wood grain, sand), shine where the material shines, and
