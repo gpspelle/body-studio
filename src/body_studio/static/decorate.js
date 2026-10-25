@@ -7,7 +7,8 @@
 import * as THREE from "three";
 import { geometry, materials, picture, shadow, studio } from "/static/decorlook.js";
 import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
-         bounds, fromHex, fromRgb, hexOf, setTable, standY, starterShape, toHex, turnToward, unpack, wrap } from "/static/decor.js";
+         bounds, fromHex, fromRgb, hexOf, setTable, standY, starterShape, toHex, turnToward, unpack, wrap,
+         knobs, knobValues, cleanOpts, optsKey, sized, MATERIALS } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -28,12 +29,13 @@ let shelf = (() => { try { return localStorage.getItem("decor.group"); } catch {
 
 const placed = () => (L ? L.layouts[L.current].items : []);
 const itemOf = (id) => items.find((i) => i.id === id) || (STARTERS[id] ? { id } : null);
-const nameOf = (it) => (it.kind === "photo" ? it.name : t("decor.item." + it.id));
-function defs(id) {
+const nameOf = (it) => (it.kind === "photo" || it.kind === "variant" ? it.name : t("decor.item." + it.id));
+// what is known of an item; of a placed one p, at the size its knobs give it
+function defs(id, p = null) {
   const it = itemOf(id);
   if (!it) return null;
   const m = meshes.get(id);
-  return itemDef(it, m && !m.then ? m.packed : null);
+  return sized(itemDef(it, m && !m.then ? m.packed : null), p);
 }
 const H = () => window.house;
 
@@ -91,7 +93,9 @@ async function refreshItems() {
 }
 
 function inventory() {
-  const mine = items.some((i) => i.kind === "photo"), groups = mine ? [...GROUPS, "mine"] : GROUPS;
+  // (yours: the things made from photos and the starters you changed and kept)
+  const yours = (i) => i.kind === "photo" || i.kind === "variant";
+  const mine = items.some(yours), groups = mine ? [...GROUPS, "mine"] : GROUPS;
   if (!groups.includes(shelf)) shelf = GROUPS[0];
   $("decorGroups").replaceChildren(...groups.map((g) => {
     const b = document.createElement("button");
@@ -100,12 +104,12 @@ function inventory() {
     b.onclick = () => { shelf = g; try { localStorage.setItem("decor.group", g); } catch {} inventory(); };
     return b;
   }));
-  const shown = items.filter((it) => (it.kind === "photo" ? shelf === "mine" : STARTERS[it.id]?.group === shelf));
+  const shown = items.filter((it) => (yours(it) ? shelf === "mine" : STARTERS[it.id]?.group === shelf));
   // a card each, its picture (the starters photographed as a shop does, decorlook.js) over its name
   $("decorItems").replaceChildren(...shown.map((it) => {
     const b = document.createElement("button");
     b.dataset.item = it.id;
-    b.append(picFor(it.id, STARTERS[it.id]?.colour));
+    b.append(it.kind === "variant" ? picFor(it.base, it.colour || STARTERS[it.base]?.colour, it.opts) : picFor(it.id, STARTERS[it.id]?.colour));
     const name = document.createElement("span");
     name.className = "name"; name.textContent = nameOf(it);
     b.append(name);
@@ -124,14 +128,15 @@ function inventory() {
 
 // ---------------------------------------------------------------- pictures
 // "id|colour" -> a data URL; made one at a time, between frames, the first time one is wanted
-const pics = new Map(), wanted = [];
+const pics = new Map(), wanted = [], picOpts = new Map();   // (key -> the opts it was asked with)
 let picking = false;
-function picFor(id, colour) {
+function picFor(id, colour, opts = null) {
   const span = document.createElement("span");
   span.className = "pic";
   const it = itemOf(id);
   if (it && it.kind === "photo") { const img = new Image(); img.src = `/api/decor/${id}/photo`; img.alt = ""; span.append(img); return span; }
-  const key = id + "|" + (colour || "");
+  const key = id + "|" + (colour || "") + (opts ? "|" + optsKey(opts) : "");
+  if (opts) picOpts.set(key, opts);
   span.dataset.pic = key;
   const url = pics.get(key);
   if (url) { const img = new Image(); img.src = url; img.alt = ""; span.append(img); }
@@ -174,12 +179,12 @@ function pump() {
   // (only while the panel is open: they are for it, and the room shouldn't wait for them)
   if (picking || !wanted.length || $("decor").hidden) return;
   picking = true;
-  const key = wanted.shift(), [id, colour] = key.split("|");
-  if (painter && STARTERS[id]) { flying = key; late = setTimeout(letGo, PAINTER_MS); painter.postMessage({ key, id, colour }); return; }
+  const key = wanted.shift(), [id, colour] = key.split("|"), opts = picOpts.get(key) || null;
+  if (painter && STARTERS[id]) { flying = key; late = setTimeout(letGo, PAINTER_MS); painter.postMessage({ key, id, colour, opts }); return; }
   requestAnimationFrame(() => setTimeout(() => {
     let url = null;
     try {
-      const g = geomFor({ item: id, colour: colour || undefined });
+      const g = geomFor({ item: id, colour: colour || undefined, opts: opts || undefined });
       if (g) url = picture(g, bounds(g.attributes.position.array)).toDataURL("image/png");
     } catch (e) { console.warn("decor picture", id, e); }
     shown(key, url);
@@ -322,6 +327,18 @@ async function add(id) {
   if (!L || !H().shown() || !group) return;
   const it = itemOf(id);
   if (!it) return;
+  // a starter you changed and kept: its starter, as you changed it
+  if (it.kind === "variant") {
+    if (!STARTERS[it.base]) return;
+    const d = defs(it.base, it), { x, z, turn } = landing(d);
+    const p = { item: it.base, x, y: 0, z, turn, colour: it.colour || STARTERS[it.base].colour, from: it.id };
+    if (it.opts) p.opts = { ...it.opts };
+    p.y = standY(d, placed(), defs, p, roomTop);
+    placed().push(p);
+    pick(placed().length - 1);
+    changed();
+    return;
+  }
   if (it.kind === "photo") await meshFor(id);
   if (it.kind === "photo" && shelf !== "mine") { shelf = "mine"; inventory(); }
   const d = defs(id), { x, z, turn } = landing(d);
@@ -338,9 +355,9 @@ function pick(k) {
   const p = placed()[k];
   $("decorEdit").hidden = !p;
   if (p) {
-    const it = itemOf(p.item), d = defs(p.item);
+    const it = itemOf(p.item), d = defs(p.item, p);
     $("decorName").textContent = nameOf(it);
-    $("decorPic").replaceWith(Object.assign(picFor(p.item, p.colour || STARTERS[p.item]?.colour), { id: "decorPic" }));
+    $("decorPic").replaceWith(Object.assign(picFor(p.item, p.colour || STARTERS[p.item]?.colour, p.opts), { id: "decorPic" }));
     $("decorTurn").value = String(Math.round(((p.turn * 180 / Math.PI) % 360 + 540) % 360 - 180));
     $("decorTurnOut").textContent = $("decorTurn").value + "°";
     $("decorLift").value = String(Math.round((p.lift || 0) * 100));
@@ -357,7 +374,10 @@ function pick(k) {
     $("decorSet").hidden = !table;
     $("decorHeightRow").hidden = d.starter;
     if (!d.starter) $("decorHeight").value = String(Math.round(it.height * 100));
-    $("decorForget").hidden = d.starter;
+    $("decorForget").hidden = d.starter && !p.from;
+    $("decorChangeBtn").hidden = !d.starter;
+    if (!d.starter) $("decorChange").hidden = true;
+    knobsUI();
   }
   for (const li of $("decorList").children) li.classList.toggle("on", li.dataset.index === String(k));
   draw();
@@ -369,7 +389,7 @@ $("decorLift").oninput = (e) => {
   if (!p) return;
   p.lift = clampLift(+e.target.value / 100);
   if (!p.lift) delete p.lift;
-  p.y = standY(defs(p.item), placed(), defs, p, roomTop);
+  p.y = standY(defs(p.item, p), placed(), defs, p, roomTop);
   $("decorLiftOut").textContent = e.target.value + " cm";
   changed();
 };
@@ -452,7 +472,7 @@ $("decorHeight").onchange = async (e) => {
 $("decorRow").onclick = () => {
   const p = placed()[sel], n = +$("decorRowN").value;
   if (!p) return;
-  for (const q of row(defs(p.item), p, n)) { q.y = standY(defs(p.item), placed(), defs, q, roomTop); placed().push(q); }
+  for (const q of row(defs(p.item, p), p, n)) { q.y = standY(defs(p.item, p), placed(), defs, q, roomTop); placed().push(q); }
   changed();
 };
 $("decorAround").onclick = () => {
@@ -461,7 +481,7 @@ $("decorAround").onclick = () => {
   // the chairs already chosen for this layout (the last one put down), else the plain chair
   const last = [...placed()].reverse().find((q) => STARTERS[q.item]?.group === "tables" && STARTERS[q.item].seat);
   const chair = last ? last.item : "chair", colour = last ? last.colour || STARTERS[chair].colour : STARTERS.chair.colour;
-  for (const c of around(defs(p.item), p, defs(chair), n, colour)) placed().push(c);
+  for (const c of around(defs(p.item, p), p, defs(chair), n, colour)) placed().push(c);
   changed();
 };
 // a place setting in front of every chair at the table, in the colour of the last one put down
@@ -469,11 +489,71 @@ $("decorSet").onclick = () => {
   const p = placed()[sel];
   if (!p) return;
   const last = [...placed()].reverse().find((q) => q.item === "place_setting");
-  const set = setTable(defs(p.item), p, placed(), defs);
+  const set = setTable(defs(p.item, p), p, placed(), defs);
   for (const q of set) { if (last && last.colour) q.colour = last.colour; placed().push(q); }
   say(set.length ? "" : t("decor.noChairs"));
   changed();
 };
+// ---------------------------------------------------------------- changing a starter
+// "Change it": its width, depth and height, its counts (flowers, tiers...), what its colour is made
+// of; then "Keep as a new thing" puts it among yours, to place again as it is now.
+$("decorChangeBtn").onclick = () => {
+  $("decorChange").hidden = !$("decorChange").hidden;
+  $("decorChangeBtn").setAttribute("aria-expanded", String(!$("decorChange").hidden));
+};
+const knobText = (k, v) => (k.size ? Math.round(v * 100) + " cm" : String(v));
+function knobsUI() {
+  const p = placed()[sel];
+  if (!p || !STARTERS[p.item]) return;
+  const v = knobValues(p.item, p.opts);
+  $("decorKnobs").replaceChildren(...knobs(p.item).map((k) => {
+    const label = document.createElement("label"), name = document.createElement("span"), out = document.createElement("output");
+    const input = Object.assign(document.createElement("input"), { type: "range", min: String(k.min), max: String(k.max), step: String(k.step), value: String(v[k.name]) });
+    name.textContent = t("decor.knob." + k.name);
+    input.dataset.knob = k.name;
+    out.textContent = knobText(k, v[k.name]);
+    input.oninput = () => { out.textContent = knobText(k, +input.value); setOpts({ ...p.opts, [k.name]: +input.value }, false); };
+    input.onchange = () => setOpts({ ...p.opts, [k.name]: +input.value }, true);
+    label.append(name, input, out);
+    return label;
+  }));
+  const finish = p.opts?.finish || "";
+  for (const b of $("decorMaterials").children) b.classList.toggle("on", b.dataset.finish === finish);
+  $("decorKeepName").placeholder = t("decor.keepName", { name: t("decor.item." + p.item) });
+}
+function materialChips() {
+  $("decorMaterials").replaceChildren(...["", ...MATERIALS].map((f) => {
+    const b = document.createElement("button");
+    b.dataset.finish = f; b.textContent = t("decor.material." + (f || "own"));
+    b.onclick = () => { const p = placed()[sel]; if (p) setOpts({ ...p.opts, finish: f || undefined }, true); };
+    return b;
+  }));
+}
+materialChips();
+// the picked thing's knobs: kept when they differ from its starter's; `done` at the end of a drag
+function setOpts(opts, done) {
+  const p = placed()[sel];
+  if (!p) return;
+  const o = cleanOpts(p.item, opts);
+  if (o) p.opts = o; else delete p.opts;
+  p.y = standY(defs(p.item, p), placed(), defs, p, roomTop);
+  if (done) { pick(sel); changed(); } else draw();
+}
+$("decorReset").onclick = () => setOpts(null, true);
+$("decorKeep").onclick = async () => {
+  const p = placed()[sel];
+  if (!p || !STARTERS[p.item]) return;
+  const name = $("decorKeepName").value.trim() || $("decorKeepName").placeholder;
+  try {
+    const it = await api("/api/decor/variant", { method: "POST", body: JSON.stringify({ name, base: p.item, colour: p.colour, opts: p.opts }) });
+    p.from = it.id;
+    $("decorKeepName").value = "";
+    say(t("decor.kept", { name: it.name }));
+  } catch (e) { say(errText(e)); return; }
+  await refreshItems();
+  pick(sel);
+};
+
 function removeSel() {
   if (sel < 0) return;
   placed().splice(sel, 1);
@@ -483,6 +563,13 @@ $("decorRemove").onclick = removeSel;
 $("decorForget").onclick = async () => {
   const p = placed()[sel];
   if (!p) return;
+  // (a starter you kept as a new thing: the thing goes from yours, what is placed stays)
+  if (p.from) {
+    try { await api("/api/decor/" + p.from, { method: "DELETE" }); } catch (e) { say(errText(e)); return; }
+    for (const l of L.layouts) for (const q of l.items) if (q.from === p.from) delete q.from;
+    pick(sel); refreshItems();
+    return;
+  }
   const id = p.item;
   try { await api("/api/decor/" + id, { method: "DELETE" }); } catch (e) { say(errText(e)); return; }
   for (const l of L.layouts) l.items = l.items.filter((q) => q.item !== id);
@@ -511,10 +598,10 @@ function meshFor(id) {
   return m && m.then ? m : Promise.resolve(m);
 }
 function geomFor(p) {
-  const key = p.item + "|" + (p.colour || "");
+  const key = p.item + "|" + (p.colour || "") + (p.opts ? "|" + optsKey(p.opts) : "");
   if (geoms.has(key)) return geoms.get(key);
   let g = null;
-  if (STARTERS[p.item]) g = geometry(starterShape(p.item, p.colour));
+  if (STARTERS[p.item]) g = geometry(starterShape(p.item, p.colour, p.opts));
   else {
     const m = meshes.get(p.item);
     if (!m) { meshFor(p.item).then((x) => x && draw()); return null; }
@@ -522,12 +609,14 @@ function geomFor(p) {
     g = geometry(m.shape);
   }
   geoms.set(key, g);
-  // (colours of your own come and go as the wheel turns: only the last few are kept)
-  if (fromHex(p.colour)) {
+  // (colours of your own and knobs come and go as the wheel turns and a slider moves: only the
+  // last few are kept)
+  if (fromHex(p.colour) || p.opts) {
     mixed.push(key);
+    const keyOf = (q) => q.item + "|" + (q.colour || "") + (q.opts ? "|" + optsKey(q.opts) : "");
     while (mixed.length > 16) {
       const old = mixed.shift();
-      if (mixed.includes(old) || placed().some((q) => q.item + "|" + q.colour === old)) continue;
+      if (mixed.includes(old) || placed().some((q) => keyOf(q) === old)) continue;
       geoms.get(old)?.dispose(); geoms.delete(old);
     }
   }
@@ -576,7 +665,7 @@ function draw() {
   placed().forEach((p, k) => {
     const g = geomFor(p);
     if (!g) return;
-    const d = defs(p.item);
+    const d = defs(p.item, p);
     const m = new THREE.Mesh(g, mats());
     m.position.set(p.x, p.y || 0, p.z);
     m.rotation.y = p.turn || 0;
@@ -626,11 +715,11 @@ function placeGizmo() {
   const p = placed()[sel];
   gizmo.visible = !!p && !$("decor").hidden;
   if (!gizmo.visible) return;
-  const h = handles(defs(p.item), p), ring = gizmo.getObjectByName("ring"), stalk = gizmo.getObjectByName("stalk");
+  const h = handles(defs(p.item, p), p), ring = gizmo.getObjectByName("ring"), stalk = gizmo.getObjectByName("stalk");
   ring.scale.setScalar(h.ring.r); ring.position.set(p.x, h.ring.y, p.z);
   gizmo.getObjectByName("turn").position.set(...h.turn);
   gizmo.getObjectByName("lift").position.set(...h.lift);
-  const low = (p.y || 0) + Math.min(defs(p.item).height, 3);
+  const low = (p.y || 0) + Math.min(defs(p.item, p).height, 3);
   stalk.scale.y = Math.max(0.01, h.lift[1] - low); stalk.position.set(p.x, (low + h.lift[1]) / 2, p.z);
 }
 
@@ -641,7 +730,7 @@ function placeBar() {
   const bar = $("decorBar"), p = placed()[sel];
   const show = !!(p && group && !$("decor").hidden && !drag);
   if (!show) { bar.hidden = true; return; }
-  const top = new THREE.Vector3(...handles(defs(p.item), p).lift).add(new THREE.Vector3(0, 0.06, 0));
+  const top = new THREE.Vector3(...handles(defs(p.item, p), p).lift).add(new THREE.Vector3(0, 0.06, 0));
   group.updateMatrixWorld();
   const v = group.localToWorld(top).project(V.camera);
   if (v.z > 1) { bar.hidden = true; return; }
@@ -658,8 +747,8 @@ $("barRemove").onclick = () => removeSel();
 $("barCopy").onclick = () => {
   const p = placed()[sel];
   if (!p) return;
-  const q = row(defs(p.item), p, 2)[0];
-  q.y = standY(defs(p.item), placed(), defs, q, roomTop);
+  const q = row(defs(p.item, p), p, 2)[0];
+  q.y = standY(defs(p.item, p), placed(), defs, q, roomTop);
   placed().push(q);
   pick(placed().length - 1); changed();
 };
@@ -807,7 +896,7 @@ addEventListener("pointermove", (e) => {
   const at = floorAt(e, drag.y), p = placed()[drag.k];
   if (!at || !p) return;
   p.x = at[0] + drag.off[0]; p.z = at[1] + drag.off[1];
-  p.y = standY(defs(p.item), placed(), defs, p, roomTop);
+  p.y = standY(defs(p.item, p), placed(), defs, p, roomTop);
   const m = group.children.find((c) => c.userData.index === drag.k);
   if (m) m.position.set(p.x, p.y, p.z);
   placeGizmo();
@@ -856,7 +945,7 @@ window.decor = {
   open: () => setOpen(true),
   drawn: () => (group ? group.children.filter((c) => c.isMesh && !c.userData.fixed).length : 0),
   group: () => group,
-  move: (k, x, z, turn) => { const p = placed()[k]; p.x = x; p.z = z; if (turn != null) p.turn = turn; p.y = standY(defs(p.item), placed(), defs, p, roomTop); changed(); },
+  move: (k, x, z, turn) => { const p = placed()[k]; p.x = x; p.z = z; if (turn != null) p.turn = turn; p.y = standY(defs(p.item, p), placed(), defs, p, roomTop); changed(); },
   tab: (which) => { if (which) setTab(which); return tab; },
   handles: () => (gizmo && gizmo.visible ? Object.fromEntries(["turn", "lift", "ring"].map((h) => {
     const m = gizmo.getObjectByName(h);

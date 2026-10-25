@@ -17,7 +17,8 @@ room**:
 - **Compare with video**, at the top of the panel: line the room up with a video of the real place
   and tag what it gets wrong ([compare.md](compare.md)).
 - **Things**, a catalogue of pictures by kind (Tables, On the table, Ceremony, Bar, Lights, Lounge,
-  and From photos once there is one; the kind shown is remembered). Tap one to put it in the room, on
+  and Yours once there is one: things made from photos and starters you changed and kept; the kind
+  shown is remembered). Tap one to put it in the room, on
   the floor in view beside the body (flowers, candles: on the table there), turned to face the
   camera.
 - **Add from a photo…**: pick a photo, give it a name and its **real height** in centimetres (the
@@ -51,6 +52,48 @@ Chairs and tables stop the walk like the room's furniture does (an arch only at 
 body walks through it; a runner, a rug, the dance floor, candles and lanterns are walked over or
 past), and **F** sits on a chair, a bench (three places), a sofa (two), an armchair or a bar
 stool that was put in the room.
+
+## Changing a starter
+
+**Change it: size, material, how many**, under the picked starter's colours, opens its knobs:
+
+- **Width**, **Depth** (not for a round thing) and **Height**, in centimetres, from 40% to 2.5
+  times its own. The footprint, the top things stand on and the seats move with it: a taller table
+  carries its flowers higher, a taller chair is sat on higher. A starter that draws itself to its
+  size (`built` in its definition) keeps its details as it grows: the bar's slats and the foot
+  rail's posts stay as thick, a longer modular bar gets more 70 cm modules, a taller dessert tray a
+  longer stem under the same plate, a wider row of bottles or tapers spreads them out. The rest
+  are stretched.
+- Counts where a starter has them: **Flowers** in a vase, a bouquet, a kissing ball or on an arch,
+  **Tiers** on a cake or a cupcake stand, **Cakes** on a tray, **Stems**, **Leaves**, **Bottles**,
+  **Candles**, **Crates**, **Cords**, and the **Top**'s thickness on a bar.
+- **Made of**: As made, Matte, Satin, Wood, Metal, Glass, for the parts in the thing's own colour
+  (a wooden bar in brass: Metal and a gold colour); its accents (the bar's white top, a vase's
+  glass, a flame) stay as they are.
+- **Keep as a new thing**, with a name: it goes in **Yours**, with its picture, and is put down
+  as it is now each time. **Back to how it was** clears the knobs. A kept thing just placed can be
+  taken out of Yours with **Delete from the things**; what was placed with it stays.
+
+A placed thing keeps only the knobs that differ (`opts` in the layout), so layouts made before
+stay as they were.
+
+### Why knobs on the starters
+
+The ways to get many more pieces, from the least work to the most:
+
+- **Knobs on what is drawn by code** (taken). Every starter is already a function of a few
+  numbers in metres, so a size, a count or a material is one more number passed in. No download,
+  no licence, nothing new for Spark to sort, and the catalogue's pictures follow on their own. This
+  is how the configurators the design houses use work (a sofa's modules, a table's length).
+- **Stretching any thing** (taken, as the fallback): cheap and works for all, but legs get
+  thicker and roses get oval, so a starter worth it is drawn to size instead.
+- **Material presets with textures** (marble, rattan weave, oak grain, linen): needs texture
+  coordinates on the shapes or a triplanar shader; next, after the shapes settle.
+- **Kits of parts** (a bar from a counter, shelves and a top; a bouquet from chosen flowers):
+  the most freedom, a builder of its own; worth it once the knobs show which parts people want.
+- **Outside models** (Poly Haven, Kenney, glTF): CC0 and good looking, but each is a download, a
+  different scale and look, and can't be resized cleanly; better for one hero piece.
+- **From a photo** (TripoSR, below): for a thing that exists; it can't be changed after.
 
 ## What games do
 
@@ -134,6 +177,12 @@ no licence. Sizes are the usual hire sizes, so a plan made with them holds at th
   Bulbs and flames are drawn unlit by the room's light, so they glow.
 - **Lounge**: sofa (two seats), armchair, coffee table, rug (2.4 × 1.7 m), dance floor (4.8 m
   square, tiled).
+- **More** (`static/decor/extras.js`): a bridal bouquet, peonies in a bowl, tulips, sunflowers in
+  a jar, a lavender pot, anthuriums, birds of paradise, monstera leaves, bottles of wildflowers, a
+  kissing ball of roses; a dessert tray, a tiered cupcake stand, a macaron tower, a cake under a
+  cloche, a tropical fruit bowl, taper candles, a hurricane candle, driftwood and shells; a
+  modular bar, a champagne bucket, drinks dispensers; a tiki torch, a straw parasol, a deck chair,
+  wooden crates; a hexagon arch and a macramé backdrop.
 
 Colours: white, ivory, gold, wood, green, blush, black, coral, rattan, copper.
 
@@ -173,7 +222,8 @@ that matter (the arch you saw, the centrepiece, a sign).
 decor/items/<id>/item.json    {id, name, height (m), on (floor, top), status (working, ready, failed), error, code}
 decor/items/<id>/photo.<ext>  the photo
 decor/items/<id>/mesh.json    the mesh: positions int16 over lo..hi, colours bytes, faces uint32, base64
-decor/layouts/<room>.json     {current, layouts: [{name, items: [{item, x, y, z, turn, colour, lift}]}]}
+decor/items/<v...>/item.json  a starter changed and kept: {id, kind: variant, name, base, colour, opts}
+decor/layouts/<room>.json     {current, layouts: [{name, items: [{item, x, y, z, turn, colour, lift, opts}]}]}
 ```
 
 Layouts are in the room map's metres (`room.py`: x and z along the floor, y up), so they stay put
@@ -181,8 +231,8 @@ when the room's **Size** is changed or the body is changed. `y` is what a thing 
 top), `turn` radians about the vertical.
 
 API: `GET /api/decor`, `POST /api/decor/photo?name=&label=&height=` (the photo's bytes),
-`GET /api/decor/<id>/mesh`, `GET /api/decor/<id>/photo`, `POST /api/decor/<id>` (`{name, height,
-on}`), `POST /api/decor/<id>/retry`, `DELETE /api/decor/<id>`, `GET`/`POST
+`POST /api/decor/variant` (`{name, base, colour, opts}`), `GET /api/decor/<id>/mesh`, `GET
+/api/decor/<id>/photo`, `POST /api/decor/<id>` (`{name, height, on}`), `POST /api/decor/<id>/retry`, `DELETE /api/decor/<id>`, `GET`/`POST
 /api/decor/layout?room=<file>`.
 
 ## A venue

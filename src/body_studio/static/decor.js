@@ -6,28 +6,104 @@
 // own shape stands on y = 0 over x = z = 0, its front toward +z; `turn` turns it about y (radians,
 // three.js's sense: its front then points along [sin turn, cos turn]). Design: docs/decor.md.
 import { b64bytes } from "./pose.js";
-import { COLOURS, FINISHES, finishes } from "./decor/shapes.js";
+import { COLOURS, F, FINISHES, finishes } from "./decor/shapes.js";
 import { BASICS } from "./decor/basics.js";
 import { WEDDING } from "./decor/wedding.js";
 import { GARDEN } from "./decor/garden.js";
 import { PROPOSALS } from "./decor/proposals.js";
+import { EXTRAS } from "./decor/extras.js";
 
 export { COLOURS, FINISHES };
 
 // ---------------------------------------------------------------- the starters
 // Each one (decor/*.js): size, the footprint, for walking and for what stands on it ({r} round, or
 // {w, d}); top: the height things put on it stand at; seat: where the body sits on it (its hips,
-// facing its front); block: whether the body walks round it; make(colour) -> its shape.
-export const STARTERS = { ...BASICS, ...WEDDING, ...GARDEN, ...PROPOSALS };
+// facing its front); block: whether the body walks round it; make(colour, knob values) -> its
+// shape; knobs, built: what can be changed (knobs() below).
+export const STARTERS = { ...BASICS, ...WEDDING, ...GARDEN, ...PROPOSALS, ...EXTRAS };
 
 // the groups the panel shows the starters in, in order
 export const GROUPS = ["tables", "flowers", "table", "ceremony", "bar", "lights", "lounge", "garden"];
 
-// A starter's shape in a colour (a name in COLOURS; its own colour if none).
-export function starterShape(id, colour) {
+// A starter's shape in a colour (a name in COLOURS; its own colour if none), changed by `opts`
+// (knobs()): its size, what its main colour is made of, its own counts.
+export function starterShape(id, colour, opts = null) {
   const def = STARTERS[id];
   if (!def) throw new Error("no such starter " + id);
-  return def.make(colourOf(colour, def.colour));
+  const col = colourOf(colour, def.colour), k = knobValues(id, opts), s = def.make(col, k);
+  // a size its make() doesn't draw to is stretched to (round things stay round)
+  const [w0, d0, h0] = dims(def), built = def.built || [];
+  const sx = built.includes("w") ? 1 : k.w / w0, sy = built.includes("h") ? 1 : k.h / h0;
+  const sz = def.size.r !== undefined ? sx : built.includes("d") ? 1 : k.d / d0;
+  if (sx !== 1 || sy !== 1 || sz !== 1) for (let n = 0; n < s.p.length; n += 3) { s.p[n] *= sx; s.p[n + 1] *= sy; s.p[n + 2] *= sz; }
+  // what is in its own colour made of something else (a wooden bar in brass, a cloth in satin)
+  if (opts && F[opts.finish] !== undefined && opts.finish !== "glow")
+    for (let v = 0; v < s.m.length; v++)
+      if (!s.g[v] && s.c[3 * v] === col[0] && s.c[3 * v + 1] === col[1] && s.c[3 * v + 2] === col[2]) s.m[v] = F[opts.finish];
+  return s;
+}
+
+// ---------------------------------------------------------------- changing a starter
+// Every starter has knobs: its width, depth (not a round one's) and height, what its own colour is
+// made of, and the counts its make() takes (def.knobs: { flowers: {min, max, step, value} }: how
+// many roses in a bouquet, tiers on a cake stand). The sizes are in metres; one its make() draws
+// to (def.built: ["w", "h"]: a bar's legs keep their thickness) is drawn, the others stretch it.
+// A placed thing keeps the ones changed in `opts`, so a layout made before them is as it was.
+export const MATERIALS = ["cloth", "satin", "wood", "metal", "glass"];
+export function dims(def) {
+  const sz = def.size;
+  return sz.r !== undefined ? [2 * sz.r, 2 * sz.r, def.height] : [sz.w, sz.d, def.height];
+}
+const cm = (v) => Math.round(v * 100) / 100;
+// [{ name, min, max, step, value, size (a length in metres, else a count) }]
+export function knobs(id) {
+  const def = STARTERS[id];
+  if (!def) return [];
+  const [w, d, h] = dims(def), out = [];
+  const size = (name, v) => out.push({ name, value: v, size: true, step: 0.01,
+                                       min: Math.min(v, cm(Math.max(0.02, v * 0.4))), max: Math.max(v, cm(Math.min(12, Math.max(v * 2.5, v + 0.3)))) });
+  size("w", w);
+  if (def.size.r === undefined) size("d", d);
+  // (what hangs is raised by its lift, a cloth on the floor has no height to speak of)
+  if (!def.hangs && h >= 0.05) size("h", h);
+  for (const [name, k] of Object.entries(def.knobs || {})) out.push({ name, size: !!k.size, step: 1, ...k });
+  return out;
+}
+// the knobs' values for opts (the starter's own where opts has none, or one out of range)
+export function knobValues(id, opts) {
+  const out = {};
+  for (const k of knobs(id)) {
+    const v = opts && Number.isFinite(+opts[k.name]) && opts[k.name] !== null ? +opts[k.name] : k.value;
+    out[k.name] = Math.min(k.max, Math.max(k.min, k.size ? v : Math.round(v)));
+  }
+  const def = STARTERS[id];
+  if (def && def.size.r !== undefined) out.d = out.w;
+  if (def && out.h === undefined) out.h = def.height;
+  return out;
+}
+// opts kept to what differs from the starter's own (null when nothing does)
+export function cleanOpts(id, opts) {
+  if (!opts) return null;
+  const out = {}, v = knobValues(id, opts);
+  for (const k of knobs(id)) if (opts[k.name] !== undefined && Math.abs(v[k.name] - k.value) > 1e-6) out[k.name] = v[k.name];
+  if (MATERIALS.includes(opts.finish)) out.finish = opts.finish;
+  return Object.keys(out).length ? out : null;
+}
+// a short key for opts, for a shape and its picture made once
+export const optsKey = (opts) => (opts ? Object.keys(opts).sort().map((k) => k + "=" + opts[k]).join(",") : "");
+// What the page knows of a placed starter p (itemDef), at the size its opts give it: its footprint,
+// top and seats move with it.
+export function sized(def, p) {
+  const o = p && p.opts;
+  if (!def || !def.starter || !o || (o.w === undefined && o.d === undefined && o.h === undefined)) return def;
+  const [w0, d0, h0] = dims(def), v = knobValues(def.id, o);
+  const rx = v.w / w0, ry = v.h / h0, rz = def.size.r !== undefined ? rx : v.d / d0;
+  const at = (st) => st && { ...st, x: (st.x || 0) * rx, y: st.y * ry, z: (st.z || 0) * rz };
+  return {
+    ...def, height: def.height * ry, top: def.top === undefined ? undefined : def.top * ry,
+    size: def.size.r !== undefined ? { r: def.size.r * rx } : { w: def.size.w * rx, d: def.size.d * rz },
+    seat: at(def.seat), seats: def.seats && def.seats.map(at), posts: def.posts && def.posts.map(([x, z]) => [x * rx, z * rz]),
+  };
 }
 
 // ---------------------------------------------------------------- colours of your own
@@ -120,7 +196,7 @@ export function dropY(def, placed, defs, x, z, roomTop = () => 0, skip = null) {
   if (def.on !== "top") return 0;
   let y = Math.max(0, roomTop(x, z) || 0);
   for (const p of placed) {
-    const d = defs(p.item);
+    const d = defs(p.item, p);
     if (p === skip || !d || d.top === undefined) continue;
     if (covers(d, p, x, z)) y = Math.max(y, (p.y || 0) + d.top);
   }
@@ -175,7 +251,7 @@ export function setTable(tableDef, p, placed, defs, setting = "place_setting") {
   const out = [], y = (p.y || 0) + tableDef.top, inset = 0.22;
   const taken = (x, z) => placed.concat(out).some((q) => q.item === setting && Math.hypot(q.x - x, q.z - z) < 0.2);
   for (const q of placed) {
-    const d = defs(q.item);
+    const d = defs(q.item, q);
     if (q === p || !d || d.on === "top") continue;
     const t = q.turn || 0, dir = [Math.sin(t), Math.cos(t)];
     for (const st of d.seats || (d.seat ? [d.seat] : [])) {
@@ -197,7 +273,7 @@ export function setTable(tableDef, p, placed, defs, setting = "place_setting") {
 export function blocker(placed, defs) {
   const solid = [];
   for (const p of placed) {
-    const d = defs(p.item);
+    const d = defs(p.item, p);
     if (!d || !d.block) continue;
     if (d.block === "posts") for (const [px, pz] of d.posts) {
       const [x, z] = rot(p.turn || 0, px, pz);
@@ -214,7 +290,7 @@ export function blocker(placed, defs) {
 export function seats(placed, defs) {
   const out = [];
   for (const p of placed) {
-    const d = defs(p.item);
+    const d = defs(p.item, p);
     if (!d) continue;
     const t = p.turn || 0;
     for (const st of d.seats || (d.seat ? [d.seat] : [])) {
@@ -242,7 +318,7 @@ export function mapMatrix(P) {
 export function freeSpot(def, placed, defs, x, z, floorFree = () => true) {
   if (def.on === "top") return [x, z];
   const r = def.size.r !== undefined ? def.size.r : Math.hypot(def.size.w, def.size.d) / 2;
-  const ok = (px, pz) => floorFree(px, pz) && !placed.some((p) => { const d = defs(p.item); return d && d.block && covers(d, p, px, pz, r); });
+  const ok = (px, pz) => floorFree(px, pz) && !placed.some((p) => { const d = defs(p.item, p); return d && d.block && covers(d, p, px, pz, r); });
   if (ok(x, z)) return [x, z];
   for (let ring = 1; ring <= 30; ring++)
     for (let k = 0; k < 8 * ring; k++) {

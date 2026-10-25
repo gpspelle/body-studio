@@ -61,11 +61,13 @@ export const BASICS = {
   },
   flowers: {
     group: "table", height: 0.45, on: "top", colour: "blush", size: { r: 0.15 }, block: false,
-    make(col) {
-      const s = shape();
+    knobs: { flowers: { min: 5, max: 80, value: 30 } },
+    make(col, k = { flowers: 30 }) {
+      // a vase of roses: more of them make a fuller dome, a little wider
+      const s = shape(), r = 0.14 * Math.min(1.25, Math.max(0.75, (k.flowers / 30) ** 0.3));
       cyl(s, 0.05, 0.07, 0.18, 0, 0, 0, GLASS, 20);
-      for (let k = 0; k < 5; k++) rod(s, [0, 0.12, 0], [0.08 * Math.sin(k * 1.3), 0.3, 0.08 * Math.cos(k * 1.3)], 0.005, LEAF, 5);
-      bunch(s, 30, 0.14, 0, 0.365, 0, col, 11);
+      for (let j = 0; j < 5; j++) rod(s, [0, 0.12, 0], [0.08 * Math.sin(j * 1.3), 0.3, 0.08 * Math.cos(j * 1.3)], 0.005, LEAF, 5);
+      bunch(s, k.flowers, r, 0, 0.45 - r * 0.6, 0, col, 11);
       return s;
     },
   },

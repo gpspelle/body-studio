@@ -194,6 +194,32 @@ class Inventory(unittest.TestCase):
             with self.assertRaises(decor.DecorError):
                 decor.save_layouts(self.d, room, bad)
 
+    def test_knobs_kept_with_a_placed_starter(self):
+        lay = decor.clean_layouts({"layouts": [{"items": [
+            {"item": "bar", "x": 0, "z": 0, "opts": {"w": 3.2, "slab": 0.08, "finish": "metal"}}]}]})
+        self.assertEqual(lay["layouts"][0]["items"][0]["opts"], {"w": 3.2, "slab": 0.08, "finish": "metal"})
+        for bad in ({"w": "wide"}, {"finish": "plaid"}, {"Bad Key": 1}, {"w": -1}, {"w": 1e6}, [1, 2],
+                    {f"k{'abcdefghijklm'[i]}": 1 for i in range(13)}):
+            with self.assertRaises(decor.DecorError, msg=bad):
+                decor.clean_opts(bad)
+
+    def test_a_changed_starter_kept_as_a_new_thing(self):
+        v = decor.add_variant(self.d, {"name": "  Brass bar ", "base": "bar", "colour": "#C9A46A",
+                                       "opts": {"h": 1.2, "finish": "metal"}})
+        self.assertTrue(v["id"].startswith("v"))
+        mine = [i for i in decor.items(self.d) if i["kind"] == "variant"]
+        self.assertEqual([(i["name"], i["base"], i["colour"], i["opts"]) for i in mine],
+                         [("Brass bar", "bar", "#c9a46a", {"h": 1.2, "finish": "metal"})])
+        self.assertEqual(decor.change_item(self.d, v["id"], {"name": "Tall bar"})["name"], "Tall bar")
+        for bad in (None, {"base": "spaceship"}, {"base": "bar", "colour": "plaid"}, {"base": "bar", "opts": {"finish": 3}}):
+            with self.assertRaises(decor.DecorError):
+                decor.add_variant(self.d, bad)
+        decor.delete_item(self.d, v["id"])
+        self.assertFalse([i for i in decor.items(self.d) if i["kind"] == "variant"])
+        # (a placed thing names its starter, never a kept one)
+        with self.assertRaises(decor.DecorError):
+            decor.clean_layouts({"layouts": [{"items": [{"item": v["id"], "x": 0, "z": 0}]}]})
+
 
 class Photo3d(unittest.TestCase):
     def test_requirements_match_the_extra(self):
@@ -308,6 +334,14 @@ class Routes(unittest.TestCase):
         self.assertEqual(self.call(f"/api/decor/{item['id']}/retry", {})[1]["status"], "working")
         self.assertTrue(wait(lambda: self.call("/api/decor")[1][-1]["status"] == "ready"))
         self.assertEqual(self.call("/api/decor/photo?name=x.gif&height=1", PNG)[1]["code"], "photo_type")
+
+    def test_keep_a_changed_starter(self):
+        code, v = self.call("/api/decor/variant", {"name": "Big bouquet", "base": "flowers", "opts": {"flowers": 60}})
+        self.assertEqual(code, 201)
+        self.assertEqual(self.call("/api/decor")[1][-1]["id"], v["id"])
+        self.assertEqual(self.call("/api/decor/variant", {"base": "nope"})[0], 400)
+        self.assertEqual(self.call("/api/decor/variant", b"{bad")[0], 400)
+        self.assertEqual(self.call(f"/api/decor/{v['id']}", method="DELETE")[0], 200)
 
     def test_bad_requests(self):
         self.assertEqual(self.call("/api/decor/pnope1234", {"name": "x"})[0], 404)

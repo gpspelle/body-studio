@@ -78,11 +78,12 @@ export const WEDDING = {
   },
   centrepiece: {
     group: "table", height: 0.245, on: "top", colour: "blush", size: { r: 0.3 }, block: false,
-    make(col) {
+    knobs: { bunches: { min: 6, max: 24, value: 14 } },
+    make(col, kn = { bunches: 14 }) {
       // a low ring of flowers and greenery round three candles
-      const s = shape();
-      for (let k = 0; k < 14; k++) {
-        const a = (k / 14) * 2 * Math.PI;
+      const s = shape(), n = kn.bunches;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * 2 * Math.PI;
         bunch(s, 5, 0.06, 0.22 * Math.sin(a), 0.07, 0.22 * Math.cos(a), k % 2 ? col : COLOURS.white, 50 + k);
       }
       for (const [x, z, h] of [[0, 0, 0.22], [0.07, 0.05, 0.16], [-0.06, 0.05, 0.12]]) {
@@ -125,9 +126,12 @@ export const WEDDING = {
   },
   bud_vases: {
     group: "table", height: 0.24, on: "top", colour: "blush", size: { r: 0.12 }, block: false,
-    make(col) {
-      const s = shape();
-      for (const [x, z, h] of [[-0.07, 0.02, 0.12], [0.02, -0.04, 0.16], [0.08, 0.04, 0.1]]) {
+    knobs: { vases: { min: 1, max: 9, value: 3 } },
+    make(col, k = { vases: 3 }) {
+      // bud vases in a loose cluster (more of them spiral out from the first three)
+      const s = shape(), at = [[-0.07, 0.02, 0.12], [0.02, -0.04, 0.16], [0.08, 0.04, 0.1]];
+      for (let j = 3; j < k.vases; j++) { const a = j * 2.4, r = 0.05 + 0.025 * j; at.push([r * Math.sin(a), r * Math.cos(a), [0.13, 0.09, 0.15][j % 3]]); }
+      for (const [x, z, h] of at.slice(0, k.vases)) {
         cyl(s, 0.025, 0.018, h, x, 0, z, GLASS, 12);
         rod(s, [x, h, z], [x, h + 0.04, z], 0.003, LEAF, 4);
         ball(s, 0.03, x, h + 0.05, z, col, 10);
@@ -141,14 +145,17 @@ export const WEDDING = {
   },
   cake: {
     group: "table", height: 0.6, on: "top", colour: "white", size: { r: 0.24 }, block: false,
-    make(col) {
-      const s = shape(), icing = col === COLOURS.white ? CAKE : col;
+    knobs: { tiers: { min: 1, max: 5, value: 3 } },
+    make(col, k = { tiers: 3 }) {
+      // tiers of 13 cm, each smaller than the one under it, on a silver stand (as tall as three
+      // tiers: more of them are each a little lower)
+      const s = shape(), icing = col === COLOURS.white ? CAKE : col, n = k.tiers, th = 0.39 / Math.max(3, n);
       cyl(s, 0.12, 0.05, 0.02, 0, 0, 0, SILVER, 24); rod(s, [0, 0.02, 0], [0, 0.1, 0], 0.03, SILVER, 12);
       cyl(s, 0.24, 0.24, 0.015, 0, 0.1, 0, SILVER, 40);
       let y = 0.115;
-      for (const r of [0.19, 0.145, 0.1]) { cyl(s, r, r, 0.13, 0, y, 0, icing, 40); y += 0.13; }
+      for (let j = 0; j < n; j++) { const r = 0.19 - (0.09 * j) / Math.max(2, n - 1); cyl(s, r, r, th, 0, y, 0, icing, 40); y += th; }
       bunch(s, 10, 0.06, 0.02, y + 0.03, 0.02, COLOURS.blush, 14);
-      bunch(s, 6, 0.05, 0.12, 0.27, 0.1, COLOURS.blush, 15);
+      if (n > 1) bunch(s, 6, 0.05, 0.12, 0.115 + th * 1.2, 0.1, COLOURS.blush, 15);
       return s;
     },
   },
@@ -251,14 +258,18 @@ export const WEDDING = {
   // ------------------------------------------------ the bar and food
   bar: {
     group: "bar", height: 1.1, on: "floor", colour: "wood", size: { w: 2.4, d: 0.62 }, block: true, top: 1.1,
-    make(col) {
-      // the counter: a front panel, the top, a foot rail for the guests (at +z)
-      const s = shape();
-      box(s, 2.4, 1.05, 0.6, 0, 0, 0, col);
-      for (let k = -5; k <= 5; k++) box(s, 0.02, 0.9, 0.01, k * 0.2, 0.08, 0.305, other(col, COLOURS.wood, COLOURS.ivory));
-      box(s, 2.5, 0.05, 0.68, 0, 1.05, 0.02, COLOURS.white);
-      rod(s, [-1.15, 0.18, 0.4], [1.15, 0.18, 0.4], 0.02, COLOURS.gold, 10);
-      for (const x of [-1, 0, 1]) rod(s, [x, 0.18, 0.4], [x, 0.18, 0.3], 0.012, COLOURS.gold, 6);
+    built: ["w", "d", "h"], knobs: { slab: { min: 0.02, max: 0.12, value: 0.05, step: 0.01, size: true } },
+    make(col, k = { w: 2.4, d: 0.62, h: 1.1, slab: 0.05 }) {
+      // the counter: a front panel with its slats, the top (slab thick, over it all round), a foot
+      // rail for the guests (at +z); drawn to its size, so the slats and the rail's posts keep theirs
+      const s = shape(), w = k.w - 0.1, d = k.d - 0.02, t = k.slab, h = k.h - t;
+      box(s, w, h, d - 0.08, 0, 0, -0.04, col);
+      const n = Math.max(2, Math.round(w / 0.2));
+      for (let j = 0; j <= n; j++) box(s, 0.02, h * 0.85, 0.01, (j / n - 0.5) * (w - 0.1), h * 0.07, d / 2 - 0.035, other(col, COLOURS.wood, COLOURS.ivory));
+      box(s, k.w, t, k.d, 0, h, 0, COLOURS.white);
+      rod(s, [-w / 2 + 0.05, 0.18, d / 2 + 0.06], [w / 2 - 0.05, 0.18, d / 2 + 0.06], 0.02, COLOURS.gold, 10);
+      const posts = Math.max(2, Math.round(w / 1.1));
+      for (let j = 0; j <= posts; j++) { const x = (j / posts - 0.5) * (w - 0.3); rod(s, [x, 0.18, d / 2 + 0.06], [x, 0.18, d / 2 - 0.04], 0.012, COLOURS.gold, 6); }
       return s;
     },
   },

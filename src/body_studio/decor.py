@@ -15,9 +15,10 @@ Two kinds of item:
 Everything lives in decor/ in the data folder:
 
     decor/items/<id>/item.json    {id, name, height, on, status (working, ready, failed), error, code}
+                                  or a changed starter kept: {id (v...), kind "variant", name, base, colour, opts}
     decor/items/<id>/photo.<ext>  the photo it was made from
     decor/items/<id>/mesh.json    the mesh, packed (pack()): what the page draws
-    decor/layouts/<room>.json     {current, layouts: [{name, items: [{item, x, y, z, turn, colour}]}]}
+    decor/layouts/<room>.json     {current, layouts: [{name, items: [{item, x, y, z, turn, colour, opts}]}]}
 
 Layouts are in the room map's metres (room.py): x and z along the floor, y up from it.
 """
@@ -42,6 +43,8 @@ CELLS = 160                     # the mesh is simplified to at most this many ce
 MAX_ITEMS = 2000                # placed items in one layout
 MAX_LAYOUTS = 40
 COLOURS = ("white", "ivory", "gold", "wood", "green", "blush", "black", "coral", "rattan", "copper", "blue")
+MATERIALS = ("cloth", "satin", "wood", "metal", "glass")   # what a starter's own colour may be made of
+MAX_OPTS = 12
 
 # The page draws these (static/decor.js STARTERS has the same ids, in the same groups). on: "floor",
 # or "top" (stands on a table or anything else with a top). The names are the page's (i18n
@@ -178,6 +181,34 @@ STARTERS = (
     {"id": "chiavari_chair", "group": "tables", "height": 0.92, "on": "floor"},
     {"id": "rope_lantern", "group": "lights", "height": 0.44, "on": "floor"},
     {"id": "tall_lanterns", "group": "lights", "height": 1, "on": "floor"},
+    # more flowers, the dessert table, a modular bar, the beach (static/decor/extras.js)
+    {"id": "bridal_bouquet", "group": "flowers", "height": 0.36, "on": "top"},
+    {"id": "peony_bowl", "group": "flowers", "height": 0.24, "on": "top"},
+    {"id": "tulip_vase", "group": "flowers", "height": 0.43, "on": "top"},
+    {"id": "sunflower_jar", "group": "flowers", "height": 0.39, "on": "top"},
+    {"id": "lavender_pot", "group": "flowers", "height": 0.39, "on": "top"},
+    {"id": "anthurium_vase", "group": "flowers", "height": 0.53, "on": "top"},
+    {"id": "bird_of_paradise", "group": "flowers", "height": 1.33, "on": "floor"},
+    {"id": "monstera_vase", "group": "flowers", "height": 0.73, "on": "floor"},
+    {"id": "wildflower_bottles", "group": "flowers", "height": 0.32, "on": "top"},
+    {"id": "rose_ball", "group": "flowers", "height": 2.6, "on": "floor"},
+    {"id": "dessert_tray", "group": "table", "height": 0.3, "on": "top"},
+    {"id": "tiered_stand", "group": "table", "height": 0.45, "on": "top"},
+    {"id": "macaron_tower", "group": "table", "height": 0.48, "on": "top"},
+    {"id": "glass_cloche", "group": "table", "height": 0.36, "on": "top"},
+    {"id": "fruit_bowl", "group": "table", "height": 0.27, "on": "top"},
+    {"id": "taper_candles", "group": "table", "height": 0.44, "on": "top"},
+    {"id": "hurricane", "group": "table", "height": 0.43, "on": "top"},
+    {"id": "driftwood_centrepiece", "group": "table", "height": 0.1, "on": "top"},
+    {"id": "modular_bar", "group": "bar", "height": 1.1, "on": "floor"},
+    {"id": "ice_bucket", "group": "bar", "height": 0.4, "on": "top"},
+    {"id": "drinks_dispensers", "group": "bar", "height": 0.56, "on": "top"},
+    {"id": "tiki_torch", "group": "lights", "height": 1.62, "on": "floor"},
+    {"id": "parasol", "group": "lounge", "height": 2.35, "on": "floor"},
+    {"id": "deck_chair", "group": "lounge", "height": 0.92, "on": "floor"},
+    {"id": "crates", "group": "lounge", "height": 0.9, "on": "floor"},
+    {"id": "hexagon_arch", "group": "ceremony", "height": 2.33, "on": "floor"},
+    {"id": "macrame_backdrop", "group": "ceremony", "height": 2.3, "on": "floor"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}
 
@@ -201,7 +232,7 @@ def _write_json(path: Path, obj) -> None:
 
 # ---------------------------------------------------------------- the inventory
 def item_dir(data_dir: Path, item_id: str) -> Path | None:
-    if not re.fullmatch(r"p[0-9a-z]{6,24}", item_id or ""):
+    if not re.fullmatch(r"[pv][0-9a-z]{6,24}", item_id or ""):
         return None
     d = root(data_dir) / "items" / item_id
     return d if (d / "item.json").is_file() else None
@@ -227,7 +258,26 @@ def items(data_dir: Path) -> list[dict]:
         except (OSError, ValueError):
             continue
     made.sort(key=lambda i: i.get("created", 0), reverse=True)
-    return [{**s, "kind": "starter"} for s in STARTERS] + [{**i, "kind": "photo"} for i in made]
+    return [{**s, "kind": "starter"} for s in STARTERS] + [{**i, "kind": i.get("kind", "photo")} for i in made]
+
+
+def add_variant(data_dir: Path, d) -> dict:
+    """A starter changed and kept as a new thing (a taller bar in brass, a bouquet of 60 roses):
+    {name, base (the starter), colour, opts}. Placing it places its starter with these."""
+    if not isinstance(d, dict) or d.get("base") not in STARTER_IDS:
+        raise DecorError("a new thing is made from a starter", "bad_request")
+    item = {"kind": "variant", "name": clean_name(d.get("name") or "Mine"), "base": d["base"], "status": "ready",
+            "created": time.time()}
+    if d.get("colour") is not None:
+        item["colour"] = clean_colour(d["colour"])
+    if d.get("opts"):
+        item["opts"] = clean_opts(d["opts"])
+    item_id = "v" + format(int(time.time() * 1000), "x")
+    while (root(data_dir) / "items" / item_id).exists():
+        item_id += "0"
+    item["id"] = item_id
+    save_item(data_dir, item)
+    return item
 
 
 def clean_name(name) -> str:
@@ -499,15 +549,39 @@ def clean_layouts(d) -> dict:
             if p.get("lift"):
                 q["lift"] = round(_num(p["lift"], 0, 5, "lift"), 3)
             if p.get("colour") is not None:
-                c = str(p["colour"]).lower()
-                if c not in COLOURS and not re.fullmatch(r"#[0-9a-f]{6}", c):
-                    raise DecorError("no such colour", "bad_request")
-                q["colour"] = c
+                q["colour"] = clean_colour(p["colour"])
+            if p.get("opts"):
+                q["opts"] = clean_opts(p["opts"])
             placed.append(q)
         out.append({"name": clean_name(lay.get("name") or "Layout"), "items": placed})
     cur = d.get("current", 0)
     cur = cur if isinstance(cur, int) and 0 <= cur < len(out) else 0
     return {"current": cur, "layouts": out}
+
+
+def clean_colour(c) -> str:
+    c = str(c).lower()
+    if c not in COLOURS and not re.fullmatch(r"#[0-9a-f]{6}", c):
+        raise DecorError("no such colour", "bad_request")
+    return c
+
+
+def clean_opts(o) -> dict:
+    """A starter's knobs as the page changed them (static/decor.js knobs()): sizes in metres and
+    counts by name, and what its colour is made of. The page keeps each in its range."""
+    if not isinstance(o, dict) or len(o) > MAX_OPTS:
+        raise DecorError("opts is a few {knob: value}", "bad_request")
+    out = {}
+    for k, v in o.items():
+        if not re.fullmatch(r"[a-z]{1,16}", str(k)):
+            raise DecorError("no such knob", "bad_request")
+        if k == "finish":
+            if v not in MATERIALS:
+                raise DecorError("no such material", "bad_request")
+            out[k] = v
+        else:
+            out[k] = _num(v, 0, 1000, k)
+    return out
 
 
 def load_layouts(data_dir: Path, room_file: str) -> dict:

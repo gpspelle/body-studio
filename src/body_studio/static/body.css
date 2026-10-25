@@ -418,6 +418,14 @@ label.btn { display: inline-block; }
 #decor .mix .rgb input::-webkit-inner-spin-button { -webkit-appearance: none; }
 #decor .mix input:focus { outline: none; border-color: var(--ink); }
 #decor .mix input.bad { border-color: var(--bad); }
+#decor .more { display: block; padding: 6px 0 2px; color: var(--ink); }
+#decor .change[hidden] { display: none; }
+#decor .change { margin: 6px 0 6px; padding: 10px 12px; background: var(--card); border-radius: 12px; }
+#decor .change .sliders { margin: 0 0 8px; }
+#decor .change .chips { gap: 4px; margin: 0 0 10px; }
+#decor .change .chips button.on { border-color: var(--ink); color: var(--ink); }
+#decor .keep { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#decor .keep input { flex: 1 1 120px; min-width: 0; font-size: 13px; padding: 6px 8px; border: 1px solid var(--hair); border-radius: 7px; color: var(--ink); }
 #decor .repeat { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 4px; }
 #decor .repeat label { display: flex; align-items: center; gap: 6px; margin-right: 2px; }
 #decor .quiet { display: flex; gap: 16px; margin-top: 8px; }

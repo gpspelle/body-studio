@@ -30,6 +30,7 @@
     GET  /api/decor                     the decor inventory: starters, then items made from photos (decor.py)
     POST /api/decor/photo?name=&height= a photo's bytes: a new item, made from it in the background (photo3d.py)
     GET  /api/decor/<id>/mesh | /photo  a made item's mesh (packed), or its photo
+    POST /api/decor/variant             {name, base, colour, opts}: a changed starter kept as a new thing
     POST /api/decor/<id>                {name, height, on}: change an item; .../retry makes a failed one again
     DELETE /api/decor/<id>              remove an item
     GET  /api/decor/layout?room=<file>  the room's decor layouts; POST the same to save them
@@ -320,6 +321,13 @@ def make_handler(data: DataDir, runner: Runner):
                                        q.get("height", ["0.8"])[0])
                 maker.add(item["id"])
                 return item
+            if u.path == "/api/decor/variant":
+                body = self._read(MAX_JSON)
+                try:
+                    d = json.loads(body) if body else None
+                except ValueError:
+                    d = None
+                return decor.add_variant(data.root, d)
             if u.path == "/api/decor/layout":
                 f = self._room_file()
                 if not f:

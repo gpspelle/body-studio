@@ -4,12 +4,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { COLOURS, FINISHES, GROUPS, STARTERS, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex } from "../../src/body_studio/static/decor.js";
+import { COLOURS, FINISHES, GROUPS, STARTERS, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
+         knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS } from "../../src/body_studio/static/decor.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
 const env = (k) => process.env[k] && JSON.parse(fs.readFileSync(process.env[k], "utf8"));
 const PY = env("STARTERS") || [];
-const defs = (id) => itemDef({ id });
+const defs = (id, p = null) => sized(itemDef({ id }), p);
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a} vs ${b}`);
 
 function bounds(p) {
@@ -346,4 +347,81 @@ test("the flower shop: many kinds of flowers and ways to show them, each light e
     hues.add(Math.floor(h * 2));              // (twelve hues: red, orange, yellow... apart)
   }
   assert.ok(hues.size >= 4, `${hues.size} hues in a tropical bank`);
+});
+
+test("every starter can be made wider, deeper, taller: its shape and its footprint follow", () => {
+  for (const id of Object.keys(STARTERS)) {
+    const ks = knobs(id), names = ks.map((k) => k.name), st = STARTERS[id];
+    assert.ok(names.includes("w"), id + " has a width");
+    assert.equal(names.includes("d"), st.size.r === undefined, id + ": a depth unless round");
+    for (const k of ks) assert.ok(k.min <= k.value && k.value <= k.max, `${id} ${k.name} in its range`);
+    // the starter's own values change nothing
+    assert.deepEqual(starterShape(id, null, cleanOpts(id, knobValues(id, null))).p, starterShape(id).p, id);
+    for (const f of [0.6, 1.7]) {
+      const opts = {};
+      for (const k of ks) if (k.size && ["w", "d", "h"].includes(k.name)) opts[k.name] = Math.min(k.max, Math.max(k.min, k.value * f));
+      const p = { item: id, x: 0, z: 0, turn: 0, opts }, d = defs(id, p), b = bounds(starterShape(id, null, opts).p);
+      const [w, dd, h] = dims(d), [w0, d0, h0] = dims(defs(id)), [bw, bd] = [b.hi[0] - b.lo[0], b.hi[2] - b.lo[2]];
+      const b0 = bounds(starterShape(id).p);
+      // as wide (deep, tall) as asked, as much as the starter itself is as wide as it says
+      near(bw / (b0.hi[0] - b0.lo[0]), w / w0, 0.06 * w / w0 + 0.03, `${id} x${f} width`);
+      near(bd / (b0.hi[2] - b0.lo[2]), dd / d0, 0.06 * dd / d0 + 0.03, `${id} x${f} depth`);
+      if (opts.h !== undefined) near(b.hi[1], h, Math.max(0.01, 0.05 * h), `${id} x${f} height`);
+      if (st.top !== undefined) near(d.top, st.top * h / h0, 1e-9, id + " top");
+    }
+  }
+});
+
+test("a bar keeps its legs and rail as it grows: drawn to size, not stretched", () => {
+  const thin = (s) => { let n = 0; for (let k = 0; k < s.c.length; k += 3) if (s.c[k] === COLOURS.gold[0] && s.c[k + 1] === COLOURS.gold[1]) n++; return n; };
+  const wide = starterShape("modular_bar", null, { w: 4 }), plain = starterShape("modular_bar");
+  near(bounds(wide.p).hi[0] - bounds(wide.p).lo[0], 4, 0.01, "4 m wide");
+  assert.ok(wide.i.length > plain.i.length * 1.6, "more modules, not wider ones");
+  const b = bounds(starterShape("bar", null, { h: 0.9, slab: 0.1 }).p);
+  near(b.hi[1], 0.9, 0.001, "a lower bar");
+  assert.ok(thin(starterShape("bar", null, { w: 4.8 })) > thin(starterShape("bar")), "a longer foot rail with more posts");
+  // a taller dessert tray: a longer stem, the same plate
+  const tray = (h) => bounds(starterShape("dessert_tray", null, { h }).p);
+  near(tray(0.5).hi[1], 0.5, 0.002, "a tall tray"); near(tray(0.5).hi[0] - tray(0.5).lo[0], tray(0.3).hi[0] - tray(0.3).lo[0], 1e-6, "its plate");
+});
+
+test("the counts: more flowers in a bouquet, more tiers on a cake, kept within their range", () => {
+  const tris = (id, o) => starterShape(id, null, o).i.length;
+  assert.ok(tris("flowers", { flowers: 60 }) > tris("flowers") * 1.5, "a fuller vase");
+  assert.ok(tris("bridal_bouquet", { flowers: 50 }) > tris("bridal_bouquet") * 1.5, "a fuller bouquet");
+  assert.ok(tris("cake", { tiers: 5 }) > tris("cake"), "five tiers");
+  assert.ok(tris("tiered_stand", { tiers: 4 }) > tris("tiered_stand"), "four plates");
+  assert.equal(knobValues("flowers", { flowers: 9999 }).flowers, 80, "at most 80 roses");
+  assert.equal(knobValues("flowers", { flowers: 12.4 }).flowers, 12, "whole flowers");
+  assert.equal(knobValues("round_table", { w: 2 }).d, 2, "a round table stays round");
+  assert.ok(Object.values(STARTERS).filter((s) => s.knobs).length >= 20, "many starters have counts");
+});
+
+test("knobs left as they were are not kept; a changed seat and table top move with the size", () => {
+  assert.equal(cleanOpts("chair", { w: knobValues("chair").w, finish: "nope" }), null);
+  assert.deepEqual(cleanOpts("chair", { h: 1.2, finish: "metal", junk: 3 }), { h: 1.2, finish: "metal" });
+  assert.equal(optsKey({ h: 1.2, finish: "metal" }), optsKey({ finish: "metal", h: 1.2 }));
+  const chair = defs("chair", { opts: { h: 1.8 } });
+  near(chair.seat.y, STARTERS.chair.seat.y * 2, 1e-9, "a seat twice as high");
+  const p = { item: "long_table", x: 0, z: 0, turn: 0, opts: { w: 3.6 } };
+  assert.ok(covers(defs("long_table", p), p, 1.6, 0), "a longer table covers further");
+  assert.ok(!covers(defs("long_table"), { ...p, opts: undefined }, 1.6, 0));
+  // flowers dropped on a raised table stand on its new top
+  const tall = { item: "round_table", x: 0, y: 0, z: 0, turn: 0, opts: { h: 1.1 } };
+  near(dropY(defs("flowers"), [tall], defs, 0, 0), 1.1, 1e-9, "on the taller table");
+});
+
+test("what a starter's colour is made of can be changed, its accents kept", () => {
+  for (const f of MATERIALS) {
+    const s = starterShape("bar", null, { finish: f }), plain = starterShape("bar");
+    let own = 0, kept = 0;
+    for (let v = 0; v < s.m.length; v++) {
+      const wood = plain.c[3 * v] === COLOURS.wood[0] && plain.c[3 * v + 1] === COLOURS.wood[1];
+      if (wood) { own++; assert.equal(s.m[v], FINISHES.findIndex((x) => x.name === f), f); }
+      else if (s.m[v] === plain.m[v]) kept++;
+    }
+    assert.ok(own > 0 && kept === s.m.length - own, f + ": only the wood changes");
+  }
+  const glow = starterShape("candle", null, { finish: "metal" });
+  assert.ok(glow.g.some((g, v) => g && glow.m[v] === FINISHES.findIndex((x) => x.glow)), "a flame still glows");
 });

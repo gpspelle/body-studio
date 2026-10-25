@@ -189,7 +189,7 @@ class Decor(Viewer):
         page.locator("#decorForm [name=height]").fill("120")
         page.locator("#decorForm button.btn").click()
         page.wait_for_function("decor.items().some((i) => i.name === 'Arch from Instagram' && i.status === 'ready')", timeout=60000)
-        page.locator("#decorGroups button", has_text="From photos").click()
+        page.locator("#decorGroups button", has_text="Yours").click()
         page.locator("#decorItems button", has_text="Arch from Instagram").click()
         page.wait_for_function("decor.drawn() === 25")
         scale = page.evaluate("decor.group().children.filter((c) => c.isMesh).find((c) => c.userData.index === 24).scale.y")

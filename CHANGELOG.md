@@ -2,6 +2,15 @@
 
 ## 0.1.0 (unreleased)
 
+- Decor: **Change it** on a picked starter: its width, depth and height, how many flowers, tiers,
+  cakes, candles or bottles it has, and what it is made of (matte, satin, wood, metal, glass).
+  A bar keeps its slats and rail as it grows, a modular bar adds modules, a dessert tray grows a
+  longer stem. **Keep as a new thing** puts it in **Yours** (was From photos), to place again.
+- 27 more decor starters: a bridal bouquet, peonies, tulips, sunflowers, lavender, anthuriums,
+  birds of paradise, monstera, bottles of wildflowers, a kissing ball; a dessert tray, a cupcake
+  stand, a macaron tower, a cloche, a fruit bowl, taper and hurricane candles, driftwood and
+  shells; a modular bar, a champagne bucket, drinks dispensers; a tiki torch, a straw parasol, a
+  deck chair, crates, a hexagon arch and a macramé backdrop.
 - **Compare with video**, in the Decor panel: the video you filmed of a place is shown beside
   the room, the same size, with a crosshair at the same spot on both, and stepped half a second at
   a time (← and →; Space plays and pauses). You fly the camera, setting its lens
