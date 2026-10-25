@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 12
+VERSION = 13
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -62,6 +62,7 @@ VERTICAL = (-13.8, -9.3, 0.0, 4.0)
 RECEPTION = (-19.8, -13.8, 0.0, 4.0)
 DECK = (-21.8, -19.8, 0.0, 4.0)
 STEP_DOWN = 0.08                    # the deck is a step down from the reception's floor (the map's floor is within 10 cm)
+LANDING = (0.7, 0.08)               # inside the front door: a landing across the front wall, how deep, how high
 BUNGALOW = (41.5, 50.5, 12.7, 17.5)
 DECK_UP = 0.09                      # its deck, a step up off the grass (any higher and the map no longer sees a floor there)
 LADIES = (11.3, 14.5, -4.0, 0.0)        # the toilets, behind the toilets' hall's left wall: x0, x1, z0, z1
@@ -107,6 +108,7 @@ TILE_WHITE = (0.93, 0.93, 0.92)
 LINEN = (0.90, 0.87, 0.81)          # the hall's curtains
 DECK_WOOD = (0.50, 0.34, 0.25)      # the bungalow's deck
 OAK = (0.55, 0.40, 0.27)
+LIGHT_WOOD = (0.66, 0.50, 0.34)     # the posts where the reception's walls meet the planted ones
 WALNUT = (0.34, 0.23, 0.16)
 WHITEWASH = (0.92, 0.91, 0.88)
 SAND = (0.86, 0.79, 0.66)
@@ -362,13 +364,16 @@ def house(rnd, out):
     base._surface(rnd, (NOTCH[1], hx1, 0, 0, hz0, hz1), rustic, out, 0.05, 0.004)
     base._surface(rnd, (hx1, WC[1], 0, 0, 0, WC[2]), _shaded(_cement(CEMENT), (hx1 - 6, WC[1], 0, WC[2])), out, FLOOR_STEP)
     base._surface(rnd, (*DECK[:2], -STEP_DOWN, -STEP_DOWN, *DECK[2:]), _boards((0.56, 0.44, 0.32)), out, 0.04)   # (finer: the map's end)
-    # (a step down to it at the front door, a yellow stripe along the step's edge)
+    # (a step down to it at the front door; inside, a landing a step up across the front wall, its
+    # edge dark)
     base._surface(rnd, (RECEPTION[0], RECEPTION[0], -STEP_DOWN, 0.0, *DECK[2:]), CEMENT, out, 0.02)
-    base._surface(rnd, (RECEPTION[0], RECEPTION[0] + 0.07, 0.002, 0.002, 0.8, 3.2), (0.88, 0.72, 0.12), out, 0.02)
+    lx = RECEPTION[0] + LANDING[0]
+    base._surface(rnd, (RECEPTION[0], lx, LANDING[1], LANDING[1], 0.05, 3.95), _cement(POLISHED, joint=2.0, cloud=0.008), out, 0.03)
+    base._surface(rnd, (lx, lx, 0.0, LANDING[1], 0.05, 3.95), (0.22, 0.15, 0.11), out, 0.015)
     # (the ante-room's jute ceiling hangs under a black one: the page draws it, from fixtures())
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), base.finish("plaster", (0.12, 0.12, 0.12)), out, CEIL_STEP)
     base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
-    track(rnd, out, -16.8, RECEPTION[1] - 0.6, 1.85)   # its track light, from a round socket on the ceiling
+    track(rnd, out, -16.8, RECEPTION[1] - 0.2, 1.85)   # its track light, from a round socket on the ceiling
     base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), base.finish("plaster", CEILING), out, CEIL_STEP)
     for (x0, x1, z0, z1) in ((hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1), (hx1, STAGE[1], 0, WC[2])):
         base._surface(rnd, (x0, x1, H, H, z0, z1), _rough(CONCRETE), out, CEIL_STEP)
@@ -411,18 +416,23 @@ def house(rnd, out):
     # exit signs and small speakers high on the walls
     exit_sign(rnd, out, -16.5, 2.25, 0.012, 0)
     wall_lamp(rnd, out, -15.3, 2.45, 0.0)
-    speaker(rnd, out, -18.3, 2.85, 3.92)
+    for z, side in ((0.0, 1), (4.0, -1)):             # (a wooden post where each white wall meets the green one)
+        x, f = RECEPTION[1], z + side * 0.08
+        base._surface(rnd, (x - 0.1, x + 0.1, 0.0, H, f, f), _boards(LIGHT_WOOD, width=0.1), out, 0.02)
+        for e in (x - 0.1, x + 0.1):
+            base._surface(rnd, (e, e, 0.0, H, min(z, f), max(z, f)), LIGHT_WOOD, out, 0.02)
     exit_sign(rnd, out, 0.03, 2.4, 0.9, 2)
     speaker(rnd, out, 0.1, 2.95, 1.3)
     wall_x(4.03, ANTE[0], ANTE[1], [], _tiles(TILE_WHITE, 0.2, across=1), out, rnd)  # (the kitchen's side)
     wall_x(3.98, ANTE[0], ANTE[1], [], _washed(wall, spots), out, rnd)
     kitchen(rnd, out)
-    # the front: the deck and the reception's tall door, two dark leaves pivoted wide open; the rooms
-    # open one into the next
+    # the front: the deck and the reception's tall door. Inside, the wall is clad in rust-brown
+    # panels to the ceiling, the door's two big leaves the same: the one on the left (from inside)
+    # shut, the one on the right swung in
     wall_z(RECEPTION[0], 0.0, 4.0, [(0.8, 3.2, 0.0, 2.9)], wall, out, rnd)
-    frame_z(RECEPTION[0], 0.8, 3.2, 0.0, 2.9, out, rnd, colour=(0.45, 0.24, 0.16), t=0.14, d=0.24)
-    for z in (1.35, 2.65):
-        base._surface(rnd, (RECEPTION[0] - 0.3, RECEPTION[0] + 0.9, 0.0, 2.85, z - 0.03, z + 0.03), RUST, out, 0.03)
+    wall_z(RECEPTION[0] + 0.02, 0.0, 3.7, [(0.8, 3.2, 0.0, 2.9)], _cladding, out, rnd, step=0.03)
+    base._surface(rnd, (RECEPTION[0] + 0.02, RECEPTION[0] + 0.02, LANDING[1], 2.85, 2.3, 3.2), _cladding, out, 0.03)
+    leaf(rnd, out, RECEPTION[0] + 0.02, 0.8, 1.2, math.radians(70))
     # (the reception runs straight into the vertical garden, wall to wall and floor to ceiling; a
     # wide doorway from there into the ante-room)
     wall_z(VERTICAL[1], 0.0, 4.0, [(0.8, 3.2, 0.0, 2.8)], wall, out, rnd)
@@ -537,14 +547,30 @@ def skylight(rnd, out):
 
 def track(rnd, out, x0, x1, z):
     """A track light along x under the ceiling, fed from a round black socket at x0: a black rail,
-    small spots hung under it, close together near the socket, their lit faces toward x0."""
+    spots hung under it on short stems, close together near the socket and lit toward it, the
+    rest lit the other way."""
     _cylinder_y(rnd, out, x0, H - 0.07, H, z, 0.07, STEEL)
-    base._surface(rnd, (x0, x1, H - 0.04, H, z - 0.02, z + 0.02), STEEL, out, 0.03)
+    base._surface(rnd, (x0, x1, H - 0.04, H, z - 0.025, z + 0.025), STEEL, out, 0.02)
     x = x0 + 0.35
     while x < x1:
-        base._surface(rnd, (x - 0.05, x + 0.05, H - 0.2, H - 0.06, z - 0.04, z + 0.04), STEEL, out, 0.02)
-        base._surface(rnd, (x - 0.051, x - 0.051, H - 0.18, H - 0.08, z - 0.03, z + 0.03), WARM, out, 0.01)
-        x += 0.4 if x < x0 + 1.6 else 1.0
+        near = x < x0 + 1.6
+        base._surface(rnd, (x - 0.012, x + 0.012, H - 0.12, H - 0.04, z - 0.012, z + 0.012), STEEL, out, 0.01)
+        _cylinder_x(rnd, out, x - 0.08, x + 0.08, H - 0.17, z, 0.05, (0.86, 0.85, 0.82))   # (white cans)
+        f = x - 0.081 if near else x + 0.081
+        for k in range(40):
+            a, r = 2 * math.pi * rnd.random(), 0.042 * math.sqrt(rnd.random())
+            out.append(((f, H - 0.17 + r * math.sin(a), z + r * math.cos(a)), WARM, [0.008, 0.008, 0.008]))
+        x += 0.4 if near else 0.9
+
+
+def _cylinder_x(rnd, out, x0, x1, y, z, r, colour, step=0.015):
+    """A short cylinder lying along x (a spotlight's can)."""
+    sc = [step * 0.8] * 3
+    n, m = max(12, int(2 * math.pi * r / step)), max(1, int((x1 - x0) / step))
+    for k in range(n):
+        a = 2 * math.pi * k / n
+        for j in range(m + 1):
+            out.append(((x0 + (x1 - x0) * j / m, y + r * math.sin(a), z + r * math.cos(a)), colour, sc))
 
 
 def _cylinder_y(rnd, out, x, y0, y1, z, r, colour, step=0.015):
@@ -571,6 +597,27 @@ def curtain_rod(rnd, out, x, z0, z1):
     for z in (z0 + 0.08, z1 - 0.08):
         base._surface(rnd, (x - 0.015, x + 0.015, y, H, z - 0.012, z + 0.012), STEEL, out, 0.012)
         base._surface(rnd, (x - 0.04, x + 0.04, H - 0.005, H - 0.005, z - 0.03, z + 0.03), STEEL, out, 0.012)
+
+
+def _cladding(x, y, z, rnd):
+    """Rust-brown metal panels, 60 cm wide, a dark seam between them, streaked a little."""
+    if z % 0.6 < 0.012:
+        return (0.16, 0.10, 0.08)
+    t = 0.03 * math.sin(y * 7.0 + z * 31.0) + rnd.uniform(-0.02, 0.02)
+    return (0.36 + t, 0.22 + t * 0.7, 0.16 + t * 0.5)
+
+
+def leaf(rnd, out, x, hinge, width, swing, h=2.85, step=0.03):
+    """A door's big pivoting leaf in the front wall at x, hung at z = hinge, swung `swing` radians
+    into the room (toward +x), rust-brown like the wall; two faces 4 cm apart."""
+    dx, dz = math.sin(swing), math.cos(swing)
+    for i in range(int(width / step)):
+        u = (i + 0.5) * step
+        for j in range(int(h / step)):
+            y = LANDING[1] + (j + rnd.random()) * step
+            for off in (-0.02, 0.02):
+                p = (x + u * dx + off * dz, y, hinge + u * dz - off * dx)
+                out.append((p, _cladding(0, y, u + 0.3, rnd), [step * 0.7] * 3))
 
 
 def wall_lamp(rnd, out, x, y, z):

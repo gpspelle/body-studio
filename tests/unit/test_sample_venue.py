@@ -59,7 +59,7 @@ class SampleVenueTest(unittest.TestCase):
 
     def test_walk_from_the_door_to_the_garden(self):
         # through every room on the way, and its doorways
-        for name, (x, z) in {"deck": (-20.8, 2.0), "reception": (-16.8, 2.0), "reception door": (-19.8, 2.0),
+        for name, (x, z) in {"deck": (-20.8, 2.0), "reception": (-16.8, 2.0), "reception door": (-19.8, 1.75),
                              "vertical garden": (-11.5, 2.0), "ante-room": (-4.0, 2.0), "into the hall": (0.0, 2.8),
                              "hall": (9.0, 5.0), "the kitchen": (-4.0, 6.0), "the kitchen door": (0.0, 8.05), "the passage to the kitchen": (0.6, 6.0), "by the half wall": (11.3, 4.2), "toilets' hall": (14.0, 1.6),
                              "glass doors": (17.8, 3.9),

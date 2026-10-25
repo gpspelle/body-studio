@@ -11,6 +11,10 @@
   stand, a macaron tower, a cloche, a fruit bowl, taper and hurricane candles, driftwood and
   shells; a modular bar, a champagne bucket, drinks dispensers; a tiki torch, a straw parasol, a
   deck chair, crates, a hexagon arch and a macramé backdrop.
+- The sample venue, from the second set of tags: inside the front door a landing a step up with a
+  dark edge; the front wall clad in rust-brown panels like the door's two big leaves (one shut, one
+  swung in); no speaker by the door; the track's spots are bigger white cans on stems; a light
+  wooden post where each white wall meets a planted one.
 - The sample venue, from the first tags made with Compare with video: the reception runs straight
   into the vertical garden (no wooden doorway between them), its curtains hang from short black
   rods held under the ceiling, the reception has one track light fed from a round ceiling socket,
