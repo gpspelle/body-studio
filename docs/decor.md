@@ -177,6 +177,12 @@ no licence. Sizes are the usual hire sizes, so a plan made with them holds at th
   Bulbs and flames are drawn unlit by the room's light, so they glow.
 - **Lounge**: sofa (two seats), armchair, coffee table, rug (2.4 × 1.7 m), dance floor (4.8 m
   square, tiled).
+- **Home** (`static/decor/home.js`): the sample living room's and tattoo studio's furniture, drawn
+  to their sizes: linen sofa (2.2 m, two seats), walnut bookcase with books, TV console with a slim
+  television, oak dining table and bench, side table, floor lamp, fiddle-leaf fig, ceiling light;
+  tattoo bed (1.9 m, top at 68 cm), reclining tattoo chair with arm rests, artist's stool, ink
+  trolley, reception counter, waiting bench, ring light. The rooms place them from their fixtures
+  ([room.md](room.md#furniture-drawn-as-the-decor-is)).
 - **More** (`static/decor/extras.js`): a bridal bouquet, peonies in a bowl, tulips, sunflowers in
   a jar, a lavender pot, anthuriums, birds of paradise, monstera leaves, bottles of wildflowers, a
   kissing ball of roses; a dessert tray, a tiered cupcake stand, a macaron tower, a cake under a

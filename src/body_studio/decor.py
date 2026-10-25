@@ -209,6 +209,23 @@ STARTERS = (
     {"id": "crates", "group": "lounge", "height": 0.9, "on": "floor"},
     {"id": "hexagon_arch", "group": "ceremony", "height": 2.33, "on": "floor"},
     {"id": "macrame_backdrop", "group": "ceremony", "height": 2.3, "on": "floor"},
+    # a home and a tattoo studio (the sample living room's and studio's furniture is drawn by these)
+    {"id": "linen_sofa", "group": "home", "height": 0.85, "on": "floor"},
+    {"id": "bookshelf", "group": "home", "height": 2.0, "on": "floor"},
+    {"id": "tv_console", "group": "home", "height": 1.72, "on": "floor"},
+    {"id": "dining_table", "group": "home", "height": 0.76, "on": "floor"},
+    {"id": "oak_bench", "group": "home", "height": 0.44, "on": "floor"},
+    {"id": "side_table", "group": "home", "height": 0.79, "on": "floor"},
+    {"id": "floor_lamp", "group": "home", "height": 1.7, "on": "floor"},
+    {"id": "potted_fig", "group": "home", "height": 1.4, "on": "floor"},
+    {"id": "ceiling_light", "group": "home", "height": 2.6, "on": "floor"},
+    {"id": "tattoo_bed", "group": "home", "height": 0.68, "on": "floor"},
+    {"id": "tattoo_chair", "group": "home", "height": 1.38, "on": "floor"},
+    {"id": "artist_stool", "group": "home", "height": 0.55, "on": "floor"},
+    {"id": "ink_trolley", "group": "home", "height": 0.94, "on": "floor"},
+    {"id": "reception_counter", "group": "home", "height": 1.25, "on": "floor"},
+    {"id": "waiting_bench", "group": "home", "height": 0.46, "on": "floor"},
+    {"id": "ring_light", "group": "home", "height": 2.7, "on": "floor"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}
 

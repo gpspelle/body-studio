@@ -6,7 +6,7 @@
 // /api/decor/photo, decor.py and photo3d.py). The maths is decor.js's; the room is house.js's.
 import * as THREE from "three";
 import { geometry, materials, picture, shadow, studio } from "/static/decorlook.js";
-import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
+import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, fixtureTurn, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
          bounds, fromHex, fromRgb, hexOf, setTable, standY, starterShape, toHex, turnToward, unpack, wrap,
          knobs, knobValues, cleanOpts, optsKey, sized, MATERIALS } from "/static/decor.js";
 
@@ -597,8 +597,10 @@ function meshFor(id) {
   const m = meshes.get(id);
   return m && m.then ? m : Promise.resolve(m);
 }
-function geomFor(p) {
+// (fixed: a room's own, kept while the room is shown, never let go to make room for others)
+function geomFor(p, fixed = false) {
   const key = p.item + "|" + (p.colour || "") + (p.opts ? "|" + optsKey(p.opts) : "");
+  if (fixed) fixedKeys.add(key);
   if (geoms.has(key)) return geoms.get(key);
   let g = null;
   if (STARTERS[p.item]) g = geometry(starterShape(p.item, p.colour, p.opts));
@@ -611,18 +613,18 @@ function geomFor(p) {
   geoms.set(key, g);
   // (colours of your own and knobs come and go as the wheel turns and a slider moves: only the
   // last few are kept)
-  if (fromHex(p.colour) || p.opts) {
+  if (!fixed && (fromHex(p.colour) || p.opts)) {
     mixed.push(key);
     const keyOf = (q) => q.item + "|" + (q.colour || "") + (q.opts ? "|" + optsKey(q.opts) : "");
     while (mixed.length > 16) {
       const old = mixed.shift();
-      if (mixed.includes(old) || placed().some((q) => keyOf(q) === old)) continue;
+      if (mixed.includes(old) || fixedKeys.has(old) || placed().some((q) => keyOf(q) === old)) continue;
       geoms.get(old)?.dispose(); geoms.delete(old);
     }
   }
   return g;
 }
-const mixed = [];
+const mixed = [], fixedKeys = new Set();
 
 // one material per finish (decorlook.js), made once the renderer is there
 let MATS = null;
@@ -648,19 +650,22 @@ function draw() {
   if (!shades) { shades = new THREE.Group(); shades.userData.shades = true; }
   if (shades.parent !== group) group.add(shades);
   for (const c of [...shades.children]) shades.remove(c);
-  // the room's own trees (its fixtures: the sample venue's), drawn as the decor is but part of the
-  // room: not picked, moved or saved
-  // (and its planted walls, borders and glass roof, each stretched along its row by `scale`)
+  // the room's own trees and furniture (its fixtures: the sample rooms'), drawn as the decor is but
+  // part of the room: not picked, moved or saved
+  // (the venue's planted walls, borders and glass roof each stretched along its row by `scale`; the
+  // living room's and the studio's furniture turned by the way it faces, in its colour and size)
   for (const t of H()?.fixtures()?.trees || []) {
     if (!STARTERS[t.item]) continue;
-    const m = new THREE.Mesh(geomFor({ item: t.item }), mats()), sc = t.scale || [1, 1, 1];
+    const p = { item: t.item, colour: t.colour, opts: t.opts }, turn = fixtureTurn(t);
+    const m = new THREE.Mesh(geomFor(p, true), mats()), sc = t.scale || [1, 1, 1];
     m.position.set(t.at[0], t.at[1], t.at[2]);
-    m.rotation.y = t.turn || 0;
+    m.rotation.y = turn;
     m.scale.set(sc[0], sc[1], sc[2]);
     m.userData.fixed = true;
     group.add(m);
-    // (a roof overhead casts no soft shadow at its feet)
-    if (t.item !== "glass_roof") shade(defs(t.item), { x: t.at[0], y: t.at[1], z: t.at[2], turn: t.turn || 0, sx: sc[0], sz: sc[2] });
+    // (what hangs overhead casts no soft shadow at its feet)
+    if (t.item !== "glass_roof" && !STARTERS[t.item].hangs)
+      shade(defs(t.item, p), { x: t.at[0], y: t.at[1], z: t.at[2], turn, sx: sc[0], sz: sc[2] });
   }
   placed().forEach((p, k) => {
     const g = geomFor(p);

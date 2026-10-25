@@ -2,6 +2,12 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample living room's and tattoo studio's furniture is drawn as the decor is, in place of
+  flat boxes and blobs of splats: a linen sofa with loose cushions on walnut feet, a teal armchair,
+  a walnut bookcase full of books, a fluted TV console with a slim television, an oak table and
+  bench, a fiddle-leaf fig in a glazed pot, a floor lamp with a linen shade; a padded vinyl tattoo
+  bed and reclining chair on chrome, the artist's stool and steel trolley with ink caps, a fluted
+  counter and a ring light. All of them are also in the Decor panel's new **Home** tab.
 - Decor: **Change it** on a picked starter: its width, depth and height, how many flowers, tiers,
   cakes, candles or bottles it has, and what it is made of (matte, satin, wood, metal, glass).
   A bar keeps its slats and rail as it grows, a modular bar adds modules, a dessert tray grows a

@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { COLOURS, FINISHES, GROUPS, STARTERS, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
+import { COLOURS, FINISHES, GROUPS, STARTERS, fixtureTurn, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
          knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS } from "../../src/body_studio/static/decor.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
@@ -424,4 +424,18 @@ test("what a starter's colour is made of can be changed, its accents kept", () =
   }
   const glow = starterShape("candle", null, { finish: "metal" });
   assert.ok(glow.g.some((g, v) => g && glow.m[v] === FINISHES.findIndex((x) => x.glow)), "a flame still glows");
+});
+
+test("a room's own furniture turns to the way it faces, else by its turn", () => {
+  near(fixtureTurn({ facing: [0, 0, 1] }), 0, 1e-9, "front toward +z");
+  near(fixtureTurn({ facing: [-1, 0, 0] }), -Math.PI / 2, 1e-9, "toward -x");
+  near(fixtureTurn({ facing: [0, 0, -1], turn: 1 }), Math.PI, 1e-9, "the way it faces wins");
+  near(fixtureTurn({ turn: 0.7 }), 0.7, 1e-9, "the venue's, by its turn");
+  near(fixtureTurn({}), 0, 1e-9);
+  // the home's pieces stand where the sample rooms' furniture was: the tattoo chair's seat and arm
+  // rests at the studio's heights (sample_studio.CHAIR, REST_TOP)
+  near(STARTERS.tattoo_chair.seat.y, 0.5, 1e-9);
+  const s = starterShape("tattoo_chair"), b = bounds(s.p);
+  near(b.lo[1], 0, 1e-6, "on the floor");
+  assert.ok(STARTERS.linen_sofa.seats.every((q) => q.y === 0.45), "the sofa's seat height");
 });

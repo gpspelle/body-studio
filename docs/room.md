@@ -105,6 +105,18 @@ wall of cork, a mirror, a counter and a neon sign, in
 turns it into the map's metres (`fixtures` in the map), and the page uses it to hang designs on the
 flash wall and to put the body on the bed or in the chair. What happens there: [tattoo.md](tattoo.md#the-tattoo-studio).
 
+## Furniture drawn as the decor is
+
+The living room's and the studio's furniture (the sofa, armchair, bookshelf, TV console, dining
+table and bench, side table, floor lamp, fig and ceiling light; the tattoo bed and chair, the
+artist's stool and trolley, the counter, the bench, the ring light and the plant) is drawn by the
+page as it draws the decor: the Home starters (`static/decor/home.js`), with their rounded
+cushions, tapered legs, real finishes (linen, vinyl, walnut, chrome) and soft shadows. Each room's
+fixtures list them (`trees`: the starter, where it stands, the way it faces, its colour and size).
+The splat keeps their boxes of splats, so the map still finds the seats and walks round them, but
+`sample_room.as_decor()` leaves those out of the look (the shell and the splats drawn), so only the
+decor shows. They are drawn once when the room loads, so moving round costs what it did.
+
 ## The sample wedding venue
 
 Third in the menu: **Sample wedding venue** (`sample_venue.py`), laid out as the floor plan of a

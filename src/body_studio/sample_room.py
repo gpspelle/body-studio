@@ -13,6 +13,7 @@ bookshelf, a TV on a console, a dining table, a floor lamp, a plant, a rug and a
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 import random
@@ -24,7 +25,7 @@ from pathlib import Path
 
 from . import library
 
-VERSION = 2
+VERSION = 3
 NAME = library.SAMPLE               # its folder in workspace/ and its name in rooms.json
 RUN = "run_sample"
 PLY = "living_room_clean.ply"
@@ -128,7 +129,8 @@ def _books(rnd):
 
 
 def parts(rnd) -> list:
-    """(box (x0, x1, y0, y1, z0, z1), colour or colour(x, y, z, rnd)) for every flat thing in the room."""
+    """(box (x0, x1, y0, y1, z0, z1), colour or colour(x, y, z, rnd)) for every flat thing in the
+    room but its furniture (furniture())."""
     p = [
         # the room: floor, ceiling, walls and the skirting round them
         ((X0, X1, 0, 0, Z0, Z1), finish("wood_x", _plank)),
@@ -142,6 +144,16 @@ def parts(rnd) -> list:
         ((X1 - 0.06, X1, 0.86, 0.9, -1.75, -0.45), WHITE),                     # the sill
         ((1.55, 2.45, 0, 2.05, Z1 - 0.01, Z1 - 0.01), _door),
         ((-0.6, 0.6, 1.3, 1.9, Z0 + 0.012, Z0 + 0.012), _picture),
+        # the rug
+        ((-1.4, 1.4, 0, 0.008, -1.2, 0.8), _rug),
+    ]
+    return p
+
+
+def furniture(rnd) -> list:
+    """The furniture's boxes, as parts(): in the splat, for the map (the sofa's and the armchair's
+    seats), but drawn by the page as decor (FIXTURES), so left out of the look."""
+    p = [
         # the sofa: base, two seat cushions, the back, two back cushions, arms, two pillows
         ((-1.1, 1.1, 0.06, 0.28, -2.2, -1.35), LINEN),
         ((-0.95, -0.005, 0.28, 0.45, -1.98, -1.35), LINEN_LIGHT),
@@ -153,8 +165,6 @@ def parts(rnd) -> list:
         ((-0.9, -0.55, 0.45, 0.8, -1.84, -1.72), OCHRE), ((0.55, 0.9, 0.45, 0.8, -1.84, -1.72), TEAL),
         # a side table by the sofa, the floor lamp's base on the other side
         ((1.2, 1.6, 0.68, 0.71, -2.2, -1.8), WALNUT),
-        # the rug
-        ((-1.4, 1.4, 0, 0.008, -1.2, 0.8), _rug),
         # the armchair by the window, facing into the room: base, seat, back, arms
         ((1.85, 2.55, 0.08, 0.3, -0.3, 0.5), TEAL),
         ((1.9, 2.4, 0.3, 0.44, -0.18, 0.38), (0.26, 0.52, 0.54)),
@@ -202,6 +212,25 @@ def finish(kind: str, colour):
     return f
 
 
+_decor = 0                          # while above 0, what is drawn is drawn by the page as decor (as_decor)
+
+
+@contextlib.contextmanager
+def as_decor(out):
+    """What is drawn into `out` meanwhile stays in the splat, for room.py's map (where the seats and
+    the things to walk round are), but is left out of the look, shell and splats both: the page
+    draws it as it draws the decor, from the room's fixtures (FIXTURES)."""
+    global _decor
+    n = len(out)
+    _decor += 1
+    try:
+        yield
+    finally:
+        _decor -= 1
+        if _shell is not None:
+            _shell["meshed"].update(id(r[0]) for r in out[n:])
+
+
 def drawing(make_splats):
     """The splats make_splats() draws, and the shell: (rows, the rows not in the shell, sheets)."""
     global _shell
@@ -216,7 +245,7 @@ def drawing(make_splats):
 
 
 def _note(o, du, dv, na, nb, cells, points, colour=None):
-    if _shell is not None:
+    if _shell is not None and not _decor:
         _shell["sheets"].append((tuple(o), tuple(du), tuple(dv), na, nb, cells, getattr(colour, "finish", "")))
         _shell["meshed"].update(id(p) for p in points)
 
@@ -307,7 +336,7 @@ def _surface(rnd, box, colour, out, step=STEP, jitter=0.025):
                 out.append((p, c, s))
                 cells[k * na + i] = c
                 points.append(p)
-        if _shell is not None:
+        if _shell is not None and not _decor:
             o, du, dv = [0.0] * 3, [0.0] * 3, [0.0] * 3
             o[axis], o[a], o[b] = v, a0, b0
             du[a], dv[b] = a1 - a0, b1 - b0
@@ -346,14 +375,72 @@ def splats(seed: int = SEED) -> list:
     out = []
     for box, colour in parts(rnd):
         _surface(rnd, box, colour, out)
-    # the plant in the corner by the window, the floor lamp by the sofa, the light in the ceiling
-    _cylinder(rnd, 2.4, -2.0, 0.15, 0.19, 0.0, 0.38, TERRACOTTA, out)
-    _leaves(rnd, 2.4, -2.0, 0.4, 1.35, out)
-    _cylinder(rnd, -1.45, -2.0, 0.16, 0.16, 0.0, 0.03, BLACK, out)
-    _cylinder(rnd, -1.45, -2.0, 0.012, 0.012, 0.03, 1.45, BLACK, out, top=False)
-    _cylinder(rnd, -1.45, -2.0, 0.22, 0.15, 1.4, 1.7, SHADE, out, top=False)
-    _cylinder(rnd, 0.0, 0.0, 0.25, 0.25, H - 0.02, H - 0.005, (1.0, 0.98, 0.92), out, top=False)
+    with as_decor(out):
+        for box, colour in furniture(rnd):
+            _surface(rnd, box, colour, out)
+        # the plant in the corner by the window, the floor lamp by the sofa, the light in the ceiling
+        _cylinder(rnd, 2.4, -2.0, 0.15, 0.19, 0.0, 0.38, TERRACOTTA, out)
+        _leaves(rnd, 2.4, -2.0, 0.4, 1.35, out)
+        _cylinder(rnd, -1.45, -2.0, 0.16, 0.16, 0.0, 0.03, BLACK, out)
+        _cylinder(rnd, -1.45, -2.0, 0.012, 0.012, 0.03, 1.45, BLACK, out, top=False)
+        _cylinder(rnd, -1.45, -2.0, 0.22, 0.15, 1.4, 1.7, SHADE, out, top=False)
+        _cylinder(rnd, 0.0, 0.0, 0.25, 0.25, H - 0.02, H - 0.005, (1.0, 0.98, 0.92), out, top=False)
     return out
+
+
+def hexed(c) -> str:
+    """A colour (0..1) as the page's "#rrggbb"."""
+    return "#" + "".join(f"{round(255 * v):02x}" for v in c)
+
+
+# The furniture as the page draws it (decor.js starters, static/decor/home.js), where its splats
+# are: (starter, (x, z) of its middle, the way its front faces, its colour, its size if not the
+# starter's own (w, d: across its front and front to back)).
+FIXTURES = (
+    ("linen_sofa", (0.0, -1.775), (0, 1), (0.3, 0.36, 0.42), None),   # (deeper: the decor's light is brighter)
+    ("armchair", (2.2, 0.1), (-1, 0), TEAL, (0.8, 0.7)),
+    ("side_table", (1.4, -2.0), (0, 1), WALNUT, None),
+    ("floor_lamp", (-1.45, -2.0), (0, 1), BLACK, None),
+    ("potted_fig", (2.4, -2.0), (-1, 1), TERRACOTTA, None),
+    ("bookshelf", (X0 + 0.16, -1.0), (1, 0), WALNUT, None),
+    ("tv_console", (0.0, Z1 - 0.22), (0, -1), WALNUT, None),
+    ("dining_table", (-1.9, 1.45), (0, 1), (0.5, 0.36, 0.23), None),
+    ("oak_bench", (-1.9, 1.7), (0, -1), (0.5, 0.36, 0.23), None),
+    ("ceiling_light", (0.0, 0.0), (0, 1), WHITE, None),
+)
+
+
+def decor_fixtures(fixtures) -> list:
+    """FIXTURES (or a room's own list like it) as the room's fixtures tell the page (room.py's
+    map: "trees", each {item, at, facing, colour, opts}), in the room's metres, y up."""
+    out = []
+    for item, (x, z), (fx, fz), colour, size in fixtures:
+        n = math.hypot(fx, fz)
+        t = {"item": item, "at": [x, 0.0, z], "facing": [fx / n, 0.0, fz / n], "colour": hexed(colour)}
+        if size:
+            t["opts"] = {"w": size[0], "d": size[1]}
+        out.append(t)
+    return out
+
+
+def fixtures() -> dict:
+    """What the page is told besides the splat: the furniture, drawn as the decor is."""
+    return {"trees": decor_fixtures(FIXTURES)}
+
+
+def to_file(fx: dict) -> dict:
+    """Fixtures in the PLY's coordinates (y-down): points and directions have y flipped."""
+    from .room import FIXTURE_KEYS
+
+    def conv(v, key=None):
+        if isinstance(v, dict):
+            return {k: conv(x, k) for k, x in v.items()}
+        if isinstance(v, list) and v and isinstance(v[0], dict):
+            return [conv(x) for x in v]
+        if FIXTURE_KEYS.get(key) in ("point", "dir"):
+            return [v[0], -v[1], v[2]]
+        return v
+    return conv(fx)
 
 
 def write_ply(path: Path, rows: list) -> Path:
@@ -424,7 +511,10 @@ def _quat(R):
 
 def _make_living_room(d: Path) -> Path:
     write_cameras(d / "dense" / "sparse" / "0" / "images.bin", ring=(0.7, 0.5), centre=(0.0, -0.3))
-    return write_drawn(d / "splat" / PLY, splats)
+    ply = write_drawn(d / "splat" / PLY, splats)
+    from .room import fixtures_file
+    fixtures_file(ply).write_text(json.dumps(to_file(fixtures()), indent=1))
+    return ply
 
 
 def _samples() -> dict:

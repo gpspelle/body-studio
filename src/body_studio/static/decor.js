@@ -12,6 +12,7 @@ import { WEDDING } from "./decor/wedding.js";
 import { GARDEN } from "./decor/garden.js";
 import { PROPOSALS } from "./decor/proposals.js";
 import { EXTRAS } from "./decor/extras.js";
+import { HOME } from "./decor/home.js";
 
 export { COLOURS, FINISHES };
 
@@ -20,10 +21,10 @@ export { COLOURS, FINISHES };
 // {w, d}); top: the height things put on it stand at; seat: where the body sits on it (its hips,
 // facing its front); block: whether the body walks round it; make(colour, knob values) -> its
 // shape; knobs, built: what can be changed (knobs() below).
-export const STARTERS = { ...BASICS, ...WEDDING, ...GARDEN, ...PROPOSALS, ...EXTRAS };
+export const STARTERS = { ...BASICS, ...WEDDING, ...GARDEN, ...PROPOSALS, ...EXTRAS, ...HOME };
 
 // the groups the panel shows the starters in, in order
-export const GROUPS = ["tables", "flowers", "table", "ceremony", "bar", "lights", "lounge", "garden"];
+export const GROUPS = ["tables", "flowers", "table", "ceremony", "bar", "lights", "lounge", "garden", "home"];
 
 // A starter's shape in a colour (a name in COLOURS; its own colour if none), changed by `opts`
 // (knobs()): its size, what its main colour is made of, its own counts.
@@ -176,6 +177,13 @@ export function itemDef(item, mesh = null) {
 }
 
 // ---------------------------------------------------------------- where things go
+// a room's own thing (its fixtures, room.py's map): its turn, from the way its front faces (the
+// sample living room's and studio's furniture: a direction turns with the map's frame, which a
+// turn would not) or as given (the venue's)
+export function fixtureTurn(t) {
+  const f = t.facing;
+  return f && (f[0] || f[2]) ? Math.atan2(f[0], f[2]) : t.turn || 0;
+}
 // a turn kept within -pi..pi
 export const wrap = (a) => a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
 const rot = (turn, x, z) => [x * Math.cos(turn) + z * Math.sin(turn), -x * Math.sin(turn) + z * Math.cos(turn)];

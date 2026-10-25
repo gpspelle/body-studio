@@ -1,8 +1,9 @@
+import math
 import tempfile
 import unittest
 from pathlib import Path
 
-from body_studio import library, room, sample_room, sample_studio
+from body_studio import decor, library, room, sample_room, sample_studio
 
 
 class SampleStudioTest(unittest.TestCase):
@@ -62,9 +63,24 @@ class SampleStudioTest(unittest.TestCase):
             self.assertEqual(len(near), 1, name)
             self.assertAlmostEqual(near[0]["y"], h, delta=0.06, msg=name)
 
+    def test_its_furniture_is_drawn_as_decor_where_its_splats_are(self):
+        trees = self.map["fixtures"]["trees"]
+        self.assertEqual([t["item"] for t in trees], [f[0] for f in sample_studio.FIXTURES])
+        self.assertTrue({t["item"] for t in trees} <= decor.STARTER_IDS)
+        for t, (item, (x, z), (fx, fz), colour, size) in zip(trees, sample_studio.FIXTURES):
+            mx, _, mz = self.to_map((x, 0, z))
+            self.assertAlmostEqual(t["at"][0], mx, delta=0.03, msg=item)
+            self.assertAlmostEqual(t["at"][2], mz, delta=0.03, msg=item)
+            self.assertAlmostEqual(t["at"][1], 0.0, delta=0.03, msg=item + " stands on the floor")
+            # the way it faces, turned with the map's frame as its splats are
+            want = [a - b for a, b in zip(self.to_map((x + fx, 0, z + fz)), self.to_map((x, 0, z)))]
+            n = math.hypot(want[0], want[2])
+            self.assertGreater((t["facing"][0] * want[0] + t["facing"][2] * want[2]) / n, 0.99, item)
+        chair = trees[1]
+        self.assertGreater(chair["facing"][0] * self.map["fixtures"]["chair"]["facing"][0]
+                           + chair["facing"][2] * self.map["fixtures"]["chair"]["facing"][2], 0.99, "the chair faces as the body sits")
+
     def test_a_filmed_room_has_no_fixtures(self):
-        living = sample_room.ensure(self.d)
-        self.assertNotIn("fixtures", room.build(living))
         self.assertIsNone(room.read_fixtures(self.d / "nothing.ply", self.map["frame"], 0.0, 1.0))
 
 

@@ -1,9 +1,10 @@
+import math
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from body_studio import library, room, sample_room
+from body_studio import decor, library, room, sample_room
 
 
 class SampleRoomTest(unittest.TestCase):
@@ -55,6 +56,25 @@ class SampleRoomTest(unittest.TestCase):
             found.add(name)
         self.assertEqual(found, {"sofa", "armchair"})
         self.assertGreaterEqual(sum(1 for s in seats if self.to_map(0, -1.75)[1] * s["z"] > 0), 2, "room on the sofa for two")
+
+    def test_its_furniture_is_drawn_as_decor_and_left_out_of_the_look(self):
+        trees = self.map["fixtures"]["trees"]
+        self.assertEqual([t["item"] for t in trees], [f[0] for f in sample_room.FIXTURES])
+        self.assertTrue({t["item"] for t in trees} <= decor.STARTER_IDS)
+        for t, (item, (x, z), way, colour, size) in zip(trees, sample_room.FIXTURES):
+            mx, mz = self.to_map(x, z)
+            self.assertAlmostEqual(t["at"][0], mx, delta=0.03, msg=item)
+            self.assertAlmostEqual(t["at"][2], mz, delta=0.03, msg=item)
+            want = [a - b for a, b in zip(self.to_map(x + way[0], z + way[1]), self.to_map(x, z))]
+            self.assertGreater((t["facing"][0] * want[0] + t["facing"][2] * want[1]) / math.hypot(*want), 0.99, item)
+            self.assertRegex(t["colour"], r"^#[0-9a-f]{6}$")
+        # the look (the shell and the splats it leaves) has nothing where the sofa is; the splat has
+        rows, rest, sheets = sample_room.drawing(sample_room.splats)
+        on_sofa = lambda p: -1.1 < p[0] < 1.1 and 0.1 < p[1] < 0.9 and -2.2 < p[2] < -1.35   # noqa: E731
+        self.assertGreater(sum(1 for r in rows if on_sofa(r[0])), 1000)
+        self.assertEqual(sum(1 for r in rest if on_sofa(r[0])), 0)
+        self.assertFalse([s for s in sheets if on_sofa([s[0][k] + (s[1][k] + s[2][k]) / 2 for k in range(3)])])
+        self.assertTrue(any(s[6] == "wood_x" for s in sheets), "the floor is still in the shell")
 
     def test_the_body_starts_on_free_floor_in_the_middle(self):
         x, z = self.map["start"]

@@ -20,7 +20,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 5
+VERSION = 6
 PLY = "tattoo_studio_clean.ply"
 SEED = 11
 
@@ -94,9 +94,8 @@ def _frame(x0, x1, y0, y1, colours):
 
 
 def parts(rnd) -> list:
-    """(box (x0, x1, y0, y1, z0, z1), colour or colour(x, y, z, rnd)) for every flat thing."""
-    bx, bz, top = BED["x"], BED["z"], BED["top"]
-    cx, cz, seat = CHAIR["x"], CHAIR["z"], CHAIR["seat"]
+    """(box (x0, x1, y0, y1, z0, z1), colour or colour(x, y, z, rnd)) for every flat thing but the
+    furniture (furniture())."""
     p = [
         # the room: tiles, a dark ceiling, the teal back wall, plaster round the rest, black skirting
         ((X0, X1, 0, 0, Z0, Z1), base.finish("tile", _tiles)),
@@ -111,6 +110,16 @@ def parts(rnd) -> list:
         ((-1.65, -0.65, 0, 2.1, Z1 - 0.01, Z1 - 0.01), _door),
         ((X1 - 0.012, X1 - 0.012, 1.35, 1.85, 0.35, 0.75), _frame(0.35, 0.75, 1.35, 1.85, [(0.80, 0.25, 0.20), (0.95, 0.85, 0.70), (0.15, 0.35, 0.40)])),
         ((X1 - 0.012, X1 - 0.012, 1.35, 1.85, 0.95, 1.35), _frame(0.95, 1.35, 1.35, 1.85, [(0.90, 0.70, 0.20), BLACK, (0.95, 0.85, 0.70)])),
+    ]
+    return p
+
+
+def furniture(rnd) -> list:
+    """The furniture's boxes, as parts(): in the splat, for the map (the chair's and the stool's
+    seats, the bed), but drawn by the page as decor (FIXTURES), so left out of the look."""
+    bx, bz, top = BED["x"], BED["z"], BED["top"]
+    cx, cz, seat = CHAIR["x"], CHAIR["z"], CHAIR["seat"]
+    p = [
         # the tattoo bed: a black vinyl top on a chrome column and a foot
         ((bx[0], bx[1], top - 0.08, top, bz[0], bz[1]), VINYL),
         ((bx[0] + 0.05, bx[1] - 0.05, top - 0.12, top - 0.08, bz[0] + 0.05, bz[1] - 0.05), BLACK),
@@ -170,32 +179,49 @@ def splats(seed: int = SEED) -> list:
     out = []
     for box, colour in parts(rnd):
         base._surface(rnd, box, colour, out)
-    cx, cz, seat, rec = CHAIR["x"], CHAIR["z"], CHAIR["seat"], math.radians(CHAIR["recline"])
-    # the chair's back, leaning back from the seat's rear edge, and a head rest on top of it
-    back, up = 0.85, (math.sin(rec), math.cos(rec), 0.0)
-    for off in (0.0, 0.07):
-        _slab(rnd, (cx[1] - 0.02 + off, seat - 0.05, cz[0]), tuple(back * c for c in up), (0.0, 0.0, cz[1] - cz[0]), VINYL, out)
-    _cylinder = base._cylinder
-    _cylinder(rnd, (cx[0] + cx[1]) / 2, (cz[0] + cz[1]) / 2, 0.06, 0.06, 0.04, seat - 0.1, CHROME, out, top=False)
-    # the bed's column, the stool (a round seat on a chrome post) and the tray's ink caps
-    _cylinder(rnd, (BED["x"][0] + BED["x"][1]) / 2, (BED["z"][0] + BED["z"][1]) / 2, 0.07, 0.07, 0.04, BED["top"] - 0.12, CHROME, out, top=False)
-    sx, sz, sr, sh = STOOL
-    _cylinder(rnd, sx, sz, sr, sr, sh - 0.07, sh, VINYL, out)
-    _cylinder(rnd, sx, sz, 0.025, 0.025, 0.05, sh - 0.07, CHROME, out, top=False)
-    _cylinder(rnd, sx, sz, 0.22, 0.22, 0.0, 0.04, CHROME, out)
-    for k, col in enumerate([(0.08, 0.08, 0.1), (0.75, 0.12, 0.12), (0.12, 0.35, 0.70), (0.15, 0.55, 0.25), (0.92, 0.75, 0.15)]):
-        _cylinder(rnd, 0.42 + 0.07 * k, -0.95, 0.018, 0.018, 0.9, 0.925, col, out)
-    base._surface(rnd, (0.5, 0.7, 0.9, 0.95, -0.82, -0.76), BLACK, out)          # the machine
-    # the ring light over the bed, on its cable, and its glow
-    lx, lz = (BED["x"][0] + BED["x"][1]) / 2, (BED["z"][0] + BED["z"][1]) / 2
-    _cylinder(rnd, lx, lz, 0.38, 0.38, 2.12, 2.16, (1.0, 0.99, 0.95), out, top=False)
-    _cylinder(rnd, lx, lz, 0.006, 0.006, 2.16, H, BLACK, out, top=False)
-    # a plant in the corner by the flash wall
-    _cylinder(rnd, X0 + 0.35, Z0 + 0.35, 0.16, 0.2, 0.0, 0.4, (0.20, 0.20, 0.21), out)
-    base._leaves(rnd, X0 + 0.35, Z0 + 0.35, 0.42, 1.4, out)
+    with base.as_decor(out):
+        for box, colour in furniture(rnd):
+            base._surface(rnd, box, colour, out)
+        cx, cz, seat, rec = CHAIR["x"], CHAIR["z"], CHAIR["seat"], math.radians(CHAIR["recline"])
+        # the chair's back, leaning back from the seat's rear edge, and a head rest on top of it
+        back, up = 0.85, (math.sin(rec), math.cos(rec), 0.0)
+        for off in (0.0, 0.07):
+            _slab(rnd, (cx[1] - 0.02 + off, seat - 0.05, cz[0]), tuple(back * c for c in up), (0.0, 0.0, cz[1] - cz[0]), VINYL, out)
+        _cylinder = base._cylinder
+        _cylinder(rnd, (cx[0] + cx[1]) / 2, (cz[0] + cz[1]) / 2, 0.06, 0.06, 0.04, seat - 0.1, CHROME, out, top=False)
+        # the bed's column, the stool (a round seat on a chrome post) and the tray's ink caps
+        _cylinder(rnd, (BED["x"][0] + BED["x"][1]) / 2, (BED["z"][0] + BED["z"][1]) / 2, 0.07, 0.07, 0.04, BED["top"] - 0.12, CHROME, out, top=False)
+        sx, sz, sr, sh = STOOL
+        _cylinder(rnd, sx, sz, sr, sr, sh - 0.07, sh, VINYL, out)
+        _cylinder(rnd, sx, sz, 0.025, 0.025, 0.05, sh - 0.07, CHROME, out, top=False)
+        _cylinder(rnd, sx, sz, 0.22, 0.22, 0.0, 0.04, CHROME, out)
+        for k, col in enumerate([(0.08, 0.08, 0.1), (0.75, 0.12, 0.12), (0.12, 0.35, 0.70), (0.15, 0.55, 0.25), (0.92, 0.75, 0.15)]):
+            _cylinder(rnd, 0.42 + 0.07 * k, -0.95, 0.018, 0.018, 0.9, 0.925, col, out)
+        base._surface(rnd, (0.5, 0.7, 0.9, 0.95, -0.82, -0.76), BLACK, out)          # the machine
+        # the ring light over the bed, on its cable, and its glow
+        lx, lz = (BED["x"][0] + BED["x"][1]) / 2, (BED["z"][0] + BED["z"][1]) / 2
+        _cylinder(rnd, lx, lz, 0.38, 0.38, 2.12, 2.16, (1.0, 0.99, 0.95), out, top=False)
+        _cylinder(rnd, lx, lz, 0.006, 0.006, 2.16, H, BLACK, out, top=False)
+        # a plant in the corner by the flash wall
+        _cylinder(rnd, X0 + 0.35, Z0 + 0.35, 0.16, 0.2, 0.0, 0.4, (0.20, 0.20, 0.21), out)
+        base._leaves(rnd, X0 + 0.35, Z0 + 0.35, 0.42, 1.4, out)
     # the neon sign on the right wall
     _letters(rnd, "TATTOO", X1 - 0.02, 1.95, -0.05, 0.26, PINK, out)
     return out
+
+
+# The furniture as the page draws it (decor.js starters, static/decor/home.js), where its splats
+# are (as sample_room.FIXTURES): the chair faces -x, its back to the right wall.
+FIXTURES = (
+    ("tattoo_bed", ((BED["x"][0] + BED["x"][1]) / 2, (BED["z"][0] + BED["z"][1]) / 2), (0, 1), BLACK, None),
+    ("tattoo_chair", ((CHAIR["x"][0] + CHAIR["x"][1]) / 2, (CHAIR["z"][0] + CHAIR["z"][1]) / 2), (-1, 0), BLACK, None),
+    ("artist_stool", (STOOL[0], STOOL[1]), (0, 1), BLACK, None),
+    ("ink_trolley", (0.6, -0.875), (0, 1), CHROME, None),
+    ("reception_counter", (1.825, 1.775), (0, -1), WOOD, None),
+    ("waiting_bench", (-2.225, 0.6), (1, 0), WOOD, None),
+    ("ring_light", ((BED["x"][0] + BED["x"][1]) / 2, (BED["z"][0] + BED["z"][1]) / 2), (0, 1), BLACK, None),
+    ("potted_fig", (X0 + 0.35, Z0 + 0.35), (1, 1), (0.2, 0.2, 0.21), None),
+)
 
 
 def fixtures() -> dict:
@@ -221,22 +247,12 @@ def fixtures() -> dict:
                    "width": MIRROR["z"][1] - MIRROR["z"][0], "height": MIRROR["y"][1] - MIRROR["y"][0]},
         # the ring light over the bed, which the artist's view looks from beside
         "light": {"at": [mid(bx), 2.14, mid(bz)]},
+        # the furniture, drawn by the page as it draws the decor
+        "trees": base.decor_fixtures(FIXTURES),
     }
 
 
-def to_file(fx: dict) -> dict:
-    """fixtures() in the PLY's coordinates (y-down): points and directions have y flipped."""
-    from .room import FIXTURE_KEYS
-
-    def conv(v, key=None):
-        if isinstance(v, dict):
-            return {k: conv(x, k) for k, x in v.items()}
-        if isinstance(v, list) and v and isinstance(v[0], dict):
-            return [conv(x) for x in v]
-        if FIXTURE_KEYS.get(key) in ("point", "dir"):
-            return [v[0], -v[1], v[2]]
-        return v
-    return conv(fx)
+to_file = base.to_file
 
 
 def make(d: Path) -> Path:
