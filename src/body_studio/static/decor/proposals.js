@@ -5,7 +5,7 @@ import {
   other, hoop, cloth, STEM, DARK_LEAF, EUCALYPTUS, PALM, RED, CORAL, ORANGE,
   YELLOW, MAGENTA, ORCHID, PINK, SNOW, RATTAN, DECK, PAMPAS, grounded, rng,
   tipped, daisy, orchid, cloud, plume, torch, leaf, sprig, tropical, broadTree,
-  almondTree, coconutPalm, smallTree, border, roofBay, woven, CORDYLINE, BOUGAIN, MONSTERA, MOSS,
+  almondTree, coconutPalm, smallTree, border, roofBay, STEEL_MAROON, woven, CORDYLINE, BOUGAIN, MONSTERA, MOSS,
   JUTE, CLAY, BAMBOO, TRUNK, CUSHION, BEIGE, SNAP, at, bulb, shade,
   canopy, hangers, cascade, braided, jute, florets,
 } from "./shapes.js";
@@ -431,7 +431,54 @@ export const PROPOSALS = {
   },
   glass_roof: {
     group: "garden", height: 4.85, on: "floor", colour: "black", size: { w: 3.3, d: 16.6 }, block: "posts", posts: [[0, -8.3], [0, 8.3]],
-    make() { const s = shape(); roofBay(s, 3.3, 16.6, 3.4, 4.8); return s; },
+    make() { const s = shape(); roofBay(s, 3.3, 16.6, 3.4, 4.8, STEEL_MAROON); return s; },
+  },
+  glass_lantern: {
+    group: "garden", height: 4.6, hangs: true, on: "floor", colour: "wood", size: { w: 4.5, d: 4.0 }, block: false,
+    make() {
+      // a glass roof light over a room, 4.5 by 4 m: hipped, its rafters in reddish timber running up
+      // from a frame round its foot (3.4 m, the ceiling) to a short ridge 1.2 m higher
+      const s = shape(), w = 4.5, d = 4.0, eave = 3.4, top = 4.6, r = (w - d) / 2;
+      made("wood", () => {
+        for (const z of [-d / 2, d / 2]) box(s, w + 0.12, 0.14, 0.12, 0, eave - 0.14, z, TIMBER_RED);
+        for (const x of [-w / 2, w / 2]) box(s, 0.12, 0.14, d, x, eave - 0.14, 0, TIMBER_RED);
+        rod(s, [-r, top, 0], [r, top, 0], 0.05, TIMBER_RED, 6);
+        for (const [x, z] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) rod(s, [x * w / 2, eave, z * d / 2], [x * r, top, 0], 0.045, TIMBER_RED, 6);
+        for (const k of [-2, -1, 0, 1, 2]) for (const z of [-1, 1]) {           // up the long sides
+          const x = k * w / 6;
+          rod(s, [x, eave, z * d / 2], [Math.max(-r, Math.min(r, x)), top, 0], 0.035, TIMBER_RED, 6);
+        }
+        for (const x of [-1, 1]) for (const z of [-d / 4, d / 4]) rod(s, [x * w / 2, eave, z], [x * r, top, 0], 0.035, TIMBER_RED, 6);
+      });
+      made("glass", () => {
+        const v = (x, y, z) => vert(s, x, y + 0.04, z, GLASS);
+        for (const z of [-1, 1]) quad(s, v(-w / 2, eave, z * d / 2), v(w / 2, eave, z * d / 2), v(r, top, 0), v(-r, top, 0));
+        for (const x of [-1, 1]) { const a = v(x * w / 2, eave, -d / 2), b = v(x * w / 2, eave, d / 2), c = v(x * r, top, 0); s.i.push(a, b, c); }
+      });
+      return s;
+    },
+  },
+  jute_ceiling: {
+    group: "ceremony", height: 3.4, hangs: true, on: "floor", colour: "rattan", size: { w: 4, d: 4 }, block: false,
+    make(col) { const s = shape(); swags(s, col, true); return s; },
+  },
+  jute_swags: {
+    group: "ceremony", height: 3.4, hangs: true, on: "floor", colour: "rattan", size: { w: 4, d: 4 }, block: false,
+    make(col) { const s = shape(); swags(s, col, false); return s; },
+  },
+  garden_bench: {
+    group: "garden", height: 0.45, on: "floor", colour: "wood", size: { w: 2.0, d: 0.42 }, block: true,
+    seats: [{ x: -0.6, y: 0.45, z: 0, back: false }, { x: 0, y: 0.45, z: 0, back: false }, { x: 0.6, y: 0.45, z: 0, back: false }],
+    make(col) {
+      // the garden's benches: a thick hardwood plank on two solid ends, no back
+      const s = shape(), dark = col.map((v) => v * 0.8);
+      made("wood", () => {
+        box(s, 2.0, 0.07, 0.42, 0, 0.38, 0, col);
+        box(s, 2.0, 0.004, 0.006, 0, 0.45, 0, dark);              // (the joint between its two boards)
+        for (const x of [-0.94, 0.94]) box(s, 0.07, 0.38, 0.42, x, 0, 0, dark);
+      });
+      return s;
+    },
   },
   broad_tree: {
     group: "garden", height: 5.65, on: "floor", colour: "green", size: { r: 2.4 }, block: "posts", posts: [[0.04, 0.03]],
@@ -517,6 +564,74 @@ export const PROPOSALS = {
       for (let i = 0; i < 8; i++) for (let k = 0; k < 5; k++) {
         const x = -0.7 + i * 0.2, z = -0.4 + k * 0.2;
         at(x, 0.004, z, () => { const a = s.p.length / 3; for (const [dx, dz] of [[0.07, 0], [0, 0.07], [-0.07, 0], [0, -0.07]]) vert(s, dx, 0.001, dz, col); quad(s, a, a + 1, a + 2, a + 3); });
+      }
+      return s;
+    },
+  },
+  wall_fan: {
+    group: "lights", height: 0.55, hangs: true, on: "floor", colour: "black", size: { w: 0.55, d: 0.58 }, block: false,
+    make(col) {
+      // an oscillating fan on a wall bracket, black, its face tipped down a little: the venue's
+      // (stood on the floor here; hung on a wall, lift it to 2.4 m)
+      const s = shape(), tip = 0.25, c = [0, 0.3, 0.26];
+      box(s, 0.12, 0.16, 0.02, 0, 0.12, -0.19, col);
+      rod(s, [0, 0.2, -0.18], [0, 0.3, 0.08], 0.018, col, 8);
+      const face = [0, -Math.sin(tip), Math.cos(tip)];
+      facing(face, [c[0], c[1], c[2] - 0.04], () => cyl(s, 0.07, 0.06, 0.12, 0, -0.06, 0, col, 16));
+      facing(face, c, () => {
+        made("metal", () => {
+          for (const y of [0.0, 0.07]) for (let k = 0; k < 48; k++) {
+            const a = (k / 48) * 2 * Math.PI, b = ((k + 1) / 48) * 2 * Math.PI;
+            rod(s, [0.25 * Math.cos(a), y, 0.25 * Math.sin(a)], [0.25 * Math.cos(b), y, 0.25 * Math.sin(b)], 0.004, col, 4);
+          }
+          for (let k = 0; k < 24; k++) {
+            const a = (k / 24) * 2 * Math.PI;
+            rod(s, [0, 0.085, 0], [0.25 * Math.cos(a), 0.07, 0.25 * Math.sin(a)], 0.0025, col, 3);
+            rod(s, [0, -0.01, 0], [0.25 * Math.cos(a), 0.0, 0.25 * Math.sin(a)], 0.0025, col, 3);
+          }
+        });
+        for (let k = 0; k < 3; k++) {
+          const a = (k / 3) * 2 * Math.PI, p = s.p.length / 3;
+          for (const [r, da] of [[0.03, -0.35], [0.21, -0.25], [0.22, 0.3], [0.03, 0.35]]) vert(s, r * Math.cos(a + da), 0.04, r * Math.sin(a + da), col);
+          quad(s, p, p + 1, p + 2, p + 3); quad(s, p + 3, p + 2, p + 1, p);
+        }
+      });
+      return s;
+    },
+  },
+  striped_rug: {
+    group: "lounge", height: 0.01, on: "floor", colour: "coral", size: { w: 2.4, d: 1.7 }, block: false,
+    make(col) {
+      // a flat-woven rug in stripes across it: rust, orange, sand and a thin dark line, as in the
+      // venue's toilets' hall
+      const s = shape(), tones = [col, col.map((v) => v * 0.78), SAND_RUG, col.map((v, k) => v * [1.0, 1.15, 1.3][k]), [0.25, 0.16, 0.12]];
+      for (let k = 0; k < 34; k++) {
+        const w = 2.4 / 34;
+        box(s, w, 0.008, 1.7, -1.2 + (k + 0.5) * w, 0, 0, tones[(k * 7 + (k >> 2)) % tones.length]);
+      }
+      for (const z of [-0.88, 0.88]) for (let k = 0; k < 40; k++) box(s, 0.012, 0.002, 0.06, -1.17 + k * 0.06, 0, z, SAND_RUG);   // (its fringes)
+      return s;
+    },
+  },
+  wall_plates: {
+    group: "ceremony", height: 2.5, hangs: true, on: "floor", colour: "rattan", size: { w: 0.5, d: 0.04 }, block: false,
+    make(col) {
+      // three round woven plates hung one above the other on a wall, the venue's hall's
+      const s = shape();
+      for (const [y, r] of [[1.95, 0.22], [1.48, 0.24], [1.0, 0.22]]) facing([0, 0, 1], [0, y + 0.3, 0.01], () => jute(s, r, y === 1.48 ? JUTE : col));
+      return s;
+    },
+  },
+  sunburst: {
+    group: "ceremony", height: 2.4, hangs: true, on: "floor", colour: "rattan", size: { w: 1.3, d: 0.06 }, block: false,
+    make(col) {
+      // a big woven sun hung on a wall: a round plate, a ring of straw rays round it, as by the
+      // venue's hall's windows
+      const s = shape(), cy = 1.75, rnd = rng(211);
+      facing([0, 0, 1], [0, cy, 0.03], () => jute(s, 0.3, col));
+      for (let k = 0; k < 90; k++) {
+        const a = (k / 90) * 2 * Math.PI, r1 = 0.32, r2 = 0.6 + 0.06 * rnd();
+        rod(s, [Math.cos(a) * r1, cy + Math.sin(a) * r1, 0.02], [Math.cos(a) * r2, cy + Math.sin(a) * r2, 0.02], 0.008, k % 3 ? col : JUTE, 3);
       }
       return s;
     },
@@ -635,3 +750,30 @@ export const PROPOSALS = {
     },
   },
 };
+
+// The draped jute ceiling of the venue's ante-room and stage, 4 m square, hung from 3.4 m: lengths
+// of burlap across it, each sagging between two bars 0.5 m apart; with `bands`, two black strips
+// along it, sagging a little lower, as in the ante-room.
+const TIMBER_RED = [0.5, 0.27, 0.18], BAND = [0.09, 0.09, 0.09], SAND_RUG = [0.86, 0.76, 0.6];
+function swags(s, col, bands) {
+  const top = 3.4, sag = 0.28, n = 8;
+  for (let k = 0; k <= n; k++) rod(s, [-2 + (4 * k) / n, top, -2], [-2 + (4 * k) / n, top, 2], 0.008, WIRE, 4);
+  const sheet = (x0, x1, z0, z1, deep, c, below = 0) => {
+    const pts = [], X = 6, Z = 16;
+    for (let i = 0; i <= X; i++) for (let j = 0; j <= Z; j++) {
+      const t = i / X, z = z0 + ((z1 - z0) * j) / Z;
+      // (lighter where it hangs lowest, in the room's light; darker up by the bars, a fold now and then)
+      const k = 0.8 + 0.28 * Math.sin(Math.PI * t) + 0.05 * Math.sin(z * 11 + x0 * 3), cc = c === BAND ? c : c.map((v) => Math.min(1, v * k));
+      pts.push(vert(s, x0 + (x1 - x0) * t, top - below - deep * Math.sin(Math.PI * t) * (0.9 + 0.1 * Math.sin(z * 2.3 + x0)), z, cc));
+    }
+    for (let i = 0; i < X; i++) for (let j = 0; j < Z; j++)
+      quad(s, pts[i * (Z + 1) + j], pts[i * (Z + 1) + j + 1], pts[(i + 1) * (Z + 1) + j + 1], pts[(i + 1) * (Z + 1) + j]);
+  };
+  made("cloth", () => {
+    for (let k = 0; k < n; k++) {
+      const x0 = -2 + (4 * k) / n, x1 = x0 + 4 / n, c = col.map((v) => Math.min(1, v * 1.15 * (0.94 + 0.06 * (k % 2))));   // (burlap: paler than rattan)
+      sheet(x0, x1, -2, 2, sag, c);
+      if (bands) for (const z of [-0.7, 0.7]) sheet(x0, x1, z - 0.13, z + 0.13, sag + 0.04, BAND, 0.012);
+    }
+  });
+}

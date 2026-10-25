@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 9
+VERSION = 10
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -55,15 +55,24 @@ PERGOLA_ROOF = 3.2                  # the pergola's flat reed roof
 GARDEN_RIGHT, GARDEN_LEFT = 20.0, 30.0   # (along z = 0 and z = GARDEN_W: the plan's own right and left, as drawn)
 ANTE = (-9.3, 0.0, 0.0, 4.0)
 KITCHEN = (-9.3, 0.0, 4.0, 8.6)
-KITCHEN_DOOR = (6.9, 8.0)               # z: its door on the hall
+KITCHEN_DOOR = (7.6, 8.5)               # z: its lattice door on the hall, at the end of the passage to it
+HATCH = (4.9, 7.2)                      # z: its serving hatch on the hall, a stone sill 1 m up
+PARTITION = 1.3                         # x: the reed-clad partition between the hall and that passage
 VERTICAL = (-13.8, -9.3, 0.0, 4.0)
 RECEPTION = (-19.8, -13.8, 0.0, 4.0)
 DECK = (-21.8, -19.8, 0.0, 4.0)
 BUNGALOW = (41.5, 50.5, 12.7, 17.5)
+LADIES = (11.3, 14.5, -4.0, 0.0)        # the toilets, behind the toilets' hall's left wall: x0, x1, z0, z1
+GENTS = (14.5, 18.6, -4.0, 0.0)
+WC_DOORS = ((13.0, 13.9), (15.2, 16.1))
+WC_CEILING = 2.8
+PASSAGE = (5.2, 6.4, -2.0)              # off the hall's left wall where the notch ends: x0, x1, how far it goes
+SIDE = (4.0, 10.0, -5.6, -2.0)          # the small room at its end, behind its louvred double door
+GARDEN_DOOR = (6.4, 8.0)                # x: the room's glass doors onto a planted patio (where the venue stops)
 BEACH = 8.0                         # m of dry sand from the garden's far side to the water
 SEA = 130.0                         # m out to the island across the channel
 
-FLOOR_STEP, WALL_STEP, CEIL_STEP, LAWN_STEP = 0.055, 0.065, 0.08, 0.085
+FLOOR_STEP, WALL_STEP, CEIL_STEP, LAWN_STEP = 0.055, 0.07, 0.09, 0.085
 
 # colours as the walkthrough videos show them (Gabriel's mum's, 2026-10-24), measured from the
 # frames and evened out for the camera's exposure
@@ -71,14 +80,17 @@ CEMENT = (0.66, 0.66, 0.65)         # the smooth grey floors: reception, vertica
 PERGOLA_FLOOR = (0.62, 0.64, 0.66)  # the pergola's, a little bluer
 ROUGH = (0.70, 0.67, 0.63)          # rough cement: the pergola's wall
 CEILING = (0.95, 0.94, 0.91)
+DARK_CEILING = (0.34, 0.34, 0.34)   # the reception's and the vertical garden's, painted dark grey
+SLAB = (0.75, 0.75, 0.73)           # the ante-room's pale cement slabs
+WC_GREY = (0.60, 0.61, 0.63)        # the toilets' walls
+RUST = (0.31, 0.18, 0.13)           # the front door's pivoting leaves
 CONCRETE = (0.60, 0.58, 0.55)       # the hall's bare concrete ceiling
 HALL_WALL = (0.88, 0.88, 0.87)
 WC_WALL = (0.78, 0.81, 0.84)        # pale blue-grey
 PLASTER = (0.90, 0.88, 0.85)
-TERRACOTTA = (0.52, 0.31, 0.19)     # the hall's rustic tiles, glazed
-DARK_TILE = (0.30, 0.18, 0.11)
+TERRACOTTA = (0.74, 0.40, 0.17)     # the hall's rustic tiles, glazed orange, worn black in patches
+DARK_TILE = (0.17, 0.11, 0.08)
 TIMBER = (0.40, 0.27, 0.19)         # beams, strips and posts in dark wood
-SLATS = (0.24, 0.16, 0.11)          # the ante-room's ceiling
 REED = (0.66, 0.54, 0.38)           # the pergola's woven reed roof
 DOOR = (0.23, 0.16, 0.14)           # the doors, dark wood
 DOOR_FRAME = (0.45, 0.28, 0.19)
@@ -111,16 +123,20 @@ def _cement(colour, joint=1.5):
 
 
 def _rustic(x, y, z, rnd):
-    """The hall's floor: glazed rustic tiles, 40 cm square, each its own shade between terracotta
-    and dark brown, clouded, a pale glint where the windows light the glaze."""
+    """The hall's floor: glazed rustic tiles, 40 cm square, orange worn through to near black in
+    blotches (each tile its own: a few overlapping waves above a level), a soft edge round each
+    blotch, a pale glint where the windows light the glaze."""
     if x % 0.4 < 0.006 or z % 0.4 < 0.006:
-        return (0.40, 0.33, 0.27)
+        return (0.22, 0.16, 0.12)
     r = random.Random(math.floor(x / 0.4) * 7919 + math.floor(z / 0.4))
-    k = r.random()
-    c = [a + (b - a) * k for a, b in zip(TERRACOTTA, DARK_TILE)]
-    cloud = 0.05 * math.sin(x * 7.1 + r.random() * 6) * math.sin(z * 6.3 + r.random() * 6)
+    a, b, c, d = (r.uniform(0, 6.3) for _ in range(4))
+    n = (math.sin(x * 17 + a) * math.sin(z * 15 + b) + 0.7 * math.sin((x - z) * 23 + c)
+         + 0.4 * math.sin(x * 41 + z * 37 + d))
+    k = min(1.0, max(0.0, (n - r.uniform(-0.6, 0.5)) / 0.25 + 0.5))    # 0 orange .. 1 worn black
+    shade = r.uniform(-0.06, 0.04)
+    col = [o + shade + (w - o) * k for o, w in zip(TERRACOTTA, DARK_TILE)]
     glint = 0.08 * max(0.0, math.sin(z * 0.9 + 1.2)) ** 6
-    return tuple(v + cloud + glint for v in c)
+    return tuple(v + glint for v in col)
 _rustic.finish = "tile"
 
 
@@ -144,16 +160,6 @@ def _rough(colour, strength=0.06):
         t = strength * (math.sin(u * 2.3 + 3 * math.sin(y * 1.7)) * math.sin(y * 2.9 + u * 0.8)) + rnd.uniform(-0.03, 0.03)
         return tuple(c + t for c in colour)
     return base.finish("concrete", f)
-
-
-def _slats(x, y, z, rnd):
-    """The ante-room's ceiling: dark wooden slats across it, 10 cm, a darker gap between."""
-    if x % 0.14 < 0.04:
-        return (0.10, 0.07, 0.05)
-    r = random.Random(math.floor(x / 0.14))
-    t = r.uniform(-0.03, 0.03)
-    return (SLATS[0] + t, SLATS[1] + t, SLATS[2] + t)
-_slats.finish = "wood_z"
 
 
 def _reeds(x, y, z, rnd):
@@ -222,6 +228,17 @@ def _wall(colour, skirting=(0.97, 0.96, 0.94)):
     return base.finish("plaster", f)
 
 
+def _washed(wall, spots):
+    """A wall lit from below by uplights at `spots` along x: a warm fan of light widening up from
+    each, fading toward the ceiling (baked in: nothing to draw per frame)."""
+    def f(x, y, z, rnd):
+        c = wall(x, y, z, rnd)
+        k = sum(math.exp(-((x - sx) / (0.12 + 0.3 * y)) ** 2) for sx in spots) * max(0.0, 1 - y / 3.0) ** 1.5
+        return (c[0] + 0.32 * k, c[1] + 0.19 * k, c[2] + 0.04 * k)
+    f.finish = wall.finish
+    return f
+
+
 def _view(x, y, z, rnd):
     """What a window shows: a pale sky, lighter toward the top (the plan says nothing of outside)."""
     k = min(1.0, max(0.0, (y - 0.7) / 2.4))
@@ -229,8 +246,8 @@ def _view(x, y, z, rnd):
 
 
 def _shutters(x, y, z, rnd):
-    """Dark wooden shutters behind a window's glass: slats 5 cm, a line of light between them."""
-    return (0.42, 0.40, 0.36) if y % 0.05 < 0.008 else (0.16, 0.13, 0.11)
+    """Dark wooden shutters: boards 8 cm, a dark line between them."""
+    return (0.09, 0.07, 0.06) if y % 0.08 < 0.008 else (0.24, 0.16, 0.11)
 
 
 def _lawn(x, y, z, rnd):
@@ -326,8 +343,9 @@ def house(rnd, out):
     hall_wall = _wall(HALL_WALL)
     # the floors: smooth grey cement from the door to the toilets, the hall's rustic tiles, the
     # kitchen's white tiles, and the ceilings over them
-    for r in (RECEPTION, VERTICAL, ANTE):
-        base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(_cement(CEMENT), r), out, FLOOR_STEP)
+    for r in (RECEPTION, VERTICAL):
+        base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(_cement(CEMENT, joint=1.2), r), out, FLOOR_STEP)
+    base._surface(rnd, (ANTE[0], ANTE[1], 0, 0, ANTE[2], ANTE[3]), _shaded(_cement(SLAB, joint=1.0), ANTE, dark=0.85), out, FLOOR_STEP)
     base._surface(rnd, (KITCHEN[0], KITCHEN[1], 0, 0, KITCHEN[2], KITCHEN[3]), _tiles(TILE_WHITE, 0.45), out, FLOOR_STEP)
     hx0, hx1, hz0, hz1 = HALL
     rustic = _shaded(_rustic, HALL, reach=1.2, dark=0.8)
@@ -335,8 +353,11 @@ def house(rnd, out):
     base._surface(rnd, (NOTCH[1], hx1, 0, 0, hz0, hz1), rustic, out, 0.05, 0.004)
     base._surface(rnd, (hx1, WC[1], 0, 0, 0, WC[2]), _shaded(_cement(CEMENT), (hx1 - 6, WC[1], 0, WC[2])), out, FLOOR_STEP)
     base._surface(rnd, (*DECK[:2], 0, 0, *DECK[2:]), _boards((0.56, 0.44, 0.32)), out, 0.04)   # (finer: the map's end)
-    base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), _slats, out, 0.05)
-    base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", CEILING), out, CEIL_STEP)
+    # (the ante-room's jute ceiling hangs under a black one: the page draws it, from fixtures())
+    base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), base.finish("plaster", (0.12, 0.12, 0.12)), out, CEIL_STEP)
+    base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
+    for z in (1.3, 2.7):                             # its track lights
+        track(rnd, out, RECEPTION[0] + 0.8, RECEPTION[1] - 0.8, z)
     base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), base.finish("plaster", CEILING), out, CEIL_STEP)
     for (x0, x1, z0, z1) in ((hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1), (hx1, STAGE[1], 0, WC[2])):
         base._surface(rnd, (x0, x1, H, H, z0, z1), _rough(CONCRETE), out, CEIL_STEP)
@@ -345,31 +366,42 @@ def house(rnd, out):
     # the long straight wall on the left (z = 0): the reception's door is at the deck end
     wall_x(0.0, RECEPTION[0], RECEPTION[1], [], wall, out, rnd)
     green_x(rnd, 0.0, VERTICAL[0], VERTICAL[1], +1, out)
-    # (the ante-room has walls of ferns and leaves too, the venue's own: "decoração natural permanente")
-    green_x(rnd, 0.0, ANTE[0], ANTE[1], +1, out)
-    # the right side of the reception, the vertical garden (green both sides) and the ante-room; the kitchen behind
-    wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.8, -17.6, 0.9, 2.6)], wall, out, rnd)
-    frame_x(4.0, -18.8, -17.6, 0.9, 2.6, out, rnd)
-    base._surface(rnd, (-18.8, -17.6, 0.9, 2.6, 4.02, 4.02), _view, out, 0.04)
+    spots = [ANTE[0] + 1.2 + 2.3 * k for k in range(4)]
+    wall_x(0.0, ANTE[0], ANTE[1], [], _washed(wall, spots), out, rnd)   # (the ante-room's walls: white plaster, uplit)
+    # the right side of the reception (a dark door near the front), the vertical garden (green both
+    # sides) and the ante-room; the kitchen behind
+    wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.7, -17.8, 0.0, 2.2)], wall, out, rnd)
+    door_x(4.0, -18.7, -17.8, out, rnd)
     wall_x(4.0, VERTICAL[0], VERTICAL[1], [], wall, out, rnd)
     green_x(rnd, 4.0, VERTICAL[0], VERTICAL[1], -1, out)
-    wall_x(4.0, ANTE[0], ANTE[1], [], _tiles(TILE_WHITE, 0.2, across=1), out, rnd)  # (the kitchen's side: green on the ante-room's)
-    green_x(rnd, 4.0, ANTE[0] + 0.3, ANTE[1] - 0.3, -1, out)
+    wall_x(4.03, ANTE[0], ANTE[1], [], _tiles(TILE_WHITE, 0.2, across=1), out, rnd)  # (the kitchen's side)
+    wall_x(3.98, ANTE[0], ANTE[1], [], _washed(wall, spots), out, rnd)
     kitchen(rnd, out)
-    # the front: the deck and the reception's door, wide open; the rooms open one into the next
-    wall_z(RECEPTION[0], 0.0, 4.0, [(1.2, 2.8, 0.0, 2.6)], wall, out, rnd)
-    frame_z(RECEPTION[0], 1.2, 2.8, 0.0, 2.6, out, rnd, colour=DOOR, t=0.08)
+    # the front: the deck and the reception's tall door, two dark leaves pivoted wide open; the rooms
+    # open one into the next
+    wall_z(RECEPTION[0], 0.0, 4.0, [(0.8, 3.2, 0.0, 2.9)], wall, out, rnd)
+    frame_z(RECEPTION[0], 0.8, 3.2, 0.0, 2.9, out, rnd, colour=(0.45, 0.24, 0.16), t=0.14, d=0.24)
+    for z in (1.35, 2.65):
+        base._surface(rnd, (RECEPTION[0] - 0.3, RECEPTION[0] + 0.9, 0.0, 2.85, z - 0.03, z + 0.03), RUST, out, 0.03)
     for x in (RECEPTION[1], VERTICAL[1]):           # wide doorways between them
         wall_z(x, 0.0, 4.0, [(0.8, 3.2, 0.0, 2.8)], wall, out, rnd)
         frame_z(x, 0.8, 3.2, 0.0, 2.8, out, rnd, colour=TIMBER, t=0.08, d=0.12)
     # the ante-room into the hall (where the hall is narrower), the kitchen's back wall beside it
     wall_z(0.0, 0.0, 4.0, [(NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9)], hall_wall, out, rnd)
     frame_z(0.0, NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9, out, rnd, colour=TIMBER, t=0.16, d=0.2)   # (tall wooden posts)
-    # the kitchen's door, on the hall: open, swung in against the kitchen's side
-    wall_z(0.0, 4.0, hz1, [KITCHEN_DOOR + (0.0, 2.2)], hall_wall, out, rnd)
+    # the kitchen from the hall: a passage behind a partition clad in reeds, a serving hatch on a
+    # stone sill along it, and the kitchen's lattice door at its end, open, swung in against its side
+    wall_z(0.0, 4.0, hz1, [KITCHEN_DOOR + (0.0, 2.2), HATCH + (1.0, 2.1)], hall_wall, out, rnd)
     frame_z(0.0, *KITCHEN_DOOR, 0.0, 2.2, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
     a0, a1 = KITCHEN_DOOR
-    base._surface(rnd, (-(a1 - a0), -0.06, 0.0, 2.2, a1 - 0.04, a1 - 0.04), DOOR, out, 0.03)
+    base._surface(rnd, (-(a1 - a0), -0.06, 0.0, 2.2, a0 + 0.04, a0 + 0.04), _lattice, out, 0.02)
+    base._surface(rnd, (-0.15, 0.3, 0.95, 1.0, *HATCH), base.finish("cement", (0.74, 0.71, 0.66)), out, 0.03)
+    for x in (PARTITION - 0.04, PARTITION + 0.04):
+        wall_z(x, HATCH[0] - 0.1, hz1, [], _reed_wall, out, rnd, h=2.6, step=0.03)
+    base._surface(rnd, (PARTITION - 0.04, PARTITION + 0.04, 0.0, 2.6, HATCH[0] - 0.1, HATCH[0] - 0.1), TIMBER, out, 0.02)
+    # where the hall widens: a beam across it, a warm strip of light along its underside
+    base._surface(rnd, (NOTCH[1] - 0.15, NOTCH[1] + 0.15, H - 0.32, H, 0.0, hz1), TIMBER, out, 0.04)
+    base._surface(rnd, (NOTCH[1] - 0.06, NOTCH[1] + 0.06, H - 0.325, H - 0.325, 0.05, hz1 - 0.05), (1.0, 0.72, 0.42), out, 0.02)
 
     # the hall: the notch on the left, the half wall, the toilets' hall and the stage beside it
     wc_wall = _wall(WC_WALL, skirting=None)
@@ -377,10 +409,12 @@ def house(rnd, out):
     wall_z(NOTCH[1], 0.0, NOTCH[2], [(0.2, NOTCH[2] - 0.2, 1.0, 2.3)], hall_wall, out, rnd)
     frame_z(NOTCH[1], 0.2, NOTCH[2] - 0.2, 1.0, 2.3, out, rnd, colour=GREY_FRAME, t=0.04)
     base._surface(rnd, (NOTCH[1] - 0.03, NOTCH[1] - 0.03, 1.0, 2.3, 0.2, NOTCH[2] - 0.2), _view, out, 0.04)
-    wall_x(0.0, NOTCH[1], HALF_WALL[0], [], hall_wall, out, rnd)
-    wall_x(0.0, HALF_WALL[0], WC[1], [(13.0, 13.9, 0.0, 2.2), (15.2, 16.1, 0.0, 2.2)], wc_wall, out, rnd)
-    door_x(0.0, 13.0, 13.9, out, rnd)
-    door_x(0.0, 15.2, 16.1, out, rnd)
+    wall_x(0.0, NOTCH[1], HALF_WALL[0], [PASSAGE[:2] + (0.0, 2.4)], hall_wall, out, rnd)
+    side_room(rnd, out)
+    wall_x(0.0, HALF_WALL[0], WC[1], [(a, b, 0.0, 2.2) for a, b in WC_DOORS], wc_wall, out, rnd)
+    for a, b in WC_DOORS:
+        open_door_x(0.0, a, b, out, rnd)
+    toilets(rnd, out)
     hx, reach = HALF_WALL
     # (bare brick, to the ceiling, a square opening through it)
     for x in (hx - 0.1, hx + 0.1):
@@ -391,6 +425,8 @@ def house(rnd, out):
     wall_x(WC[2], WC[1] - 2.5, WC[1], [], wc_wall, out, rnd)
     # the toilets' hall's end, the stage's side: bare brick
     wall_z(WC[1], 0.0, WC[2], [], _brickwork(2), out, rnd)
+    # (and a small dark bar against it)
+    base._surface(rnd, (WC[1] - 0.6, WC[1], 0.0, 1.05, 0.5, 2.1), (0.15, 0.13, 0.12), out, 0.03)
     # the windows along the right: dark grey frames, linen curtains
     # (three sets of three, the same space between the sets; dark shutters behind the glass)
     gap = (hx1 - hx0 - 3 * 3 * 1.1) / 4
@@ -401,18 +437,25 @@ def house(rnd, out):
     for a, b in windows:
         frame_x(hz1, a, b, w0, w1, out, rnd, colour=GREY_FRAME, t=0.04)
         base._surface(rnd, (a, b, (w0 + w1) / 2 - 0.015, (w0 + w1) / 2 + 0.015, hz1 - 0.02, hz1 + 0.02), GREY_FRAME, out, 0.03)
-        base._surface(rnd, (a, b, w0, w1, hz1 + 0.03, hz1 + 0.03), _shutters, out, 0.03)
+        # (the sky through the top 40 cm; below, dark wooden shutters hinged at the top, kicked out)
+        base._surface(rnd, (a, b, w0, w1, hz1 + 0.5, hz1 + 0.5), _view, out, 0.04)
+        for k in range(7):
+            y = w1 - 0.42 - 0.08 * (k + 1)
+            base._surface(rnd, (a + 0.02, b - 0.02, y, y + 0.09, hz1 + 0.04 + 0.045 * k, hz1 + 0.04 + 0.045 * k), _shutters, out, 0.03)
     for j in range(3):                               # the curtains, between the sets
         a, b = windows[3 * j][0], windows[3 * j + 2][1]
         for c in (a - 0.5, b + 0.04):
             base._surface(rnd, (c, c + 0.46, 0.05, H - 0.15, hz1 - 0.1, hz1 - 0.1), _folds(LINEN, 0), out, 0.04)
-    # its end: glass doors onto the pergola, open; glass above them
-    doors = [(3.4 + 1.3 * k, 4.4 + 1.3 * k) for k in range(4)]
-    wall_z(hx1, WC[2], hz1, [(a, b, 0.0, 2.6) for a, b in doors] + [(WC[2] + 0.1, hz1 - 0.1, 2.7, 3.3)], hall_wall, out, rnd)
-    for a, b in doors:
-        frame_z(hx1, a, b, 0.0, 2.6, out, rnd)
-    frame_z(hx1, WC[2] + 0.1, hz1 - 0.1, 2.7, 3.3, out, rnd)
-    base._surface(rnd, (hx1, hx1, 2.7, 3.3, WC[2] + 0.1, hz1 - 0.1), (0.84, 0.89, 0.92), out, 0.05)
+    # its end: wide open onto the pergola under a dark beam, sheer curtains drawn back each side, a
+    # column of bare brick at the corner with the toilets' hall
+    base._surface(rnd, (hx1 - 0.15, hx1 + 0.15, 2.75, H, WC[2], hz1), (0.20, 0.20, 0.21), out, 0.04)
+    for z0, z1 in ((WC[2] + 0.5, WC[2] + 1.0), (hz1 - 0.6, hz1 - 0.1)):
+        base._surface(rnd, (hx1 - 0.2, hx1 - 0.2, 0.02, 2.75, z0, z1), _folds((0.92, 0.90, 0.86), 2, width=0.1), out, 0.03)
+    cx, cz = hx1 + 0.05, WC[2] - 0.05
+    for (a0, a1, b0, b1) in ((cx - 0.25, cx + 0.25, cz - 0.25, cz - 0.25), (cx - 0.25, cx + 0.25, cz + 0.25, cz + 0.25)):
+        base._surface(rnd, (a0, a1, 0.0, H, b0, b1), _brickwork(0), out, 0.04)
+    for x in (cx - 0.25, cx + 0.25):
+        base._surface(rnd, (x, x, 0.0, H, cz - 0.25, cz + 0.25), _brickwork(2), out, 0.04)
     # track lights along the concrete ceiling
     for z in (2.6, 6.0):
         base._surface(rnd, (hx0 + 0.5, hx1 - 0.5, H - 0.04, H, z - 0.02, z + 0.02), STEEL, out, 0.03)
@@ -427,29 +470,233 @@ def house(rnd, out):
     base._surface(rnd, (sx0 + 1.4, sx1 - 1.4, sh + 0.9, H - 0.15, 0.06, 0.06), SCREEN, out, 0.04)
 
 
+LANTERN = (3.8, 3.0)                # the vertical garden's glass roof light: its foot, along x and across
+
+
 def skylight(rnd, out):
-    """The vertical garden's roof: glass between dark timber beams, the sky through it."""
+    """The vertical garden's ceiling, dark grey, round the opening its glass roof light stands over
+    (the page draws the roof light, its timber and glass, from fixtures())."""
     x0, x1, z0, z1 = VERTICAL
-    for k in range(int((x1 - x0) / 1.0) + 1):
-        x = min(x1 - 0.06, x0 + 0.06 + k * 1.0)
-        base._surface(rnd, (x - 0.06, x + 0.06, H - 0.2, H, z0, z1), TIMBER, out, 0.05)
-    for k in range(int((x1 - x0) / 0.3)):
-        for m in range(int((z1 - z0) / 0.3)):
-            out.append(((x0 + (k + rnd.random()) * 0.3, H, z0 + (m + rnd.random()) * 0.3), (0.86, 0.91, 0.93), [0.22, 0.01, 0.22], 0.06))
+    cx, cz, (lw, ld) = (x0 + x1) / 2, (z0 + z1) / 2, LANTERN
+    for a0, a1, b0, b1 in _cut((x0, x1), (z0, z1), [(cx - lw / 2, cx + lw / 2, cz - ld / 2, cz + ld / 2)]):
+        base._surface(rnd, (a0, a1, H, H, b0, b1), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
+
+
+def track(rnd, out, x0, x1, z):
+    """A track light along x under the ceiling: a black rail, a spot on it every 1.2 m."""
+    base._surface(rnd, (x0, x1, H - 0.04, H, z - 0.02, z + 0.02), STEEL, out, 0.03)
+    for k in range(int((x1 - x0) / 1.2) + 1):
+        x = x0 + k * 1.2
+        base._surface(rnd, (x - 0.04, x + 0.04, H - 0.2, H - 0.06, z - 0.04, z + 0.04), STEEL, out, 0.02)
+
+
+def open_door_x(z, a0, a1, out, rnd, h=2.2):
+    """A doorway in a wall along x at z, in a reddish wooden frame, its dark door swung open to -z
+    against the wall beside it (hinged at a0)."""
+    frame_x(z, a0, a1, 0.0, h, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
+    base._surface(rnd, (a0 + 0.02, a0 + 0.06, 0.0, h, z - (a1 - a0), z - 0.04), DOOR, out, 0.03)
+
+
+def _mural(colour):
+    """A wall painted with big monstera leaves in greens, from (x0, y0) along z and up (the
+    ladies' room's, on its far wall)."""
+    leaves = ((-1.0, 1.2, 0.75, 0.3), (-1.9, 1.9, 0.6, -0.4), (-0.4, 2.0, 0.5, 0.6), (-1.5, 0.6, 0.55, 1.1))
+    def f(x, y, z, rnd):
+        for cz, cy, r, tilt in leaves:
+            u, v = z - cz, y - cy
+            u, v = u * math.cos(tilt) - v * math.sin(tilt), u * math.sin(tilt) + v * math.cos(tilt)
+            if (u / r) ** 2 + (v / (r * 0.8)) ** 2 < 1:
+                if abs(u) < 0.012 or (abs(u) > 0.2 * r and abs(math.sin(math.atan2(v, u) * 7)) < 0.12):
+                    return colour                          # (the rib and the slits)
+                return (0.30, 0.47, 0.33) if v > 0 else (0.38, 0.56, 0.40)
+        return colour
+    return base.finish("plaster", f)
+
+
+def _lattice(x, y, z, rnd):
+    """A cubicle's door: dark wood in a fine diagonal lattice."""
+    u = (x + z + y) % 0.06 < 0.012 or (x + z - y) % 0.06 < 0.012
+    return (0.13, 0.08, 0.05) if u else (0.33, 0.21, 0.13)
+
+
+def _ring(rnd, out, cx, cy, cz, r, colour, axis, n=40, s=0.02):
+    """A ring of splats round (cx, cy, cz), radius r, in the plane across `axis` (0 x, 1 y, 2 z)."""
+    for k in range(n):
+        a = 2 * math.pi * k / n
+        u, v = r * math.cos(a), r * math.sin(a)
+        p = [(cx, cy + u, cz + v), (cx + u, cy, cz + v), (cx + u, cy + v, cz)][axis]
+        out.append((p, colour, [s, s, s]))
+
+
+def _basin(rnd, out, x, z, top):
+    """A white bowl on a counter: rings from its foot to its lip."""
+    for k in range(6):
+        _ring(rnd, out, x, top + 0.025 * k, z, 0.12 + 0.017 * k, (0.95, 0.95, 0.94), 1, 30, 0.02)
+    out.append(((x, top + 0.02, z), (0.80, 0.80, 0.80), [0.1, 0.005, 0.1]))
+
+
+def _mirror(rnd, out, x, y, z, r=0.33):
+    """A round mirror on a wall along z (at x), on a rope rim."""
+    base._surface(rnd, (x, x, y - r * 0.7, y + r * 0.7, z - r * 0.7, z + r * 0.7), (0.66, 0.70, 0.72), out, 0.03)
+    for k in range(3):
+        _ring(rnd, out, x, y, z, r - 0.01 * k, (0.72, 0.62, 0.47), 0, 60, 0.015)
+
+
+def toilets(rnd, out):
+    """The toilets behind the toilets' hall's left wall, as the walkthrough shows them: grey walls
+    under a white ceiling with downlights, a cement floor, small windows high on the far wall. The
+    ladies': a wooden counter with two white bowls and round mirrors, two cubicles with lattice
+    doors, big leaves painted on the far wall. The gents': a long steel trough with a wooden shelf
+    over it, a cubicle, a basin on a tiled splashback."""
+    grey = _wall(WC_GREY, skirting=None)
+    for r in (LADIES, GENTS):
+        x0, x1, z0, z1 = r
+        base._surface(rnd, (x0, x1, 0, 0, z0, z1), _shaded(_cement(CEMENT, joint=1.2), r), out, FLOOR_STEP)
+        base._surface(rnd, (x0, x1, WC_CEILING, WC_CEILING, z0, z1), base.finish("plaster", CEILING), out, CEIL_STEP)
+        for x in (x0 + 0.9, x1 - 0.9):
+            for z in (z0 + 1.0, z1 - 1.0):
+                base._surface(rnd, (x - 0.05, x + 0.05, WC_CEILING - 0.005, WC_CEILING - 0.005, z - 0.05, z + 0.05), (1.0, 0.98, 0.9), out, 0.02)
+        # the far wall, with its windows high up
+        wins = [(x0 + 0.6, x0 + 1.4), (x1 - 1.4, x1 - 0.6)]
+        wall_x(z0, x0, x1, [(a, b, 2.1, 2.5) for a, b in wins], grey, out, rnd, h=WC_CEILING)
+        for a, b in wins:
+            frame_x(z0, a, b, 2.1, 2.5, out, rnd, colour=DOOR_FRAME, t=0.04)
+            base._surface(rnd, (a, b, 2.1, 2.5, z0 - 0.03, z0 - 0.03), _view, out, 0.03)
+    lx0, lx1, z0, z1 = LADIES
+    gx0, gx1 = GENTS[:2]
+    wall_z(lx0, z0, z1, [], grey, out, rnd, h=WC_CEILING)
+    wall_z(gx1, z0, z1, [], grey, out, rnd, h=WC_CEILING)
+    wall_z(lx1 - 0.01, z0, z1, [], _mural(WC_GREY), out, rnd, h=WC_CEILING)   # (the ladies' side)
+    wall_z(lx1 + 0.01, z0, z1, [], grey, out, rnd, h=WC_CEILING)
+    wood = (0.40, 0.25, 0.16)
+    # the ladies': the counter along the wall at the door's left, two bowls, two mirrors
+    base._surface(rnd, (lx0, lx0 + 0.5, 0.78, 0.84, -2.6, -0.5), wood, out, 0.03)
+    for z in (-1.05, -2.05):
+        _basin(rnd, out, lx0 + 0.25, z, 0.84)
+        _mirror(rnd, out, lx0 + 0.01, 1.55, z)
+    # two cubicles at the far end: grey panels, lattice doors (the first open), a toilet in each
+    cubicles(rnd, out, lx0 + 1.0, lx1, z0, -2.6, 2)
+    # the gents': the trough along the far wall, a shelf over it; a cubicle at its end; a basin
+    base._surface(rnd, (gx0 + 0.3, gx0 + 2.5, 0.45, 0.85, z0, z0 + 0.35), (0.16, 0.16, 0.17), out, 0.03)
+    base._surface(rnd, (gx0 + 0.3, gx0 + 2.5, 1.2, 1.24, z0, z0 + 0.2), wood, out, 0.02)
+    cubicles(rnd, out, gx1 - 1.2, gx1, z0, -2.7, 1)
+    base._surface(rnd, (gx1 - 0.5, gx1, 0.78, 0.84, -2.3, -1.0), wood, out, 0.03)
+    base._surface(rnd, (gx1 - 0.01, gx1 - 0.01, 0.84, 1.3, -2.3, -1.0), _tiles((0.70, 0.66, 0.60), 0.05, across=2), out, 0.02)
+    _basin(rnd, out, gx1 - 0.25, -1.65, 0.84)
+    _mirror(rnd, out, gx1 - 0.02, 1.6, -1.65)
+
+
+def _reed_wall(x, y, z, rnd):
+    """Woven reed cladding: thin stalks standing side by side, each its own straw shade."""
+    r = random.Random(math.floor(z / 0.012))
+    t = r.uniform(-0.08, 0.06) + 0.03 * math.sin(y * 9 + r.random() * 6)
+    return (REED[0] + t, REED[1] + t, REED[2] + t * 0.8)
+
+
+def _louvres(x, y, z, rnd):
+    """A louvred door in dark wood: slats 4 cm, a light line between them, a stile round them."""
+    return (0.42, 0.30, 0.20) if y % 0.04 < 0.008 else (0.24, 0.15, 0.10)
+
+
+def side_room(rnd, out):
+    """The small room off the hall (the walkthrough at 1:22-1:33): from the hall's left wall where
+    the notch ends, a short passage to a louvred double door (swung in), then a room with beige
+    walls, dark stone tiles and wooden glass doors onto a planted patio. The kitchen's staff come in
+    this way; the venue stops at the glass doors, the patio only seen through them (faint: the map
+    leaves it out; the page draws its plants, from fixtures())."""
+    a, b, end = PASSAGE
+    x0, x1, z0, z1 = SIDE
+    beige = _wall((0.66, 0.58, 0.47))
+    floor = _tiles((0.30, 0.26, 0.23), 0.5, grout=(0.22, 0.19, 0.17))
+    base._surface(rnd, (a, b, 0, 0, end, 0.0), floor, out, FLOOR_STEP)
+    base._surface(rnd, (a, b, WC_CEILING, WC_CEILING, end, 0.0), base.finish("plaster", CEILING), out, CEIL_STEP)
+    for x in (a, b):
+        wall_z(x, end, 0.0, [], _wall(HALL_WALL), out, rnd, h=WC_CEILING)
+    frame_x(0.0, a, b, 0.0, 2.4, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
+    frame_x(end, a, b, 0.0, 2.3, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
+    for x in (a + 0.02, b - 0.06):                   # the louvred leaves, swung into the room
+        base._surface(rnd, (x, x + 0.04, 0.0, 2.25, end - (b - a) / 2, end - 0.04), _louvres, out, 0.02)
+    base._surface(rnd, (x0, x1, 0, 0, z0, z1), _shaded(floor, SIDE), out, FLOOR_STEP)
+    base._surface(rnd, (x0, x1, WC_CEILING, WC_CEILING, z0, z1), base.finish("plaster", CEILING), out, CEIL_STEP)
+    wall_z(x0, z0, z1, [], beige, out, rnd, h=WC_CEILING)
+    wall_z(x1, z0, z1, [], beige, out, rnd, h=WC_CEILING)
+    wall_x(z1, x0, x1, [(a, b, 0.0, 2.3)], beige, out, rnd, h=WC_CEILING)
+    ga, gb = GARDEN_DOOR
+    wall_x(z0, x0, x1, [(ga, gb, 0.0, 2.4)], beige, out, rnd, h=WC_CEILING)
+    wood = (0.42, 0.28, 0.18)
+    frame_x(z0, ga, gb, 0.0, 2.4, out, rnd, colour=wood, t=0.08, d=0.1)
+    m = (ga + gb) / 2
+    for x in (m - 0.04, m, ga + (m - ga) / 2, m + (gb - m) / 2):        # the leaves' stiles and their bars
+        base._surface(rnd, (x - 0.025, x + 0.025, 0.0, 2.4, z0 - 0.02, z0 + 0.02), wood, out, 0.02)
+    for y in (0.05, 0.9, 2.35):
+        base._surface(rnd, (ga, gb, y, y + 0.06, z0 - 0.02, z0 + 0.02), wood, out, 0.02)
+    # (the glass, and the patio's terracotta through it: seen, not walked)
+    for i in range(int((gb - ga) / 0.05)):
+        for k in range(int(2.4 / 0.05)):
+            out.append(((ga + (i + rnd.random()) * 0.05, (k + rnd.random()) * 0.05, z0), (0.80, 0.86, 0.87), [0.03, 0.03, 0.005], 0.12))
+    for i in range(int((x1 - x0) / 0.1)):
+        for k in range(int(2.0 / 0.1)):
+            c = tuple(v + rnd.uniform(-0.03, 0.03) for v in (0.52, 0.33, 0.24))
+            out.append(((x0 + (i + rnd.random()) * 0.1, 0.0, z0 - (k + rnd.random()) * 0.1), c, [0.07, 0.005, 0.07], FAR))
+
+
+def cubicles(rnd, out, x0, x1, z0, front, n):
+    """n cubicles side by side from x0 to x1, from the wall at z0 to their front: grey panels 15 cm
+    off the floor and 2 m high, a lattice door in each front (the first swung open), a toilet."""
+    panel, w = (0.52, 0.53, 0.55), (x1 - x0) / n
+    for k in range(n + 1):
+        x = x0 + k * w
+        if k < n:                                   # (the wall at x1 is the last side)
+            base._surface(rnd, (x, x, 0.15, 2.1, z0, front), panel, out, 0.03)
+    for k in range(n):
+        a, b = x0 + k * w, x0 + (k + 1) * w
+        if k == 0:
+            base._surface(rnd, (a + 0.05, a + 0.09, 0.15, 2.1, front, front + w - 0.1), _lattice, out, 0.02)
+        else:
+            base._surface(rnd, (a + 0.05, b - 0.05, 0.15, 2.1, front, front), _lattice, out, 0.02)
+        cx = (a + b) / 2
+        base._surface(rnd, (cx - 0.19, cx + 0.19, 0.0, 0.42, z0, z0 + 0.62), (0.95, 0.95, 0.94), out, 0.025)
 
 
 def kitchen(rnd, out):
-    """The kitchen: white tiles up its walls, a high row of windows in grey frames on its outside wall."""
+    """The kitchen, as Gabriel's frame of it shows it: white tiles up its walls, a high row of
+    windows in dark wooden frames on its outside wall (frosted, some panes tipped open) over
+    stainless sinks; a stove under a steel hood in the middle, its duct to the wall; a tall white
+    fridge; two dark doors in its far wall, the staff's way out (to the room by the hall's louvred
+    door)."""
     x0, x1, z0, z1 = KITCHEN
     windows = [(x0 + 0.6 + 1.5 * k, x0 + 1.8 + 1.5 * k) for k in range(5)]
-    w0, w1 = 1.5, 2.6
+    w0, w1 = 1.4, 2.5
+    frame = (0.30, 0.20, 0.15)
     wall_x(z1, x0, x1, [(a, b, w0, w1) for a, b in windows], _tiles(TILE_WHITE, 0.2, across=1), out, rnd)
-    for a, b in windows:
-        frame_x(z1, a, b, w0, w1, out, rnd, colour=GREY_FRAME, t=0.04)
-        base._surface(rnd, ((a + b) / 2 - 0.015, (a + b) / 2 + 0.015, w0, w1, z1 - 0.02, z1 + 0.02), GREY_FRAME, out, 0.03)
-        base._surface(rnd, (a, b, (w0 + w1) / 2 - 0.015, (w0 + w1) / 2 + 0.015, z1 - 0.02, z1 + 0.02), GREY_FRAME, out, 0.03)
-        base._surface(rnd, (a, b, w0, w1, z1 + 0.03, z1 + 0.03), _view, out, 0.04)
-    wall_z(x0, z0, z1, [], _tiles(TILE_WHITE, 0.2, across=2), out, rnd)
+    for k, (a, b) in enumerate(windows):
+        frame_x(z1, a, b, w0, w1, out, rnd, colour=frame, t=0.05)
+        for m in (1, 2):
+            x = a + (b - a) * m / 3
+            base._surface(rnd, (x - 0.02, x + 0.02, w0, w1, z1 - 0.02, z1 + 0.02), frame, out, 0.03)
+        base._surface(rnd, (a, b, (w0 + w1) / 2 - 0.02, (w0 + w1) / 2 + 0.02, z1 - 0.02, z1 + 0.02), frame, out, 0.03)
+        base._surface(rnd, (a, b, w0, w1, z1 + 0.03, z1 + 0.03), (0.86, 0.88, 0.88), out, 0.04)    # (frosted)
+        if k % 2 == 0:                               # a pane tipped open into the room
+            base._surface(rnd, (a + 0.05, a + (b - a) / 3 - 0.05, w0 + 0.42, w0 + 0.46, z1 - 0.3, z1 - 0.02), (0.84, 0.86, 0.86), out, 0.02)
+    wall_z(x0, z0, z1, [(4.4, 5.3, 0.0, 2.2), (6.4, 7.3, 0.0, 2.2)], _tiles(TILE_WHITE, 0.2, across=2), out, rnd)
+    door_z(x0, 4.4, 5.3, out, rnd)
+    door_z(x0, 6.4, 7.3, out, rnd)
+    steel = (0.70, 0.71, 0.72)
+    # the sinks along the windows' wall: a steel top with a basin in it, an upstand, a shelf below
+    base._surface(rnd, (x0 + 0.6, x0 + 5.6, 0.86, 0.9, z1 - 0.65, z1), steel, out, 0.03)
+    base._surface(rnd, (x0 + 0.6, x0 + 5.6, 0.9, 1.05, z1 - 0.03, z1), steel, out, 0.03)
+    base._surface(rnd, (x0 + 0.6, x0 + 5.6, 0.15, 0.17, z1 - 0.6, z1), (0.62, 0.63, 0.64), out, 0.04)
+    for x in (x0 + 1.4, x0 + 3.9):
+        base._surface(rnd, (x - 0.3, x + 0.3, 0.9, 0.9, z1 - 0.55, z1 - 0.1), (0.45, 0.46, 0.47), out, 0.02)
+    # the stove in the middle, on a steel frame, under its hood; the duct along the ceiling
+    cx, cz = x0 + 6.5, (z0 + z1) / 2
+    base._surface(rnd, (cx - 0.5, cx + 0.5, 0.82, 0.86, cz - 0.45, cz + 0.45), (0.22, 0.22, 0.23), out, 0.03)
+    base._surface(rnd, (cx - 0.5, cx + 0.5, 0.2, 0.22, cz - 0.45, cz + 0.45), steel, out, 0.04)
+    base._surface(rnd, (cx - 0.8, cx + 0.8, 2.25, 2.5, cz - 0.7, cz + 0.7), steel, out, 0.04)
+    base._surface(rnd, (cx - 0.3, cx + 0.3, 2.5, H, cz - 0.3, cz + 0.3), steel, out, 0.04)
+    base._surface(rnd, (x0, cx - 0.3, H - 0.4, H - 0.1, cz - 0.15, cz + 0.15), steel, out, 0.04)
+    # the fridge against the ante-room's wall, near the far end
+    base._surface(rnd, (x0 + 0.3, x0 + 1.05, 0.0, 1.9, z0, z0 + 0.72), (0.94, 0.94, 0.93), out, 0.03)
 
 
 def green_x(rnd, z, x0, x1, side, out):
@@ -496,7 +743,8 @@ def garden(rnd, out):
     bx0, bx1, bz0, bz1 = BUNGALOW
     def ground(x, y, z, rnd):
         near = bx0 - 2.0 < x < bx1 + 1.0 and bz0 - 2.0 < z
-        return _lawn(x, y, z, rnd) if near else _sand(x, y, z, rnd)
+        patch = GARDEN_X + 0.8 < x < GARDEN_X + 7.5 and 1.5 < z < 6.0 + 0.6 * math.sin(x * 0.8)   # (by the left wall, past the pergola)
+        return _lawn(x, y, z, rnd) if near or patch else _sand(x, y, z, rnd)
     # (one sheet, so the page draws it smooth: the cells past the slanted far side left out)
     long = max(GARDEN_LEFT, GARDEN_RIGHT)
     ground.finish = "sand"
@@ -506,17 +754,20 @@ def garden(rnd, out):
     # beside the pergola, to the garden's right wall
     base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _sand, out, LAWN_STEP)
     # its walls, along the left (on from the house's) and the right, and across beside the pergola,
-    # whitewashed, 2 m high, to where the sand starts; tropical beds along them behind a kerb
-    # (planted all along: the page draws the borders in front of them, from fixtures())
-    live = lambda x, y, z, rnd: _greenwall(x, y, z, rnd)
-    wall_x(0.0, GARDEN_X, _garden_end(0.0), [], live, out, rnd, h=2.0)
-    wall_x(GARDEN_W, PERGOLA[0], _garden_end(GARDEN_W), [], live, out, rnd, h=2.0)
-    wall_z(PERGOLA[0], PERGOLA[3], GARDEN_W, [], live, out, rnd, h=2.0)
+    # 2 m high and painted near black, to where the sand starts; tropical beds along them behind a
+    # kerb (planted all along: the page draws the borders in front of them, from fixtures())
+    dark = _rough((0.17, 0.18, 0.17), 0.03)
+    wall_x(0.0, GARDEN_X, _garden_end(0.0), [], dark, out, rnd, h=2.0)
+    wall_x(GARDEN_W, PERGOLA[0], _garden_end(GARDEN_W), [], dark, out, rnd, h=2.0)
+    wall_z(PERGOLA[0], PERGOLA[3], GARDEN_W, [], dark, out, rnd, h=2.0)
+    # a cement path out from the pergola's corner into the sand
+    base._surface(rnd, (GARDEN_X, GARDEN_X + 3.0, 0.006, 0.006, PERGOLA[3] - 1.7, PERGOLA[3] - 0.2), _cement(PERGOLA_FLOOR, joint=1.0), out, FLOOR_STEP)
     # the planted beds along the walls: the page draws them (tropical_border); here their tops, a metre
     # up and green, so the map keeps the body out of them
     for z0, z1, x0, x1 in ((0.0, 1.5, GARDEN_X, _garden_end(0.0) - 0.5), (GARDEN_W - 1.5, GARDEN_W, PERGOLA[0] + 0.3, _garden_end(GARDEN_W) - 0.5)):
         base._surface(rnd, (x0, x1, 1.0, 1.0, z0, z1), (0.20, 0.36, 0.17), out, 0.08)
     bungalow(rnd, out)
+    sea_wall(rnd, out)
     for t in TREES:
         trunk(rnd, out, *t)
 
@@ -542,6 +793,40 @@ def trunk(rnd, out, x, z, item):
         y += 0.05
 
 
+def _far_side():
+    """The garden's slanted far side, where it meets the beach: its ends, length, the way along it
+    and the way in from it (toward the house)."""
+    (ax, az), (bx, bz) = (GARDEN_X + GARDEN_RIGHT, 0.0), (GARDEN_X + GARDEN_LEFT, GARDEN_W)
+    L = math.hypot(bx - ax, bz - az)
+    return (ax, az), L, ((bx - ax) / L, (bz - az) / L), (-(bz - az) / L, (bx - ax) / L)
+
+
+SEA_GAP = 0.12                          # the opening in the sea wall for the path down to the beach: either side of its middle, a share of its length
+
+
+def sea_wall(rnd, out):
+    """The low wall of dark stones along the garden's far side, between it and the beach (45 cm high,
+    40 cm thick), open in the middle for the path; the page draws the clipped hedge along its top."""
+    (ax, az), L, (tx, tz), (nx, nz) = _far_side()
+    st, h, w = 0.05, 0.45, 0.4
+    def stone(u, y):
+        r = random.Random(math.floor(u / 0.32 + (0.5 if math.floor(y / 0.15) % 2 else 0)) * 7 + math.floor(y / 0.15))
+        joint = (u / 0.32 + (0.5 if math.floor(y / 0.15) % 2 else 0)) % 1 < 0.06 or y % 0.15 < 0.012
+        k = 0.55 if joint else 1 + r.uniform(-0.18, 0.15)
+        return (0.36 * k, 0.35 * k, 0.32 * k)
+    for i in range(int(L / st)):
+        u = (i + 0.5) * st
+        if abs(u / L - 0.5) < SEA_GAP:
+            continue
+        for side in (0.0, w):
+            for j in range(int(h / st)):
+                y = (j + 0.5) * st
+                p = (ax + tx * u + nx * (0.3 + side), y, az + tz * u + nz * (0.3 + side))
+                out.append((p, stone(u, y), [st * 0.7, st * 0.7, st * 0.7]))
+        for v in (0.1, 0.2, 0.3):
+            out.append(((ax + tx * u + nx * (0.3 + v), h, az + tz * u + nz * (0.3 + v)), stone(u + 0.37, 0.07), [st * 0.7, st * 0.3, st * 0.7]))
+
+
 def _along(item, x0, x1, z, turn, width, depth=0.0):
     """Copies of a decor starter `width` wide in a row along x from x0 to x1 at z, each stretched a
     little so the row fits; `depth` out from z (on the side it faces)."""
@@ -557,13 +842,50 @@ def fixtures() -> dict:
     things it draws as it draws the decor (decor.js starters), so they look as the decor does: the
     planted walls, the borders along the garden's walls and the glass rain cover over it."""
     props = [{"item": item, "at": [x, 0.0, z]} for x, z, item in TREES]
-    for x0, x1 in (VERTICAL[:2], ANTE[:2]):
-        props += _along("living_wall", x0, x1, 0.0, 0.0, 2.0, 0.15)
-        props += _along("living_wall", x0 + (0.3 if x0 == ANTE[0] else 0.0), x1 - (0.3 if x0 == ANTE[0] else 0.0), 4.0, math.pi, 2.0, 0.15)
-    # the garden's walls, 2 m high, planted all over too, the beds in front of them
+    # the planted patio beyond the side room's glass doors
+    props += _along("tropical_border", SIDE[0], SIDE[1], SIDE[2] - 2.0, 0.0, 2.0, 0.0)
+    x0, x1 = VERTICAL[:2]
+    props += _along("living_wall", x0, x1, 0.0, 0.0, 2.0, 0.15)
+    props += _along("living_wall", x0, x1, 4.0, math.pi, 2.0, 0.15)
+    # the vertical garden's glass roof light, a cluster of rattan lamps hung in it
+    cx, cz = (x0 + x1) / 2, (VERTICAL[2] + VERTICAL[3]) / 2
+    props += [{"item": "glass_lantern", "at": [cx, 0.0, cz], "scale": [round(LANTERN[0] / 4.5, 4), 1, round(LANTERN[1] / 4.0, 4)]},
+              {"item": "rattan_pendants", "at": [cx, 0.7, cz], "scale": [1.3, 1, 1.3]}]
+    # the jute ceilings: with black bands over the ante-room, plain over the stage
+    for item, (a0, a1, b0, b1) in (("jute_ceiling", ANTE), ("jute_swags", STAGE[:4])):
+        nx = max(1, round((a1 - a0) / 4.0))
+        props += [{"item": item, "at": [round(a0 + (k + 0.5) * (a1 - a0) / nx, 3), 0.0, (b0 + b1) / 2],
+                   "scale": [round((a1 - a0) / nx / 4.0, 4), 1, round((b1 - b0) / 4.0, 4)]} for k in range(nx)]
+    # the beds along the garden's dark walls
     for z, turn, x0 in ((0.0, 0.0, GARDEN_X), (GARDEN_W, math.pi, PERGOLA[0])):
-        props += [dict(p, scale=[p["scale"][0], round(2.0 / 3.4, 4), 1]) for p in _along("living_wall", x0, _garden_end(z), z, turn, 2.0, 0.15)]
         props += _along("tropical_border", x0 + 0.3, _garden_end(z) - 0.5, z, turn, 2.0, 0.95)
+    # climbers and bougainvillea falling over the pergola's edge on the garden
+    px1, pz1 = PERGOLA[1], PERGOLA[3]
+    props += [{"item": "hanging_greenery", "at": [px1 - 0.6, 0.3, z]} for z in (4.6, 7.0)]
+    props += [{"item": "bougainvillea_cloud", "at": [px1 - 0.6, 0.3, pz1 - 1.0], "turn": round(math.pi / 2, 4)}]
+    # rattan lamps hung down the middle of the glass cover, either side of the aisle
+    props += [{"item": "wicker_pendant", "at": [round(GARDEN_X + 2.0 + 4.0 * k, 3), 0.5, GARDEN_W / 2 + side]}
+              for k in range(int(COVER_LEN / 4.0)) for side in (-3.0, 3.0)]
+    # plants round the bungalow's deck, at its ends and behind it
+    bx0, bx1, bz0, bz1 = BUNGALOW
+    for x, turn in ((bx0 - 1.0, -math.pi / 2), (bx1 + 1.0, math.pi / 2)):
+        props += [{"item": "tropical_border", "at": [x, 0.0, round(bz0 + 1.2 + 2.0 * k, 3)], "turn": round(turn, 4)} for k in range(2)]
+    # a low clipped hedge where the garden meets the beach, open in the middle for the path down to it
+    # (on the low stone wall there)
+    (ax, az), L, (tx, tz), (nx, nz) = _far_side()
+    for k in range(int(L / 2.0)):
+        u = (k + 0.5) * 2.0
+        if abs(u / L - 0.5) > SEA_GAP + 0.04:
+            props.append({"item": "tropical_border", "at": [round(ax + tx * u + 0.5 * nx, 3), 0.45, round(az + tz * u + 0.5 * nz, 3)],
+                          "turn": round(-math.atan2(tz, tx), 4), "scale": [1, 0.35, 0.3]})
+    # the fans on the walls: the hall's, between its sets of windows; the pergola's, on its far wall;
+    # one on the brick column at the hall's end
+    hx0, hx1, _, hz1 = HALL
+    gap = (hx1 - hx0 - 3 * 3 * 1.1) / 4
+    # (each 20 cm out from its wall: its bracket's depth)
+    props += [{"item": "wall_fan", "at": [round(hx0 + gap * (j + 0.5) + 3.3 * j, 3), 2.0, hz1 - 0.2], "turn": round(math.pi, 4)} for j in (1, 2)]
+    props += [{"item": "wall_fan", "at": [x, 2.0, PERGOLA[3] - 0.2], "turn": round(math.pi, 4)} for x in (20.6, 25.8)]
+    props += [{"item": "wall_fan", "at": [round(hx1 + 0.5, 3), 2.0, round(WC[2] - 0.05, 3)], "turn": round(math.pi / 2, 4)}]
     bays = round(COVER_LEN / 3.3)
     props += [{"item": "glass_roof", "at": [round(GARDEN_X + (k + 0.5) * COVER_LEN / bays, 3), 0.0, GARDEN_W / 2],
                "scale": [round(COVER_LEN / bays / 3.3, 4), 1, 1]} for k in range(bays)]

@@ -2,6 +2,18 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue follows Gabriel's one-take walkthrough video. The vertical garden has a hipped
+  glass roof light on reddish timber with a cluster of rattan lamps. The reception's ceiling is
+  dark grey with track lights, and its tall front door has two dark leaves pivoted open. The
+  ante-room's walls are white plaster under a draped jute ceiling with black bands, over pale
+  cement slabs. The hall's tiles are glazed orange worn black in patches, and its windows show the
+  sky over dark shutters tilted out. The stage has a plain jute ceiling, and the garden's glass
+  cover is painted maroon. The toilets can be walked into: a counter with two bowls and round
+  mirrors, cubicles with lattice doors and a painted leaf wall in the ladies', a long trough in
+  the gents'.
+- New in the Decor catalogue: a garden bench (the venue's thick hardwood ones), a glass roof
+  light, and draped jute ceilings with or without black bands.
+
 - Drawn rooms look less flat: walls, floors and ceilings have their material's fine detail
   (plaster, polished cement, glazed tile, wood grain, sand), shine where the material shines, and
   are darker in corners, under beams and round door frames. Both are made once when the room

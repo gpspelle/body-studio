@@ -573,14 +573,14 @@ export function border(s, w, d, seed) {
 }
 // one bay of a glass roof on dark steel: posts at its two ends, a pitched rafter, purlins along,
 // two panes of glass; w along (x), d across (z)
-export function roofBay(s, w, d, eave, ridge) {
+export function roofBay(s, w, d, eave, ridge, steel = STEEL_DARK) {
   const roof = (z) => eave + (ridge - eave) * (1 - Math.abs(z) / (d / 2));
   made("metal", () => {
-    for (const z of [-d / 2, d / 2]) box(s, 0.1, eave, 0.1, 0, 0, z, STEEL_DARK);
-    for (const z of [-d / 2, d / 2]) rod(s, [0, roof(z), z], [0, ridge, 0], 0.04, STEEL_DARK, 6);
+    for (const z of [-d / 2, d / 2]) box(s, 0.1, eave, 0.1, 0, 0, z, steel);
+    for (const z of [-d / 2, d / 2]) rod(s, [0, roof(z), z], [0, ridge, 0], 0.04, steel, 6);
     for (const f of [0, 0.25, 0.5, 0.75, 1]) for (const side of [-1, 1]) {
       const z = side * f * d / 2;
-      rod(s, [-w / 2, roof(z) + 0.02, z], [w / 2, roof(z) + 0.02, z], 0.025, STEEL_DARK, 6);
+      rod(s, [-w / 2, roof(z) + 0.02, z], [w / 2, roof(z) + 0.02, z], 0.025, steel, 6);
     }
   });
   made("glass", () => {
@@ -592,6 +592,7 @@ export function roofBay(s, w, d, eave, ridge) {
   });
 }
 export const STEEL_DARK = [0.13, 0.13, 0.14];
+export const STEEL_MAROON = [0.36, 0.13, 0.11];   // painted steel, as the venue's garden cover
 // a woven shell (wicker, rattan) of rings and staves: radius r(t) from t = 0 (foot) to 1 (top)
 export function woven(s, h, r, cx, cy, cz, col, rings = 8, staves = 14) {
   const at = (t, a) => [cx + r(t) * Math.sin(a), cy + h * t, cz + r(t) * Math.cos(a)];
