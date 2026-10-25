@@ -2,6 +2,17 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's finer details, from a second pass over the walkthrough video. The front
+  door has a step down with a yellow stripe, and the white walls have wooden skirting. The vertical
+  garden has linen curtains at each end of its walls, and floor spotlights light it, the
+  ante-room's and the hall's walls, and a brick wall by the pergola. There are exit signs and wall
+  speakers. A terracotta arch and a red eye-shaped lamp are on the ante-room's end wall. The
+  toilets have green globe lights, door plaques, a baby-changing counter and the gents' two-tone
+  wall, and an orange dome lamp hangs over the bar. The pergola's reed roof is an open weave, with
+  a tall slatted door, brick piers with fans on the garden side and flagstones along the edge.
+  Pink shrubs stand at the pergola's corner. The tree under the glass cover is a broad one hung
+  with rattan lamps, and the bungalow has a step up and agaves along its front.
+- New in the Decor catalogue: an agave and a pink flowering shrub.
 - The sample venue follows Gabriel's one-take walkthrough video. The vertical garden has a hipped
   glass roof light on reddish timber with a cluster of rattan lamps. The reception's ceiling is
   dark grey with track lights, and its tall front door has two dark leaves pivoted open. The

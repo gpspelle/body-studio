@@ -350,6 +350,8 @@
       "decor.item.glass_lantern": "Glass roof light",
       "decor.item.jute_ceiling": "Jute ceiling with black bands",
       "decor.item.jute_swags": "Jute ceiling",
+      "decor.item.agave": "Agave",
+      "decor.item.pink_shrub": "Flowering shrub",
       "decor.item.garden_bench": "Garden bench",
       "decor.item.wall_fan": "Wall fan",
       "decor.item.striped_rug": "Striped rug",

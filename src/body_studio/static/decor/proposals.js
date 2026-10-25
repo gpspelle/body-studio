@@ -466,6 +466,33 @@ export const PROPOSALS = {
     group: "ceremony", height: 3.4, hangs: true, on: "floor", colour: "rattan", size: { w: 4, d: 4 }, block: false,
     make(col) { const s = shape(); swags(s, col, false); return s; },
   },
+  agave: {
+    group: "garden", height: 0.575, on: "floor", colour: "green", size: { r: 0.64 }, block: true,
+    make() {
+      // an agave in the sand: a rosette of thick blue-grey leaves, the inner ones standing up
+      const s = shape(), rnd = rng(211);
+      for (let k = 0; k < 26; k++) {
+        const t = k / 26;
+        leaf(s, [0, 0.02, 0], tipped(k * 2.4 + 0.3 * rnd(), 1.25 - 0.95 * t), 0.8 - 0.15 * t, 0.13, k % 3 ? AGAVE : AGAVE_PALE);
+      }
+      return grounded(s);
+    },
+  },
+  pink_shrub: {
+    group: "garden", height: 1.025, on: "floor", colour: "blush", size: { r: 0.66 }, block: true,
+    make() {
+      // a rounded flowering shrub, dark leaves under a scatter of pink and magenta flowers
+      const s = shape(), rnd = rng(191);
+      const dome = (r) => {
+        const a = rnd() * 6.283, t = Math.acos(rnd());
+        return [r * Math.sin(t) * Math.sin(a), 0.05 + 1.0 * r * Math.cos(t) / 0.66, r * Math.sin(t) * Math.cos(a)];
+      };
+      blob(s, 0.5, 0.36, 0.5, 0, 0.42, 0, DARK_LEAF, 0, 10);       // (its dense middle, so nothing shows through)
+      for (let k = 0; k < 700; k++) { const p = dome(0.58 * (0.75 + 0.25 * rnd())); leaf(s, p, tipped(rnd() * 6.283, 0.3 + 0.9 * rnd()), 0.2, 0.1, k % 2 ? DARK_LEAF : LEAF); }
+      made("satin", () => { for (let k = 0; k < 800; k++) { const p = dome(0.62); blob(s, 0.032, 0.02, 0.032, p[0], p[1], p[2], k % 3 ? PINK_FLOWER : MAGENTA, rnd() * 6, 4); } });
+      return grounded(s);
+    },
+  },
   garden_bench: {
     group: "garden", height: 0.45, on: "floor", colour: "wood", size: { w: 2.0, d: 0.42 }, block: true,
     seats: [{ x: -0.6, y: 0.45, z: 0, back: false }, { x: 0, y: 0.45, z: 0, back: false }, { x: 0.6, y: 0.45, z: 0, back: false }],
@@ -754,6 +781,7 @@ export const PROPOSALS = {
 // The draped jute ceiling of the venue's ante-room and stage, 4 m square, hung from 3.4 m: lengths
 // of burlap across it, each sagging between two bars 0.5 m apart; with `bands`, two black strips
 // along it, sagging a little lower, as in the ante-room.
+const AGAVE = [0.42, 0.56, 0.52], AGAVE_PALE = [0.55, 0.66, 0.6], PINK_FLOWER = [0.93, 0.42, 0.62];
 const TIMBER_RED = [0.5, 0.27, 0.18], BAND = [0.09, 0.09, 0.09], SAND_RUG = [0.86, 0.76, 0.6];
 function swags(s, col, bands) {
   const top = 3.4, sag = 0.28, n = 8;

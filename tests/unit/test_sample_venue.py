@@ -93,7 +93,7 @@ class SampleVenueTest(unittest.TestCase):
         # and the planted walls, the beds' borders and the glass roof, as decor too
         self.assertEqual({t["item"] for t in props[len(V.TREES):]},
                          {"living_wall", "tropical_border", "glass_roof", "glass_lantern", "rattan_pendants", "jute_ceiling", "jute_swags",
-                          "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan"})
+                          "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)

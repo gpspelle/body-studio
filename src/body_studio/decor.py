@@ -151,6 +151,8 @@ STARTERS = (
     {"id": "glass_lantern", "group": "garden", "height": 4.6, "on": "floor"},
     {"id": "jute_ceiling", "group": "ceremony", "height": 3.4, "on": "floor"},
     {"id": "jute_swags", "group": "ceremony", "height": 3.4, "on": "floor"},
+    {"id": "agave", "group": "garden", "height": 0.575, "on": "floor"},
+    {"id": "pink_shrub", "group": "garden", "height": 1.025, "on": "floor"},
     {"id": "garden_bench", "group": "garden", "height": 0.45, "on": "floor"},
     {"id": "broad_tree", "group": "garden", "height": 5.65, "on": "floor"},
     {"id": "beach_almond", "group": "garden", "height": 5.89, "on": "floor"},
