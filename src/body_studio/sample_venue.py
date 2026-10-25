@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 11
+VERSION = 12
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -78,11 +78,13 @@ FLOOR_STEP, WALL_STEP, CEIL_STEP, LAWN_STEP = 0.055, 0.07, 0.09, 0.085
 
 # colours as the walkthrough videos show them (Gabriel's mum's, 2026-10-24), measured from the
 # frames and evened out for the camera's exposure
-CEMENT = (0.66, 0.66, 0.65)         # the smooth grey floors: reception, vertical garden, ante-room, toilets
+CEMENT = (0.66, 0.66, 0.65)         # the smooth grey floors: ante-room's step, toilets
+POLISHED = (0.48, 0.51, 0.54)       # the reception's and the vertical garden's: polished cement, a cool grey
 PERGOLA_FLOOR = (0.62, 0.64, 0.66)  # the pergola's, a little bluer
 ROUGH = (0.70, 0.67, 0.63)          # rough cement: the pergola's wall
 CEILING = (0.95, 0.94, 0.91)
-DARK_CEILING = (0.34, 0.34, 0.34)   # the reception's and the vertical garden's, painted dark grey
+DARK_CEILING = (0.58, 0.58, 0.57)   # the reception's and the vertical garden's, painted mid grey (drawn
+                                    # facing down, out of the light, it shows darker: as the video's)
 SLAB = (0.75, 0.75, 0.73)           # the ante-room's pale cement slabs
 WC_GREY = (0.60, 0.61, 0.63)        # the toilets' walls
 RUST = (0.31, 0.18, 0.13)           # the front door's pivoting leaves
@@ -118,12 +120,12 @@ FAR = 0.42                          # how opaque what is far off is drawn: under
 
 # ---------------------------------------------------------------- what the surfaces look like
 
-def _cement(colour, joint=1.5):
+def _cement(colour, joint=1.5, cloud=0.025):
     """Smooth grey cement, poured in squares `joint` apart with a cut line, a little cloudy."""
     def f(x, y, z, rnd):
         if x % joint < 0.008 or z % joint < 0.008:
             return tuple(c * 0.82 for c in colour)
-        t = 0.025 * math.sin(x * 1.3 + 2 * math.sin(z * 0.7)) * math.sin(z * 1.1 + x * 0.4) + rnd.uniform(-0.015, 0.015)
+        t = cloud * math.sin(x * 1.3 + 2 * math.sin(z * 0.7)) * math.sin(z * 1.1 + x * 0.4) + rnd.uniform(-cloud * 0.4, cloud * 0.4)
         return tuple(c + t for c in colour)
     return base.finish("cement", f)
 
@@ -351,7 +353,7 @@ def house(rnd, out):
     # the floors: smooth grey cement from the door to the toilets, the hall's rustic tiles, the
     # kitchen's white tiles, and the ceilings over them
     for r in (RECEPTION, VERTICAL):
-        base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(_cement(CEMENT, joint=1.2), r), out, FLOOR_STEP)
+        base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(_cement(POLISHED, joint=2.0, cloud=0.008), r, dark=0.9), out, FLOOR_STEP)
     base._surface(rnd, (ANTE[0], ANTE[1], 0, 0, ANTE[2], ANTE[3]), _shaded(_cement(SLAB, joint=1.0), ANTE, dark=0.85), out, FLOOR_STEP)
     base._surface(rnd, (KITCHEN[0], KITCHEN[1], 0, 0, KITCHEN[2], KITCHEN[3]), _tiles(TILE_WHITE, 0.45), out, FLOOR_STEP)
     hx0, hx1, hz0, hz1 = HALL
@@ -366,8 +368,7 @@ def house(rnd, out):
     # (the ante-room's jute ceiling hangs under a black one: the page draws it, from fixtures())
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), base.finish("plaster", (0.12, 0.12, 0.12)), out, CEIL_STEP)
     base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
-    for z in (1.3, 2.7):                             # its track lights
-        track(rnd, out, RECEPTION[0] + 0.8, RECEPTION[1] - 0.8, z)
+    track(rnd, out, -16.8, RECEPTION[1] - 0.6, 1.85)   # its track light, from a round socket on the ceiling
     base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), base.finish("plaster", CEILING), out, CEIL_STEP)
     for (x0, x1, z0, z1) in ((hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1), (hx1, STAGE[1], 0, WC[2])):
         base._surface(rnd, (x0, x1, H, H, z0, z1), _rough(CONCRETE), out, CEIL_STEP)
@@ -397,16 +398,19 @@ def house(rnd, out):
     door_x(4.0, -18.7, -17.8, out, rnd)
     wall_x(4.0, VERTICAL[0], VERTICAL[1], [], wall, out, rnd)
     green_x(rnd, 4.0, VERTICAL[0], VERTICAL[1], -1, out)
-    # (linen curtains tied back at each end of its planted walls, small spotlights at their feet)
+    # (linen curtains tied back at each end of its planted walls, each on a short black rod from the
+    # wall, held under the ceiling; small spotlights at their feet)
     for x in (VERTICAL[0] + 0.2, VERTICAL[1] - 0.2):
         for z in (0.5, 3.5):
-            base._surface(rnd, (x, x, 0.02, H - 0.02, z - 0.18, z + 0.18), _folds(LINEN, 2, width=0.07), out, 0.03)
+            base._surface(rnd, (x, x, 0.02, H - 0.15, z - 0.18, z + 0.18), _folds(LINEN, 2, width=0.07), out, 0.03)
+        for z0, z1 in ((0.03, 1.0), (3.0, 3.97)):
+            curtain_rod(rnd, out, x, z0, z1)
     for k in range(4):
         for z in (0.42, 3.58):
             floor_lamp(rnd, out, VERTICAL[0] + 0.75 + 1.0 * k, z)
     # exit signs and small speakers high on the walls
     exit_sign(rnd, out, -16.5, 2.25, 0.012, 0)
-    speaker(rnd, out, -15.3, 2.85, 0.08)
+    wall_lamp(rnd, out, -15.3, 2.45, 0.0)
     speaker(rnd, out, -18.3, 2.85, 3.92)
     exit_sign(rnd, out, 0.03, 2.4, 0.9, 2)
     speaker(rnd, out, 0.1, 2.95, 1.3)
@@ -419,9 +423,10 @@ def house(rnd, out):
     frame_z(RECEPTION[0], 0.8, 3.2, 0.0, 2.9, out, rnd, colour=(0.45, 0.24, 0.16), t=0.14, d=0.24)
     for z in (1.35, 2.65):
         base._surface(rnd, (RECEPTION[0] - 0.3, RECEPTION[0] + 0.9, 0.0, 2.85, z - 0.03, z + 0.03), RUST, out, 0.03)
-    for x in (RECEPTION[1], VERTICAL[1]):           # wide doorways between them
-        wall_z(x, 0.0, 4.0, [(0.8, 3.2, 0.0, 2.8)], wall, out, rnd)
-        frame_z(x, 0.8, 3.2, 0.0, 2.8, out, rnd, colour=TIMBER, t=0.08, d=0.12)
+    # (the reception runs straight into the vertical garden, wall to wall and floor to ceiling; a
+    # wide doorway from there into the ante-room)
+    wall_z(VERTICAL[1], 0.0, 4.0, [(0.8, 3.2, 0.0, 2.8)], wall, out, rnd)
+    frame_z(VERTICAL[1], 0.8, 3.2, 0.0, 2.8, out, rnd, colour=TIMBER, t=0.08, d=0.12)
     # the ante-room into the hall (where the hall is narrower), the kitchen's back wall beside it
     wall_z(0.0, 0.0, 4.0, [(NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9)], hall_wall, out, rnd)
     frame_z(0.0, NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9, out, rnd, colour=TIMBER, t=0.16, d=0.2)   # (tall wooden posts)
@@ -531,11 +536,51 @@ def skylight(rnd, out):
 
 
 def track(rnd, out, x0, x1, z):
-    """A track light along x under the ceiling: a black rail, a spot on it every 1.2 m."""
+    """A track light along x under the ceiling, fed from a round black socket at x0: a black rail,
+    small spots hung under it, close together near the socket, their lit faces toward x0."""
+    _cylinder_y(rnd, out, x0, H - 0.07, H, z, 0.07, STEEL)
     base._surface(rnd, (x0, x1, H - 0.04, H, z - 0.02, z + 0.02), STEEL, out, 0.03)
-    for k in range(int((x1 - x0) / 1.2) + 1):
-        x = x0 + k * 1.2
-        base._surface(rnd, (x - 0.04, x + 0.04, H - 0.2, H - 0.06, z - 0.04, z + 0.04), STEEL, out, 0.02)
+    x = x0 + 0.35
+    while x < x1:
+        base._surface(rnd, (x - 0.05, x + 0.05, H - 0.2, H - 0.06, z - 0.04, z + 0.04), STEEL, out, 0.02)
+        base._surface(rnd, (x - 0.051, x - 0.051, H - 0.18, H - 0.08, z - 0.03, z + 0.03), WARM, out, 0.01)
+        x += 0.4 if x < x0 + 1.6 else 1.0
+
+
+def _cylinder_y(rnd, out, x, y0, y1, z, r, colour, step=0.015):
+    """A short upright cylinder, closed at the bottom (a socket or a cap on a ceiling)."""
+    sc = [step * 0.8] * 3
+    n, m = max(12, int(2 * math.pi * r / step)), max(1, int((y1 - y0) / step))
+    for k in range(n):
+        a = 2 * math.pi * k / n
+        for j in range(m + 1):
+            out.append(((x + r * math.cos(a), y0 + (y1 - y0) * j / m, z + r * math.sin(a)), colour, sc))
+    for i in range(1, int(r / step) + 1):
+        rr = r * i / int(r / step)
+        q = max(6, int(2 * math.pi * rr / step))
+        for k in range(q):
+            a = 2 * math.pi * k / q
+            out.append(((x + rr * math.cos(a), y0, z + rr * math.sin(a)), colour, sc))
+    out.append(((x, y0, z), colour, sc))
+
+
+def curtain_rod(rnd, out, x, z0, z1):
+    """A curtain's short black rod across z under the ceiling, held by a bracket near each end."""
+    y = H - 0.13
+    base._surface(rnd, (x - 0.012, x + 0.012, y - 0.012, y + 0.012, z0, z1), STEEL, out, 0.012)
+    for z in (z0 + 0.08, z1 - 0.08):
+        base._surface(rnd, (x - 0.015, x + 0.015, y, H, z - 0.012, z + 0.012), STEEL, out, 0.012)
+        base._surface(rnd, (x - 0.04, x + 0.04, H - 0.005, H - 0.005, z - 0.03, z + 0.03), STEEL, out, 0.012)
+
+
+def wall_lamp(rnd, out, x, y, z):
+    """A small black wall lamp on the wall along x at z: a box with a round top, 16 cm across."""
+    w, h, d = 0.16, 0.26, 0.06
+    r = w / 2
+    for off in (0.0, d):
+        _paint(rnd, out, x - r, x + r, y, y + h, z + off + 0.004,
+               lambda u, v: v < y + h - r or (u - x) ** 2 + (v - (y + h - r)) ** 2 < r * r, (0.07, 0.07, 0.07), step=0.012)
+    base._surface(rnd, (x - r, x + r, y, y, z + 0.004, z + d), (0.07, 0.07, 0.07), out, 0.012)
 
 
 def _paint(rnd, out, x0, x1, y0, y1, z, inside, colour, step=0.03):

@@ -418,13 +418,14 @@ export const PROPOSALS = {
   living_wall: {
     group: "garden", height: 3.4, on: "floor", colour: "green", size: { w: 2.0, d: 0.3 }, block: true,
     make() {
-      // a wall planted all over: ferns and leaves on a dark green backing, 3.4 m high
+      // a wall planted all over, 3.4 m high: fern fronds hanging from pockets on a dark green
+      // backing, each arching a little out from the wall and falling down it, its leaflets either
+      // side lying along the wall, so the whole wall flows downward like the venue's
       const s = shape(), rnd = rng(173);
-      box(s, 2.0, 3.4, 0.08, 0, 0, -0.1, DARK_LEAF);
-      for (let k = 0; k < 1400; k++) {
-        const x = (rnd() - 0.5) * 1.96, y = 0.05 + rnd() * 3.3;
-        leaf(s, [x, y, -0.04], [0.3 * (rnd() - 0.5), -0.35 + 0.4 * rnd(), 0.9].map((v, _, a) => v / Math.hypot(...a)), 0.14 + 0.08 * rnd(), 0.3,
-             [LEAF, DARK_LEAF, PALM, MONSTERA][k % 4]);
+      box(s, 2.0, 3.4, 0.08, 0, 0, -0.1, FERN_SHADOW);            // (deep in the leaves: dark)
+      for (let k = 0; k < 300; k++) {
+        const len = 0.45 + 0.35 * rnd(), x = (rnd() - 0.5) * 1.8, y = len * 0.75 + rnd() * (3.35 - len * 0.75);
+        fern(s, [x, y, -0.05], len, (rnd() - 0.5) * 0.5, [FERN, FERN_DARK, FERN_LIGHT, FERN][k % 4], rnd);
       }
       return grounded(s);
     },
@@ -781,6 +782,7 @@ export const PROPOSALS = {
 // The draped jute ceiling of the venue's ante-room and stage, 4 m square, hung from 3.4 m: lengths
 // of burlap across it, each sagging between two bars 0.5 m apart; with `bands`, two black strips
 // along it, sagging a little lower, as in the ante-room.
+const FERN = [0.25, 0.45, 0.12], FERN_DARK = [0.14, 0.29, 0.08], FERN_LIGHT = [0.4, 0.56, 0.16], FERN_SHADOW = [0.07, 0.14, 0.05];
 const AGAVE = [0.42, 0.56, 0.52], AGAVE_PALE = [0.55, 0.66, 0.6], PINK_FLOWER = [0.93, 0.42, 0.62];
 const TIMBER_RED = [0.5, 0.27, 0.18], BAND = [0.09, 0.09, 0.09], SAND_RUG = [0.86, 0.76, 0.6];
 function swags(s, col, bands) {
@@ -804,4 +806,22 @@ function swags(s, col, bands) {
       if (bands) for (const z of [-0.7, 0.7]) sheet(x0, x1, z - 0.13, z + 0.13, sag + 0.04, BAND, 0.012);
     }
   });
+}
+
+// A fern frond hanging on a wall (the wall's face toward +z) from p, len long, drifting `lean`
+// sideways as it falls: arching out a little, then down; its leaflets either side, smaller toward
+// the tip, flat along the wall and angled down.
+function fern(s, p, len, lean, col, rnd) {
+  const n = 7;
+  for (let k = 1; k <= n; k++) {
+    const t = k / n, q = [p[0] + lean * len * t * t, p[1] + len * (0.2 * t - 0.95 * t * t), p[2] + len * 0.4 * t * (1.4 - t)];
+    const l = len * 0.26 * (1 - 0.6 * t);
+    for (const side of [-1, 1]) {
+      const a = side * (0.9 + 0.3 * rnd());          // (down and out to its side: the blob's length turned off straight down)
+      facing([0, 0.25, 1].map((v) => v / Math.hypot(0, 0.25, 1)), [q[0] + side * l * 0.42, q[1] - l * 0.2, q[2]],
+             () => blob(s, l * 0.22, 0.003, l / 2, 0, 0, 0, col, a, 4));
+    }
+  }
+  facing([0, 0.25, 1].map((v) => v / Math.hypot(0, 0.25, 1)), [p[0] + lean * len, p[1] - len * 0.78, p[2] + len * 0.16],
+         () => blob(s, len * 0.03, 0.003, len * 0.08, 0, 0, 0, col, 0, 4));   // (its tip)
 }

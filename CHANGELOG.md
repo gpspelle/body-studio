@@ -11,6 +11,11 @@
   stand, a macaron tower, a cloche, a fruit bowl, taper and hurricane candles, driftwood and
   shells; a modular bar, a champagne bucket, drinks dispensers; a tiki torch, a straw parasol, a
   deck chair, crates, a hexagon arch and a macramé backdrop.
+- The sample venue, from the first tags made with Compare with video: the reception runs straight
+  into the vertical garden (no wooden doorway between them), its curtains hang from short black
+  rods held under the ceiling, the reception has one track light fed from a round ceiling socket,
+  a small arched black lamp on its left wall, a lighter grey ceiling and a smooth, cool grey
+  polished floor. The living wall is fern fronds hanging down it instead of leaves sticking out.
 - **Compare with video**, in the Decor panel: the video you filmed of a place is shown beside
   the room, the same size, with a crosshair at the same spot on both, and stepped half a second at
   a time (← and →; Space plays and pauses). You fly the camera, setting its lens
