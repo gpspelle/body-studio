@@ -116,16 +116,17 @@ video.addEventListener("pause", () => ($("comparePlay").textContent = t("compare
 $("comparePrev").onclick = () => { const v = around(S.views, now()).prev; if (v) go(v); };
 $("compareNext").onclick = () => { const v = around(S.views, now()).next; if (v) go(v); };
 $("compareViews").onchange = (e) => { const v = S.views.find((x) => x.id === e.target.value); if (v) go(v); };
-// ← and → (or [ and ]) step the video, Space plays and pauses it: taken before the fly-through's
+// ← and → (or [ and ]) step the video, Space plays and pauses it, K keeps the view: taken before the fly-through's
 // arrows and the walk's jump see them (capture), and from a slider or button that has the focus
 const KEYS = { ArrowLeft: -STEP, ArrowRight: STEP, BracketLeft: -STEP, BracketRight: STEP };
 addEventListener("keydown", (e) => {
   if ($("compare").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.closest?.("textarea, select, input:not([type=range])")) return;
-  if (!(e.code in KEYS) && e.code !== "Space") return;
+  if (!(e.code in KEYS) && e.code !== "Space" && e.code !== "KeyK") return;
   e.preventDefault();
   e.stopImmediatePropagation();
-  if (e.code === "Space") { if (!e.repeat) $("comparePlay").click(); }
+  if (e.code === "KeyK") { if (!e.repeat) $("compareKeep").click(); }
+  else if (e.code === "Space") { if (!e.repeat) $("comparePlay").click(); }
   else { video.pause(); seek(step(now(), KEYS[e.code], video.duration)); }
 }, true);
 
@@ -216,6 +217,22 @@ $("compareForget").onclick = async () => {
   cur = null;
   show();
 };
+// every kept view's pictures taken again, the room as it is drawn now (after a fix): flown to each
+// in turn, a few frames let draw so the splats settle, then both pictures
+async function retake() {
+  const all = S.views.length;
+  for (let k = 0; k < all; k++) {
+    say("compare.retaking", { n: k + 1, all });
+    const v = S.views[k];
+    await go(v);
+    V.redraw();
+    for (let f = 0; f < 6; f++) await new Promise((r) => requestAnimationFrame(r));
+    await new Promise((r) => setTimeout(r, 400));
+    await Promise.all([snap(v.id, "video", frameShot()), snap(v.id, "render", renderShot())]);
+  }
+  say("compare.retaken", { all });
+}
+$("compareRetake").onclick = () => retake().catch((e) => say("compare.failed", { why: e.message }));
 $("compareExport").onclick = () => { $("compareExport").href = "/api/compare/export?" + q(); };
 
 // ---------------------------------------------------------------- tags on the frame
@@ -350,7 +367,7 @@ function show() {
 }
 
 window.compare = {
-  open, close, state: () => S, current: () => cur, time: () => now(), seek, keep, tag, layout: () => L,
+  open, close, state: () => S, current: () => cur, time: () => now(), seek, keep, tag, retake, layout: () => L,
   use: async (blob, name) => {             // (tests: a video made in the page, uploaded as if picked)
     S = await api("/api/compare/video?name=" + encodeURIComponent(name), { method: "POST", body: blob });
     use(blob);

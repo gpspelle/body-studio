@@ -286,7 +286,7 @@ class Decor(Viewer):
         page.dispatch_event("#compareEye", "input")
         self.assertEqual(page.evaluate("bodyApp.viewer.camera.fov"), 90)
         self.assertEqual(page.evaluate("house.flyView().eye"), 1.2)
-        page.click("#compareKeep")
+        page.keyboard.press("k")                                        # (K keeps it, as the button does)
         page.wait_for_function("document.getElementById('compareStatus').textContent.startsWith('Kept the view')", timeout=60000)
         v = page.evaluate("compare.current()")
         self.assertEqual((v["view"]["fov"], v["view"]["eye"]), (90, 1.2))
@@ -305,6 +305,9 @@ class Decor(Viewer):
         self.assertAlmostEqual(tag["y"], 0.6, delta=0.01)
         self.assertEqual(page.locator("#comparePins .pin").count(), 2)              # (on both)
         self.assertIn("An exit sign over the door", page.text_content("#compareTags"))
+        # its pictures taken again (after a fix)
+        page.click("#compareRetake")
+        page.wait_for_function("document.getElementById('compareStatus').textContent.startsWith('Retook')", timeout=60000)
         # all of it in the export: the list, the views, the two pictures
         q = urllib.parse.quote(room)
         with urllib.request.urlopen(self.url + "api/compare/export?room=" + q) as r:

@@ -30,7 +30,7 @@ per room; **Use another video** replaces it). After that, it loads by itself.
 - **Keep this view** saves the video's time, where the camera is, its lens and its height, along
   with a picture of the frame and a picture of the room as drawn, as it shows beside the frame. When the
   video is at a kept view's time (within a quarter of a second), the button says **Keep it as it
-  is now** and saves over it. **Forget this view** deletes it.
+  is now** and saves over it. **Forget this view** deletes it. **K** keeps the view too, so you can play, pause, fly and keep without leaving the keys.
 - **Views kept** lists the kept views by time, with how many tags each has. Pick one, or use ◀ ▶,
   to go back to it: the video goes to that time and the camera flies to where it was.
 
@@ -40,6 +40,12 @@ Press **Tag**, then click on the frame or on the room where something is off. Ch
 **Wrong**, **Remove** or **Note**), write what should be there, and **Save the tag**. A view that
 wasn't kept is kept first. Tags show on both as numbered pins (wrong and remove in red) and are
 listed in the panel, where ✕ removes one. Press **Tag** again to go back to flying.
+
+## After a fix
+
+**Retake pictures of all views** flies to every kept view in turn and takes both pictures again,
+the room as it is drawn now. After pulling a fix, retake and export: the new pictures show what is
+still off, with no need to line the views up again.
 
 ## Exporting
 
