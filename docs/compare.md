@@ -21,9 +21,9 @@ per room; **Use another video** replaces it). After that, it loads by itself.
   beside the panel (on a phone, one over the other). The room is the camera's whole view, so what
   sits at a spot on the frame should sit at the same spot on the room. A crosshair follows the
   pointer on either picture and marks the same spot on the other.
-- **The video**: drag the time bar, or step **−0.5 s** / **+0.5 s** (the keys `[` and `]`), or
-  **Play**.
-- **Fly** until the room sits on the frame: drag to look round, W A S D to move (Shift is faster).
+- **The video**: drag the time bar, or step **−0.5 s** / **+0.5 s** (the keys ← and →, or `[` and `]`), or
+  **Play** (Space plays and pauses).
+- **Fly** until the room sits on the frame: drag to look round, W A S D to move (Shift is faster). The arrow keys step the video here, not the camera.
 - **Lens** is the camera's angle from top to bottom (30° to 120°). A phone filming upright at 1× is
   about 70°, and at 0.5× it is wider. **Height** is the camera's height above the floor (0.5 m to
   2.5 m). A phone held to film is usually at about 1.4 to 1.5 m.

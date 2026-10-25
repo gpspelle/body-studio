@@ -241,7 +241,7 @@
       "compare.pause": "Pause",
       "compare.lens": "Lens",
       "compare.eye": "Height",
-      "compare.line": "Fly until the room on the right matches the frame (the crosshair marks the same spot on both): drag to look, W A S D to move, [ and ] to step the video.",
+      "compare.line": "Fly until the room on the right matches the frame (the crosshair marks the same spot on both): drag to look, W A S D to move, ← and → to step the video, Space to play or pause.",
       "compare.kept": "Views kept",
       "compare.views": "{n} views kept",
       "compare.tags": "{n} tags",

@@ -267,6 +267,18 @@ class Decor(Viewer):
         cross = page.locator("#compareCrossRoom").bounding_box()
         self.assertAlmostEqual(cross["x"] + cross["width"] / 2, room_box["x"] + room_box["width"] * 0.25, delta=1)
         self.assertAlmostEqual(cross["y"] + cross["height"] / 2, room_box["y"] + room_box["height"] * 0.5, delta=1)
+        # ← and → step the video (not the camera), Space plays and pauses it
+        at = page.evaluate("house.flyView().at")
+        page.keyboard.press("ArrowRight")
+        page.wait_for_function("Math.abs(compare.time() - 0.5) < 0.01", timeout=10000)
+        page.keyboard.press("ArrowLeft")
+        page.wait_for_function("compare.time() < 0.01", timeout=10000)
+        self.assertEqual(page.evaluate("house.flyView().at"), at)
+        page.keyboard.press("Space")
+        page.wait_for_function("!document.getElementById('compareVideo').paused", timeout=10000)
+        page.keyboard.press("Space")
+        page.wait_for_function("document.getElementById('compareVideo').paused", timeout=10000)
+        page.evaluate("compare.seek(0)")
         # a wider lens and a lower eye, then the view kept with a picture of both
         page.fill("#compareLens", "90")
         page.dispatch_event("#compareLens", "input")

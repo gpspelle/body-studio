@@ -4,7 +4,7 @@
 
 - **Compare with video**, in the Decor panel: the video you filmed of a place is shown beside
   the room, the same size, with a crosshair at the same spot on both, and stepped half a second at
-  a time. You fly the camera, setting its lens
+  a time (← and →; Space plays and pauses). You fly the camera, setting its lens
   and height, until the two line up, keep that view with a picture of both, and tag what is
   missing, wrong or should go, right on the frame. **Export views and tags** downloads it all as one
   zip (a `notes.md` list and the pictures) to send back for fixing. It is kept in `compare/` in the

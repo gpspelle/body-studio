@@ -110,17 +110,24 @@ function seek(s) {
 $("compareTime").oninput = (e) => seek(+e.target.value);
 $("compareBack").onclick = () => seek(step(now(), -STEP, video.duration));
 $("compareOn").onclick = () => seek(step(now(), STEP, video.duration));
-$("comparePlay").onclick = () => (video.paused ? video.play() : video.pause());
+$("comparePlay").onclick = () => (video.paused ? video.play().catch(() => {}) : video.pause());   // (a pause before it starts is fine)
 video.addEventListener("play", () => ($("comparePlay").textContent = t("compare.pause")));
 video.addEventListener("pause", () => ($("comparePlay").textContent = t("compare.play")));
 $("comparePrev").onclick = () => { const v = around(S.views, now()).prev; if (v) go(v); };
 $("compareNext").onclick = () => { const v = around(S.views, now()).next; if (v) go(v); };
 $("compareViews").onchange = (e) => { const v = S.views.find((x) => x.id === e.target.value); if (v) go(v); };
+// ← and → (or [ and ]) step the video, Space plays and pauses it: taken before the fly-through's
+// arrows and the walk's jump see them (capture), and from a slider or button that has the focus
+const KEYS = { ArrowLeft: -STEP, ArrowRight: STEP, BracketLeft: -STEP, BracketRight: STEP };
 addEventListener("keydown", (e) => {
-  if ($("compare").hidden || e.target.closest?.("input, textarea, select")) return;
-  if (e.key === "[") seek(step(now(), -STEP, video.duration));
-  else if (e.key === "]") seek(step(now(), STEP, video.duration));
-});
+  if ($("compare").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest?.("textarea, select, input:not([type=range])")) return;
+  if (!(e.code in KEYS) && e.code !== "Space") return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  if (e.code === "Space") { if (!e.repeat) $("comparePlay").click(); }
+  else { video.pause(); seek(step(now(), KEYS[e.code], video.duration)); }
+}, true);
 
 // ---------------------------------------------------------------- the camera
 // before each frame while open: the camera's whole view, its lens and the frame's shape, in the
