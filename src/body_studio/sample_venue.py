@@ -107,7 +107,7 @@ def _cement(colour, joint=1.5):
             return tuple(c * 0.82 for c in colour)
         t = 0.025 * math.sin(x * 1.3 + 2 * math.sin(z * 0.7)) * math.sin(z * 1.1 + x * 0.4) + rnd.uniform(-0.015, 0.015)
         return tuple(c + t for c in colour)
-    return f
+    return base.finish("cement", f)
 
 
 def _rustic(x, y, z, rnd):
@@ -121,6 +121,7 @@ def _rustic(x, y, z, rnd):
     cloud = 0.05 * math.sin(x * 7.1 + r.random() * 6) * math.sin(z * 6.3 + r.random() * 6)
     glint = 0.08 * max(0.0, math.sin(z * 0.9 + 1.2)) ** 6
     return tuple(v + cloud + glint for v in c)
+_rustic.finish = "tile"
 
 
 def _shaded(colour, rect, reach=0.7, dark=0.8):
@@ -132,6 +133,7 @@ def _shaded(colour, rect, reach=0.7, dark=0.8):
         d = min(x - x0, x1 - x, z - z0, z1 - z)
         k = dark + (1 - dark) * min(1.0, max(0.0, d) / reach) ** 0.7
         return tuple(v * k for v in c)
+    f.finish = getattr(colour, "finish", "")
     return f
 
 
@@ -141,7 +143,7 @@ def _rough(colour, strength=0.06):
         u = x + z
         t = strength * (math.sin(u * 2.3 + 3 * math.sin(y * 1.7)) * math.sin(y * 2.9 + u * 0.8)) + rnd.uniform(-0.03, 0.03)
         return tuple(c + t for c in colour)
-    return f
+    return base.finish("concrete", f)
 
 
 def _slats(x, y, z, rnd):
@@ -151,6 +153,7 @@ def _slats(x, y, z, rnd):
     r = random.Random(math.floor(x / 0.14))
     t = r.uniform(-0.03, 0.03)
     return (SLATS[0] + t, SLATS[1] + t, SLATS[2] + t)
+_slats.finish = "wood_z"
 
 
 def _reeds(x, y, z, rnd):
@@ -170,7 +173,7 @@ def _tiles(colour, size, grout=(0.72, 0.72, 0.71), across=0):
             return grout
         t = rnd.uniform(-0.012, 0.012)
         return tuple(c + t for c in colour)
-    return f
+    return base.finish("tile", f)
 
 
 def _brickwork(along):
@@ -205,7 +208,7 @@ def _boards(colour, gap=(0.24, 0.18, 0.13), width=0.14):
         r = random.Random(math.floor(x / width))
         t = r.uniform(-0.06, 0.05)
         return (colour[0] + t, colour[1] + t, colour[2] + t)
-    return f
+    return base.finish("wood_z", f)
 
 
 def _wall(colour, skirting=(0.97, 0.96, 0.94)):
@@ -216,7 +219,7 @@ def _wall(colour, skirting=(0.97, 0.96, 0.94)):
             return skirting
         k = (0.86 + 0.14 * min(1.0, (y - 0.12) / 1.4)) * (1 - 0.06 * max(0.0, 1 - (H - y) / 0.5))
         return tuple(c * k for c in colour)
-    return f
+    return base.finish("plaster", f)
 
 
 def _view(x, y, z, rnd):
@@ -235,12 +238,14 @@ def _lawn(x, y, z, rnd):
     patch = 0.035 * math.sin(x * 0.7 + 2 * math.sin(z * 0.5)) * math.sin(z * 0.9)
     t = patch + rnd.uniform(-0.04, 0.04)
     return (0.32 + t * 0.8, 0.50 + t, 0.25 + t * 0.6)
+_lawn.finish = "grass"
 
 
 def _sand(x, y, z, rnd):
     """Beach sand, pale and fine, a little darker in drifts and footprints."""
     t = 0.03 * math.sin(x * 0.9 + 2 * math.sin(z * 0.6)) * math.sin(z * 1.3 + x * 0.2) + rnd.uniform(-0.035, 0.035)
     return (SAND[0] + t, SAND[1] + t, SAND[2] + t * 0.9)
+_sand.finish = "sand"
 
 
 def _greenwall(x, y, z, rnd):
@@ -331,8 +336,8 @@ def house(rnd, out):
     base._surface(rnd, (hx1, WC[1], 0, 0, 0, WC[2]), _shaded(_cement(CEMENT), (hx1 - 6, WC[1], 0, WC[2])), out, FLOOR_STEP)
     base._surface(rnd, (*DECK[:2], 0, 0, *DECK[2:]), _boards((0.56, 0.44, 0.32)), out, 0.04)   # (finer: the map's end)
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), _slats, out, 0.05)
-    base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), CEILING, out, CEIL_STEP)
-    base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), CEILING, out, CEIL_STEP)
+    base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", CEILING), out, CEIL_STEP)
+    base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), base.finish("plaster", CEILING), out, CEIL_STEP)
     for (x0, x1, z0, z1) in ((hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1), (hx1, STAGE[1], 0, WC[2])):
         base._surface(rnd, (x0, x1, H, H, z0, z1), _rough(CONCRETE), out, CEIL_STEP)
     skylight(rnd, out)
@@ -494,6 +499,7 @@ def garden(rnd, out):
         return _lawn(x, y, z, rnd) if near else _sand(x, y, z, rnd)
     # (one sheet, so the page draws it smooth: the cells past the slanted far side left out)
     long = max(GARDEN_LEFT, GARDEN_RIGHT)
+    ground.finish = "sand"
     base.sheet(rnd, (GARDEN_X, 0.0, 0.0), (long, 0.0, 0.0), (0.0, 0.0, GARDEN_W), round(long / LAWN_STEP),
                round(GARDEN_W / LAWN_STEP), ground, out, [LAWN_STEP * 0.75, LAWN_STEP * 0.09, LAWN_STEP * 0.75],
                keep=lambda x, z: x < _garden_end(z))

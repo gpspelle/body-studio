@@ -131,10 +131,10 @@ def parts(rnd) -> list:
     """(box (x0, x1, y0, y1, z0, z1), colour or colour(x, y, z, rnd)) for every flat thing in the room."""
     p = [
         # the room: floor, ceiling, walls and the skirting round them
-        ((X0, X1, 0, 0, Z0, Z1), _plank),
-        ((X0, X1, H, H, Z0, Z1), WHITE),
-        ((X0, X1, 0, H, Z0, Z0), PAINT), ((X0, X1, 0, H, Z1, Z1), PAINT),
-        ((X0, X0, 0, H, Z0, Z1), PAINT), ((X1, X1, 0, H, Z0, Z1), PAINT),
+        ((X0, X1, 0, 0, Z0, Z1), finish("wood_x", _plank)),
+        ((X0, X1, H, H, Z0, Z1), finish("plaster", WHITE)),
+        ((X0, X1, 0, H, Z0, Z0), finish("plaster", PAINT)), ((X0, X1, 0, H, Z1, Z1), finish("plaster", PAINT)),
+        ((X0, X0, 0, H, Z0, Z1), finish("plaster", PAINT)), ((X1, X1, 0, H, Z0, Z1), finish("plaster", PAINT)),
         ((X0, X1, 0, 0.08, Z0, Z0 + 0.012), WHITE), ((X0, X1, 0, 0.08, Z1 - 0.012, Z1), WHITE),
         ((X0, X0 + 0.012, 0, 0.08, Z0, Z1), WHITE), ((X1 - 0.012, X1, 0, 0.08, Z0, Z1), WHITE),
         # on the walls: a window (right), a door (front), a picture over the sofa (back)
@@ -187,8 +187,19 @@ def parts(rnd) -> list:
 # blobs a few centimetres across; the splat file keeps them all, for room.py's map. A sheet is a
 # grid of cells over a parallelogram (corner o, sides du and dv), each cell the colour of the splat
 # drawn in it (none: no cell). While `drawing()` is on, _surface and sheet() note theirs here.
-_shell = None                       # {"sheets": [(o, du, dv, na, nb, cells)], "meshed": ids of their splats' positions}
-SHELL_MAGIC, SHELL_VERSION = b"BSSH", 1
+_shell = None                       # {"sheets": [(o, du, dv, na, nb, cells, finish)], "meshed": ids of their splats' positions}
+SHELL_MAGIC, SHELL_VERSION = b"BSSH", 2
+# What a sheet is made of, so the page gives it that surface's fine detail (shell.js FINISHES, in
+# this order): "" is none. A colour carries its finish (finish() below); a sheet takes its colour's.
+FINISHES = ("", "plaster", "cement", "tile", "wood_x", "wood_z", "sand", "grass", "concrete")   # (wood: its grain along x or z)
+
+
+def finish(kind: str, colour):
+    """`colour` (a colour, or a function of x, y, z, rnd) marked as the finish `kind` (FINISHES)."""
+    assert kind in FINISHES, kind
+    f = (lambda x, y, z, rnd: colour(x, y, z, rnd)) if callable(colour) else (lambda x, y, z, rnd: colour)
+    f.finish = kind
+    return f
 
 
 def drawing(make_splats):
@@ -204,9 +215,9 @@ def drawing(make_splats):
     return rows, rest, shell["sheets"]
 
 
-def _note(o, du, dv, na, nb, cells, points):
+def _note(o, du, dv, na, nb, cells, points, colour=None):
     if _shell is not None:
-        _shell["sheets"].append((tuple(o), tuple(du), tuple(dv), na, nb, cells))
+        _shell["sheets"].append((tuple(o), tuple(du), tuple(dv), na, nb, cells, getattr(colour, "finish", "")))
         _shell["meshed"].update(id(p) for p in points)
 
 
@@ -224,17 +235,17 @@ def sheet(rnd, o, du, dv, na, nb, colour, out, scale, keep=None):
             out.append((p, c, scale))
             cells[k * na + i] = c
             points.append(p)
-    _note(o, du, dv, na, nb, cells, points)
+    _note(o, du, dv, na, nb, cells, points, colour)
 
 
 def write_shell(path: Path, sheets: list) -> Path:
     """The sheets, in the splat file's coordinates (y-down, as write_ply): "BSSH", version, count,
-    then each sheet's o, du, dv (9 float32), na, nb (uint32) and its cells as RGBA bytes, row by
-    row (alpha 0: no cell)."""
+    then each sheet's o, du, dv (9 float32), na, nb, its finish (uint32: its place in FINISHES) and
+    its cells as RGBA bytes, row by row (alpha 0: no cell)."""
     flip = lambda v: (v[0], 0.0 - v[1], v[2])
     out = bytearray(SHELL_MAGIC + struct.pack("<II", SHELL_VERSION, len(sheets)))
-    for o, du, dv, na, nb, cells in sheets:
-        out += struct.pack("<9f2I", *flip(o), *flip(du), *flip(dv), na, nb)
+    for o, du, dv, na, nb, cells, kind in sheets:
+        out += struct.pack("<9f3I", *flip(o), *flip(du), *flip(dv), na, nb, FINISHES.index(kind))
         for c in cells:
             out += bytes((0, 0, 0, 0)) if c is None else bytes(
                 [round(255 * min(1.0, max(0.0, v))) for v in c[:3]] + [255])
@@ -300,7 +311,7 @@ def _surface(rnd, box, colour, out, step=STEP, jitter=0.025):
             o, du, dv = [0.0] * 3, [0.0] * 3, [0.0] * 3
             o[axis], o[a], o[b] = v, a0, b0
             du[a], dv[b] = a1 - a0, b1 - b0
-            _note(o, du, dv, na, nb, cells, points)
+            _note(o, du, dv, na, nb, cells, points, colour)
 
 
 def _cylinder(rnd, cx, cz, r0, r1, y0, y1, colour, out, top=True, step=STEP):

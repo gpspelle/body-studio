@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- Drawn rooms look less flat: walls, floors and ceilings have their material's fine detail
+  (plaster, polished cement, glazed tile, wood grain, sand), shine where the material shines, and
+  are darker in corners, under beams and round door frames. Both are made once when the room
+  loads, so walking round it is as smooth as before. Meshes' light now rolls off softly instead of
+  clipping to white (neutral tone mapping).
 - A big body is ready to move about three times sooner: binding 400,000 splats took 13 s, 11 of
   them fitting how the skin passes from bone to bone, which is now fitted over a sample of the
   splats around each one (4.4 s in all).
