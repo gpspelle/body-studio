@@ -52,7 +52,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from splat_studio.server.jobs import Runner, validate_options
 from splat_studio.server.library import DataDir
 
-from . import __version__, anny_fit, decor, fit, history, library, rig, room, sample_room, wardrobe
+from . import __version__, anny_fit, compare, decor, fit, history, library, rig, room, sample_room, wardrobe
 from .pipeline import job_options, room_job_options
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -265,6 +265,8 @@ def make_handler(data: DataDir, runner: Runner):
             if m:
                 fn = decor.mesh_file if m.group(2) == "mesh" else decor.photo_file
                 return self._file(fn(data.root, m.group(1)))
+            if p.startswith("/api/compare"):
+                return self._compare(lambda: self._compare_get(p), 200)
             if p == "/api/people":
                 return self._json(history.people(data.root))
             m = re.fullmatch(r"/api/people/([^/]+)", p)
@@ -356,6 +358,67 @@ def make_handler(data: DataDir, runner: Runner):
                 return None
             return self._json(r, code) if r is not None else self.send_error(404)
 
+        def _compare(self, fn, code: int = 201):
+            """A Compare route (compare.py): its JSON, or its error; None from fn: the reply was sent."""
+            try:
+                r = fn()
+            except compare.CompareError as e:
+                return self._json({"error": str(e), "code": e.code}, 404 if e.code == "no_view" else 400)
+            return self._json(r, code) if r is not None else None
+
+        def _compare_get(self, p: str):
+            f = self._room_file()
+            if not f:
+                return None
+            q = parse_qs(urlparse(self.path).query)
+            if p == "/api/compare":
+                return compare.state(data.root, f)
+            if p == "/api/compare/video":
+                return self._file(compare.video_file(data.root, f))
+            if p == "/api/compare/snap":
+                return self._file(compare.snap_file(data.root, f, q.get("id", [""])[0], q.get("which", [""])[0]))
+            if p == "/api/compare/export":
+                body = compare.export(data.root, f)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", 'attachment; filename="%s-views.zip"' % compare.folder(data.root, f).name)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return None
+            self.send_error(404)
+            return None
+
+        def _compare_post(self, u):
+            f = self._room_file()
+            if not f:
+                return None
+            q = parse_qs(u.query)
+            if u.path == "/api/compare/video":
+                size = int(self.headers.get("Content-Length") or 0)
+                if not 0 < size <= compare.MAX_VIDEO:
+                    raise compare.CompareError("The video is empty or too large.", "video_size")
+
+                def chunks(left=size):
+                    while left:
+                        c = self.rfile.read(min(left, 1 << 20))
+                        if not c:
+                            return
+                        left -= len(c)
+                        yield c
+                return compare.save_video(data.root, f, chunks(), size, q.get("name", [""])[0])
+            if u.path == "/api/compare/view":
+                body = self._read(MAX_JSON)
+                try:
+                    d = json.loads(body) if body else None
+                except ValueError:
+                    d = None
+                return compare.save_view(data.root, f, d)
+            if u.path == "/api/compare/snap":
+                return compare.save_snap(data.root, f, q.get("id", [""])[0], q.get("which", [""])[0], self._read(compare.MAX_SNAP))
+            self.send_error(404)
+            return None
+
         def _history(self, fn, code: int = 200):
             try:
                 return self._json(fn(), code)
@@ -398,6 +461,9 @@ def make_handler(data: DataDir, runner: Runner):
             return history.progress(history.load(root, pid))
 
         def do_DELETE(self):
+            m = re.fullmatch(r"/api/compare/view/([a-z0-9]+)", unquote(urlparse(self.path).path))
+            if m:
+                return self._compare(lambda: (f := self._room_file()) and compare.delete_view(data.root, f, m.group(1)), 200)
             m = re.fullmatch(r"/api/decor/([a-z0-9]+)", unquote(urlparse(self.path).path))
             if m:
                 return self._decor(lambda: decor.delete_item(data.root, m.group(1)) or {"deleted": m.group(1)}, 200)
@@ -420,6 +486,8 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._json(r, 201) if r is not None else self.send_error(404)
             if u.path.startswith("/api/decor/"):
                 return self._decor(lambda: self._decor_post(u))
+            if u.path.startswith("/api/compare/"):
+                return self._compare(lambda: self._compare_post(u))
             if u.path != "/api/upload":
                 return self.send_error(404)
             q = parse_qs(u.query)

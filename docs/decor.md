@@ -14,6 +14,8 @@ body. It opens a panel at the right edge; the body's own panel and its joints st
 back when it is closed. The panel has the picked thing on top, then two tabs, **Add** and **In the
 room**:
 
+- **Compare with video**, at the top of the panel: line the room up with a video of the real place
+  and tag what it gets wrong ([compare.md](compare.md)).
 - **Things**, a catalogue of pictures by kind (Tables, On the table, Ceremony, Bar, Lights, Lounge,
   and From photos once there is one; the kind shown is remembered). Tap one to put it in the room, on
   the floor in view beside the body (flowers, candles: on the table there), turned to face the

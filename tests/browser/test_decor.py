@@ -216,5 +216,88 @@ class Decor(Viewer):
         self.assertEqual(errors, [])
 
 
+    def test_compares_the_room_with_a_video(self):
+        page, errors = self.open_page()
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+        page.evaluate("modes.show('rooms')")
+        page.click("#roomBtn")
+        page.locator("#roomList button[data-file^='workspace/Living_room/']").click()
+        page.wait_for_function("house.shown() && decor.group()", timeout=300000)
+        room = page.evaluate("house.file()")
+        page.click("#roomBtn")
+        page.click("#decorBtn")
+        # from the Decor panel: it steps aside, the camera flies, no video yet
+        page.click("#compareBtn")
+        self.assertTrue(page.locator("#decor").is_hidden())
+        self.assertTrue(page.locator("#compareNoVideo").is_visible())
+        self.assertEqual(page.evaluate("house.mode()"), "fly")
+        self.assertEqual(page.evaluate("bodyApp.viewer.camera.fov"), 70)
+        # a short video made in the page (as one filmed would be picked and copied into the app)
+        page.evaluate("""(async () => {
+            const c = Object.assign(document.createElement('canvas'), { width: 120, height: 200 }), g = c.getContext('2d');
+            document.body.append(c);                  // (drawn on the page, or the stream has no frames)
+            const rec = new MediaRecorder(c.captureStream(10), { mimeType: 'video/webm' }), parts = [];
+            rec.ondataavailable = (e) => parts.push(e.data);
+            const done = new Promise((r) => (rec.onstop = r));
+            rec.start();
+            for (let k = 0; k < 12; k++) { g.fillStyle = `hsl(${k * 30}, 60%, 50%)`; g.fillRect(0, 0, 120, 200); await new Promise((r) => setTimeout(r, 100)); }
+            rec.stop(); await done; c.remove();
+            await compare.use(new Blob(parts, { type: 'video/webm' }), 'walk.webm');
+        })()""")
+        page.wait_for_function("document.getElementById('compareVideo').readyState >= 2", timeout=60000)
+        self.assertTrue(page.locator("#compareTools").is_visible())
+        self.assertEqual(page.evaluate("compare.state().video"), "video.webm")
+        # the frame over the room, as tall as the window, half see-through
+        box = page.locator("#compareVideo").bounding_box()
+        self.assertAlmostEqual(box["height"], 800, delta=1)
+        self.assertAlmostEqual(box["x"] + box["width"] / 2, 640, delta=1)
+        self.assertEqual(page.evaluate("getComputedStyle(document.getElementById('compareVideo')).opacity"), "0.5")
+        # a wider lens and a lower eye, then the view kept with a picture of both
+        page.fill("#compareLens", "90")
+        page.dispatch_event("#compareLens", "input")
+        page.fill("#compareEye", "120")
+        page.dispatch_event("#compareEye", "input")
+        self.assertEqual(page.evaluate("bodyApp.viewer.camera.fov"), 90)
+        self.assertEqual(page.evaluate("house.flyView().eye"), 1.2)
+        page.click("#compareKeep")
+        page.wait_for_function("document.getElementById('compareStatus').textContent.startsWith('Kept the view')", timeout=60000)
+        v = page.evaluate("compare.current()")
+        self.assertEqual((v["view"]["fov"], v["view"]["eye"]), (90, 1.2))
+        # a tag: Tag, a click on the frame, its kind and words
+        self.assertTrue(page.locator("#compareNote").is_hidden())
+        page.click("#compareTag")
+        page.mouse.click(box["x"] + box["width"] * 0.3, box["y"] + box["height"] * 0.6)
+        self.assertTrue(page.locator("#compareNote").is_visible())
+        page.locator("#compareKinds button[data-kind=missing]").click()
+        page.fill("#compareNote textarea", "An exit sign over the door")
+        page.click("#compareNote .btn.primary")
+        page.wait_for_function("compare.current().tags.length === 1", timeout=30000)
+        tag = page.evaluate("compare.current().tags[0]")
+        self.assertEqual((tag["kind"], tag["note"]), ("missing", "An exit sign over the door"))
+        self.assertAlmostEqual(tag["x"], 0.3, delta=0.01)
+        self.assertAlmostEqual(tag["y"], 0.6, delta=0.01)
+        self.assertEqual(page.locator("#comparePins .pin").count(), 1)
+        self.assertIn("An exit sign over the door", page.text_content("#compareTags"))
+        # all of it in the export: the list, the views, the two pictures
+        q = urllib.parse.quote(room)
+        with urllib.request.urlopen(self.url + "api/compare/export?room=" + q) as r:
+            import io
+            import zipfile
+            names = sorted(zipfile.ZipFile(io.BytesIO(r.read())).namelist())
+        self.assertEqual(names, ["notes.md", f"snaps/{v['id']}-render.jpg", f"snaps/{v['id']}-video.jpg", "views.json"])
+        # flown away and back to the kept view
+        page.evaluate("house.flyView({ ...house.flyView(), at: [house.flyView().at[0] + 1, house.flyView().at[1]] })")
+        page.select_option("#compareViews", v["id"])
+        page.wait_for_function(f"Math.abs(house.flyView().at[0] - {v['view']['at'][0]}) < 1e-6", timeout=10000)
+        # forgotten; closed, back in Decor with the camera's own lens
+        page.click("#compareForget")
+        page.wait_for_function("compare.state().views.length === 0", timeout=10000)
+        page.click("#closeCompare")
+        self.assertTrue(page.locator("#decor").is_visible())
+        self.assertEqual(page.evaluate("bodyApp.viewer.camera.fov"), 35)
+        self.assertEqual(errors, [])
+
+
 if __name__ == "__main__":
     unittest.main()

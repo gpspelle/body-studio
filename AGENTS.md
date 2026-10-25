@@ -47,7 +47,8 @@
   | A room | `room.py` (`<room>.room.json`), `sample_room.py` (the drawn living room); fake: `tests/fakes/room.py` | S/`room.js`, S/`shell.js` | S/`house.js` | `test_room` | `docs/room.md` |
   | Tattoo studio | `sample_studio.py` (fixtures; room.py maps them) | S/`flash.js` | S/`parlour.js`, designs in S/`flash/` | `test_studio` | `docs/tattoo.md` |
   | Decor | `decor.py` (`decor/` in the data folder), `photo3d.py` (TripoSR), `sample_venue.py`; fake: `tests/fakes/photo3d.py` | S/`decor.js` (where things go), S/`decor/*.js` (the starters' shapes) | S/`decorate.js`, S/`decorlook.js`, S/`decorpics.js` (worker) | `test_decor` | `docs/decor.md` |
-  | Progress | `history.py`, `measure.py` | | S/`progress.js` | `test_progress` | `docs/progress.md`, `docs/body-fat.md` |
+  | Compare with a video | `compare.py` (`compare/<room>/` in the data folder) | S/`matchview.js` | S/`compare.js` | `test_decor` | `docs/compare.md` |
+| Progress | `history.py`, `measure.py` | | S/`progress.js` | `test_progress` | `docs/progress.md`, `docs/body-fat.md` |
 
   Rules per feature: splats are moved by Spark's `SplatSkinning`; don't fit a body model with a
   non-commercial licence (SMPL and its family). Clothes are only CC0 or CC-BY items, each listed in

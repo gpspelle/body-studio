@@ -454,3 +454,23 @@ label.btn { display: inline-block; }
   .objbar .sep { background: rgba(255, 255, 255, 0.12); }
 }
 @media (max-width: 600px) { #decor.shop { width: auto; padding: 14px 16px; } #decor .cards { grid-template-columns: repeat(4, 1fr); } }
+
+/* Compare with a video (compare.js): the frame over the room, its height the window's (so the
+   lens matches up and down), tags as numbered pins; the panel where Decor's was. */
+#compare[hidden] { display: none; }
+.compare-frame { position: fixed; inset: 0; pointer-events: none; }
+.compare-frame.tagging { pointer-events: auto; cursor: crosshair; }
+.compare-frame video { position: absolute; object-fit: fill; }
+#comparePins .pin {
+  position: absolute; transform: translate(-50%, -50%); min-width: 22px; height: 22px; padding: 0 6px;
+  border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 22px; text-align: center;
+  color: var(--paper); background: var(--ink); box-shadow: 0 0 0 2px var(--paper);
+}
+#comparePins .pin.wrong, #comparePins .pin.remove { background: var(--bad); }
+#comparePins .pin.new { background: var(--accent); }
+.panel.note { top: auto; right: auto; bottom: auto; width: 270px; height: auto; }
+.panel.note:not([hidden]) { display: grid; gap: 8px; }
+.panel.note textarea { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--hair); border-radius: 10px; padding: 8px; resize: vertical; }
+#compareBar #compareTime { width: 100%; }
+#compareBar select { flex: 1; }
+.comparing #decorBar { display: none; }

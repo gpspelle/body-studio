@@ -195,6 +195,7 @@
   <div class="panel-head">
     <strong class="shop-title" data-i18n="decor.title"></strong>
     <span class="grow"></span>
+    <button id="compareBtn" class="link" data-i18n="compare.btn"></button>
     <button id="closeDecor" class="link close" data-i18n-aria-label="decor.close">✕</button>
   </div>
   <section id="decorEdit" class="picked" hidden>
@@ -256,6 +257,68 @@
     </div>
   </section>
 </aside>
+<!-- Compare the room with a video of the real place (compare.js): the video's frame over the 3D
+     view, and a panel to line them up, keep the view and tag what is missing or wrong. -->
+<div id="compare" hidden>
+  <div id="compareFrame" class="compare-frame">
+    <video id="compareVideo" muted playsinline preload="auto"></video>
+    <div id="comparePins"></div>
+  </div>
+  <form id="compareNote" class="panel note" hidden>
+    <div class="chips" id="compareKinds" role="group" data-i18n-aria-label="compare.kind"></div>
+    <textarea name="note" rows="3" maxlength="600" data-i18n-aria-label="compare.note"></textarea>
+    <div class="inline-chips"><button class="btn primary" data-i18n="compare.save"></button><button type="button" id="compareNoteCancel" class="link" data-i18n="decor.cancel"></button></div>
+  </form>
+  <aside id="compareBar" class="panel" data-i18n-aria-label="compare.title">
+    <div class="panel-head">
+      <strong data-i18n="compare.title"></strong>
+      <span class="grow"></span>
+      <button id="closeCompare" class="link close" data-i18n-aria-label="compare.close">✕</button>
+    </div>
+    <section id="compareNoVideo">
+      <p class="small" data-i18n="compare.how"></p>
+      <label class="btn primary" for="comparePick" data-i18n="compare.pick"></label>
+    </section>
+    <input id="comparePick" type="file" accept="video/mp4,video/quicktime,video/webm,.mov,.mp4,.m4v,.webm" hidden>
+    <div id="compareTools" hidden>
+      <section>
+        <h2 data-i18n="compare.video"></h2>
+        <p id="compareClock" class="small"></p>
+        <input id="compareTime" type="range" min="0" max="1" step="0.1" value="0" data-i18n-aria-label="compare.time">
+        <div class="chips">
+          <button id="compareBack" data-i18n="compare.back"></button>
+          <button id="comparePlay" data-i18n="compare.play"></button>
+          <button id="compareOn" data-i18n="compare.on"></button>
+        </div>
+        <div class="sliders">
+          <label><span data-i18n="compare.fade"></span><input id="compareFade" type="range" min="0" max="100" step="1" value="50"><output></output></label>
+          <label><span data-i18n="compare.lens"></span><input id="compareLens" type="range" min="30" max="120" step="1" value="70"><output id="compareLensOut"></output></label>
+          <label><span data-i18n="compare.eye"></span><input id="compareEye" type="range" min="50" max="250" step="1" value="150"><output id="compareEyeOut"></output></label>
+        </div>
+        <p class="small" data-i18n="compare.line"></p>
+      </section>
+      <section>
+        <h2 data-i18n="compare.kept"></h2>
+        <div class="inline-chips">
+          <select id="compareViews" data-i18n-aria-label="compare.kept"></select>
+          <button id="comparePrev" class="link" data-i18n-aria-label="compare.prev">◀</button>
+          <button id="compareNext" class="link" data-i18n-aria-label="compare.next">▶</button>
+        </div>
+        <div class="inline-chips">
+          <button id="compareKeep" class="btn primary"></button>
+          <button id="compareTag" class="btn" aria-pressed="false" data-i18n="compare.tag"></button>
+        </div>
+        <p id="compareStatus" class="small" role="status"></p>
+        <ul id="compareTags" class="placed-list"></ul>
+        <button id="compareForget" class="link danger" data-i18n="compare.forget" hidden></button>
+      </section>
+      <section>
+        <a id="compareExport" class="link" download data-i18n="compare.export"></a>
+        <label class="link" for="comparePick" data-i18n="compare.change"></label>
+      </section>
+    </div>
+  </aside>
+</div>
 <!-- by the picked thing, over the room: turn it, copy it, take it away -->
 <div id="decorBar" class="objbar" role="toolbar" data-i18n-aria-label="decor.bar" hidden>
   <button id="barLeft" data-i18n-aria-label="decor.turnLeft"><svg viewBox="0 0 20 20"><path d="M7 4 3.5 7.5 7 11M4 7.5h7a5 5 0 1 1 0 10H8"/></svg></button>
@@ -328,5 +391,6 @@
 <script type="module" src="/static/parlour.js"></script>
 <script type="module" src="/static/modes.js"></script>
 <script type="module" src="/static/decorate.js"></script>
+<script type="module" src="/static/compare.js"></script>
 </body>
 </html>

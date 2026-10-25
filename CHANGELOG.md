@@ -2,6 +2,12 @@
 
 ## 0.1.0 (unreleased)
 
+- **Compare with video**, in the Decor panel: the video you filmed of a place is shown over the
+  room, faded in and out and stepped half a second at a time. You fly the camera, setting its lens
+  and height, until the two line up, keep that view with a picture of both, and tag what is
+  missing, wrong or should go, right on the frame. **Export views and tags** downloads it all as one
+  zip (a `notes.md` list and the pictures) to send back for fixing. It is kept in `compare/` in the
+  data folder.
 - The sample venue's finer details, from a second pass over the walkthrough video. The front
   door has a step down with a yellow stripe, and the white walls have wooden skirting. The vertical
   garden has linen curtains at each end of its walls, and floor spotlights light it, the

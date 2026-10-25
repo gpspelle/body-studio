@@ -611,7 +611,7 @@ function flyNow(dt) {
   const w = window.tattooStudio.walker(), dir = lookWay(fly.look), p = Math.max(-1.4, Math.min(1.4, fly.pitch));
   const look = v3.add(v3.scale(dir, Math.cos(p)), v3.scale(w.up, Math.sin(p)));
   V.holder.updateMatrixWorld();
-  const eye = toWorld([fly.at[0], FLY.eye, fly.at[1]]);
+  const eye = toWorld([fly.at[0], fly.eye ?? FLY.eye, fly.at[1]]);
   const local = V.holder.worldToLocal(eye.clone());
   return { eye, look: V.holder.localToWorld(new THREE.Vector3(local.x + look[0] * w.H, local.y + look[1] * w.H, local.z + look[2] * w.H)) };
 }
@@ -663,6 +663,12 @@ window.house = {
   // flying: on or off; where the camera is ([x, z] map metres) or null
   fly: (on) => { if (on !== undefined) setView(on ? "fly" : "body"); return fly && fly.at.slice(); },
   look: (yaw, pitch) => { const L = fp || fly; if (L) { L.look = yaw; L.pitch = pitch; } },
+  // the flying camera as compare.js keeps it: { at [x, z] map metres, look, pitch, eye (m up) },
+  // or null when not flying; given one, it flies there
+  flyView: (v) => {
+    if (v) { setView("fly"); if (fly) Object.assign(fly, { at: v.at.slice(), look: v.look, pitch: v.pitch, eye: v.eye }); V.redraw(); }
+    return fly && { at: fly.at.slice(), look: fly.look, pitch: fly.pitch, eye: fly.eye ?? FLY.eye };
+  },
   // the body's things hidden now (from above and flying)
   bodyHidden: () => hidden.size > 0,
   sight: () => {
