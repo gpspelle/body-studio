@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's pergola, stage and garden, matched again to the walkthrough: the pergola's
+  woven reed roof is drawn as the furniture is (a new **Woven reed roof** starter), on orange-brown
+  beams with two more along under them, black track lights on them and up-and-down lights on its
+  wall (a new **Up-and-down wall light** starter), its floor a darker grey; the stage has no screen
+  (the walkthrough shows none); the garden is sand under its cover and round the bungalow, no grass.
 - The sample venue's toilets, matched again to the walkthrough: their hall is grey cement from the
   half wall on (not the hall's tiles), their floors a darker grey; the counters with white bowls
   and brass spouts, the round mirrors (the gents' on a leather strap), the cubicles with lattice

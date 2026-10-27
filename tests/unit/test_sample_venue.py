@@ -96,7 +96,8 @@ class SampleVenueTest(unittest.TestCase):
                          {"living_wall", "tropical_border", "glass_roof", "glass_lantern", "gourd_pendants", "jute_ceiling", "jute_swags",
                           "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave",
                           "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain",
-                          "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp"})
+                          "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp",
+                          "reed_roof", "wall_sconce"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -158,13 +159,8 @@ class SampleVenueTest(unittest.TestCase):
         self.assertNotEqual(brick(0, 0.04, 0.05, rnd), brick(0, 0.115, 0.05, rnd))
         self.assertEqual(brick(0, 0.04, 0.221, rnd), brick(0, 0.115, 0.111, rnd))
         rows = V.splats()
-        # the stage's screen, the pergola's reed roof (the garden's glass cover is the page's: no splats)
-        x0, x1, z0, z1 = V.PERGOLA
-        reed = [r for r in rows if x0 < r[0][0] < x1 and z0 < r[0][2] < z1 and abs(r[0][1] - V.PERGOLA_ROOF - 0.01) < 1e-6]
-        self.assertGreater(len(reed), 20000)
+        # the garden's glass cover is the page's: no splats
         self.assertFalse([r for r in rows if V.GARDEN_X < r[0][0] < V.GARDEN_X + V.COVER_LEN and r[0][1] > 3.2])
-        screen = [r for r in rows if abs(r[0][2] - 0.06) < 1e-6 and V.STAGE[0] < r[0][0] < V.STAGE[1] and min(r[1]) > 0.8]
-        self.assertGreater(len(screen), 1000)
 
     def test_the_way_in_as_the_walkthrough(self):
         rows = V.splats()
@@ -236,6 +232,31 @@ class SampleVenueTest(unittest.TestCase):
         # (and the splats no longer draw them: no white bowls left at the counters' height)
         rows = V.splats()
         self.assertFalse([r for r in rows if r[1] == (0.95, 0.95, 0.94) and 0.84 <= r[0][1] <= 1.0 and r[0][2] < 0.0])
+
+    def test_the_pergola_and_stage_as_the_walkthrough(self):
+        x0, x1, z0, z1 = V.PERGOLA
+        fit = [f for f in V.fittings() if x0 <= f[1][0] <= x1 and z0 <= f[1][2] <= z1]
+        # its woven reed roof drawn as furniture, over the whole pergola at its roof, no reed splats
+        roof = next(f for f in fit if f[0] == "reed_roof")
+        self.assertEqual((roof[1][1], roof[4]["w"], roof[4]["d"]), (V.PERGOLA_ROOF, round(x1 - x0, 3), round(z1 - z0, 3)))
+        rows = V.splats()
+        self.assertFalse([r for r in rows if x0 < r[0][0] < x1 and z0 < r[0][2] < z1 and abs(r[0][1] - V.PERGOLA_ROOF - 0.01) < 1e-6])
+        # track lights on its beams, up-and-down lights on its wall, the beams orange-brown
+        self.assertEqual(sum(f[0] == "track_light" for f in fit), 3)
+        sconces = [f for f in fit if f[0] == "wall_sconce"]
+        self.assertEqual(len(sconces), 2 * len(V._strips()))
+        self.assertTrue(all(f[1][2] == z1 and f[2] == math.pi for f in sconces))
+        self.assertTrue([r for r in rows if max(abs(a - b) for a, b in zip(r[1], V.BEAM)) < 0.04 and r[0][1] > V.PERGOLA_ROOF - 0.4 and x0 < r[0][0] < x1])
+        # its floor a darker grey than the hall's ceiling; no screen on the stage (the walkthrough has none)
+        self.assertLess(max(V.PERGOLA_FLOOR), 0.6)
+        sx0, sx1, sz0, sz1, sh = V.STAGE
+        self.assertFalse([r for r in rows if sx0 < r[0][0] < sx1 and abs(r[0][2] - 0.06) < 1e-6 and min(r[1]) > 0.8])
+
+    def test_the_garden_is_sand_as_the_walkthrough(self):
+        # sand under the cover and round the bungalow: no grass (plants stand in the sand)
+        rows = V.splats()
+        grass = [r for r in rows if r[0][0] > V.GARDEN_X and abs(r[0][1]) < 0.02 and r[1][1] > r[1][0] + 0.1]
+        self.assertFalse(grass)
 
     def test_walls_with_holes(self):
         # a wall 4 m along, 3.4 high, less a door and a window: what is left covers the rest exactly
