@@ -243,6 +243,11 @@ STARTERS = (
     {"id": "wall_sconce", "group": "lights", "height": 0.243, "on": "floor"},
     {"id": "sky_dome", "group": "garden", "height": 280, "on": "floor"},
     {"id": "saucer_light", "group": "lights", "height": 0.18, "on": "floor"},
+    {"id": "steel_sink", "group": "home", "height": 1.25, "on": "floor"},
+    {"id": "gas_range", "group": "home", "height": 0.86, "on": "floor"},
+    {"id": "steel_hood", "group": "home", "height": 0.62, "on": "floor"},
+    {"id": "steel_duct", "group": "home", "height": 0.24, "on": "floor"},
+    {"id": "fire_extinguisher", "group": "home", "height": 0.6, "on": "floor"},
     {"id": "sheer_curtain", "group": "home", "height": 3.25, "on": "floor"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}

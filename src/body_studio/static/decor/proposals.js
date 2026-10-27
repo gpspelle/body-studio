@@ -821,15 +821,19 @@ const GLOW = [1.0, 0.7, 0.4], SKY_GLASS = [0.8, 0.88, 0.95];
 const AGAVE = [0.42, 0.56, 0.52], AGAVE_PALE = [0.55, 0.66, 0.6], PINK_FLOWER = [0.93, 0.42, 0.62];
 const TIMBER_RED = [0.5, 0.27, 0.18], WEATHERED = [0.33, 0.27, 0.22], ALUMINIUM = [0.8, 0.81, 0.82], BAND = [0.09, 0.09, 0.09], SAND_RUG = [0.86, 0.76, 0.6];
 function swags(s, col, bands) {
-  const top = 3.4, sag = 0.28, n = 8;
+  // (with bands, as over the venue's ante-room: each strip also laid over sticks along the room, a
+  // stick every 4/3 m across it, so it rises and dips across the room too; the dips of one strip
+  // where the next one's sticks show, in a checker)
+  const top = 3.4, sag = bands ? 0.1 : 0.28, n = 8, across = 4 / 3, wave = 0.24;
   for (let k = 0; k <= n; k++) rod(s, [-2 + (4 * k) / n, top, -2], [-2 + (4 * k) / n, top, 2], 0.008, WIRE, 4);
-  const sheet = (x0, x1, z0, z1, deep, c, below = 0) => {
-    const pts = [], X = 6, Z = 16;
+  const dip = (z, k) => bands ? wave * Math.abs(Math.sin(Math.PI * ((z + 2) / across + (k % 2) * 0.5))) : 0;
+  const sheet = (x0, x1, z0, z1, deep, c, k, below = 0) => {
+    const pts = [], X = 6, Z = 24;
     for (let i = 0; i <= X; i++) for (let j = 0; j <= Z; j++) {
       const t = i / X, z = z0 + ((z1 - z0) * j) / Z;
       // (lighter where it hangs lowest, in the room's light; darker up by the bars, a fold now and then)
-      const k = 0.8 + 0.28 * Math.sin(Math.PI * t) + 0.05 * Math.sin(z * 11 + x0 * 3), cc = c === BAND ? c : c.map((v) => Math.min(1, v * k));
-      pts.push(vert(s, x0 + (x1 - x0) * t, top - below - deep * Math.sin(Math.PI * t) * (0.9 + 0.1 * Math.sin(z * 2.3 + x0)), z, cc));
+      const l = 0.8 + 0.28 * Math.sin(Math.PI * t) + 0.05 * Math.sin(z * 11 + x0 * 3) + 0.5 * dip(z, k), cc = c === BAND ? c : c.map((v) => Math.min(1, v * l));
+      pts.push(vert(s, x0 + (x1 - x0) * t, top - below - deep * Math.sin(Math.PI * t) * (0.9 + 0.1 * Math.sin(z * 2.3 + x0)) - dip(z, k), z, cc));
     }
     for (let i = 0; i < X; i++) for (let j = 0; j < Z; j++)
       quad(s, pts[i * (Z + 1) + j], pts[i * (Z + 1) + j + 1], pts[(i + 1) * (Z + 1) + j + 1], pts[(i + 1) * (Z + 1) + j]);
@@ -837,10 +841,12 @@ function swags(s, col, bands) {
   made("cloth", () => {
     for (let k = 0; k < n; k++) {
       const x0 = -2 + (4 * k) / n, x1 = x0 + 4 / n, c = col.map((v) => Math.min(1, v * 1.15 * (0.94 + 0.06 * (k % 2))));   // (burlap: paler than rattan)
-      sheet(x0, x1, -2, 2, sag, c);
-      if (bands) for (const z of [-0.7, 0.7]) sheet(x0, x1, z - 0.13, z + 0.13, sag + 0.04, BAND, 0.012);
+      sheet(x0, x1, -2, 2, sag, c, k);
+      if (bands) for (const z of [-0.7, 0.7]) sheet(x0, x1, z - 0.13, z + 0.13, sag + 0.04, BAND, k, 0.012);
     }
   });
+  // (the sticks, dark, along the room under the strips' high points)
+  if (bands) made("wood", () => { for (let m = 0; m <= 6; m++) { const z = -2 + across * (m / 2); rod(s, [-2, top - 0.02, z], [2, top - 0.02, z], 0.015, BAND, 6); } });
 }
 
 // A fern frond hanging on a wall (the wall's face toward +z) from p, len long, drifting `lean`

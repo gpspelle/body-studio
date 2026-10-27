@@ -9,6 +9,7 @@ import {
 const WALNUT = [0.36, 0.24, 0.16], OAK = [0.62, 0.46, 0.3], INK = [0.08, 0.08, 0.09], CHROME = [0.72, 0.73, 0.75];
 const VINYL = [0.1, 0.1, 0.11], OCHRE = [0.8, 0.6, 0.25], TEAL = [0.2, 0.45, 0.47], SHADE_LINEN = [0.96, 0.92, 0.82];
 const SOIL = [0.2, 0.15, 0.11], FIG = [0.2, 0.38, 0.17];
+const STEEL = [0.7, 0.71, 0.72], SINK_DARK = [0.42, 0.43, 0.44], EXTINGUISHER = [0.78, 0.1, 0.08];
 // the spines of the books, muted as a real shelf's are
 const SPINES = [[0.55, 0.18, 0.15], [0.16, 0.27, 0.4], [0.85, 0.8, 0.68], [0.26, 0.4, 0.3], [0.78, 0.6, 0.3],
                 [0.2, 0.2, 0.22], [0.62, 0.5, 0.42], [0.4, 0.22, 0.3], [0.9, 0.88, 0.84]];
@@ -602,6 +603,92 @@ export const HOME = {
         cyl(s, 0.05, 0, 0.005, 0, 0.175, z, col, 32);
       });
       lit(() => { cyl(s, 0.245, 0.245, 0.01, 0, mid - 0.005, z, BULB, 32); cyl(s, 0.06, 0, 0.004, 0, 0.0, z, BULB, 24); });
+      return s;
+    },
+  },
+
+  steel_sink: {
+    group: "home", height: 1.25, on: "floor", colour: "steel", size: { w: 3.0, d: 0.65 }, block: true, built: ["w"],
+    make(col, k = { w: 3.0 }) {
+      // a stainless sink bench in a kitchen (its back at -z): a top 90 cm up with a deep basin
+      // every metre and a half, a low upstand along the wall, a shelf under it, square legs, a tall
+      // tap over each basin
+      const s = shape(), d = 0.65, z0 = -d / 2, n = Math.max(1, Math.round(k.w / 1.5));
+      made("metal", () => {
+        box(s, k.w, 0.04, d, 0, 0.86, 0, STEEL);
+        box(s, k.w, 0.15, 0.02, 0, 0.9, z0 + 0.01, STEEL);
+        box(s, k.w - 0.1, 0.02, d - 0.1, 0, 0.18, 0, STEEL);
+        for (const x of [-k.w / 2 + 0.05, k.w / 2 - 0.05]) for (const z of [z0 + 0.05, -z0 - 0.05]) box(s, 0.04, 0.86, 0.04, x, 0, z, STEEL);
+        for (let i = 0; i < n; i++) {
+          const x = -k.w / 2 + ((i + 0.5) * k.w) / n;
+          box(s, 0.5, 0.004, 0.4, x, 0.901, 0.02, SINK_DARK);
+          box(s, 0.5, 0.25, 0.4, x, 0.65, 0.02, STEEL);
+          rod(s, [x, 0.9, z0 + 0.06], [x, 1.2, z0 + 0.06], 0.012, CHROME, 8);
+          rod(s, [x, 1.2, z0 + 0.06], [x, 1.2, z0 + 0.22], 0.012, CHROME, 8);
+          rod(s, [x, 1.2, z0 + 0.22], [x, 1.1, z0 + 0.24], 0.011, CHROME, 8);
+        }
+      });
+      return s;
+    },
+  },
+  gas_range: {
+    group: "home", height: 0.86, on: "floor", colour: "steel", size: { w: 1.0, d: 0.9 }, block: true,
+    make() {
+      // a kitchen's gas range on an open steel frame: a black top with four burners, a shelf low
+      // down, square legs
+      const s = shape(), w = 1.0, d = 0.9;
+      made("metal", () => {
+        for (const x of [-w / 2 + 0.03, w / 2 - 0.03]) for (const z of [-d / 2 + 0.03, d / 2 - 0.03]) box(s, 0.04, 0.82, 0.04, x, 0, z, STEEL);
+        box(s, w, 0.03, d, 0, 0.18, 0, STEEL);
+        box(s, w, 0.06, d, 0, 0.76, 0, STEEL);
+      });
+      made("satin", () => box(s, w - 0.04, 0.04, d - 0.04, 0, 0.82, 0, INK));
+      made("metal", () => { for (const x of [-0.24, 0.24]) for (const z of [-0.2, 0.2]) { cyl(s, 0.1, 0.1, 0.006, x, 0.86, z, [0.2, 0.2, 0.21], 20); cyl(s, 0.05, 0.05, 0.01, x, 0.86, z, [0.3, 0.3, 0.31], 16); } });
+      return s;
+    },
+  },
+  steel_hood: {
+    group: "home", height: 0.62, hangs: true, on: "floor", colour: "steel", size: { w: 1.1, d: 1.0 }, block: false,
+    make() {
+      // a stainless extractor hood hung over a range (hung, lift it to its foot): a deep skirt, a
+      // shallow pyramid over it and a short chimney out of the top
+      const s = shape(), w = 1.1, d = 1.0;
+      made("metal", () => {
+        box(s, w, 0.18, d, 0, 0, 0, STEEL);
+        const lo = [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([x, z]) => vert(s, x, 0.18, z, STEEL));
+        const hi = [[-0.15, -0.15], [0.15, -0.15], [0.15, 0.15], [-0.15, 0.15]].map(([x, z]) => vert(s, x, 0.42, z, STEEL));
+        for (let i = 0; i < 4; i++) quad(s, lo[i], lo[(i + 1) % 4], hi[(i + 1) % 4], hi[i]);
+        box(s, 0.3, 0.2, 0.3, 0, 0.42, 0, STEEL);
+      });
+      return s;
+    },
+  },
+  steel_duct: {
+    group: "home", height: 0.24, hangs: true, on: "floor", colour: "steel", size: { w: 2.5, d: 0.24 }, block: false, built: ["w"],
+    make(col, k = { w: 2.5 }) {
+      // a round steel duct along a ceiling (hung, lift it to its foot), 24 cm round, a band at each joint
+      const s = shape(), n = Math.max(1, Math.round(k.w / 1.2));
+      made("metal", () => {
+        rod(s, [-k.w / 2, 0.12, 0], [k.w / 2, 0.12, 0], 0.12, STEEL, 20);
+        for (let i = 0; i <= n; i++) rod(s, [-k.w / 2 + (i * k.w) / n - 0.02, 0.12, 0], [-k.w / 2 + (i * k.w) / n + 0.02, 0.12, 0], 0.122, [0.6, 0.61, 0.62], 20);
+      });
+      return s;
+    },
+  },
+  fire_extinguisher: {
+    group: "home", height: 0.6, hangs: true, on: "floor", colour: "red", size: { w: 0.2, d: 0.2 }, block: false,
+    make() {
+      // a red fire extinguisher on its wall bracket (its back at z = 0; hung, lift it to its foot): a
+      // black valve and a hose down its side
+      const s = shape(), z = 0.1;
+      made("satin", () => {
+        cyl(s, 0.085, 0.085, 0.46, 0, 0, z, EXTINGUISHER, 24);
+        cyl(s, 0.085, 0.03, 0.06, 0, 0.46, z, EXTINGUISHER, 24);
+        box(s, 0.05, 0.08, 0.05, 0, 0.52, z, INK);
+        rod(s, [0.03, 0.56, z], [0.1, 0.45, z], 0.012, INK, 6);
+        rod(s, [0.1, 0.45, z], [0.1, 0.12, z], 0.012, INK, 6);
+        box(s, 0.06, 0.1, 0.02, 0, 0.3, 0.01, INK);
+      });
       return s;
     },
   },

@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 20
+VERSION = 21
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -57,8 +57,10 @@ ANTE = (-9.3, 0.0, 0.0, 4.0)
 ANTE_SPOTS = tuple(ANTE[0] + 1.2 + 2.3 * k for k in range(4))   # x: its floor spotlights, along both walls
 ANTE_TILES = 1.2                        # m of the ante-room's end already in the hall's rustic tiles
 KITCHEN = (-9.3, 0.0, 4.0, 8.6)
-KITCHEN_DOOR = (7.6, 8.5)               # z: its lattice door on the hall, at the end of the passage to it
-HATCH = (4.9, 7.2)                      # z: its serving hatch on the hall, a stone sill 1 m up
+BOARD = 4.0                             # m: the longest skirting board laid in one piece
+KITCHEN_WAY_OUT = (7.4, 8.3)            # z: the open doorway in its far wall
+KITCHEN_DOOR = (6.4, 7.3)               # z: its door on the hall, beside the hatch, its leaf swung out across the passage
+HATCH = (4.9, 6.2)                      # z: its serving hatch on the hall, 1 m up, in a deep white surround
 PARTITION = 1.3                         # x: the reed-clad partition between the hall and that passage
 VERTICAL = (-13.8, -9.3, 0.0, 4.0)
 INTO_ANTE = (0.35, 3.65)                # z: the wide opening from it into the ante-room, between its planted walls
@@ -183,12 +185,12 @@ def _rough(colour, strength=0.06):
     return base.finish("concrete", f)
 
 
-def _tiles(colour, size, grout=(0.72, 0.72, 0.71), across=0):
+def _tiles(colour, size, grout=(0.72, 0.72, 0.71), across=0, joint=0.005):
     """Square tiles with a grey grout line: on a floor (across 0: x and z) or a wall along x (1: x
-    and y) or along z (2: z and y)."""
+    and y) or along z (2: z and y). (A floor's joint as wide as its mesh's 5 cm cells, or it blurs away.)"""
     def f(x, y, z, rnd):
         a, b = ((x, z), (x, y), (z, y))[across]
-        if a % size < 0.005 or b % size < 0.005:
+        if a % size < joint or b % size < joint:
             return grout
         t = rnd.uniform(-0.012, 0.012)
         return tuple(c + t for c in colour)
@@ -352,7 +354,7 @@ def house(rnd, out):
     for r in (RECEPTION, VERTICAL):
         base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(_cement(POLISHED, joint=1.5, cloud=0.008, line=FLOOR_STEP, cut=0.86), r, dark=0.9), out, FLOOR_STEP)
     base._surface(rnd, (ANTE[0], ANTE[1] - ANTE_TILES, 0, 0, ANTE[2], ANTE[3]), _shaded(_cement(SLAB, joint=1.0), ANTE, dark=0.85), out, FLOOR_STEP)
-    base._surface(rnd, (KITCHEN[0], KITCHEN[1], 0, 0, KITCHEN[2], KITCHEN[3]), _tiles(TILE_WHITE, 0.45), out, FLOOR_STEP)
+    base._surface(rnd, (KITCHEN[0], KITCHEN[1], 0, 0, KITCHEN[2], KITCHEN[3]), _tiles(TILE_WHITE, 0.45, grout=(0.66, 0.66, 0.65), joint=0.05), out, FLOOR_STEP)
     hx0, hx1, hz0, hz1 = HALL
     shaded = _shaded(_rustic, HALL, reach=1.2, dark=0.8)
     def rustic(x, y, z, rnd):                          # (darker across the way in from the ante-room)
@@ -384,7 +386,7 @@ def house(rnd, out):
     # (the ante-room's jute ceiling hangs under a black one: the page draws it, from fixtures())
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), base.finish("plaster", (0.12, 0.12, 0.12)), out, CEIL_STEP)
     base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
-    base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), base.finish("plaster", CEILING), out, CEIL_STEP)
+    base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), CEILING, out, CEIL_STEP)   # (smooth white paint)
     for (x0, x1, z0, z1) in ((hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1), (hx1, STAGE[1], 0, WC[2])):
         base._surface(rnd, (x0, x1, H, H, z0, z1), _rough(CONCRETE), out, CEIL_STEP)
     skylight(rnd, out)
@@ -426,15 +428,18 @@ def house(rnd, out):
     frame_z(VERTICAL[1], *INTO_ANTE, 0.0, 2.9, out, rnd, colour=WALNUT, t=0.1, d=0.14)
     # the ante-room into the hall (where the hall is narrower), the kitchen's back wall beside it
     wall_z(0.0, 0.0, 4.0, [(NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9)], hall_wall, out, rnd)
-    # the kitchen from the hall: a passage behind a partition clad in reeds, a serving hatch on a
-    # stone sill along it, and the kitchen's lattice door at its end, open, swung in against its side
+    # the kitchen from the hall: a passage behind a grey partition with a reed mat on it, a
+    # serving hatch in a deep white surround along it, and beside it the kitchen's door, a plain
+    # opening, its leaf of dark wooden panels swung out across the passage
     wall_z(0.0, 4.0, hz1, [KITCHEN_DOOR + (0.0, 2.2), HATCH + (1.0, 2.1)], hall_wall, out, rnd)
-    frame_z(0.0, *KITCHEN_DOOR, 0.0, 2.2, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
     a0, a1 = KITCHEN_DOOR
-    base._surface(rnd, (-(a1 - a0), -0.06, 0.0, 2.2, a0 + 0.04, a0 + 0.04), _lattice, out, 0.02)
-    base._surface(rnd, (-0.15, 0.3, 0.95, 1.0, *HATCH), base.finish("cement", (0.74, 0.71, 0.66)), out, 0.03)
+    base._surface(rnd, (0.06, 0.06 + (a1 - a0), 0.0, 2.2, a1 - 0.04, a1 - 0.04), _panels, out, 0.02)
+    h0, h1 = HATCH
+    for (x0, x1, y0, y1, z0, z1) in ((-0.15, 0.15, 0.9, 1.0, h0 - 0.1, h1 + 0.1), (-0.15, 0.15, 2.1, 2.2, h0 - 0.1, h1 + 0.1),
+                                     (-0.15, 0.15, 1.0, 2.1, h0 - 0.1, h0), (-0.15, 0.15, 1.0, 2.1, h1, h1 + 0.1)):
+        base._surface(rnd, (x0, x1, y0, y1, z0, z1), (0.93, 0.93, 0.92), out, 0.02)
     for x in (PARTITION - 0.04, PARTITION + 0.04):
-        wall_z(x, HATCH[0] - 0.1, hz1, [], _reed_wall, out, rnd, h=2.6, step=0.03)
+        wall_z(x, HATCH[0] - 0.1, hz1, [], _reed_panel, out, rnd, h=2.6, step=0.03)
     base._surface(rnd, (PARTITION - 0.04, PARTITION + 0.04, 0.0, 2.6, HATCH[0] - 0.1, HATCH[0] - 0.1), TIMBER, out, 0.02)
     # where the hall widens: a beam across it in warm orange-brown wood, a strip of light along its
     # underside, and a post of the same wood down each side
@@ -481,7 +486,10 @@ def house(rnd, out):
     # (three sets of three, the same space between the sets; dark shutters behind the glass)
     windows, lights = hall_windows()
     w0, w1 = 1.0, 2.0
-    wall_x(hz1, hx0, hx1, [(a, b, w0, w1) for a, b in windows], _washed(hall_wall, lights), out, rnd)
+    passage = (0.2, 1.1, 1.8, 2.55)                   # (and one high at the kitchen passage's end)
+    wall_x(hz1, hx0, hx1, [(a, b, w0, w1) for a, b in windows] + [passage], _washed(hall_wall, lights), out, rnd)
+    frame_x(hz1, *passage, out, rnd, colour=(0.24, 0.16, 0.12), t=0.05)
+    base._surface(rnd, (*passage, hz1 + 0.3, hz1 + 0.3), _view, out, 0.04)
     for a, b in windows:
         frame_x(hz1, a, b, w0, w1, out, rnd, colour=GREY_FRAME, t=0.04)
         base._surface(rnd, (a, b, (w0 + w1) / 2 - 0.015, (w0 + w1) / 2 + 0.015, hz1 - 0.02, hz1 + 0.02), GREY_FRAME, out, 0.03)
@@ -635,10 +643,9 @@ def _mural(colour):
     return base.finish("plaster", f)
 
 
-def _lattice(x, y, z, rnd):
-    """A cubicle's door: dark wood in a fine diagonal lattice."""
-    u = (x + z + y) % 0.06 < 0.012 or (x + z - y) % 0.06 < 0.012
-    return (0.13, 0.08, 0.05) if u else (0.33, 0.21, 0.13)
+def _panels(x, y, z, rnd):
+    """A door of dark wooden panels: a grid of darker grooves round them."""
+    return (0.14, 0.09, 0.06) if x % 0.3 < 0.02 or y % 0.37 < 0.02 else (0.30, 0.20, 0.14)
 
 
 def _ring(rnd, out, cx, cy, cz, r, colour, axis, n=40, s=0.02):
@@ -705,6 +712,15 @@ def _reed_wall(x, y, z, rnd):
     return (REED[0] + t, REED[1] + t, REED[2] + t * 0.8)
 
 
+def _reed_panel(x, y, z, rnd):
+    """The kitchen passage's partition: grey plaster, a mat of pale grey reeds on it."""
+    if y < 0.3 or y > 2.35 or z < HATCH[0] + 0.1 or z > HALL[3] - 0.2:
+        return (0.58, 0.56, 0.52)
+    r = random.Random(math.floor(z / 0.012))
+    t = r.uniform(-0.07, 0.05) + 0.03 * math.sin(y * 9 + r.random() * 6)
+    return (0.70 + t, 0.68 + t, 0.62 + t * 0.8)
+
+
 def _louvres(x, y, z, rnd):
     """A louvred door in dark wood: slats 4 cm, a light line between them, a stile round them."""
     return (0.42, 0.30, 0.20) if y % 0.04 < 0.008 else (0.24, 0.15, 0.10)
@@ -756,8 +772,8 @@ def kitchen(rnd, out):
     """The kitchen, as Gabriel's frame of it shows it: white tiles up its walls, a high row of
     windows in dark wooden frames on its outside wall (frosted, some panes tipped open) over
     stainless sinks; a stove under a steel hood in the middle, its duct to the wall; a tall white
-    fridge; two dark doors in its far wall, the staff's way out (to the room by the hall's louvred
-    door)."""
+    fridge; in its far wall a red door and an open doorway, the staff's way out (to the room by the
+    hall's louvred door); its sinks, range, hood and duct drawn as the furniture is (fittings())."""
     x0, x1, z0, z1 = KITCHEN
     windows = [(x0 + 0.6 + 1.5 * k, x0 + 1.8 + 1.5 * k) for k in range(5)]
     w0, w1 = 1.4, 2.5
@@ -772,23 +788,22 @@ def kitchen(rnd, out):
         base._surface(rnd, (a, b, w0, w1, z1 + 0.03, z1 + 0.03), (0.86, 0.88, 0.88), out, 0.04)    # (frosted)
         if k % 2 == 0:                               # a pane tipped open into the room
             base._surface(rnd, (a + 0.05, a + (b - a) / 3 - 0.05, w0 + 0.42, w0 + 0.46, z1 - 0.3, z1 - 0.02), (0.84, 0.86, 0.86), out, 0.02)
-    wall_z(x0, z0, z1, [(4.4, 5.3, 0.0, 2.2), (6.4, 7.3, 0.0, 2.2)], _tiles(TILE_WHITE, 0.2, across=2), out, rnd)
-    door_z(x0, 4.4, 5.3, out, rnd)
-    door_z(x0, 6.4, 7.3, out, rnd)
-    steel = (0.70, 0.71, 0.72)
-    # the sinks along the windows' wall: a steel top with a basin in it, an upstand, a shelf below
-    base._surface(rnd, (x0 + 0.6, x0 + 5.6, 0.86, 0.9, z1 - 0.65, z1), steel, out, 0.03)
-    base._surface(rnd, (x0 + 0.6, x0 + 5.6, 0.9, 1.05, z1 - 0.03, z1), steel, out, 0.03)
-    base._surface(rnd, (x0 + 0.6, x0 + 5.6, 0.15, 0.17, z1 - 0.6, z1), (0.62, 0.63, 0.64), out, 0.04)
-    for x in (x0 + 1.4, x0 + 3.9):
-        base._surface(rnd, (x - 0.3, x + 0.3, 0.9, 0.9, z1 - 0.55, z1 - 0.1), (0.45, 0.46, 0.47), out, 0.02)
-    # the stove in the middle, on a steel frame, under its hood; the duct along the ceiling
-    cx, cz = x0 + 6.5, (z0 + z1) / 2
-    base._surface(rnd, (cx - 0.5, cx + 0.5, 0.82, 0.86, cz - 0.45, cz + 0.45), (0.22, 0.22, 0.23), out, 0.03)
-    base._surface(rnd, (cx - 0.5, cx + 0.5, 0.2, 0.22, cz - 0.45, cz + 0.45), steel, out, 0.04)
-    base._surface(rnd, (cx - 0.8, cx + 0.8, 2.25, 2.5, cz - 0.7, cz + 0.7), steel, out, 0.04)
-    base._surface(rnd, (cx - 0.3, cx + 0.3, 2.5, H, cz - 0.3, cz + 0.3), steel, out, 0.04)
-    base._surface(rnd, (x0, cx - 0.3, H - 0.4, H - 0.1, cz - 0.15, cz + 0.15), steel, out, 0.04)
+    wall_z(x0, z0, z1, [(4.5, 5.4, 0.0, 2.2), KITCHEN_WAY_OUT + (0.0, 2.2)], _tiles(TILE_WHITE, 0.2, across=2), out, rnd)
+    base._surface(rnd, (x0, x0, 0.0, 2.2, 4.5, 5.4), (0.50, 0.14, 0.11), out, 0.03)
+    base._surface(rnd, (x0 + 0.03, x0 + 0.03, 1.0, 1.04, 5.2, 5.3), (0.70, 0.70, 0.68), out, 0.01)
+    frame_z(x0, 4.5, 5.4, 0.0, 2.2, out, rnd, colour=(0.42, 0.13, 0.10), t=0.07, d=0.04)
+    # (through the doorway: a red floor, a wall)
+    a, b = KITCHEN_WAY_OUT
+    base._surface(rnd, (x0 - 1.2, x0, 0.0, 0.0, a, b), (0.55, 0.20, 0.15), out, 0.04)
+    base._surface(rnd, (x0 - 1.2, x0 - 1.2, 0.0, 2.2, a, b), (0.72, 0.68, 0.62), out, 0.04)
+    for z in (a, b):
+        base._surface(rnd, (x0 - 1.2, x0, 0.0, 2.2, z, z), (0.72, 0.68, 0.62), out, 0.04)
+    base._surface(rnd, (x0 - 1.2, x0, 2.2, 2.2, a, b), (0.80, 0.78, 0.74), out, 0.04)
+    # (kept, for the map, where they stand: the sink benches and the range, drawn by fittings())
+    with base.as_decor(out):
+        for x in (x0 + 2.3, x0 + 5.9):
+            base._surface(rnd, (x - 1.5, x + 1.5, 0.0, 0.9, z1 - 0.65, z1), (0.70, 0.71, 0.72), out, 0.04)
+        base._surface(rnd, (x0 + 4.05, x0 + 4.95, 0.0, 0.86, 5.3, 6.3), (0.70, 0.71, 0.72), out, 0.04)
     # the fridge against the ante-room's wall, near the far end
     base._surface(rnd, (x0 + 0.3, x0 + 1.05, 0.0, 1.9, z0, z0 + 0.72), (0.94, 0.94, 0.93), out, 0.03)
 
@@ -1003,6 +1018,15 @@ def fittings() -> list:
             ("wall_speaker", (-15.3, 2.4, 0.0), 0.0, (0.07, 0.07, 0.07), None)]
     for x, turn in ((VERTICAL[0] + 0.2, -math.pi / 2), (VERTICAL[1] - 0.2, math.pi / 2)):
         out += [("sheer_curtain", (x, 0.0, z), turn, SHEER, None) for z in (0.5, 3.5)]
+    # the kitchen: stainless sink benches under its windows, a gas range in the middle under a
+    # hood, its duct along the ceiling to the windows' wall; a fire extinguisher on its far wall
+    kx0, _, _, kz1 = KITCHEN
+    out += [("steel_sink", (x, 0.0, kz1 - 0.33), math.pi, None, 3.0) for x in (kx0 + 2.3, kx0 + 5.9)]
+    stove = (kx0 + 4.5, 5.8)
+    out += [("gas_range", (stove[0], 0.0, stove[1]), math.pi / 2, None, None),
+            ("steel_hood", (stove[0], 2.45, stove[1]), math.pi / 2, None, None),
+            ("steel_duct", (stove[0], H - 0.3, (stove[1] + kz1) / 2), math.pi / 2, None, round(kz1 - stove[1], 3)),
+            ("fire_extinguisher", (kx0, 0.95, 6.4), math.pi / 2, None, None)]
     # the ante-room: an orange saucer of a wall light near its end
     out.append(("saucer_light", (ANTE[1] - 1.7, 1.95, 0.0), 0.0, SAUCER, None))
     # the hall: skirting along its white walls (not the toilets' hall's), uplights, its curtains
@@ -1051,7 +1075,19 @@ def fittings() -> list:
     out.append(("strap_mirror", (gx1, 1.29, -1.65), -math.pi / 2, None, None))
     out += [("globe_lamp", (lx1 - 0.01, 2.28, -1.6), -math.pi / 2, (0.80, 0.92, 0.74), None),
             ("globe_lamp", (lx1 + 0.01, 2.28, -1.6), math.pi / 2, (0.80, 0.92, 0.74), None)]
-    return out
+    # (a skirting board longer than a starter can be made, 5 m, laid as several end to end)
+    boards = []
+    for f in out:
+        item, (x, y, z), turn, colour, length = f
+        n = math.ceil(length / BOARD) if item == "skirting_board" else 1
+        if n == 1:
+            boards.append(f)
+            continue
+        along = (abs(math.cos(turn)), abs(math.sin(turn)))   # (turn 0: along x)
+        for k in range(n):
+            u = (k + 0.5) * length / n - length / 2
+            boards.append((item, (x + u * along[0], y, z + u * along[1]), turn, colour, length / n))
+    return boards
 
 
 def fixtures() -> dict:

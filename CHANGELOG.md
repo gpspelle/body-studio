@@ -2,6 +2,14 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's kitchen and its passage, fixed where Gabriel tagged them: the stainless sink
+  benches, the gas range, its hood and the duct to the windows' wall are drawn as the furniture is
+  (new **Stainless sink bench**, **Gas range**, **Extractor hood**, **Steel duct** and **Fire
+  extinguisher** starters); a red door and an open doorway in its far wall; white tiles with grey
+  joints; a smooth white ceiling. The passage has a grey partition with a reed mat on it, the hatch
+  in a deep white surround, the kitchen's door beside it with its leaf swung out, and a window high
+  at its end. The ante-room's jute ceiling rises and dips over sticks across the room, and long
+  skirting boards are laid in pieces so they run the whole wall.
 - The sample venue, fixed where Gabriel tagged it against the walkthrough: the vertical garden's
   glass roof light rises to one point where its four rafters meet, with pale aluminium glazing bars
   and an old weathered beam on the reception's side; the front wall is all dark panels, its shut
