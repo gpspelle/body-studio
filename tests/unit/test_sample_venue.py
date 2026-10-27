@@ -98,7 +98,9 @@ class SampleVenueTest(unittest.TestCase):
                           "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain",
                           "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp",
                           "reed_roof", "wall_sconce", "sky_dome", "saucer_light",
-                          "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher"})
+                          "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher",
+                          "brick_wall", "brick_pier", "brick_bench", "door_sign", "sink_cabinet", "changing_table", "mosaic_splash",
+                          "dome_pendant", "plain_counter"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -251,6 +253,15 @@ class SampleVenueTest(unittest.TestCase):
         a, b, y0, y1 = V.FIREPLACE
         back = [r for r in rows if abs(r[0][0] - hx - 0.1) < 0.01 and a < r[0][2] < b and y0 < r[0][1] < y1]
         self.assertTrue(back)
+        # (Gabriel's tags) the bricks drawn as the furniture is, not splats in the look; a passage
+        # through the toilets' hall's end to the stage; a sign over each toilet's door; no fan on
+        # the corner's pier
+        fits = V.fittings()
+        self.assertGreaterEqual(sum(f[0] == "brick_wall" for f in fits), 8)
+        self.assertEqual(sorted(f[4]["man"] for f in fits if f[0] == "door_sign"), [0, 1])
+        s0, s1 = V.TO_STAGE
+        self.assertFalse([r for r in rows if abs(r[0][0] - V.WC[1]) < 0.02 and s0 + 0.05 < r[0][2] < s1 - 0.05 and 0.5 < r[0][1] < V.TO_STAGE_TOP - 0.1])
+        self.assertFalse([t for t in self.map["fixtures"]["trees"] if t["item"] == "wall_fan" and abs(t["at"][0] - V.PIER[0]) < 1.0 and abs(t["at"][2] - V.PIER[1]) < 1.0])
 
     def test_the_pergola_and_stage_as_the_walkthrough(self):
         x0, x1, z0, z1 = V.PERGOLA

@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 23
+VERSION = 24
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -47,6 +47,11 @@ NOTCH = (0.0, 5.0, 1.5)             # the hall's first 5 m are 1.5 m narrower on
 HALF_WALL = (11.3, 3.24)            # x, how far it comes out from the left wall
 FIREPLACE = (2.2, 2.85, 0.85, 1.3)  # in its hall side: z0, z1, y0, y1
 PICTURE = (0.55, 1.45, 1.05, 1.95)   # beside it: z0, z1, y0, y1
+TO_STAGE, TO_STAGE_TOP = (0.2, 1.5), 2.4   # z: the passage from the toilets' hall's end to the stage, and its height
+COUNTER_Z = (0.6, 1.9)                 # z: the black counter before it
+SINK_Z = 2.45                          # z: the sink cabinet against that end wall
+PIER = (17.85, 3.15)                   # the brick pier at the corner of the hall, the toilets' hall and the pergola
+CHANGING = (11.9, 12.7, -2.25, -1.7)    # the ladies' changing table against the back of its grey wall: x0, x1, z0, z1
 WC = (11.3, 20.0, 3.2)              # the hall to the toilets: x0, x1, how wide
 STAGE = (20.0, 28.6, 0.0, 3.2, 0.4)  # x0, x1, z0, z1, its height
 PERGOLA = (17.8, 28.6, 3.2, 10.6)
@@ -466,18 +471,17 @@ def house(rnd, out):
     wall_x(0.0, HALF_WALL[0], WC[1], [(a, b, 0.0, 2.2) for a, b in WC_DOORS], wc_wall, out, rnd)
     for k, (a, b) in enumerate(WC_DOORS):
         open_door_x(0.0, a, b, out, rnd, hinge=1 - k)     # (the ladies' hinged on its right, from the hall)
-        m = (a + b) / 2                                # (a black plaque over each)
-        base._surface(rnd, (m - 0.15, m + 0.15, 2.3, 2.4, 0.03, 0.03), (0.08, 0.08, 0.08), out, 0.015)
-        base._surface(rnd, (m - 0.02, m + 0.02, 2.32, 2.38, 0.031, 0.031), (0.85, 0.85, 0.83), out, 0.01)
+        # (a black sign over each: fittings())
     toilets(rnd, out)
     hx, reach = HALF_WALL
     # (pale bare brick, to the ceiling, the end of the hall's dining side as the walkthrough shows
     # it at 1:20: a small fireplace in it on the hall's side, a framed picture beside that)
     pale = _brickwork(2, FIREPLACE_BRICK)
     a, b, y0, y1 = FIREPLACE
-    wall_z(hx - 0.1, 0.0, reach, [(a, b, y0, y1)], pale, out, rnd, step=0.04)
-    wall_z(hx + 0.1, 0.0, reach, [], pale, out, rnd, step=0.04)
-    base._surface(rnd, (hx - 0.1, hx + 0.1, 0.0, H, reach, reach), _brickwork(0, FIREPLACE_BRICK), out, 0.04)
+    with base.as_decor(out):                           # (its bricks drawn as the furniture is: fittings())
+        wall_z(hx - 0.1, 0.0, reach, [(a, b, y0, y1)], pale, out, rnd, step=0.04)
+        wall_z(hx + 0.1, 0.0, reach, [], pale, out, rnd, step=0.04)
+        base._surface(rnd, (hx - 0.1, hx + 0.1, 0.0, H, reach, reach), _brickwork(0, FIREPLACE_BRICK), out, 0.04)
     soot = (0.05, 0.05, 0.05)
     base._surface(rnd, (hx + 0.06, hx + 0.06, y0, y1, a, b), soot, out, 0.02)
     for (x0, x1, c0, c1, z0, z1) in ((hx - 0.1, hx + 0.06, y0, y0, a, b), (hx - 0.1, hx + 0.06, y1, y1, a, b),
@@ -490,14 +494,16 @@ def house(rnd, out):
     ring = lambda x, y, z, rnd: (0.25, 0.22, 0.2) if abs(math.hypot(z - pc, y - qc) - 0.27) < 0.012 else (0.92, 0.91, 0.88)
     base._surface(rnd, (hx - 0.125, hx - 0.125, q0 + 0.07, q1 - 0.07, p0 + 0.07, p1 - 0.07), ring, out, 0.01)
     sunk = [WC[1] - 2.2 + 0.7 * k for k in range(4)]   # (bare brick on the pergola's side, lit from lights sunk in the floor)
-    wall_x(WC[2], WC[1] - 2.5, WC[1], [], _washed(_brickwork(0), sunk), out, rnd)
     for x in sunk:
         floor_lamp(rnd, out, x, WC[2] + 0.12, sunk=True)
-    # the toilets' hall's end, the stage's side: bare brick
-    wall_z(WC[1], 0.0, WC[2], [], _brickwork(2), out, rnd)
-    # (and a small dark bar against it)
-    base._surface(rnd, (WC[1] - 0.6, WC[1], 0.0, 1.05, 0.5, 2.1), (0.15, 0.13, 0.12), out, 0.03)
-    dome_pendant(rnd, out, WC[1] - 0.45, 1.3, 2.2, 0.28, (0.80, 0.42, 0.16))   # (an orange dome over it)
+    # the toilets' hall's end, the stage's side: bare brick, a passage through it to the stage; a
+    # black counter before that, a sink cabinet under a mirror and an orange dome beside it
+    # (the bricks, the counter, the cabinet: fittings(); kept here for the map)
+    with base.as_decor(out):
+        wall_x(WC[2], WC[1] - 2.5, WC[1], [], _brickwork(0), out, rnd)
+        wall_z(WC[1], 0.0, WC[2], [TO_STAGE + (0.0, TO_STAGE_TOP)], _brickwork(2), out, rnd)
+        base._surface(rnd, (WC[1] - 1.6, WC[1] - 1.0, 0.0, 1.05, *COUNTER_Z), (0.10, 0.10, 0.10), out, 0.03)
+        base._surface(rnd, (WC[1] - 0.45, WC[1], 0.0, 0.85, SINK_Z - 0.4, SINK_Z + 0.4), (0.24, 0.16, 0.11), out, 0.03)
     # the windows along the right: dark grey frames, linen curtains
     # (three sets of three, the same space between the sets; dark shutters behind the glass)
     windows, lights = hall_windows()
@@ -518,11 +524,12 @@ def house(rnd, out):
     # its end: wide open onto the pergola under a dark beam, sheer curtains drawn back each side (fittings()), a
     # column of bare brick at the corner with the toilets' hall
     base._surface(rnd, (hx1 - 0.15, hx1 + 0.15, 2.75, H, WC[2], hz1), (0.20, 0.20, 0.21), out, 0.04)
-    cx, cz = hx1 + 0.05, WC[2] - 0.05
-    for (a0, a1, b0, b1) in ((cx - 0.25, cx + 0.25, cz - 0.25, cz - 0.25), (cx - 0.25, cx + 0.25, cz + 0.25, cz + 0.25)):
-        base._surface(rnd, (a0, a1, 0.0, H, b0, b1), _brickwork(0), out, 0.04)
-    for x in (cx - 0.25, cx + 0.25):
-        base._surface(rnd, (x, x, 0.0, H, cz - 0.25, cz + 0.25), _brickwork(2), out, 0.04)
+    cx, cz = PIER
+    with base.as_decor(out):                           # (drawn as the furniture is: fittings())
+        for (a0, a1, b0, b1) in ((cx - 0.2, cx + 0.2, cz - 0.2, cz - 0.2), (cx - 0.2, cx + 0.2, cz + 0.2, cz + 0.2)):
+            base._surface(rnd, (a0, a1, 0.0, H, b0, b1), _brickwork(0), out, 0.04)
+        for x in (cx - 0.2, cx + 0.2):
+            base._surface(rnd, (x, x, 0.0, H, cz - 0.2, cz + 0.2), _brickwork(2), out, 0.04)
     # (short track lights here and there on its ceiling: fittings())
 
     # the stage: 40 cm up, all in black carpet, black curtains behind and a big white screen (Gabriel:
@@ -715,8 +722,9 @@ def toilets(rnd, out):
         base._surface(rnd, (lx0, LADIES_SCREEN_END, 0.0, 2.0, z, z), (0.62, 0.62, 0.63), out, 0.03)
     base._surface(rnd, (lx0, LADIES_SCREEN_END, 2.0, 2.0, LADIES_SCREEN - 0.05, LADIES_SCREEN + 0.05), (0.62, 0.62, 0.63), out, 0.03)
     base._surface(rnd, (LADIES_SCREEN_END, LADIES_SCREEN_END, 0.0, 2.0, LADIES_SCREEN - 0.05, LADIES_SCREEN + 0.05), (0.62, 0.62, 0.63), out, 0.03)
-    # the gents': a tiled splashback behind its basin (the trough, the cubicle, the counter: fittings())
-    base._surface(rnd, (gx1 - 0.01, gx1 - 0.01, 0.84, 1.3, -2.3, -1.0), _tiles((0.70, 0.66, 0.60), 0.05, across=2), out, 0.02)
+    # (the gents' trough, cubicle, counter and mosaic splashback; the ladies' changing table: fittings())
+    with base.as_decor(out):
+        base._surface(rnd, (*CHANGING[:2], 0.0, 0.9, *CHANGING[2:]), (0.93, 0.93, 0.92), out, 0.03)
 
 
 def _two_tone(lower, upper, at):
@@ -1047,6 +1055,30 @@ def fittings() -> list:
             ("steel_hood", (stove[0], 2.45, stove[1]), math.pi / 2, None, None),
             ("steel_duct", (stove[0], H - 0.3, (stove[1] + kz1) / 2), math.pi / 2, None, round(kz1 - stove[1], 3)),
             ("fire_extinguisher", (kx0, 0.95, 6.4), math.pi / 2, None, None)]
+    # the bricks drawn as the furniture is: the half wall (pale, the fireplace's hole left in its
+    # hall side), the toilets' hall's walls (a passage to the stage), the pier at the corner
+    hx, reach = HALF_WALL
+    a, b, y0, y1 = FIREPLACE
+    pale = FIREPLACE_BRICK
+    for z0, z1, f0, f1 in ((0.0, a, 0.0, H), (b, reach, 0.0, H), (a, b, 0.0, y0), (a, b, y1, H)):
+        out.append(("brick_wall", (hx - 0.1, f0, (z0 + z1) / 2), -math.pi / 2, pale, {"w": round(z1 - z0, 3), "h": round(f1 - f0, 3)}))
+    out.append(("brick_wall", (hx + 0.1, 0.0, reach / 2), math.pi / 2, pale, {"w": reach, "h": H}))
+    out.append(("brick_wall", (hx, 0.0, reach), 0.0, pale, {"w": 0.2, "h": H}))
+    out.append(("brick_bench", (hx + 0.1 + 0.25, 0.0, reach / 2), math.pi / 2, (0.88, 0.84, 0.76), round(reach - 0.3, 3)))
+    wx1, wz = WC[1], WC[2]
+    out.append(("brick_wall", (wx1 - 1.25, 0.0, wz), math.pi, BRICK, {"w": 2.5, "h": H}))
+    s0, s1 = TO_STAGE
+    for z0, z1, f0, f1 in ((0.0, s0, 0.0, H), (s1, wz, 0.0, H), (s0, s1, TO_STAGE_TOP, H)):
+        out.append(("brick_wall", (wx1, f0, (z0 + z1) / 2), -math.pi / 2, BRICK, {"w": round(z1 - z0, 3), "h": round(f1 - f0, 3)}))
+    out.append(("brick_pier", (PIER[0], 0.0, PIER[1]), 0.0, BRICK, {"w": 0.4, "d": 0.4, "h": H}))
+    out.append(("plain_counter", (wx1 - 1.3, 0.0, sum(COUNTER_Z) / 2), -math.pi / 2, (0.10, 0.10, 0.10), {"w": round(COUNTER_Z[1] - COUNTER_Z[0], 3), "d": 0.6, "h": 1.05}))
+    out += [("sink_cabinet", (wx1 - 0.23, 0.0, SINK_Z), -math.pi / 2, (0.24, 0.16, 0.11), None),
+            ("round_mirror", (wx1, 1.2, SINK_Z), -math.pi / 2, None, None),
+            ("dome_pendant", (wx1 - 0.55, H - 1.2, SINK_Z), 0.0, (0.80, 0.42, 0.16), None)]
+    # the toilets' signs over their doors, the ladies' changing table, the gents' mosaic splashback
+    out += [("door_sign", ((a0 + a1) / 2, 2.3, 0.0), 0.0, None, {"man": k}) for k, (a0, a1) in enumerate(WC_DOORS)]
+    out.append(("changing_table", ((CHANGING[0] + CHANGING[1]) / 2, 0.0, CHANGING[3] - 0.275), math.pi, None, None))
+    out.append(("mosaic_splash", (GENTS[1], 0.84, -1.65), -math.pi / 2, (0.70, 0.62, 0.52), {"w": 1.3, "h": 0.46}))
     # the hall's dining side: a row of downlights over its brick end
     out += [("downlight", (HALF_WALL[0] - 0.35, H - 0.02, 0.35 + 0.5 * k), 0.0, None, None) for k in range(6)]
     # the ante-room: an orange saucer of a wall light near its end
@@ -1169,7 +1201,6 @@ def fixtures() -> dict:
     # (each 20 cm out from its wall: its bracket's depth)
     props += [{"item": "wall_fan", "at": [round(hx0 + gap * (j + 0.5) + 3.3 * j, 3), 2.0, hz1 - 0.2], "turn": round(math.pi, 4)} for j in (1, 2)]
     props += [{"item": "wall_fan", "at": [x, 2.0, PERGOLA[3] - 0.2], "turn": round(math.pi, 4)} for x in (20.6, 25.8)]
-    props += [{"item": "wall_fan", "at": [round(hx1 + 0.5, 3), 2.0, round(WC[2] - 0.05, 3)], "turn": round(math.pi / 2, 4)}]
     # rattan lamps hung in the tree under the cover
     tx, tz = TREES[0][:2]
     props += [{"item": "wicker_pendant", "at": [round(tx + dx, 3), -0.2, round(tz + dz, 3)]} for dx, dz in ((-1.2, 0.5), (0.9, 1.0), (0.2, -0.9))]

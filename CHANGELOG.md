@@ -6,6 +6,15 @@
   room, the note opens at that spot), **Esc** leaves it, and Shift with ← or → steps the video one
   frame. A tag remembers whether it was placed on the video or the room; `notes.md` marks the
   room's "on the render".
+- The sample venue's toilets and their hall, redrawn from the walkthrough with every fitting drawn
+  as the furniture is: the brick walls, the half wall and the pier at the corner laid brick by
+  brick (new **Brick wall** and **Brick pier** starters); a brick bench with a long cushion along
+  the half wall (**Brick bench with a cushion**); a black sign over each toilet's door (**Toilet
+  sign**); a passage through the toilets' hall's end to the stage, a black counter before it
+  (**Plain counter**) and a sink cabinet under a round mirror and an orange dome (**Sink
+  cabinet**, **Orange dome pendant**), no fan on the pier; the ladies' baby-changing table
+  (**Baby-changing table**) against the back of its grey wall; the gents' mosaic splashback
+  (**Mosaic splashback**).
 - The sample venue's ladies' room, reworked from the walkthrough: its door hinged on the right, a
   grey wall 2 m high across the room facing it, the counter with its two bowls and mirrors before
   that wall, the cubicles behind it; no baby-changing counter. The brick wall at the end of the

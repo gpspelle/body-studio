@@ -3,12 +3,13 @@
 // decor is (their fixtures), in place of the boxes of splats they were; each is also in the panel's
 // Home tab, to furnish a room of your own. Sizes are the rooms' own.
 import {
-  COLOURS, LEAF, shape, vert, quad, lit, made, box, soft, cyl, rod, ball, blob, facing, leaf, hoop, rng, BULB, WIRE,
+  COLOURS, LEAF, shape, vert, quad, lit, made, box, sharpBox, soft, cyl, rod, ball, blob, facing, leaf, hoop, rng, BULB, WIRE,
 } from "./shapes.js";
 
 const WALNUT = [0.36, 0.24, 0.16], OAK = [0.62, 0.46, 0.3], INK = [0.08, 0.08, 0.09], CHROME = [0.72, 0.73, 0.75];
 const VINYL = [0.1, 0.1, 0.11], OCHRE = [0.8, 0.6, 0.25], TEAL = [0.2, 0.45, 0.47], SHADE_LINEN = [0.96, 0.92, 0.82];
 const SOIL = [0.2, 0.15, 0.11], FIG = [0.2, 0.38, 0.17];
+const BRICK_RED = [0.66, 0.36, 0.24];
 const STEEL = [0.7, 0.71, 0.72], SINK_DARK = [0.42, 0.43, 0.44], EXTINGUISHER = [0.78, 0.1, 0.08];
 // the spines of the books, muted as a real shelf's are
 const SPINES = [[0.55, 0.18, 0.15], [0.16, 0.27, 0.4], [0.85, 0.8, 0.68], [0.26, 0.4, 0.3], [0.78, 0.6, 0.3],
@@ -693,6 +694,147 @@ export const HOME = {
     },
   },
 
+  brick_wall: {
+    group: "home", height: 2.4, hangs: true, on: "floor", colour: "copper", size: { w: 2.0, d: 0.03 }, block: true, built: ["w", "h"],
+    make(col, k = { w: 2.0, h: 2.4 }) {
+      // a face of bare brick on a wall (its back at z = 0, facing +z; hung, lift it to its foot): courses 7.5 cm high, bricks
+      // 22 cm long each half a brick on from the course under it, each its own shade, standing a
+      // little proud of the darker mortar between them
+      const s = shape(), rnd = rng(Math.round(k.w * 97 + k.h * 13));
+      made("satin", () => {
+        sharpBox(s, k.w, k.h, 0.012, 0, 0, 0.006, col.map((v) => v * 0.5));
+        bricks(s, k.w, k.h, col, rnd, (x, y, w, h, c) => sharpBox(s, w, h, 0.016, x, y, 0.02, c));
+      });
+      return s;
+    },
+  },
+  brick_pier: {
+    group: "home", height: 3.4, on: "floor", colour: "copper", size: { w: 0.4, d: 0.4 }, block: true, built: ["w", "d", "h"],
+    make(col, k = { w: 0.4, d: 0.4, h: 3.4 }) {
+      // a square pier of bare brick, floor to ceiling, its four faces in courses (the corners
+      // overlapping one course to the next)
+      const s = shape(), rnd = rng(Math.round(k.w * 31 + k.d * 7 + k.h)), w = k.w, d = k.d;
+      made("satin", () => {
+        sharpBox(s, w - 0.02, k.h, d - 0.02, 0, 0, 0, col.map((v) => v * 0.5));
+        bricks(s, w, k.h, col, rnd, (x, y, bw, bh, c) => { sharpBox(s, bw, bh, 0.02, x, y, d / 2 - 0.01, c); sharpBox(s, bw, bh, 0.02, -x, y, -d / 2 + 0.01, c); });
+        bricks(s, d, k.h, col, rnd, (z, y, bw, bh, c) => { sharpBox(s, 0.02, bh, bw, w / 2 - 0.01, y, -z, c); sharpBox(s, 0.02, bh, bw, -w / 2 + 0.01, y, z, c); }, 0.11);
+      });
+      return s;
+    },
+  },
+  brick_bench: {
+    group: "home", height: 0.54, on: "floor", colour: "ivory", size: { w: 2.5, d: 0.5 }, block: true, built: ["w"],
+    seats: [{ x: 0, y: 0.52, z: 0.0, back: false }],
+    make(col, k = { w: 2.5 }) {
+      // a bench built of bare brick against a wall (its back at -z), 42 cm high, a long pale cushion
+      // on it
+      const s = shape(), rnd = rng(Math.round(k.w * 53)), d = 0.5;
+      made("satin", () => {
+        sharpBox(s, k.w, 0.42, d - 0.02, 0, 0, 0, BRICK_RED.map((v) => v * 0.5));
+        bricks(s, k.w, 0.42, BRICK_RED, rnd, (x, y, w, h, c) => sharpBox(s, w, h, 0.02, x, y, d / 2 - 0.01, c));
+      });
+      made("cloth", () => soft(s, k.w - 0.04, 0.12, d - 0.04, 0, 0.42, 0, col, 0.04));
+      return s;
+    },
+  },
+  door_sign: {
+    group: "home", height: 0.13, hangs: true, on: "floor", colour: "black", size: { w: 0.34, d: 0.015 }, block: false,
+    knobs: { man: { min: 0, max: 1, value: 0 } },
+    make(col, k = { man: 0 }) {
+      // a toilet's sign over its door (its back at z = 0; hung, lift it to its foot): a black plaque,
+      // a white figure (a woman's dress, or a man) and a white line of lettering beside it
+      const s = shape(), z = 0.016, W = COLOURS.white;
+      made("satin", () => {
+        box(s, 0.34, 0.13, 0.012, 0, 0, 0.006, col);
+        ball(s, 0.012, -0.12, 0.098, z, W, 8);
+        if (k.man) box(s, 0.026, 0.05, 0.004, -0.12, 0.035, z, W);
+        else facing([0, 0, 1], [-0.12, 0.06, z], () => cyl(s, 0.022, 0.006, 0.004, 0, -0.03, 0, W, 3));
+        box(s, 0.006, 0.025, 0.004, -0.128, 0.012, z, W);
+        box(s, 0.006, 0.025, 0.004, -0.112, 0.012, z, W);
+        for (let i = 0; i < (k.man ? 9 : 8); i++) box(s, 0.016, 0.022, 0.004, -0.07 + i * 0.022, 0.054, z, W);
+      });
+      return s;
+    },
+  },
+  sink_cabinet: {
+    group: "home", height: 1.08, on: "floor", colour: "walnut", size: { w: 0.8, d: 0.45 }, block: true,
+    make(col) {
+      // a dark wooden cabinet against a wall (its back at -z) with two doors, a white bowl on its top
+      // and a brass tap out of the wall over it
+      const s = shape(), z0 = -0.225;
+      made("wood", () => {
+        box(s, 0.8, 0.85, 0.45, 0, 0, 0, col);
+        for (const x of [-0.2, 0.2]) box(s, 0.37, 0.7, 0.01, x, 0.09, 0.228, col.map((v) => v * 0.8));
+      });
+      made("metal", () => { for (const x of [-0.03, 0.03]) box(s, 0.012, 0.1, 0.02, x, 0.6, 0.24, COLOURS.gold); });
+      made("satin", () => {
+        cyl(s, 0.07, 0.17, 0.07, 0, 0.85, 0.02, COLOURS.white, 28);
+        cyl(s, 0.17, 0.2, 0.06, 0, 0.92, 0.02, COLOURS.white, 28);
+      });
+      made("metal", () => {
+        rod(s, [0, 1.06, z0], [0, 1.06, z0 + 0.16], 0.01, COLOURS.gold, 8);
+        rod(s, [0, 1.06, z0 + 0.16], [0, 1.02, z0 + 0.17], 0.009, COLOURS.gold, 8);
+      });
+      return s;
+    },
+  },
+  changing_table: {
+    group: "home", height: 0.97, on: "floor", colour: "white", size: { w: 0.8, d: 0.55 }, block: true,
+    make(col) {
+      // a white baby-changing cabinet: a pad striped grey and white on its top, raised at its edges
+      const s = shape(), STRIPE = [0.62, 0.6, 0.62];
+      made("satin", () => box(s, 0.8, 0.88, 0.55, 0, 0, 0, col));
+      made("cloth", () => {
+        for (let i = 0; i < 9; i++) soft(s, 0.08, 0.05, 0.5, -0.32 + i * 0.08, 0.88, 0, i % 2 ? STRIPE : COLOURS.white, 0.02);
+        for (const x of [-0.37, 0.37]) soft(s, 0.06, 0.09, 0.5, x, 0.88, 0, COLOURS.white, 0.025);
+      });
+      return s;
+    },
+  },
+  mosaic_splash: {
+    group: "home", height: 0.45, hangs: true, on: "floor", colour: "rattan", size: { w: 0.8, d: 0.01 }, block: false, built: ["w", "h"],
+    make(col, k = { w: 0.8, h: 0.45 }) {
+      // a splashback of small glass tiles in beiges and browns on a wall (its back at z = 0; hung,
+      // lift it to its foot), pale grout between them
+      const s = shape(), rnd = rng(17), t = 0.025, nx = Math.max(1, Math.floor(k.w / t)), ny = Math.max(1, Math.floor(k.h / t));
+      made("satin", () => sharpBox(s, k.w, k.h, 0.004, 0, 0, 0.002, [0.82, 0.8, 0.76]));
+      made("glass", () => {
+        for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) {
+          const r = rnd(), c = col.map((v, n) => Math.min(1, v * (0.7 + 0.55 * r) + (n === 2 ? 0.03 * rnd() : 0)));
+          sharpBox(s, t - 0.003, t - 0.003, 0.004, -k.w / 2 + (i + 0.5) * (k.w / nx), (j + 0.06) * (k.h / ny), 0.006, c);
+        }
+      });
+      return s;
+    },
+  },
+  dome_pendant: {
+    group: "lights", height: 1.2, hangs: true, on: "floor", colour: "copper", size: { r: 0.2 }, block: false,
+    make(col) {
+      // an orange dome lampshade hung on its cord from a ceiling (hung, lift it to its foot; its
+      // top at 1.2 m over it), a lit bulb under it
+      const s = shape(), rim = 0.0, top = 1.2;
+      made("satin", () => {
+        rod(s, [0, 0.17, 0], [0, top, 0], 0.004, INK, 6);
+        cyl(s, 0.05, 0.05, 0.01, 0, top - 0.01, 0, INK, 12);
+        for (let i = 0; i < 6; i++) {
+          const a0 = (i / 6) * (Math.PI / 2), a1 = ((i + 1) / 6) * (Math.PI / 2);
+          cyl(s, 0.2 * Math.cos(a0), 0.2 * Math.cos(a1), 0.2 * (Math.sin(a1) - Math.sin(a0)), 0, rim + 0.2 * Math.sin(a0) * 0.9, 0, col, 28);
+        }
+      });
+      lit(() => ball(s, 0.05, 0, 0.05, 0, BULB, 10));
+      return s;
+    },
+  },
+  plain_counter: {
+    group: "bar", height: 1.05, on: "floor", colour: "black", size: { w: 1.4, d: 0.6 }, block: true, built: ["w", "d", "h"],
+    make(col, k = { w: 1.4, d: 0.6, h: 1.05 }) {
+      // a plain counter, its body and its top all one colour, the top a little over the body all round
+      const s = shape();
+      made("satin", () => { box(s, k.w - 0.06, k.h - 0.04, k.d - 0.06, 0, 0, 0, col); box(s, k.w, 0.04, k.d, 0, k.h - 0.04, 0, col.map((v) => Math.min(1, v * 1.3))); });
+      return s;
+    },
+  },
+
   sky_dome: {
     group: "garden", height: 280, hangs: true, on: "floor", colour: "blue", size: { r: 280 }, block: false,
     make() {
@@ -754,4 +896,21 @@ function lattice(s, hinge, along, w, y0, y1, col) {
           if (yb - ya > 0.02) rod(s, at(t(ya), y0 + ya, o), at(t(yb), y0 + yb, o), 0.007, col, 4);
         }
   });
+}
+
+// bricks over a face w wide and h high (its foot at y = 0, across x from -w/2): courses 7.5 cm,
+// bricks 22 cm on 1 cm of mortar, each course half a brick on from the one under it (shift: where
+// the first course starts), cut at the edges; put(x, y, width, height, colour) lays each
+function bricks(s, w, h, col, rnd, put, shift = 0) {
+  const L = 0.22, C = 0.075;
+  for (let j = 0; j * C < h - 0.01; j++) {
+    const y = j * C + 0.005, bh = Math.min(C - 0.01, h - y - 0.005);
+    if (bh < 0.01) break;
+    for (let x0 = -w / 2 - ((j % 2) * L) / 2 - shift; x0 < w / 2; x0 += L) {
+      const a = Math.max(-w / 2, x0 + 0.005), b = Math.min(w / 2, x0 + L - 0.005);
+      if (b - a < 0.02) continue;
+      const t = 0.82 + 0.3 * rnd();
+      put((a + b) / 2, y, b - a, bh, col.map((v, n) => Math.min(1, v * t * (n === 0 ? 1 : 0.97 + 0.06 * rnd()))));
+    }
+  }
 }

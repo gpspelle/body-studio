@@ -248,6 +248,15 @@ STARTERS = (
     {"id": "steel_hood", "group": "home", "height": 0.62, "on": "floor"},
     {"id": "steel_duct", "group": "home", "height": 0.24, "on": "floor"},
     {"id": "fire_extinguisher", "group": "home", "height": 0.6, "on": "floor"},
+    {"id": "brick_wall", "group": "home", "height": 2.4, "on": "floor"},
+    {"id": "brick_pier", "group": "home", "height": 3.4, "on": "floor"},
+    {"id": "brick_bench", "group": "home", "height": 0.54, "on": "floor"},
+    {"id": "door_sign", "group": "home", "height": 0.13, "on": "floor"},
+    {"id": "sink_cabinet", "group": "home", "height": 1.08, "on": "floor"},
+    {"id": "changing_table", "group": "home", "height": 0.97, "on": "floor"},
+    {"id": "mosaic_splash", "group": "home", "height": 0.45, "on": "floor"},
+    {"id": "dome_pendant", "group": "lights", "height": 1.2, "on": "floor"},
+    {"id": "plain_counter", "group": "bar", "height": 1.05, "on": "floor"},
     {"id": "sheer_curtain", "group": "home", "height": 3.25, "on": "floor"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}
