@@ -2,6 +2,8 @@
 
 ## 0.1.0 (unreleased)
 
+- Rooms' ceilings and the undersides of things are a little lighter, lit by the light the floor and
+  walls throw back.
 - The sample venue's hall tiles show their dark joints, as in the walkthrough.
 - The sample venue has a blue sky over it (a new **Sky** starter), seen through the garden's glass
   cover and over the beach, and its stage keeps its big white screen.

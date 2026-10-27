@@ -767,8 +767,9 @@ function show() {
   group.userData.room = true;                 // (house.js: still drawn when the body is not)
   group.matrixAutoUpdate = false;
   // the studio's reflections do most of the light (decorlook.js); a soft sky and a warm sun
-  // give the shapes their shading
-  const hemi = new THREE.HemisphereLight(0xfffaf2, 0x7d766e, 0.9);
+  // give the shapes their shading; from below, the light the floor and walls throw back (a ceiling
+  // is filmed nearly as light as the walls)
+  const hemi = new THREE.HemisphereLight(0xfffaf2, 0xb8b0a4, 0.9);
   const sun = new THREE.DirectionalLight(0xfff1de, 1.6);
   sun.position.set(2, 5, 3);
   group.add(hemi, sun, sun.target);
