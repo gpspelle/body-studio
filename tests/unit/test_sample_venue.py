@@ -100,7 +100,8 @@ class SampleVenueTest(unittest.TestCase):
                           "reed_roof", "wall_sconce", "sky_dome", "saucer_light",
                           "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher",
                           "brick_wall", "brick_pier", "brick_bench", "door_sign", "sink_cabinet", "changing_table", "mosaic_splash",
-                          "dome_pendant", "plain_counter", "wall_plates"})
+                          "dome_pendant", "plain_counter", "wall_plates", "tile_floor", "wall_tiles",
+                          "pivot_door", "panel_door", "security_camera"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -169,10 +170,13 @@ class SampleVenueTest(unittest.TestCase):
         rows = V.splats()
         def at(x0, x1, y0, y1, z0, z1):
             return [r for r in rows if x0 <= r[0][0] <= x1 and y0 <= r[0][1] <= y1 and z0 <= r[0][2] <= z1]
-        # the deck is grey cement, not boards; a yellow line along the door's threshold, orange steps at its far edge
+        # the deck is grey cement, not boards, orange steps at its far edge; a yellow line along the edge
+        # of the landing inside the door, deep enough for the open leaf
         deck = at(V.DECK[0] + 0.95, V.DECK[1] - 0.25, -V.STEP_DOWN - 0.01, -V.STEP_DOWN + 0.001, 0.5, 3.5)
         self.assertTrue(deck and all(max(c) - min(c) < 0.06 for _, c, *_ in deck))
-        line = at(V.RECEPTION[0] - 0.11, V.RECEPTION[0] - 0.08, -V.STEP_DOWN + 0.001, -V.STEP_DOWN + 0.003, 0.5, 3.5)
+        lx = V.RECEPTION[0] + V.LANDING[0]
+        line = at(lx - 0.04, lx - 0.01, V.LANDING[1] + 0.001, V.LANDING[1] + 0.003, 0.5, 3.5)
+        self.assertGreaterEqual(V.LANDING[0], max(w * math.sin(a) for _, w, a in V.FRONT_LEAVES))
         self.assertTrue(line and all(c[0] > 0.7 and c[2] < 0.35 for _, c, *_ in line))
         steps = at(V.DECK[0], V.DECK[0] + 0.85, -V.STEP_DOWN + 0.001, -V.STEP_DOWN + 0.003, 1.0, 3.0)
         self.assertTrue(steps and all(c[0] > 0.7 and c[0] > c[1] > c[2] for _, c, *_ in steps))
@@ -180,7 +184,8 @@ class SampleVenueTest(unittest.TestCase):
         # along the white walls (no painted band), spotlights, the track light, signs, curtains
         fit = [f for f in V.fittings() if f[1][0] <= V.ANTE[1] and not V.KITCHEN[2] < f[1][2] <= V.KITCHEN[3]]
         kinds = {f[0] for f in fit}
-        self.assertEqual(kinds, {"skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain", "saucer_light"})
+        self.assertEqual(kinds, {"skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain", "saucer_light",
+                                 "security_camera", "pivot_door", "tile_floor"})
         self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 4)
         self.assertTrue(all(V.DECK[1] <= f[1][0] for f in fit))
         boards = [f for f in fit if f[0] == "skirting_board"]
@@ -202,11 +207,33 @@ class SampleVenueTest(unittest.TestCase):
         tiles = at(V.ANTE[1] - V.ANTE_TILES + 0.05, V.ANTE[1] - 0.05, -0.001, 0.001, 0.2, 3.8)
         self.assertTrue(tiles and min(c[0] for _, c, *_ in tiles) < 0.3 and max(c[0] for _, c, *_ in tiles) > 0.6)
 
+    def test_views8_drawn_as_the_furniture_is(self):
+        fit = V.fittings()
+        kinds = [f[0] for f in fit]
+        # the front door's two rusted leaves, one with its bar; the floors and the kitchen's walls in tiles
+        doors = [f for f in fit if f[0] == "pivot_door"]
+        self.assertEqual(sorted(f[4]["bar"] for f in doors), [0, 1])
+        self.assertEqual(kinds.count("tile_floor"), 4)
+        tiles = [f for f in fit if f[0] == "wall_tiles"]
+        self.assertTrue(all(V.KITCHEN[0] - 0.01 <= f[1][0] <= V.KITCHEN[1] + 0.01 and V.KITCHEN[2] <= f[1][2] <= V.KITCHEN[3] for f in tiles))
+        for f in tiles:                                 # (none over a door or the way out)
+            if abs(f[1][0] - V.KITCHEN[0]) < 0.05:
+                z0, z1 = f[1][2] - f[4]["w"] / 2, f[1][2] + f[4]["w"] / 2
+                self.assertFalse(any(z0 < b - 0.01 and a + 0.01 < z1 for a, b in V.KITCHEN_DOORS + (V.KITCHEN_WAY_OUT,)))
+        # the hall's track lights across it, the ante-room's saucer hung on a cord, curtains tied back
+        self.assertTrue(all(abs(f[2] - math.pi / 2) < 1e-6 for f in fit if f[0] == "track_light" and V.HALL[0] < f[1][0] < V.HALL[1] and f[1][2] < V.HALL[3]))
+        self.assertGreater([f for f in fit if f[0] == "saucer_light"][0][4]["drop"], 1.0)
+        self.assertEqual(sum(1 for f in fit if f[0] == "sheer_curtain" and isinstance(f[4], dict) and f[4].get("tie")), 4)
+        # a camera and a speaker high on the pillar where the ante-room opens on the hall
+        self.assertTrue([f for f in fit if f[0] == "security_camera" and abs(f[1][2] - V.NOTCH[2] - 0.2) < 0.01])
+        # the hall's windows up near its ceiling
+        self.assertGreater(V.HALL_WINDOW[1], V.H - 0.6)
+
     def test_the_hall_as_the_walkthrough(self):
         fit = [f for f in V.fittings() if V.HALL[0] <= f[1][0] <= V.HALL[1]]
         # tied-back curtains each side of each set of windows and of its open end, short track lights all over its
         # ceiling (not two rails its whole length), uplights, skirting boards
-        self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 8)
+        self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 14)
         tracks = [f for f in fit if f[0] == "track_light"]
         self.assertGreaterEqual(len(tracks), 6)
         self.assertTrue(all(f[4] < 2.0 for f in tracks))
@@ -220,7 +247,7 @@ class SampleVenueTest(unittest.TestCase):
         self.assertTrue(any(r[0][2] < V.NOTCH[2] + 0.2 for r in beam) and any(r[0][2] > V.HALL[3] - 0.2 for r in beam))
         # (Gabriel's tags) the ante-room's end wall bare: no sign, no speaker, no wooden frame
         # round the way into the hall, the tiles darker across it; the saucer lamp on its wall
-        self.assertFalse([f for f in V.fittings() if f[0] in ("exit_sign", "wall_speaker") and abs(f[1][0]) < 0.3])
+        self.assertFalse([f for f in V.fittings() if f[0] in ("exit_sign", "wall_speaker") and abs(f[1][0]) < 0.3 and abs(f[2] + math.pi / 2) < 0.1])
         self.assertFalse([r for r in rows if r[1] == V.TIMBER and abs(r[0][0]) < 0.25 and r[0][1] > 0.5 and 1.5 < r[0][2] < 4.0])
         self.assertTrue(any(f[0] == "saucer_light" and V.ANTE[0] < f[1][0] < V.ANTE[1] for f in V.fittings()))
 

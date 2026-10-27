@@ -2,7 +2,18 @@
 
 ## 0.1.0 (unreleased)
 
-- Decor → In the room → **Move the room's fittings**: a drawn room's own furniture and fittings
+- The sample venue against Gabriel's views8 tags: the front door's rusted leaves, the floors' slabs
+  and the kitchen's floor and wall tiles drawn as the furniture is (new **Pivot door**, **Panelled
+  door**, **Tiled floor**, **Wall tiles** and **Security camera** starters); the landing inside the
+  front door deep enough for the open leaf, its yellow line at its edge; the vertical garden's
+  curtains tied to the posts (**Tie-back** knob); a speaker in the ante-room, its fabric ceiling in
+  rows either side of one black band, its saucer lamp hung on a cord (**Cord** knob); the hall's
+  track lights across it, its beam under a strip of wall, taller windows with curtains between them;
+  the hatch a flat hole; the kitchen's maroon door, its doorway open to the yard, its brown door, its
+  duct over the left door; a slim pillar with a camera, a speaker, an exit sign and an uplight.
+- Decor: a hanging starter that draws its own height (brick and tiles on a wall, doors) now takes
+  its height knob, so the venue's brick walls are as tall as drawn; sizes it draws itself go down to 5 cm.
+- Decor → **Move fittings** (at the top of the panel): a drawn room's own furniture and fittings
   as a layout of their own, seen from above, to drag to where they really are, turn, take away or
   add to; **Export changes** downloads what changed as a file to send.
 - The sample venue's toilets checked against the walkthrough: the ladies' three cubicles stand in a

@@ -416,9 +416,11 @@ export const HOME = {
   },
   sheer_curtain: {
     group: "home", height: 3.25, on: "floor", colour: "ivory", size: { w: 0.6, d: 0.1 }, block: false,
-    make(col) {
+    knobs: { tie: { min: 0, max: 1, value: 0, size: true, step: 0.01 }, left: { min: 0, max: 1, value: 0 } },
+    make(col, k = { tie: 0, left: 0 }) {
       // a sheer curtain on a short black rod, gathered and tied back a metre up: full under the
-      // rod, pinched at the tie, flaring a little to the floor, falling in soft folds
+      // rod, pinched at the tie, flaring a little to the floor, falling in soft folds; with a tie
+      // `tie` long, its band runs off to its right (or left) to the post it is tied to
       const s = shape(), top = 3.25, tie = 1.0, N = 40, M = 16;
       const half = (y) => (y > tie ? 0.04 + 0.2 * ((y - tie) / (top - 0.05 - tie)) ** 0.8 : 0.04 + 0.08 * (tie - y) / tie);
       made("cloth", () => {
@@ -433,6 +435,11 @@ export const HOME = {
         }
         for (let j = 0; j < N; j++) for (let i = 0; i < M; i++) quad(s, rows[j][i], rows[j][i + 1], rows[j + 1][i + 1], rows[j + 1][i]);
         cyl(s, 0.055, 0.055, 0.05, 0, tie - 0.025, 0.012, col.map((v) => v * 0.85), 18);   // (its tie)
+        if (k.tie > 0) {
+          const end = (k.left ? -1 : 1) * k.tie;
+          rod(s, [0, tie, 0.012], [end, tie, 0.0], 0.02, col.map((v) => v * 0.85), 8);
+          cyl(s, 0.03, 0.03, 0.06, end, tie - 0.03, 0.0, col.map((v) => v * 0.85), 12);
+        }
       });
       made("metal", () => rod(s, [-0.3, top - 0.03, 0.012], [0.3, top - 0.03, 0.012], 0.012, INK, 8));
       return s;
@@ -590,14 +597,18 @@ export const HOME = {
 
   saucer_light: {
     group: "lights", height: 0.18, hangs: true, on: "floor", colour: "coral", size: { w: 0.5, d: 0.42 }, block: false,
-    make(col) {
-      // an orange saucer of a wall light (its back at z = 0; hung, lift it to its foot): a black
-      // arm out from a plate to a wide shade like two shallow bowls rim to rim, lit warm in the
-      // gap between them and underneath
+    knobs: { drop: { min: 0, max: 3, value: 0, size: true, step: 0.01 } },
+    make(col, k = { drop: 0 }) {
+      // an orange saucer of a light (its back at z = 0; hung, lift it to its foot): a wide shade
+      // like two shallow bowls rim to rim, lit warm in the gap between them and underneath; on a
+      // black arm out from a plate on the wall, or (drop) hung from the ceiling on a straight cord
       const s = shape(), z = 0.17, mid = 0.09;
       made("satin", () => {
-        box(s, 0.08, 0.08, 0.01, 0, mid - 0.04, 0.005, INK);
-        rod(s, [0, mid, 0.01], [0, mid, z], 0.012, INK, 8);
+        if (k.drop > 0) rod(s, [0, 0.17, z], [0, 0.17 + k.drop, z], 0.004, INK, 6);
+        else {
+          box(s, 0.08, 0.08, 0.01, 0, mid - 0.04, 0.005, INK);
+          rod(s, [0, mid, 0.01], [0, mid, z], 0.012, INK, 8);
+        }
       });
       made("satin", () => {
         cyl(s, 0.06, 0.24, 0.075, 0, 0.005, z, col, 32);
@@ -836,6 +847,111 @@ export const HOME = {
     },
   },
 
+  // ------------------------------------------------ the venue's floors, wall tiles and doors
+  tile_floor: {
+    group: "home", height: 0.012, on: "floor", colour: "white", size: { w: 4, d: 4 }, block: false, built: ["w", "d"],
+    knobs: { tx: { min: 0.1, max: 3, value: 0.45, size: true, step: 0.01 }, tz: { min: 0.1, max: 3, value: 0.45, size: true, step: 0.01 },
+             ox: { min: 0, max: 3, value: 0, size: true, step: 0.01 }, oz: { min: 0, max: 3, value: 0, size: true, step: 0.01 },
+             matte: { min: 0, max: 1, value: 0 } },
+    make(col, k = { w: 4, d: 4, tx: 0.45, tz: 0.45, ox: 0, oz: 0, matte: 0 }) {
+      // a floor laid in tiles or slabs tx by tz (a joint every tx along x, every tz along z, the
+      // first ox and oz in from its -x and -z edges), cut at its edges: each a shade of its own,
+      // glazed (or matte, as cement slabs are), on grout a shade darker
+      const s = shape(), rnd = rng(Math.round(k.w * 37 + k.d * 11 + k.tx * 101)), g = Math.min(0.006, k.tx * 0.04), top = 0.012;
+      const cuts = (len, t, o) => { const out = [-len / 2]; for (let v = -len / 2 + (o > 0.01 ? o : t); v < len / 2 - 0.02; v += t) out.push(v); out.push(len / 2); return out; };
+      const xs = cuts(k.w, k.tx, k.ox), zs = cuts(k.d, k.tz, k.oz);
+      made("cloth", () => sharpBox(s, k.w, top * 0.4, k.d, 0, 0, 0, col.map((v) => v * 0.78)));
+      made(k.matte ? "cloth" : "satin", () => {
+        for (let i = 0; i + 1 < xs.length; i++) for (let j = 0; j + 1 < zs.length; j++) {
+          const t = 0.96 + 0.06 * rnd(), w = xs[i + 1] - xs[i] - g, d = zs[j + 1] - zs[j] - g;
+          if (w > 0.01 && d > 0.01) sharpBox(s, w, top, d, (xs[i] + xs[i + 1]) / 2, 0, (zs[j] + zs[j + 1]) / 2, col.map((v) => Math.min(1, v * t)));
+        }
+      });
+      return s;
+    },
+  },
+  wall_tiles: {
+    group: "home", height: 2.0, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 0.012 }, block: false, built: ["w", "h"],
+    knobs: { tx: { min: 0.05, max: 1, value: 0.2, size: true, step: 0.01 }, ty: { min: 0.05, max: 1, value: 0.2, size: true, step: 0.01 } },
+    make(col, k = { w: 4, h: 2, tx: 0.2, ty: 0.2 }) {
+      // glazed tiles on a wall (their back at z = 0, facing +z; hung, lift it to its foot), tx wide
+      // and ty high on pale grout, each row half a tile on from the one under it, cut at the edges
+      const s = shape(), rnd = rng(Math.round(k.w * 53 + k.h * 17)), g = 0.004;
+      made("cloth", () => sharpBox(s, k.w, k.h, 0.004, 0, 0, 0.002, col.map((v) => v * 0.8)));
+      made("satin", () => {
+        for (let y = 0; y < k.h - 0.01; y += k.ty) {
+          const th = Math.min(k.ty, k.h - y) - g, row = Math.round(y / k.ty);
+          for (let x0 = -k.w / 2 - (row % 2) * k.tx / 2; x0 < k.w / 2; x0 += k.tx) {
+            const a = Math.max(-k.w / 2, x0 + g / 2), b = Math.min(k.w / 2, x0 + k.tx - g / 2), t = 0.97 + 0.04 * rnd();
+            if (b - a > 0.01 && th > 0.01) sharpBox(s, b - a, th, 0.008, (a + b) / 2, y + g / 2, 0.008, col.map((v) => Math.min(1, v * t)));
+          }
+        }
+      });
+      return s;
+    },
+  },
+  pivot_door: {
+    group: "home", height: 2.85, hangs: true, on: "floor", colour: "copper", size: { w: 1.2, d: 0.05 }, block: true, built: ["w", "h"],
+    knobs: { bar: { min: 0, max: 1, value: 0 } },
+    make(col, k = { w: 1.2, h: 2.85, bar: 0 }) {
+      // a big pivoting leaf of weathered steel (centred on its middle, 5 cm thick; hung, lift it to
+      // its foot): both faces mottled in rust, patches darker and paler, a few streaks run down;
+      // with a bar, a long steel handle standing off its face
+      const s = shape(), rnd = rng(Math.round(k.w * 71 + k.h * 7)), t = 0.05;
+      made("cloth", () => {
+        sharpBox(s, k.w, k.h, t - 0.004, 0, 0, 0, col.map((v) => v * 0.7));
+        for (const side of [1, -1]) mottled(s, k.w, k.h, side * t / 2, side, col, rnd);
+      });
+      if (k.bar) made("metal", () => {
+        const x = -k.w / 2 + 0.16, z = t / 2 + 0.05, BAR = col.map((v) => v * 0.8);
+        rod(s, [x, 0.95, z], [x, 2.05, z], 0.016, BAR, 10);
+        for (const y of [1.05, 1.95]) rod(s, [x, y, t / 2], [x, y, z], 0.01, BAR, 8);
+      });
+      return s;
+    },
+  },
+  panel_door: {
+    group: "home", height: 2.1, hangs: true, on: "floor", colour: "walnut", size: { w: 0.9, d: 0.04 }, block: true, built: ["w", "h"],
+    knobs: { rows: { min: 0, max: 8, value: 0 } },
+    make(col, k = { w: 0.9, h: 2.1, rows: 0 }) {
+      // a door's leaf of painted wood (centred on its middle, 4 cm thick; hung, lift it to its
+      // foot): flush, or in two columns of `rows` sunk panels inside their rails; a lever each side
+      const s = shape(), t = 0.04, dark = col.map((v) => v * 0.72);
+      made("wood", () => {
+        sharpBox(s, k.w, k.h, t, 0, 0, 0, col);
+        if (k.rows) {
+          const m = 0.09, pw = (k.w - 3 * m) / 2, ph = (k.h - (k.rows + 1) * m) / k.rows;
+          for (let i = 0; i < 2; i++) for (let j = 0; j < k.rows; j++)
+            for (const z of [t / 2 - 0.004, -t / 2 + 0.004])
+              sharpBox(s, pw, ph, 0.01, -k.w / 2 + m + pw / 2 + i * (pw + m), m + j * (ph + m), z, dark);
+        }
+      });
+      made("metal", () => {
+        for (const side of [1, -1]) {
+          const z = side * (t / 2 + 0.03), x = k.w / 2 - 0.08;
+          rod(s, [x, 1.0, side * t / 2], [x, 1.0, z], 0.008, CHROME, 8);
+          rod(s, [x, 1.0, z], [x - 0.12, 1.0, z], 0.009, CHROME, 8);
+        }
+      });
+      return s;
+    },
+  },
+  security_camera: {
+    group: "home", height: 0.111, hangs: true, on: "floor", colour: "white", size: { w: 0.08, d: 0.22 }, block: false,
+    make(col) {
+      // a small security camera on a wall (its back at z = 0; hung, lift it): a plate, a short arm,
+      // a white bullet tipped down at the room, its dark lens
+      const s = shape();
+      made("satin", () => {
+        box(s, 0.06, 0.08, 0.01, 0, 0.0, 0.005, col);
+        rod(s, [0, 0.06, 0.01], [0, 0.07, 0.09], 0.012, col, 8);
+        rod(s, [0, 0.08, 0.06], [0, 0.05, 0.21], 0.032, col, 16);
+      });
+      made("glass", () => rod(s, [0, 0.048, 0.212], [0, 0.046, 0.22], 0.02, INK, 12));
+      return s;
+    },
+  },
+
   sky_dome: {
     group: "garden", height: 280, hangs: true, on: "floor", colour: "blue", size: { r: 280 }, block: false,
     make() {
@@ -913,5 +1029,24 @@ function bricks(s, w, h, col, rnd, put, shift = 0) {
       const t = 0.82 + 0.3 * rnd();
       put((a + b) / 2, y, b - a, bh, col.map((v, n) => Math.min(1, v * t * (n === 0 ? 1 : 0.97 + 0.06 * rnd()))));
     }
+  }
+}
+
+// a face w wide and h high (foot at y = 0, centred on x) at z, facing `side` (+1: +z), in weathered
+// rust: a grid of points each a shade of col, patches darker and paler, streaks running down
+function mottled(s, w, h, z, side, col, rnd) {
+  const nx = Math.max(2, Math.round(w / 0.06)), ny = Math.max(2, Math.round(h / 0.06)), pts = [];
+  const blots = Array.from({ length: Math.round(w * h * 6) }, () => [rnd() * w - w / 2, rnd() * h, 0.08 + 0.25 * rnd(), rnd() < 0.5 ? -1 : 1]);
+  const streaks = Array.from({ length: Math.round(w * 5) }, () => [rnd() * w - w / 2, h * (0.4 + 0.6 * rnd())]);
+  for (let j = 0; j <= ny; j++) for (let i = 0; i <= nx; i++) {
+    const x = -w / 2 + (w * i) / nx, y = (h * j) / ny;
+    let t = 0.92 + 0.12 * rnd();
+    for (const [bx, by, r, sgn] of blots) { const d = Math.hypot(x - bx, y - by); if (d < r) t += sgn * 0.18 * (1 - d / r); }
+    for (const [sx, sy] of streaks) if (Math.abs(x - sx) < 0.025 && y < sy) t -= 0.1 * (y / sy);
+    pts.push(vert(s, x, y, z, col.map((v, n) => Math.min(1, Math.max(0, v * t * (n === 0 ? 1.04 : 1))))));
+  }
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const a = pts[j * (nx + 1) + i], b = pts[j * (nx + 1) + i + 1], c = pts[(j + 1) * (nx + 1) + i + 1], d = pts[(j + 1) * (nx + 1) + i];
+    if (side > 0) quad(s, a, b, c, d); else quad(s, a, d, c, b);
   }
 }

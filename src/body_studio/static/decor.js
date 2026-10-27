@@ -61,12 +61,15 @@ export function knobs(id) {
   const def = STARTERS[id];
   if (!def) return [];
   const [w, d, h] = dims(def), out = [];
+  // (a size the starter draws itself at (built) goes down to 5 cm: a strip of wall tiles beside a door)
   const size = (name, v) => out.push({ name, value: v, size: true, step: 0.01,
-                                       min: Math.min(v, cm(Math.max(0.02, v * 0.4))), max: Math.max(v, cm(Math.min(12, Math.max(v * 2.5, v + 0.3)))) });
+                                       min: (def.built || []).includes(name) ? Math.min(v, 0.05) : Math.min(v, cm(Math.max(0.02, v * 0.4))),
+                                       max: Math.max(v, cm(Math.min(12, Math.max(v * 2.5, v + 0.3)))) });
   size("w", w);
   if (def.size.r === undefined) size("d", d);
   // (what hangs is raised by its lift, a cloth on the floor has no height to speak of)
-  if (!def.hangs && h >= 0.05) size("h", h);
+  // (unless it draws its own height: a face of brick or tiles on a wall)
+  if ((!def.hangs || (def.built || []).includes("h")) && h >= 0.05) size("h", h);
   for (const [name, k] of Object.entries(def.knobs || {})) out.push({ name, size: !!k.size, step: 1, ...k });
   return out;
 }

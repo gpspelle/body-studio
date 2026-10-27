@@ -255,7 +255,7 @@ scan in tiles.
 
 A drawn room (the sample living room, the studio, the venue) comes with its own furniture and
 fittings, which the Decor panel draws but doesn't let you pick. To put them where they really are,
-Decor → **In the room** → **Move the room's fittings**: the view goes to from above, and a layout
+Decor → **Move fittings** (at the top of the panel, next to *Compare with video*): the view goes to from above, and a layout
 called *Fittings* holds a copy of each one, dragged, turned by its ring, raised by its knob, taken
 away by its x, as anything placed. Things missing are added from the starters as usual. While that
 layout is shown the room's own copies aren't drawn; the planted walls, the glass roof and the sky
