@@ -95,13 +95,14 @@ DARK_CEILING = (0.58, 0.58, 0.57)   # the reception's and the vertical garden's,
 SLAB = (0.74, 0.76, 0.78)           # the ante-room's pale cement slabs, a cool near-white
 WC_GREY = (0.60, 0.61, 0.63)        # the toilets' walls
 RUST = (0.31, 0.18, 0.13)           # the front door's pivoting leaves
-CONCRETE = (0.60, 0.58, 0.55)       # the hall's bare concrete ceiling
+CONCRETE = (0.86, 0.83, 0.78)       # the hall's ceiling, a pale warm grey (light from the windows on it)
 HALL_WALL = (0.88, 0.88, 0.87)
 WC_WALL = (0.78, 0.81, 0.84)        # pale blue-grey
 PLASTER = (0.93, 0.92, 0.90)        # smooth white paint (the walkthrough's walls)
 TERRACOTTA = (0.74, 0.40, 0.17)     # the hall's rustic tiles, glazed orange, worn black in patches
 DARK_TILE = (0.17, 0.11, 0.08)
 TIMBER = (0.40, 0.27, 0.19)         # beams, strips and posts in dark wood
+BEAM = (0.52, 0.31, 0.17)           # the hall's beam and posts where it widens, a warm orange-brown
 REED = (0.66, 0.54, 0.38)           # the pergola's woven reed roof
 DOOR = (0.23, 0.16, 0.14)           # the doors, dark wood
 DOOR_FRAME = (0.45, 0.28, 0.19)
@@ -149,8 +150,8 @@ def _rustic(x, y, z, rnd):
         return (0.22, 0.16, 0.12)
     r = random.Random(math.floor(x / 0.4) * 7919 + math.floor(z / 0.4))
     a, b, c, d = (r.uniform(0, 6.3) for _ in range(4))
-    n = (math.sin(x * 17 + a) * math.sin(z * 15 + b) + 0.7 * math.sin((x - z) * 23 + c)
-         + 0.4 * math.sin(x * 41 + z * 37 + d))
+    n = (math.sin(x * 9 + a) * math.sin(z * 8 + b) + 0.6 * math.sin((x - z) * 12 + c)
+         + 0.25 * math.sin(x * 23 + z * 19 + d))          # (big patches, as filmed: a few to a tile)
     k = min(1.0, max(0.0, (n - r.uniform(-0.6, 0.5)) / 0.25 + 0.5))    # 0 orange .. 1 worn black
     shade = r.uniform(-0.06, 0.04)
     col = [o + shade + (w - o) * k for o, w in zip(TERRACOTTA, DARK_TILE)]
@@ -360,7 +361,7 @@ def door_x(z, a0, a1, out, rnd, h=2.2, colour=DOOR, frame=DOOR_FRAME):
 
 def house(rnd, out):
     wall = _wall(PLASTER, skirting=None)   # (the way in's skirting is a wooden board: FITTINGS)
-    hall_wall = _wall(HALL_WALL)
+    hall_wall = _wall(HALL_WALL, skirting=None)   # (its skirting is a wooden board too: fittings())
     # the floors: smooth grey cement from the door to the toilets, the hall's rustic tiles, the
     # kitchen's white tiles, and the ceilings over them
     for r in (RECEPTION, VERTICAL):
@@ -430,8 +431,6 @@ def house(rnd, out):
         base._surface(rnd, (x - 0.1, x + 0.1, 0.0, H, f, f), _boards(LIGHT_WOOD, width=0.1), out, 0.02)
         for e in (x - 0.1, x + 0.1):
             base._surface(rnd, (e, e, 0.0, H, min(z, f), max(z, f)), LIGHT_WOOD, out, 0.02)
-    exit_sign(rnd, out, 0.03, 2.4, 0.9, 2)
-    speaker(rnd, out, 0.1, 2.95, 1.3)
     wall_x(4.03, ANTE[0], ANTE[1], [], _tiles(TILE_WHITE, 0.2, across=1), out, rnd)  # (the kitchen's side)
     wall_x(3.98, ANTE[0], ANTE[1], [], _washed(wall, spots), out, rnd)
     kitchen(rnd, out)
@@ -459,8 +458,14 @@ def house(rnd, out):
     for x in (PARTITION - 0.04, PARTITION + 0.04):
         wall_z(x, HATCH[0] - 0.1, hz1, [], _reed_wall, out, rnd, h=2.6, step=0.03)
     base._surface(rnd, (PARTITION - 0.04, PARTITION + 0.04, 0.0, 2.6, HATCH[0] - 0.1, HATCH[0] - 0.1), TIMBER, out, 0.02)
-    # where the hall widens: a beam across it, a warm strip of light along its underside
-    base._surface(rnd, (NOTCH[1] - 0.15, NOTCH[1] + 0.15, H - 0.32, H, 0.0, hz1), TIMBER, out, 0.04)
+    # where the hall widens: a beam across it in warm orange-brown wood, a strip of light along its
+    # underside, and a post of the same wood down each side
+    base._surface(rnd, (NOTCH[1] - 0.15, NOTCH[1] + 0.15, H - 0.32, H, 0.0, hz1), BEAM, out, 0.04)
+    for z0, z1 in ((NOTCH[2], NOTCH[2] + 0.16), (hz1 - 0.16, hz1)):
+        for x in (NOTCH[1] - 0.1, NOTCH[1] + 0.1):
+            base._surface(rnd, (x, x, 0.0, H - 0.32, z0, z1), BEAM, out, 0.03)
+        for z in (z0, z1):
+            base._surface(rnd, (NOTCH[1] - 0.1, NOTCH[1] + 0.1, 0.0, H - 0.32, z, z), BEAM, out, 0.03)
     base._surface(rnd, (NOTCH[1] - 0.06, NOTCH[1] + 0.06, H - 0.325, H - 0.325, 0.05, hz1 - 0.05), (1.0, 0.72, 0.42), out, 0.02)
 
     # the hall: the notch on the left, the half wall, the toilets' hall and the stage beside it
@@ -496,16 +501,9 @@ def house(rnd, out):
     dome_pendant(rnd, out, WC[1] - 0.45, 1.3, 2.2, 0.28, (0.80, 0.42, 0.16))   # (an orange dome over it)
     # the windows along the right: dark grey frames, linen curtains
     # (three sets of three, the same space between the sets; dark shutters behind the glass)
-    gap = (hx1 - hx0 - 3 * 3 * 1.1) / 4
-    windows = [(hx0 + gap * (j + 1) + 3.3 * j + 1.1 * k, hx0 + gap * (j + 1) + 3.3 * j + 1.1 * (k + 1) - 0.08)
-               for j in range(3) for k in range(3)]
+    windows, lights = hall_windows()
     w0, w1 = 1.0, 2.0
-    lights = [hx0 + gap * (j + 0.5) + 3.3 * j for j in range(4)]     # (uplights between the sets)
     wall_x(hz1, hx0, hx1, [(a, b, w0, w1) for a, b in windows], _washed(hall_wall, lights), out, rnd)
-    for x in lights:
-        floor_lamp(rnd, out, x, hz1 - 0.15)
-    for z in (NOTCH[2] + 0.4, 3.6):
-        floor_lamp(rnd, out, 0.3, z)
     for a, b in windows:
         frame_x(hz1, a, b, w0, w1, out, rnd, colour=GREY_FRAME, t=0.04)
         base._surface(rnd, (a, b, (w0 + w1) / 2 - 0.015, (w0 + w1) / 2 + 0.015, hz1 - 0.02, hz1 + 0.02), GREY_FRAME, out, 0.03)
@@ -514,10 +512,7 @@ def house(rnd, out):
         for k in range(7):
             y = w1 - 0.42 - 0.08 * (k + 1)
             base._surface(rnd, (a + 0.02, b - 0.02, y, y + 0.09, hz1 + 0.04 + 0.045 * k, hz1 + 0.04 + 0.045 * k), _shutters, out, 0.03)
-    for j in range(3):                               # the curtains, between the sets
-        a, b = windows[3 * j][0], windows[3 * j + 2][1]
-        for c in (a - 0.5, b + 0.04):
-            base._surface(rnd, (c, c + 0.46, 0.05, H - 0.15, hz1 - 0.1, hz1 - 0.1), _folds(LINEN, 0), out, 0.04)
+    # (its curtains, tied back each side of each set of windows: fittings())
     # its end: wide open onto the pergola under a dark beam, sheer curtains drawn back each side, a
     # column of bare brick at the corner with the toilets' hall
     base._surface(rnd, (hx1 - 0.15, hx1 + 0.15, 2.75, H, WC[2], hz1), (0.20, 0.20, 0.21), out, 0.04)
@@ -528,9 +523,7 @@ def house(rnd, out):
         base._surface(rnd, (a0, a1, 0.0, H, b0, b1), _brickwork(0), out, 0.04)
     for x in (cx - 0.25, cx + 0.25):
         base._surface(rnd, (x, x, 0.0, H, cz - 0.25, cz + 0.25), _brickwork(2), out, 0.04)
-    # track lights along the concrete ceiling
-    for z in (2.6, 6.0):
-        base._surface(rnd, (hx0 + 0.5, hx1 - 0.5, H - 0.04, H, z - 0.02, z + 0.02), STEEL, out, 0.03)
+    # (short track lights here and there on its ceiling: fittings())
 
     # the stage: 40 cm up, all in black carpet, black curtains behind and a big white screen
     sx0, sx1, sz0, sz1, sh = STAGE
@@ -622,11 +615,6 @@ def exit_sign(rnd, out, x, y, z, axis):
     else:
         base._surface(rnd, (x, x, y, y + h, z - w / 2, z + w / 2), EXIT_GREEN, out, 0.015)
         base._surface(rnd, (x, x, y + 0.03, y + 0.1, z - 0.04, z + 0.04), (0.95, 0.95, 0.93), out, 0.01)
-
-
-def speaker(rnd, out, x, y, z):
-    """A small black speaker on a wall bracket, high up."""
-    base._surface(rnd, (x - 0.07, x + 0.07, y, y + 0.22, z - 0.07, z + 0.07), (0.08, 0.08, 0.08), out, 0.02)
 
 
 def globe(rnd, out, x, y, z, r, colour):
@@ -1051,6 +1039,16 @@ def _along(item, x0, x1, z, turn, width, depth=0.0):
             for k in range(n)]
 
 
+def hall_windows():
+    """The hall's windows along its right wall, three sets of three the same space apart: each
+    (x0, x1); and the x of the uplights between the sets and at the ends."""
+    hx0, hx1 = HALL[:2]
+    gap = (hx1 - hx0 - 3 * 3 * 1.1) / 4
+    windows = [(hx0 + gap * (j + 1) + 3.3 * j + 1.1 * k, hx0 + gap * (j + 1) + 3.3 * j + 1.1 * (k + 1) - 0.08)
+               for j in range(3) for k in range(3)]
+    return windows, [hx0 + gap * (j + 0.5) + 3.3 * j for j in range(4)]
+
+
 def fittings() -> list:
     """The way in's fittings, drawn by the page as the decor and furniture are (sample_room's
     FIXTURES): wooden skirting boards along the white walls, small floor spotlights, the
@@ -1073,6 +1071,25 @@ def fittings() -> list:
             ("wall_speaker", (-15.3, 2.4, 0.0), 0.0, (0.07, 0.07, 0.07), None)]
     for x, turn in ((VERTICAL[0] + 0.2, -math.pi / 2), (VERTICAL[1] - 0.2, math.pi / 2)):
         out += [("sheer_curtain", (x, 0.0, z), turn, SHEER, None) for z in (0.5, 3.5)]
+    # the ante-room's end wall: an exit sign and a speaker high up, beside the way into the hall
+    out += [("exit_sign", (0.0, 2.4, 0.9), -math.pi / 2, EXIT_GREEN, None), ("wall_speaker", (0.0, 2.85, 1.3), -math.pi / 2, (0.07, 0.07, 0.07), None)]
+    # the hall: skirting along its white walls (not the toilets' hall's), uplights, its curtains
+    # tied back each side of each set of windows, short track lights on its ceiling
+    hx0, hx1, _, hz1 = HALL
+    nx, nz = NOTCH[1], NOTCH[2]
+    pb = PASSAGE[1]
+    for x0, x1, z, turn in ((hx0, hx1, hz1, math.pi), (hx0, nx, nz, 0.0), (pb, HALF_WALL[0], 0.0, 0.0)):
+        out.append(("skirting_board", ((x0 + x1) / 2, 0.0, z), turn, SKIRTING_BOARD, x1 - x0))
+    for z0, z1, x, turn in ((4.0, KITCHEN_DOOR[0], hx0, math.pi / 2), (0.0, nz, nx, math.pi / 2)):
+        out.append(("skirting_board", (x, 0.0, (z0 + z1) / 2), turn, SKIRTING_BOARD, z1 - z0))
+    windows, lights = hall_windows()
+    out += [("floor_spot", (x, 0.0, hz1 - 0.15), math.pi, None, None) for x in lights]
+    out += [("floor_spot", (hx0 + 0.3, 0.0, z), math.pi / 2, None, None) for z in (nz + 0.4, 3.6)]
+    for j in range(3):
+        a, b = windows[3 * j][0], windows[3 * j + 2][1]
+        out += [("sheer_curtain", (c, 0.0, hz1 - 0.12), math.pi, SHEER, None) for c in (a - 0.3, b + 0.3)]
+    for x, z in ((2.5, 4.0), (6.5, 2.6), (6.5, 6.4), (10.5, 2.6), (10.5, 6.4), (14.5, 2.6), (14.5, 6.4)):
+        out.append(("track_light", (x, H - 0.24, z), 0.0, None, 1.2))
     return out
 
 
