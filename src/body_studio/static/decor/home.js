@@ -546,6 +546,44 @@ export const HOME = {
     },
   },
 
+  // ------------------------------------------------ the venue's pergola
+  reed_roof: {
+    group: "garden", height: 0.03, hangs: true, on: "floor", colour: "rattan", size: { w: 4.0, d: 4.0 }, block: false, built: ["w", "d"],
+    make(col, k = { w: 4.0, d: 4.0 }) {
+      // a flat roof of coarse woven reed matting (hung, lift it to its beams' tops): bands of three
+      // or five stalks each way, every 21 cm or so, each band its own straw shade, the sky through
+      // the gaps between them
+      const s = shape(), rnd = rng(97), shade = () => { const t = 0.12 * (rnd() - 0.6); return col.map((v) => Math.max(0, v + t)); };
+      const band = (along, at, len, y) => {
+        const n = 4 + Math.floor(rnd() * 2), c = shade();
+        for (let i = 0; i < n; i++) {
+          const o = at + (i - (n - 1) / 2) * 0.024, cc = i % 2 ? c : c.map((v) => v * 0.92);
+          if (along === "x") box(s, len, 0.012, 0.02, 0, y, o, cc); else box(s, 0.02, 0.012, len, o, y, 0, cc);
+        }
+      };
+      made("wood", () => {
+        for (let z = -k.d / 2 + 0.07; z < k.d / 2 - 0.05; z += 0.19 + 0.05 * rnd()) band("x", z, k.w, 0.0);
+        for (let x = -k.w / 2 + 0.07; x < k.w / 2 - 0.05; x += 0.19 + 0.05 * rnd()) band("z", x, k.d, 0.016);
+      });
+      return s;
+    },
+  },
+  wall_sconce: {
+    group: "lights", height: 0.243, hangs: true, on: "floor", colour: "black", size: { w: 0.09, d: 0.14 }, block: false,
+    make(col) {
+      // a small up-and-down wall light (its back at z = 0; hung, lift it to its foot): a black can
+      // on a plate, lit at both ends
+      const s = shape();
+      made("satin", () => {
+        box(s, 0.06, 0.14, 0.01, 0, 0.05, 0.005, col);
+        box(s, 0.03, 0.03, 0.05, 0, 0.105, 0.03, col);
+        cyl(s, 0.045, 0.045, 0.22, 0, 0.02, 0.09, col, 20);
+      });
+      lit(() => { cyl(s, 0.037, 0.037, 0.004, 0, 0.017, 0.09, BULB, 20); cyl(s, 0.037, 0.037, 0.004, 0, 0.239, 0.09, BULB, 20); });
+      return s;
+    },
+  },
+
 };
 
 // a fiddle-leaf fig's leaf from p toward d (unit), len long: a short stalk, then a broad leaf,

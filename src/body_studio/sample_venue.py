@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 16
+VERSION = 17
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -69,7 +69,7 @@ TRACK = (-16.8, 1.85)                   # its track light's socket on the ceilin
 STEP_DOWN = 0.08                    # the deck is a step down from the reception's floor (the map's floor is within 10 cm)
 LANDING = (0.7, 0.08)               # inside the front door: a landing across the front wall, how deep, how high
 BUNGALOW = (41.5, 50.5, 12.7, 17.5)
-DECK_UP = 0.09                      # its deck, a step up off the grass (any higher and the map no longer sees a floor there)
+DECK_UP = 0.09                      # its deck, a step up off the sand (any higher and the map no longer sees a floor there)
 LADIES = (11.3, 14.5, -4.0, 0.0)        # the toilets, behind the toilets' hall's left wall: x0, x1, z0, z1
 GENTS = (14.5, 18.6, -4.0, 0.0)
 WC_DOORS = ((13.0, 13.9), (15.2, 16.1))
@@ -88,7 +88,7 @@ CEMENT = (0.66, 0.66, 0.65)         # the smooth grey floors: the ante-room's st
 WC_FLOOR = (0.53, 0.53, 0.52)       # the toilets' and their hall's grey cement, a shade darker
 POLISHED = (0.48, 0.51, 0.54)       # the reception's and the vertical garden's: polished cement, a cool grey
 SUNLIT = (0.62, 0.63, 0.63)         # the same cement out on the deck, in the sun
-PERGOLA_FLOOR = (0.62, 0.64, 0.66)  # the pergola's, a little bluer
+PERGOLA_FLOOR = (0.50, 0.52, 0.54)  # the pergola's, a darker blue-grey
 ROUGH = (0.70, 0.67, 0.63)          # rough cement: the pergola's wall
 CEILING = (0.95, 0.94, 0.91)
 DARK_CEILING = (0.58, 0.58, 0.57)   # the reception's and the vertical garden's, painted mid grey (drawn
@@ -110,7 +110,6 @@ DOOR_FRAME = (0.45, 0.28, 0.19)
 STEEL = (0.14, 0.14, 0.15)
 GREY_FRAME = (0.36, 0.37, 0.38)     # the windows' frames
 BLACK = (0.10, 0.10, 0.10)          # the stage's carpet and curtains
-SCREEN = (0.90, 0.90, 0.89)
 BRICK = (0.74, 0.47, 0.33)
 TILE_WHITE = (0.93, 0.93, 0.92)
 LINEN = (0.90, 0.87, 0.81)          # the hall's curtains
@@ -181,14 +180,6 @@ def _rough(colour, strength=0.06):
         t = strength * (math.sin(u * 2.3 + 3 * math.sin(y * 1.7)) * math.sin(y * 2.9 + u * 0.8)) + rnd.uniform(-0.03, 0.03)
         return tuple(c + t for c in colour)
     return base.finish("concrete", f)
-
-
-def _reeds(x, y, z, rnd):
-    """Woven reed matting: thin stalks along z, a weave across them every 12 cm, light through it."""
-    if x % 0.12 < 0.015:
-        return (0.42, 0.33, 0.22)
-    t = 0.05 * math.sin(z * 90.0 + math.floor(x / 0.12) * 1.7) + rnd.uniform(-0.05, 0.05)
-    return (REED[0] + t, REED[1] + t, REED[2] + t * 0.8)
 
 
 def _tiles(colour, size, grout=(0.72, 0.72, 0.71), across=0):
@@ -270,14 +261,6 @@ def _view(x, y, z, rnd):
 def _shutters(x, y, z, rnd):
     """Dark wooden shutters: boards 8 cm, a dark line between them."""
     return (0.09, 0.07, 0.06) if y % 0.08 < 0.008 else (0.24, 0.16, 0.11)
-
-
-def _lawn(x, y, z, rnd):
-    """Grass, a little patchy."""
-    patch = 0.035 * math.sin(x * 0.7 + 2 * math.sin(z * 0.5)) * math.sin(z * 0.9)
-    t = patch + rnd.uniform(-0.04, 0.04)
-    return (0.32 + t * 0.8, 0.50 + t, 0.25 + t * 0.6)
-_lawn.finish = "grass"
 
 
 def _sand(x, y, z, rnd):
@@ -526,14 +509,13 @@ def house(rnd, out):
         base._surface(rnd, (x, x, 0.0, H, cz - 0.25, cz + 0.25), _brickwork(2), out, 0.04)
     # (short track lights here and there on its ceiling: fittings())
 
-    # the stage: 40 cm up, all in black carpet, black curtains behind and a big white screen
+    # the stage: 40 cm up, all in black carpet, black curtains behind (no screen: the walkthrough has none)
     sx0, sx1, sz0, sz1, sh = STAGE
     base._surface(rnd, (sx0, sx1, sh, sh, sz0, sz1), BLACK, out, FLOOR_STEP)
     base._surface(rnd, (sx0, sx1, 0.0, sh, sz1, sz1), (0.13, 0.13, 0.13), out, 0.04)
     base._surface(rnd, (sx1, sx1, 0.0, sh, sz0, sz1), (0.13, 0.13, 0.13), out, 0.04)
     base._surface(rnd, (sx0, sx1, sh, H, 0.0, 0.0), _folds((0.16, 0.16, 0.17), 0), out, 0.04)
     wall_z(sx1, 0.0, sz1, [], _folds((0.16, 0.16, 0.17), 2), out, rnd)
-    base._surface(rnd, (sx0 + 1.4, sx1 - 1.4, sh + 0.9, H - 0.15, 0.06, 0.06), SCREEN, out, 0.04)
 
 
 LANTERN = (4.2, 3.6)                # the vertical garden's glass roof light: its foot, along x and across (nearly the whole room)
@@ -838,38 +820,35 @@ def pergola(rnd, out):
     # (near the hall a tall door of vertical wooden slats, shut, flush with it; an exit sign)
     slats = lambda x, y, z, rnd: (0.17, 0.11, 0.08) if x % 0.1 < 0.014 else (0.47, 0.31, 0.21)
     base._surface(rnd, (x0 + 0.3, x0 + 1.5, 0.0, 2.7, z1 - 0.03, z1 - 0.03), slats, out, 0.02)
-    exit_sign(rnd, out, x0 + 2.4, 2.3, z1 - 0.02, 0)
-    for k in range(int((x1 - 2.0 - x0) / 2.6)):
-        x = x0 + 1.6 + 2.6 * k
+    for x in _strips():
         base._surface(rnd, (x - 0.05, x + 0.05, 0.6, 2.8, z1 - 0.02, z1 - 0.02), TIMBER, out, 0.02)
-        for side in (-0.7, 0.7):
-            base._surface(rnd, (x + side - 0.06, x + side + 0.06, 2.4, 2.52, z1 - 0.03, z1 - 0.03), (0.08, 0.08, 0.08), out, 0.02)
-    # the roof: beams across, a post at each end of the garden side, the reed matting over them
-    for k in range(5):
-        x = x0 + 0.1 + k * (x1 - x0 - 0.2) / 4
-        base._surface(rnd, (x - 0.08, x + 0.08, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z1), TIMBER, out, 0.05)
-    base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z0 + 0.16), TIMBER, out, 0.05)
+    # (its exit sign and the up-and-down lights between the strips: fittings())
+    # the roof: beams across in orange-brown wood, two along under them, a post at each end of the
+    # garden side (the reed matting over them, and the track lights on them: fittings())
+    for x in _pergola_beams():
+        base._surface(rnd, (x - 0.08, x + 0.08, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z1), BEAM, out, 0.05)
+    base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z0 + 0.16), BEAM, out, 0.05)
+    for z in (z0 + (z1 - z0) / 3, z0 + 2 * (z1 - z0) / 3):
+        base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.36, PERGOLA_ROOF - 0.22, z - 0.07, z + 0.07), BEAM, out, 0.05)
     for z in PIERS:                                  # (on the garden side, piers of bare brick)
         pier(rnd, out, x1 - 0.1, z, 0.18, PERGOLA_ROOF - 0.22)
-    # (a coarse open weave of reed bands, the sky showing through the gaps between them)
-    st, y = 0.035, PERGOLA_ROOF + 0.01
-    for i in range(int((x1 - x0) / st)):
-        for k in range(int((z1 - z0) / st)):
-            x, z = x0 + (i + rnd.random()) * st, z0 + (k + rnd.random()) * st
-            if not _weave_open(x, z):
-                out.append(((x, y, z), _reeds(x, y, z, rnd), [st * 0.75, 0.004, st * 0.75]))
     # 14: along its edge on the garden, a strip of irregular flagstones
     base._surface(rnd, (x1 - 0.7, x1, 0.004, 0.004, z0, z1), _flagstones, out, 0.03)
 
 
-WEAVE = (0.2, 0.08)                 # the pergola's reed weave: bands every 20 cm, 8 cm wide
 PIERS = (PERGOLA[2] + 0.2, PERGOLA[3] - 0.3)   # z: the brick piers on its garden side
 
 
-def _weave_open(x, z):
-    """Whether (x, z) on the pergola's roof is a gap in its weave (sky) rather than reed."""
-    every, band = WEAVE
-    return x % every >= band and z % every >= band
+def _strips():
+    """x: the wooden strips up the pergola's wall, every 2.6 m."""
+    x0, x1 = PERGOLA[:2]
+    return [x0 + 1.6 + 2.6 * k for k in range(int((x1 - 2.0 - x0) / 2.6))]
+
+
+def _pergola_beams():
+    """x: the pergola's beams across it, five, the first and last at its ends."""
+    x0, x1 = PERGOLA[:2]
+    return [x0 + 0.1 + k * (x1 - x0 - 0.2) / 4 for k in range(5)]
 
 
 def _flagstones(x, y, z, rnd):
@@ -901,13 +880,10 @@ def _garden_end(z):
 
 
 def garden(rnd, out):
-    # sand, from the stage's end (where the house ends) and the pergola to the far side; grass
-    # round the bungalow
-    bx0, bx1, bz0, bz1 = BUNGALOW
+    # sand, from the stage's end (where the house ends) and the pergola to the far side, round the
+    # bungalow too (the walkthrough shows no grass: plants stand in the sand)
     def ground(x, y, z, rnd):
-        near = bx0 - 2.0 < x < bx1 + 1.0 and bz0 - 2.0 < z
-        patch = GARDEN_X + 0.8 < x < GARDEN_X + 7.5 and 1.5 < z < 6.0 + 0.6 * math.sin(x * 0.8)   # (by the left wall, past the pergola)
-        return _lawn(x, y, z, rnd) if near or patch else _sand(x, y, z, rnd)
+        return _sand(x, y, z, rnd)
     # (one sheet, so the page draws it smooth: the cells past the slanted far side left out)
     long = max(GARDEN_LEFT, GARDEN_RIGHT)
     ground.finish = "sand"
@@ -1053,6 +1029,13 @@ def fittings() -> list:
     for x, z in ((2.5, 4.0), (6.5, 2.6), (6.5, 6.4), (10.5, 2.6), (10.5, 6.4), (14.5, 2.6), (14.5, 6.4)):
         out.append(("track_light", (x, H - 0.24, z), 0.0, None, 1.2))
     out += [("sheer_curtain", (hx1 - 0.2, 0.0, z), -math.pi / 2, SHEER, None) for z in (WC[2] + 0.75, hz1 - 0.35)]
+    # the pergola: its woven reed roof on the beams, black track lights along the middle beams,
+    # up-and-down lights between the strips on its wall, an exit sign by the hall
+    px0, px1, pz0, pz1 = PERGOLA
+    out.append(("reed_roof", ((px0 + px1) / 2, PERGOLA_ROOF, (pz0 + pz1) / 2), 0.0, REED, {"w": round(px1 - px0, 3), "d": round(pz1 - pz0, 3)}))
+    out += [("track_light", (x, PERGOLA_ROOF - 0.22 - 0.24, (pz0 + pz1) / 2), math.pi / 2, None, 2.0) for x in _pergola_beams()[1:4]]
+    out += [("wall_sconce", (x + side, 2.3, pz1), math.pi, None, None) for x in _strips() for side in (-0.7, 0.7)]
+    out.append(("exit_sign", (px0 + 2.4, 2.3, pz1), math.pi, EXIT_GREEN, None))
     # the toilets: downlights in their ceilings; in the ladies' a wooden counter on the wall at the
     # door's left with two bowls and two round mirrors, two cubicles at the far end (the first one's
     # door open); in the gents' the trough on the far wall, a cubicle, a counter with one bowl and a
@@ -1203,7 +1186,7 @@ def beach(rnd, out):
 
 
 def bungalow(rnd, out):
-    """The bungalow (bangalô): an open wooden deck a step up off the grass, under a frame of dark
+    """The bungalow (bangalô): an open wooden deck a step up off the sand, under a frame of dark
     timber, posts and beams, no walls and no roof."""
     x0, x1, z0, z1 = BUNGALOW
     h, top = DECK_UP, 2.7

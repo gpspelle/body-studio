@@ -239,6 +239,8 @@ STARTERS = (
     {"id": "downlight", "group": "lights", "height": 0.02, "on": "floor"},
     {"id": "toilet_cubicle", "group": "home", "height": 2.1, "on": "floor"},
     {"id": "trough_urinal", "group": "home", "height": 1.24, "on": "floor"},
+    {"id": "reed_roof", "group": "garden", "height": 0.03, "on": "floor"},
+    {"id": "wall_sconce", "group": "lights", "height": 0.243, "on": "floor"},
     {"id": "sheer_curtain", "group": "home", "height": 3.25, "on": "floor"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}
