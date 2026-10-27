@@ -427,6 +427,7 @@
       "decor.item.trough_urinal": "Trough urinal",
       "decor.item.reed_roof": "Woven reed roof",
       "decor.item.wall_sconce": "Up-and-down wall light",
+      "decor.item.sky_dome": "Sky",
       "decor.item.sheer_curtain": "Tied-back sheer curtain",
       "decor.item.striped_rug": "Striped rug",
       "decor.item.wall_plates": "Woven wall plates",

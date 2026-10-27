@@ -2,6 +2,8 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue has a blue sky over it (a new **Sky** starter), seen through the garden's glass
+  cover and over the beach, and its stage keeps its big white screen.
 - The sample venue's pergola, stage and garden, matched again to the walkthrough: the pergola's
   woven reed roof is drawn as the furniture is (a new **Woven reed roof** starter), on orange-brown
   beams with two more along under them, black track lights on them and up-and-down lights on its

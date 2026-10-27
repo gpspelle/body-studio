@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 17
+VERSION = 18
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -104,6 +104,7 @@ TERRACOTTA = (0.74, 0.40, 0.17)     # the hall's rustic tiles, glazed orange, wo
 DARK_TILE = (0.17, 0.11, 0.08)
 TIMBER = (0.40, 0.27, 0.19)         # beams, strips and posts in dark wood
 BEAM = (0.52, 0.31, 0.17)           # the hall's beam and posts where it widens, a warm orange-brown
+SCREEN = (0.90, 0.90, 0.89)
 REED = (0.66, 0.54, 0.38)           # the pergola's woven reed roof
 DOOR = (0.23, 0.16, 0.14)           # the doors, dark wood
 DOOR_FRAME = (0.45, 0.28, 0.19)
@@ -509,13 +510,15 @@ def house(rnd, out):
         base._surface(rnd, (x, x, 0.0, H, cz - 0.25, cz + 0.25), _brickwork(2), out, 0.04)
     # (short track lights here and there on its ceiling: fittings())
 
-    # the stage: 40 cm up, all in black carpet, black curtains behind (no screen: the walkthrough has none)
+    # the stage: 40 cm up, all in black carpet, black curtains behind and a big white screen (Gabriel:
+    # the Palco keeps it, though the walkthrough's frames don't show it)
     sx0, sx1, sz0, sz1, sh = STAGE
     base._surface(rnd, (sx0, sx1, sh, sh, sz0, sz1), BLACK, out, FLOOR_STEP)
     base._surface(rnd, (sx0, sx1, 0.0, sh, sz1, sz1), (0.13, 0.13, 0.13), out, 0.04)
     base._surface(rnd, (sx1, sx1, 0.0, sh, sz0, sz1), (0.13, 0.13, 0.13), out, 0.04)
     base._surface(rnd, (sx0, sx1, sh, H, 0.0, 0.0), _folds((0.16, 0.16, 0.17), 0), out, 0.04)
     wall_z(sx1, 0.0, sz1, [], _folds((0.16, 0.16, 0.17), 2), out, rnd)
+    base._surface(rnd, (sx0 + 1.4, sx1 - 1.4, sh + 0.9, H - 0.15, 0.06, 0.06), SCREEN, out, 0.04)
 
 
 LANTERN = (4.2, 3.6)                # the vertical garden's glass roof light: its foot, along x and across (nearly the whole room)
@@ -1036,6 +1039,8 @@ def fittings() -> list:
     out += [("track_light", (x, PERGOLA_ROOF - 0.22 - 0.24, (pz0 + pz1) / 2), math.pi / 2, None, 2.0) for x in _pergola_beams()[1:4]]
     out += [("wall_sconce", (x + side, 2.3, pz1), math.pi, None, None) for x in _strips() for side in (-0.7, 0.7)]
     out.append(("exit_sign", (px0 + 2.4, 2.3, pz1), math.pi, EXIT_GREEN, None))
+    # the sky over it all, blue as filmed (seen through the garden's glass cover, over the beach)
+    out.append(("sky_dome", (GARDEN_X, -30.0, GARDEN_W / 2), 0.0, None, None))
     # the toilets: downlights in their ceilings; in the ladies' a wooden counter on the wall at the
     # door's left with two bowls and two round mirrors, two cubicles at the far end (the first one's
     # door open); in the gents' the trough on the far wall, a cubicle, a counter with one bowl and a

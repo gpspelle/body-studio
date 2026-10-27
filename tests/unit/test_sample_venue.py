@@ -97,7 +97,7 @@ class SampleVenueTest(unittest.TestCase):
                           "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave",
                           "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain",
                           "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp",
-                          "reed_roof", "wall_sconce"})
+                          "reed_roof", "wall_sconce", "sky_dome"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -247,10 +247,10 @@ class SampleVenueTest(unittest.TestCase):
         self.assertEqual(len(sconces), 2 * len(V._strips()))
         self.assertTrue(all(f[1][2] == z1 and f[2] == math.pi for f in sconces))
         self.assertTrue([r for r in rows if max(abs(a - b) for a, b in zip(r[1], V.BEAM)) < 0.04 and r[0][1] > V.PERGOLA_ROOF - 0.4 and x0 < r[0][0] < x1])
-        # its floor a darker grey than the hall's ceiling; no screen on the stage (the walkthrough has none)
+        # its floor a darker grey; the stage keeps its big white screen (Gabriel's call)
         self.assertLess(max(V.PERGOLA_FLOOR), 0.6)
         sx0, sx1, sz0, sz1, sh = V.STAGE
-        self.assertFalse([r for r in rows if sx0 < r[0][0] < sx1 and abs(r[0][2] - 0.06) < 1e-6 and min(r[1]) > 0.8])
+        self.assertGreater(len([r for r in rows if sx0 < r[0][0] < sx1 and abs(r[0][2] - 0.06) < 1e-6 and min(r[1]) > 0.8]), 1000)
 
     def test_the_garden_is_sand_as_the_walkthrough(self):
         # sand under the cover and round the bungalow: no grass (plants stand in the sand)

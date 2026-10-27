@@ -584,6 +584,28 @@ export const HOME = {
     },
   },
 
+  sky_dome: {
+    group: "garden", height: 280, hangs: true, on: "floor", colour: "blue", size: { r: 280 }, block: false,
+    make() {
+      // the sky over an outdoor room, a dome 280 m round (hung, lift or sink it to its horizon): a
+      // clear blue overhead, paler down to the haze at the horizon; it gives its own light, so the
+      // room's lights don't shade it
+      const s = shape(), R = 280, seg = 48, rows = 12, ZENITH = [0.2, 0.42, 0.8], HAZE = [0.64, 0.77, 0.9];
+      const at = [];
+      lit(() => {
+        for (let j = 0; j <= rows; j++) {
+          const e = (j / rows) * (Math.PI / 2), t = Math.pow(j / rows, 0.6), c = HAZE.map((v, n) => v + (ZENITH[n] - v) * t);
+          at.push(Array.from({ length: seg }, (_, k) => {
+            const a = (k / seg) * 2 * Math.PI;
+            return vert(s, R * Math.cos(e) * Math.sin(a), R * Math.sin(e), R * Math.cos(e) * Math.cos(a), c);
+          }));
+        }
+        for (let j = 0; j < rows; j++) for (let k = 0; k < seg; k++) quad(s, at[j][k], at[j][(k + 1) % seg], at[j + 1][(k + 1) % seg], at[j + 1][k]);
+      });
+      return s;
+    },
+  },
+
 };
 
 // a fiddle-leaf fig's leaf from p toward d (unit), len long: a short stalk, then a broad leaf,
