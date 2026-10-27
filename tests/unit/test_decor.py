@@ -203,6 +203,21 @@ class Inventory(unittest.TestCase):
             with self.assertRaises(decor.DecorError, msg=bad):
                 decor.clean_opts(bad)
 
+    def test_the_venues_fittings_kept_as_a_layout_of_their_own(self):
+        from body_studio import sample_venue
+        trees = [t for t in sample_venue.fixtures()["trees"] if not t.get("scale") and t["at"][1] > -1]
+        items = [{"item": t["item"], "x": t["at"][0], "y": t["at"][1], "z": t["at"][2], "turn": t.get("turn", 0),
+                  **({"colour": t["colour"]} if t.get("colour") else {}), **({"opts": t["opts"]} if t.get("opts") else {}),
+                  "was": {"k": k, "at": t["at"], "turn": t.get("turn", 0)}} for k, t in enumerate(trees)]
+        lay = decor.clean_layouts({"layouts": [{"name": "Layout 1", "items": []}, {"name": "Fittings", "fittings": True, "items": items}]})
+        self.assertNotIn("fittings", lay["layouts"][0])
+        self.assertTrue(lay["layouts"][1]["fittings"])
+        self.assertEqual(len(lay["layouts"][1]["items"]), len(trees))
+        self.assertEqual(lay["layouts"][1]["items"][3]["was"]["k"], 3)
+        for bad in ({"k": 1}, {"k": "1", "at": [0, 0, 0]}, {"k": 1, "at": [0, 0]}, {"k": -1, "at": [0, 0, 0]}, [1]):
+            with self.assertRaises(decor.DecorError, msg=bad):
+                decor.clean_was(bad)
+
     def test_a_changed_starter_kept_as_a_new_thing(self):
         v = decor.add_variant(self.d, {"name": "  Brass bar ", "base": "bar", "colour": "#C9A46A",
                                        "opts": {"h": 1.2, "finish": "metal"}})

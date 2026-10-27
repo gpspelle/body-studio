@@ -2,6 +2,9 @@
 
 ## 0.1.0 (unreleased)
 
+- Decor → In the room → **Move the room's fittings**: a drawn room's own furniture and fittings
+  as a layout of their own, seen from above, to drag to where they really are, turn, take away or
+  add to; **Export changes** downloads what changed as a file to send.
 - The sample venue's toilets checked against the walkthrough: the ladies' three cubicles stand in a
   row along its right wall behind a grey wall that runs from it, with the changing table and the
   leaf mural on the left wall; cubicle doors are plain except one lattice (new **Plain door** knob),

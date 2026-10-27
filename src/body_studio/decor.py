@@ -18,7 +18,7 @@ Everything lives in decor/ in the data folder:
                                   or a changed starter kept: {id (v...), kind "variant", name, base, colour, opts}
     decor/items/<id>/photo.<ext>  the photo it was made from
     decor/items/<id>/mesh.json    the mesh, packed (pack()): what the page draws
-    decor/layouts/<room>.json     {current, layouts: [{name, items: [{item, x, y, z, turn, colour, opts}]}]}
+    decor/layouts/<room>.json     {current, layouts: [{name, fittings?, items: [{item, x, y, z, turn, colour, opts, was?}]}]}
 
 Layouts are in the room map's metres (room.py): x and z along the floor, y up from it.
 """
@@ -601,11 +601,24 @@ def clean_layouts(d) -> dict:
                 q["colour"] = clean_colour(p["colour"])
             if p.get("opts"):
                 q["opts"] = clean_opts(p["opts"])
+            if p.get("was") is not None:
+                q["was"] = clean_was(p["was"])
             placed.append(q)
-        out.append({"name": clean_name(lay.get("name") or "Layout"), "items": placed})
+        lay_out = {"name": clean_name(lay.get("name") or "Layout"), "items": placed}
+        if lay.get("fittings"):
+            lay_out["fittings"] = True
+        out.append(lay_out)
     cur = d.get("current", 0)
     cur = cur if isinstance(cur, int) and 0 <= cur < len(out) else 0
     return {"current": cur, "layouts": out}
+
+
+def clean_was(w) -> dict:
+    """Where a room's own fitting was, on its copy in the layout of the room's fittings moved by
+    hand (static/decor.js fittingItems): which fixture (k), its place and turn."""
+    if not isinstance(w, dict) or not isinstance(w.get("at"), list) or len(w["at"]) != 3 or not isinstance(w.get("k"), int) or not 0 <= w["k"] < 100000:
+        raise DecorError("was is {k, at: [x, y, z], turn}", "bad_request")
+    return {"k": w["k"], "at": [round(_num(v, -1e4, 1e4, "was"), 4) for v in w["at"]], "turn": round(_num(w.get("turn", 0), -1e3, 1e3, "turn"), 4)}
 
 
 def clean_colour(c) -> str:

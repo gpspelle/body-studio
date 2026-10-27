@@ -251,6 +251,22 @@ a "this distance is X m" tool for the scale (decor needs it closer than the came
 cutting out the sky outdoors, steps and a stage (more than one floor level), and loading a large
 scan in tiles.
 
+## Moving a room's own fittings
+
+A drawn room (the sample living room, the studio, the venue) comes with its own furniture and
+fittings, which the Decor panel draws but doesn't let you pick. To put them where they really are,
+Decor → **In the room** → **Move the room's fittings**: the view goes to from above, and a layout
+called *Fittings* holds a copy of each one, dragged, turned by its ring, raised by its knob, taken
+away by its x, as anything placed. Things missing are added from the starters as usual. While that
+layout is shown the room's own copies aren't drawn; the planted walls, the glass roof and the sky
+stay as they are.
+
+**Export changes** downloads `<room>-fittings.json`: `{room, changes: [{change, item, k, was, now,
+colour, opts}]}` with `change` one of `moved`, `added` or `removed`, `k` the fixture's place in the
+room's list and `was`/`now` its `{at: [x, y, z], turn}` in the map's metres. Send it, and the room's
+own file (`sample_venue.py` and friends) catches up from it. The layout is kept in
+`decor/layouts/<room>.json` with `fittings: true` and each item's `was`.
+
 ## Next
 
 - Videos of a thing (walk round a chair at the rental shop) through splat-studio's object run,

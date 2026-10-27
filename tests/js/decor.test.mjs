@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { COLOURS, FINISHES, GROUPS, STARTERS, fixtureTurn, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
-         knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS } from "../../src/body_studio/static/decor.js";
+         knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges } from "../../src/body_studio/static/decor.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
 const env = (k) => process.env[k] && JSON.parse(fs.readFileSync(process.env[k], "utf8"));
@@ -438,4 +438,31 @@ test("a room's own furniture turns to the way it faces, else by its turn", () =>
   const s = starterShape("tattoo_chair"), b = bounds(s.p);
   near(b.lo[1], 0, 1e-6, "on the floor");
   assert.ok(STARTERS.linen_sofa.seats.every((q) => q.y === 0.45), "the sofa's seat height");
+});
+
+test("the room's own fittings, moved by hand, come back as what changed", () => {
+  const trees = [
+    { item: "round_mirror", at: [1, 1.2, 2], turn: Math.PI / 2 },
+    { item: "glass_roof", at: [0, 0, 0], scale: [2, 1, 1] },                 // stretched along its row: stays
+    { item: "chair", at: [3, 0, 3], facing: [1, 0, 0], colour: "#754a2b" },
+    { item: "bench", at: [5, 0, 5], turn: 0, opts: { w: 2 } },
+    { item: "no_such_thing", at: [9, 0, 9] },
+    { item: "sky_dome", at: [0, -30, 0] },                                  // the sky: stays
+  ];
+  assert.deepEqual(trees.map(movable), [true, false, true, true, false, false]);
+  const items = fittingItems(trees);
+  assert.deepEqual(items.map((p) => p.was.k), [0, 2, 3]);
+  assert.ok(Math.abs(items[1].turn - Math.PI / 2) < 1e-9);                 // (facing +x)
+  assert.equal(items[1].colour, "#754a2b");
+  assert.deepEqual(fittingChanges(items, trees), []);                       // nothing changed yet
+  items[0].x += 0.5;                                                         // the mirror moved along its wall
+  items[2].opts = { w: 3 };                                                  // the bench made longer
+  items.splice(1, 1);                                                        // the chair isn't there
+  items.push({ item: "chair", x: 7, y: 0, z: 7, turn: 0 });                  // one is where nothing was
+  const c = fittingChanges(items, trees);
+  assert.deepEqual(c.map((x) => [x.change, x.item, x.k]), [["moved", "round_mirror", 0], ["moved", "bench", 3], ["added", "chair", undefined], ["removed", "chair", 2]]);
+  assert.deepEqual(c[0].now.at, [1.5, 1.2, 2]);
+  assert.deepEqual(c[0].was.at, [1, 1.2, 2]);
+  assert.deepEqual(c[1].opts, { w: 3 });
+  assert.ok(Math.abs(c[3].was.turn - Math.PI / 2) < 1e-9);
 });

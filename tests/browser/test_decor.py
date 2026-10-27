@@ -4,6 +4,7 @@ import math
 import unittest
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 from tests.browser.base import PlaywrightTimeout, Viewer, dist
 
@@ -215,6 +216,53 @@ class Decor(Viewer):
         self.assertIn("(24)", page.text_content("#decorRoomTab"))
         self.assertEqual(errors, [])
 
+
+    def test_moves_the_rooms_fittings(self):
+        page = self.new_page(viewport={"width": 1100, "height": 700})
+        self.addCleanup(page.close)
+        errors = []
+        page.on("pageerror", lambda e: errors.append(str(e)))
+        page.goto(self.url)
+        page.wait_for_function("window.bodyViewer && bodyViewer.numSplats() > 0", timeout=60000)
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+        page.evaluate("modes.show('rooms')")
+        page.click("#roomBtn")
+        page.locator("#roomList button[data-file^='workspace/_sample_room/']").click()
+        page.wait_for_function("house.shown() && decor.group()", timeout=300000)
+        room = page.evaluate("house.file()")
+        self.addCleanup(lambda: urllib.request.urlopen(urllib.request.Request(
+            self.url + "api/decor/layout?room=" + urllib.parse.quote(room), method="POST",
+            data=json.dumps({"current": 0, "layouts": [{"name": "Layout 1", "items": []}]}).encode())).read())
+        page.click("#roomBtn")
+        page.click("#decorBtn")
+        page.click("#decorRoomTab")
+        # the room's own furniture moved by hand, from above, in a layout of its own: what changed
+        # comes back as a file to send
+        fixed = page.evaluate("decor.group().children.filter((c) => c.isMesh && c.userData.fixed).length")
+        self.assertTrue(page.locator("#decorFittings").is_visible())
+        page.click("#decorFittings")
+        self.assertTrue(page.evaluate("house.fromAbove()"))
+        lay = page.evaluate("decor.layouts()")
+        self.assertTrue(lay["layouts"][lay["current"]]["fittings"])
+        n = len(lay["layouts"][lay["current"]]["items"])
+        self.assertGreater(n, 0)
+        self.assertEqual(page.evaluate("decor.drawn()"), n)                        # each drawn once: as a placed thing
+        self.assertEqual(page.evaluate("decor.group().children.filter((c) => c.isMesh && c.userData.fixed).length"), fixed - n)
+        self.assertTrue(page.locator("#decorFittings").is_hidden())
+        self.assertEqual(page.evaluate("decor.changes()"), [])
+        page.evaluate("(() => { const p = decor.placed()[0]; decor.move(0, p.x + 0.5, p.z); })()")
+        self.assertEqual([c["change"] for c in page.evaluate("decor.changes()")], ["moved"])
+        with page.expect_download() as d:
+            page.click("#decorFittingsExport")
+        sent = json.loads(Path(d.value.path()).read_text())
+        self.assertEqual(sent["room"], room)
+        self.assertEqual(len(sent["changes"]), 1)
+        page.wait_for_function("!decor.saving")
+        saved = json.loads(urllib.request.urlopen(self.url + "api/decor/layout?room=" + urllib.parse.quote(room)).read())
+        self.assertTrue(saved["layouts"][saved["current"]]["fittings"])
+        self.assertIn("was", saved["layouts"][saved["current"]]["items"][0])
+        self.assertEqual(errors, [])
 
     def test_compares_the_room_with_a_video(self):
         page, errors = self.open_page()

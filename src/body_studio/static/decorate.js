@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { geometry, materials, picture, shadow, studio } from "/static/decorlook.js";
 import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, fixtureTurn, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
          bounds, fromHex, fromRgb, hexOf, setTable, standY, starterShape, toHex, turnToward, unpack, wrap,
-         knobs, knobValues, cleanOpts, optsKey, sized, MATERIALS } from "/static/decor.js";
+         knobs, knobValues, cleanOpts, optsKey, sized, MATERIALS, movable, fittingItems, fittingChanges } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -28,6 +28,8 @@ let saveTimer = 0, pollTimer = 0, pendingPhoto = null, drag = null;
 let shelf = (() => { try { return localStorage.getItem("decor.group"); } catch { return null; } })() || GROUPS[0];
 
 const placed = () => (L ? L.layouts[L.current].items : []);
+const fitting = () => !!(L && L.layouts[L.current].fittings);   // the layout of the room's own fittings, moved by hand
+const trees = () => H()?.fixtures()?.trees || [];
 const itemOf = (id) => items.find((i) => i.id === id) || (STARTERS[id] ? { id } : null);
 const nameOf = (it) => (it.kind === "photo" || it.kind === "variant" ? it.name : t("decor.item." + it.id));
 // what is known of an item; of a placed one p, at the size its knobs give it
@@ -232,6 +234,8 @@ function layoutsUI() {
   }));
   if (L) s.value = String(L.current);
   $("decorDelete").disabled = !L || L.layouts.length < 2;
+  $("decorFittings").hidden = fitting() || !trees().some(movable);
+  $("decorFittingsExport").hidden = $("decorFittingsHow").hidden = !fitting();
   $("decorRoomTab").textContent = t("decor.tabRoom", { n: L ? placed().length : 0 });
   if (tab === "room") list();
 }
@@ -273,6 +277,26 @@ function newLayout(items) {
   pick(-1); changed();
 }
 $("decorNew").onclick = () => newLayout([]);
+// the room's own fittings, to put where they really are: from above, a layout of their own
+$("decorFittings").onclick = () => {
+  const k = L.layouts.findIndex((l) => l.fittings);
+  if (k >= 0) L.current = k;
+  else {
+    L.layouts.push({ name: t("decor.fittingsName"), fittings: true, items: fittingItems(trees()) });
+    L.current = L.layouts.length - 1;
+  }
+  H()?.fromAbove?.(true);
+  setTab("room"); pick(-1); changed();
+};
+// what was changed, as a file to send (the room's own file catches up from it)
+$("decorFittingsExport").onclick = () => {
+  const d = { room, changes: fittingChanges(placed(), trees()) };
+  const a = document.createElement("a"), url = URL.createObjectURL(new Blob([JSON.stringify(d, null, 1)], { type: "application/json" }));
+  a.href = url; a.download = String(room).replace(/\.[^.]*$/, "").replace(/[^\w-]+/g, "-") + "-fittings.json";
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  say(t("decor.fittingsSaved", { n: d.changes.length }));
+};
 $("decorCopy").onclick = () => newLayout(placed().map((p) => ({ ...p })));
 $("decorDelete").onclick = () => {
   if (L.layouts.length < 2) return;
@@ -654,8 +678,9 @@ function draw() {
   // part of the room: not picked, moved or saved
   // (the venue's planted walls, borders and glass roof each stretched along its row by `scale`; the
   // living room's and the studio's furniture turned by the way it faces, in its colour and size)
-  for (const t of H()?.fixtures()?.trees || []) {
-    if (!STARTERS[t.item]) continue;
+  // (while the layout of the room's own fittings is shown, they are its placed things instead)
+  for (const t of trees()) {
+    if (!STARTERS[t.item] || (fitting() && movable(t))) continue;
     const p = { item: t.item, colour: t.colour, opts: t.opts }, turn = fixtureTurn(t);
     const m = new THREE.Mesh(geomFor(p, true), mats()), sc = t.scale || [1, 1, 1];
     m.position.set(t.at[0], t.at[1], t.at[2]);
@@ -902,7 +927,7 @@ addEventListener("pointermove", (e) => {
   const at = floorAt(e, drag.y), p = placed()[drag.k];
   if (!at || !p) return;
   p.x = at[0] + drag.off[0]; p.z = at[1] + drag.off[1];
-  p.y = standY(defs(p.item, p), placed(), defs, p, roomTop);
+  if (!p.was) p.y = standY(defs(p.item, p), placed(), defs, p, roomTop);   // (a fitting keeps its height: a mirror stays on its wall)
   const m = group.children.find((c) => c.userData.index === drag.k);
   if (m) m.position.set(p.x, p.y, p.z);
   placeGizmo();
@@ -945,13 +970,15 @@ window.decor = {
   items: () => items,
   placed: () => placed().map((p) => ({ ...p })),
   layouts: () => L && JSON.parse(JSON.stringify(L)),
+  fittings: () => $("decorFittings").click(),
+  changes: () => fittingChanges(placed(), trees()),
   add,
   pick,
   selected: () => sel,
   open: () => setOpen(true),
   drawn: () => (group ? group.children.filter((c) => c.isMesh && !c.userData.fixed).length : 0),
   group: () => group,
-  move: (k, x, z, turn) => { const p = placed()[k]; p.x = x; p.z = z; if (turn != null) p.turn = turn; p.y = standY(defs(p.item, p), placed(), defs, p, roomTop); changed(); },
+  move: (k, x, z, turn) => { const p = placed()[k]; p.x = x; p.z = z; if (turn != null) p.turn = turn; if (!p.was) p.y = standY(defs(p.item, p), placed(), defs, p, roomTop); changed(); },
   tab: (which) => { if (which) setTab(which); return tab; },
   handles: () => (gizmo && gizmo.visible ? Object.fromEntries(["turn", "lift", "ring"].map((h) => {
     const m = gizmo.getObjectByName(h);

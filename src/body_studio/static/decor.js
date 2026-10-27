@@ -184,6 +184,41 @@ export function fixtureTurn(t) {
   const f = t.facing;
   return f && (f[0] || f[2]) ? Math.atan2(f[0], f[2]) : t.turn || 0;
 }
+// ---------------------------------------------------------------- the room's fittings, moved by hand
+// A room's own things (its fixtures) as placed things in a layout of their own, so they are dragged,
+// turned, taken away and added to as the decor is; each remembers which fixture it was and where
+// (was: { k, at, turn }). Those stretched along their row (scale: planted walls, the glass roof) and
+// the sky's dome (set below the ground) stay as they are.
+export const movable = (t) => !!STARTERS[t.item] && !t.scale && t.at[1] > -1;
+export function fittingItems(trees) {
+  const out = [];
+  (trees || []).forEach((t, k) => {
+    if (!movable(t)) return;
+    const turn = fixtureTurn(t), p = { item: t.item, x: t.at[0], y: t.at[1], z: t.at[2], turn, was: { k, at: [...t.at], turn } };
+    if (t.colour != null) p.colour = t.colour;
+    if (t.opts) p.opts = { ...t.opts };
+    out.push(p);
+  });
+  return out;
+}
+// what was changed, for the room's own file to catch up: [{ change: "moved", item, k, was, now,
+// colour, opts }], "added" (no k, was) and "removed" (no now); places in the map's metres, to the mm
+export function fittingChanges(placed, trees) {
+  const out = [], kept = new Set(), mm = (v) => Math.round(v * 1000) / 1000;
+  const look = (p) => ({ ...(p.colour != null ? { colour: p.colour } : {}), ...(p.opts ? { opts: { ...p.opts } } : {}) });
+  for (const p of placed) {
+    const now = { at: [mm(p.x), mm(p.y || 0), mm(p.z)], turn: mm(wrap(p.turn || 0)) };
+    if (!p.was) { out.push({ change: "added", item: p.item, now, ...look(p) }); continue; }
+    kept.add(p.was.k);
+    const t = (trees || [])[p.was.k] || {}, a = p.was.at;
+    const moved = Math.hypot(now.at[0] - a[0], now.at[1] - a[1], now.at[2] - a[2]) > 0.005 || Math.abs(wrap(now.turn - p.was.turn)) > 0.005;
+    const restyled = String(p.colour ?? "") !== String(t.colour ?? "") || optsKey(p.opts) !== optsKey(t.opts);
+    if (moved || restyled) out.push({ change: "moved", item: p.item, k: p.was.k, was: { at: [...a], turn: p.was.turn }, now, ...look(p) });
+  }
+  (trees || []).forEach((t, k) => { if (movable(t) && !kept.has(k)) out.push({ change: "removed", item: t.item, k, was: { at: [...t.at], turn: fixtureTurn(t) } }); });
+  return out;
+}
+
 // a turn kept within -pi..pi
 export const wrap = (a) => a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
 const rot = (turn, x, z) => [x * Math.cos(turn) + z * Math.sin(turn), -x * Math.sin(turn) + z * Math.cos(turn)];
