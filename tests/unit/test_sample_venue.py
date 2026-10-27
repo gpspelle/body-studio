@@ -64,7 +64,7 @@ class SampleVenueTest(unittest.TestCase):
                              "vertical garden": (-11.5, 2.0), "ante-room": (-4.0, 2.0), "into the hall": (0.0, 2.8),
                              "hall": (9.0, 5.0), "the kitchen": (-4.0, 6.0), "the kitchen door": (0.0, 6.85), "the passage to the kitchen": (0.6, 6.0), "by the half wall": (11.3, 4.2), "toilets' hall": (14.0, 1.6),
                              "glass doors": (17.8, 3.9),
-                             "into the ladies'": (13.45, -0.5), "the passage to the side room": (5.8, -1.0), "through its louvred door": (5.8, -2.1), "the side room": (7.2, -4.0), "the ladies'": (13.0, -1.8), "the gents'": (16.5, -2.0), "pergola": (23.0, 7.0), "garden, under its cover": (38.0, 8.0),
+                             "into the ladies'": (13.45, -0.5), "the passage to the side room": (5.8, -1.0), "through its louvred door": (5.8, -2.1), "the side room": (7.2, -4.0), "the ladies'": (12.6, -0.9), "the gents'": (16.5, -2.0), "pergola": (23.0, 7.0), "garden, under its cover": (38.0, 8.0),
                              "on the bungalow's deck": (46.0, 15.0),
                              "beside the pergola": (22.0, 14.0), "by the far side": (52.4, 8.9),
                              "on the beach": (V._garden_end(8.9) + 3.0, 8.9)}.items():
@@ -237,6 +237,20 @@ class SampleVenueTest(unittest.TestCase):
         # (and the splats no longer draw them: no white bowls left at the counters' height)
         rows = V.splats()
         self.assertFalse([r for r in rows if r[1] == (0.95, 0.95, 0.94) and 0.84 <= r[0][1] <= 1.0 and r[0][2] < 0.0])
+        # (Gabriel's tags) the ladies' door looks onto a grey wall 2 m high across the room, the
+        # counter before it, the cubicles behind it
+        screen = [r[0][1] for r in rows if abs(r[0][2] - V.LADIES_SCREEN) < 0.06 and V.LADIES[0] + 0.1 < r[0][0] < V.LADIES_SCREEN_END - 0.1]
+        self.assertTrue([y for y in screen if 0.3 < y < 1.9] and not [y for y in screen if 2.1 < y < 2.7])
+        lx0 = V.LADIES[0]
+        counter = next(f for f in fit if f[0] == "wash_counter" and f[1][0] < lx0 + 1.0)
+        self.assertGreater(counter[1][2] - counter[4] / 2, V.LADIES_SCREEN)
+        self.assertTrue(all(f[1][2] + f[4]["d"] / 2 < V.LADIES_SCREEN for f in fit if f[0] == "toilet_cubicle" and f[1][0] < V.LADIES[1]))
+        # the half wall at the end of the hall's dining side: pale brick, a fireplace (not a hole
+        # through it) and a picture on the hall's side
+        hx = V.HALF_WALL[0]
+        a, b, y0, y1 = V.FIREPLACE
+        back = [r for r in rows if abs(r[0][0] - hx - 0.1) < 0.01 and a < r[0][2] < b and y0 < r[0][1] < y1]
+        self.assertTrue(back)
 
     def test_the_pergola_and_stage_as_the_walkthrough(self):
         x0, x1, z0, z1 = V.PERGOLA

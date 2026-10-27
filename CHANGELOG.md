@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's ladies' room, reworked from the walkthrough: its door hinged on the right, a
+  grey wall 2 m high across the room facing it, the counter with its two bowls and mirrors before
+  that wall, the cubicles behind it; no baby-changing counter. The brick wall at the end of the
+  hall's dining side is pale brick with a small fireplace and a framed picture on the hall's side
+  (no hole through it), a row of downlights over it.
 - The sample venue's kitchen and its passage, fixed where Gabriel tagged them: the stainless sink
   benches, the gas range, its hood and the duct to the windows' wall are drawn as the furniture is
   (new **Stainless sink bench**, **Gas range**, **Extractor hood**, **Steel duct** and **Fire
