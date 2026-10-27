@@ -512,18 +512,19 @@ export const HOME = {
   },
   toilet_cubicle: {
     group: "home", height: 2.1, on: "floor", colour: "wood", size: { w: 1.1, d: 1.4 }, block: true, built: ["w", "d"],
-    knobs: { open: { min: 0, max: 1, value: 0 } },
-    make(col, k = { w: 1.1, d: 1.4, open: 0 }) {
+    knobs: { open: { min: 0, max: 1, value: 0 }, plain: { min: 0, max: 1, value: 0 } },
+    make(col, k = { w: 1.1, d: 1.4, open: 0, plain: 0 }) {
       // a toilet cubicle against a wall (its back at -z): a grey panel on its left from 15 cm off the
       // floor, narrow grey posts each side of its front, a door of dark wood in a diagonal lattice
-      // (shut, or swung out on its left hinge), a white toilet against the back
+      // (shut, or swung out on its left hinge; or a plain one), a white toilet against the back
       const s = shape(), w = k.w, d = k.d, GREY = [0.52, 0.53, 0.55], front = d / 2, dw = w - 0.1;
       made("satin", () => {
         box(s, 0.03, 1.95, d, -w / 2 + 0.015, 0.15, 0, GREY);
         for (const x of [-w / 2 + 0.025, w / 2 - 0.025]) box(s, 0.05, 1.95, 0.03, x, 0.15, front - 0.015, GREY);
       });
       const hinge = [-w / 2 + 0.05, front], along = k.open ? [0, 1] : [1, 0];
-      lattice(s, hinge, along, dw, 0.15, 2.1, col);
+      if (k.plain) made("wood", () => box(s, along[0] ? dw : 0.03, 1.95, along[0] ? 0.03 : dw, hinge[0] + (along[0] * dw) / 2, 0.15, hinge[1] + (along[1] * dw) / 2, col));
+      else lattice(s, hinge, along, dw, 0.15, 2.1, col);
       const tz = -d / 2;
       made("satin", () => {
         cyl(s, 0.13, 0.17, 0.3, 0, 0, tz + 0.42, COLOURS.white, 24);

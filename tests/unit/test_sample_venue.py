@@ -100,7 +100,7 @@ class SampleVenueTest(unittest.TestCase):
                           "reed_roof", "wall_sconce", "sky_dome", "saucer_light",
                           "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher",
                           "brick_wall", "brick_pier", "brick_bench", "door_sign", "sink_cabinet", "changing_table", "mosaic_splash",
-                          "dome_pendant", "plain_counter"})
+                          "dome_pendant", "plain_counter", "wall_plates"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -231,22 +231,24 @@ class SampleVenueTest(unittest.TestCase):
         self.assertTrue(all(any(r[0] - 0.02 <= f[1][0] <= r[1] + 0.02 and r[2] <= f[1][2] for r in rooms) for f in fit))
         count = lambda item: sum(f[0] == item for f in fit)
         self.assertEqual((count("downlight"), count("toilet_cubicle"), count("wash_counter"), count("round_mirror"),
-                          count("strap_mirror"), count("trough_urinal"), count("globe_lamp")), (8, 3, 2, 2, 1, 1, 2))
+                          count("strap_mirror"), count("trough_urinal"), count("globe_lamp")), (8, 4, 2, 2, 1, 1, 2))
         self.assertEqual(sum(f[4].get("open", 0) for f in fit if f[0] == "toilet_cubicle"), 1)
         # the map passes a fitting's knobs on
         props = [t for t in self.map["fixtures"]["trees"] if t["item"] == "toilet_cubicle"]
-        self.assertEqual(sorted(t["opts"].get("open", 0) for t in props), [0, 0, 1])
+        self.assertEqual(sorted(t["opts"].get("open", 0) for t in props), [0, 0, 0, 1])
         # (and the splats no longer draw them: no white bowls left at the counters' height)
         rows = V.splats()
         self.assertFalse([r for r in rows if r[1] == (0.95, 0.95, 0.94) and 0.84 <= r[0][1] <= 1.0 and r[0][2] < 0.0])
         # (Gabriel's tags) the ladies' door looks onto a grey wall 2 m high across the room, the
         # counter before it, the cubicles behind it
-        screen = [r[0][1] for r in rows if abs(r[0][2] - V.LADIES_SCREEN) < 0.06 and V.LADIES[0] + 0.1 < r[0][0] < V.LADIES_SCREEN_END - 0.1]
+        screen = [r[0][1] for r in rows if abs(r[0][2] - V.LADIES_SCREEN) < 0.06 and V.LADIES_SCREEN_FROM + 0.1 < r[0][0] < V.LADIES[1] - 0.1]
         self.assertTrue([y for y in screen if 0.3 < y < 1.9] and not [y for y in screen if 2.1 < y < 2.7])
         lx0 = V.LADIES[0]
         counter = next(f for f in fit if f[0] == "wash_counter" and f[1][0] < lx0 + 1.0)
         self.assertGreater(counter[1][2] - counter[4] / 2, V.LADIES_SCREEN)
-        self.assertTrue(all(f[1][2] + f[4]["d"] / 2 < V.LADIES_SCREEN for f in fit if f[0] == "toilet_cubicle" and f[1][0] < V.LADIES[1]))
+        stalls = [f for f in fit if f[0] == "toilet_cubicle" and f[1][0] < V.LADIES[1]]
+        self.assertEqual(len(stalls), 3)
+        self.assertTrue(all(f[1][2] + f[4]["w"] / 2 < V.LADIES_SCREEN for f in stalls))
         # the half wall at the end of the hall's dining side: pale brick, a fireplace (not a hole
         # through it) and a picture on the hall's side
         hx = V.HALF_WALL[0]

@@ -523,6 +523,7 @@
       "decor.knob.crates": "Crates",
       "decor.knob.cords": "Cords",
       "decor.knob.open": "Door open",
+      "decor.knob.plain": "Plain door",
       "decor.material": "Made of",
       "decor.material.own": "As made",
       "decor.material.cloth": "Matte",

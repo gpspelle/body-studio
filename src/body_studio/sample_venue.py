@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 24
+VERSION = 26
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -45,13 +45,14 @@ H = 3.4                             # the ceiling, everywhere under a roof
 HALL = (0.0, 17.8, 0.0, 8.6)        # x0, x1, z0, z1
 NOTCH = (0.0, 5.0, 1.5)             # the hall's first 5 m are 1.5 m narrower on the left
 HALF_WALL = (11.3, 3.24)            # x, how far it comes out from the left wall
+TILES_END = 10.0                    # x: where the hall's rustic tiles give way to grey cement (the walkthrough at 1:45)
 FIREPLACE = (2.2, 2.85, 0.85, 1.3)  # in its hall side: z0, z1, y0, y1
 PICTURE = (0.55, 1.45, 1.05, 1.95)   # beside it: z0, z1, y0, y1
 TO_STAGE, TO_STAGE_TOP = (0.2, 1.5), 2.4   # z: the passage from the toilets' hall's end to the stage, and its height
 COUNTER_Z = (0.6, 1.9)                 # z: the black counter before it
 SINK_Z = 2.45                          # z: the sink cabinet against that end wall
 PIER = (17.85, 3.15)                   # the brick pier at the corner of the hall, the toilets' hall and the pergola
-CHANGING = (11.9, 12.7, -2.25, -1.7)    # the ladies' changing table against the back of its grey wall: x0, x1, z0, z1
+CHANGING = (11.3, 11.85, -3.0, -2.2)    # the ladies' changing table against its left wall, past the grey wall: x0, x1, z0, z1
 WC = (11.3, 20.0, 3.2)              # the hall to the toilets: x0, x1, how wide
 STAGE = (20.0, 28.6, 0.0, 3.2, 0.4)  # x0, x1, z0, z1, its height
 PERGOLA = (17.8, 28.6, 3.2, 10.6)
@@ -82,7 +83,8 @@ DECK_UP = 0.09                      # its deck, a step up off the sand (any high
 LADIES = (11.3, 14.5, -4.0, 0.0)        # the toilets, behind the toilets' hall's left wall: x0, x1, z0, z1
 GENTS = (14.5, 18.6, -4.0, 0.0)
 WC_DOORS = ((13.0, 13.9), (15.2, 16.1))
-LADIES_SCREEN, LADIES_SCREEN_END = -1.65, 14.0   # z of the ladies' grey wall across the room, and where it ends (x)
+LADIES_SCREEN, LADIES_SCREEN_FROM = -1.65, 12.6  # z of the ladies' grey wall across the room, and where it starts (x; it runs to the right wall)
+LADIES_STALLS = (13.1, -1.8, 3)                   # its cubicles in a row along its right wall: their fronts' x, the first's side (z), how many
 WC_CEILING = 2.8
 PASSAGE = (5.2, 6.4, -2.0)              # off the hall's left wall where the notch ends: x0, x1, how far it goes
 SIDE = (4.0, 10.0, -5.6, -2.0)          # the small room at its end, behind its louvred double door
@@ -95,6 +97,7 @@ FLOOR_STEP, WALL_STEP, CEIL_STEP, LAWN_STEP = 0.055, 0.07, 0.09, 0.085
 # colours as the walkthrough videos show them (Gabriel's mum's, 2026-10-24), measured from the
 # frames and evened out for the camera's exposure
 CEMENT = (0.66, 0.66, 0.65)         # the smooth grey floors: the ante-room's step
+HALL_CEMENT = (0.60, 0.59, 0.57)    # the hall's far end, past its tiles
 WC_FLOOR = (0.53, 0.53, 0.52)       # the toilets' and their hall's grey cement, a shade darker
 POLISHED = (0.48, 0.51, 0.54)       # the reception's and the vertical garden's: polished cement, a cool grey
 SUNLIT = (0.62, 0.63, 0.63)         # the same cement out on the deck, in the sun
@@ -372,8 +375,11 @@ def house(rnd, out):
     rustic.finish = shaded.finish
     base._surface(rnd, (ANTE[1] - ANTE_TILES, ANTE[1], 0, 0, ANTE[2], ANTE[3]), rustic, out, 0.05, 0.004)   # (the hall's tiles start in the ante-room)
     base._surface(rnd, (hx0, NOTCH[1], 0, 0, NOTCH[2], hz1), rustic, out, 0.05, 0.004)
-    base._surface(rnd, (NOTCH[1], hx1, 0, 0, WC[2], hz1), rustic, out, 0.05, 0.004)
-    base._surface(rnd, (NOTCH[1], WC[0], 0, 0, hz0, WC[2]), rustic, out, 0.05, 0.004)
+    base._surface(rnd, (NOTCH[1], TILES_END, 0, 0, hz0, hz1), rustic, out, 0.05, 0.004)
+    # (from beside the dining side's last table to the hall's end: smooth pale grey cement)
+    cement = _shaded(_cement(HALL_CEMENT, joint=1.5), (TILES_END - 3.0, hx1, hz0, hz1), reach=1.0, dark=0.9)
+    base._surface(rnd, (TILES_END, hx1, 0, 0, WC[2], hz1), cement, out, FLOOR_STEP)
+    base._surface(rnd, (TILES_END, WC[0], 0, 0, hz0, WC[2]), cement, out, FLOOR_STEP)
     # (the toilets' hall, from the half wall on: grey cement, as in the toilets)
     base._surface(rnd, (WC[0], WC[1], 0, 0, 0, WC[2]), _shaded(_cement(WC_FLOOR), (WC[0] - 2, WC[1], 0, WC[2])), out, FLOOR_STEP)
     # (the deck outside the door: the same grey cement in the sun, not boards)
@@ -470,7 +476,7 @@ def house(rnd, out):
     side_room(rnd, out)
     wall_x(0.0, HALF_WALL[0], WC[1], [(a, b, 0.0, 2.2) for a, b in WC_DOORS], wc_wall, out, rnd)
     for k, (a, b) in enumerate(WC_DOORS):
-        open_door_x(0.0, a, b, out, rnd, hinge=1 - k)     # (the ladies' hinged on its right, from the hall)
+        open_door_x(0.0, a, b, out, rnd, hinge=1 - k, frame=(0.26, 0.15, 0.10))   # (the ladies' hinged on its right, from the hall; dark frames)
         # (a black sign over each: fittings())
     toilets(rnd, out)
     hx, reach = HALF_WALL
@@ -643,18 +649,18 @@ def dome_pendant(rnd, out, x, z, y, r, colour):
     base._surface(rnd, (x - 0.006, x + 0.006, y + r, H, z - 0.006, z + 0.006), STEEL, out, 0.02)
 
 
-def open_door_x(z, a0, a1, out, rnd, h=2.2, hinge=0):
+def open_door_x(z, a0, a1, out, rnd, h=2.2, hinge=0, frame=DOOR_FRAME):
     """A doorway in a wall along x at z, in a reddish wooden frame, its dark door swung open to -z
     against the wall beside it (hinged at a0, or with hinge 1 at a1)."""
-    frame_x(z, a0, a1, 0.0, h, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
+    frame_x(z, a0, a1, 0.0, h, out, rnd, colour=frame, t=0.07, d=0.04)
     x = a1 - 0.06 if hinge else a0 + 0.02
     base._surface(rnd, (x, x + 0.04, 0.0, h, z - (a1 - a0), z - 0.04), DOOR, out, 0.03)
 
 
-def _mural(colour):
-    """A wall painted with big monstera leaves in greens, from (x0, y0) along z and up (the
-    ladies' room's, on its far wall)."""
-    leaves = ((-1.0, 1.2, 0.75, 0.3), (-1.9, 1.9, 0.6, -0.4), (-0.4, 2.0, 0.5, 0.6), (-1.5, 0.6, 0.55, 1.1))
+def _mural(colour, dz=0.0):
+    """A wall painted with big monstera leaves in greens along z and up, dz along (the ladies'
+    room's, on its left wall past its grey wall)."""
+    leaves = tuple((cz + dz, cy, r, tilt) for cz, cy, r, tilt in ((-1.0, 1.2, 0.75, 0.3), (-1.9, 1.9, 0.6, -0.4), (-0.4, 2.0, 0.5, 0.6), (-1.5, 0.6, 0.55, 1.1)))
     def f(x, y, z, rnd):
         for cz, cy, r, tilt in leaves:
             u, v = z - cz, y - cy
@@ -702,9 +708,9 @@ def toilets(rnd, out):
             base._surface(rnd, (a, b, 2.1, 2.5, z0 - 0.03, z0 - 0.03), _view, out, 0.03)
     lx0, lx1, z0, z1 = LADIES
     gx0, gx1 = GENTS[:2]
-    wall_z(lx0, z0, z1, [], grey, out, rnd, h=WC_CEILING)
+    wall_z(lx0, z0, z1, [], _mural(WC_GREY, -1.6), out, rnd, h=WC_CEILING)   # (the leaves past the grey wall)
     wall_z(gx1, z0, z1, [], two_tone, out, rnd, h=WC_CEILING)
-    wall_z(lx1 - 0.01, z0, z1, [], _mural(WC_GREY), out, rnd, h=WC_CEILING)   # (the ladies' side)
+    wall_z(lx1 - 0.01, z0, z1, [], grey, out, rnd, h=WC_CEILING)   # (the ladies' side)
     wall_z(lx1 + 0.01, z0, z1, [], two_tone, out, rnd, h=WC_CEILING)
     # (its counter, bowls, mirrors, cubicles, globe lights and downlights: fittings())
     # (kept, for the map, where they stand: the counters, the trough, the cubicles' panels and toilets)
@@ -713,15 +719,19 @@ def toilets(rnd, out):
         base._surface(rnd, (lx0, lx0 + 0.5, 0.78, 0.84, -1.6, -0.1), stand, out, 0.03)
         base._surface(rnd, (gx1 - 0.5, gx1, 0.78, 0.84, -2.3, -1.0), stand, out, 0.03)
         base._surface(rnd, (gx0 + 0.3, gx0 + 2.5, 0.45, 0.85, z0, z0 + 0.35), stand, out, 0.03)
-        for x in (lx0 + 1.0, lx0 + 2.1, gx1 - 1.2):
-            base._surface(rnd, (x, x, 0.15, 2.1, z0, -2.85), stand, out, 0.03)
-        for x in (lx0 + 1.55, lx0 + 2.65, gx1 - 0.6):
-            base._surface(rnd, (x - 0.19, x + 0.19, 0.0, 0.42, z0, z0 + 0.62), stand, out, 0.025)
+        fx, fz, n = LADIES_STALLS
+        w = (fz - z0) / n
+        for k in range(n + 1):                           # (the ladies': panels between its cubicles, its toilets)
+            base._surface(rnd, (fx, lx1, 0.15, 2.1, fz - k * w, fz - k * w), stand, out, 0.03)
+        for k in range(n):
+            base._surface(rnd, (lx1 - 0.62, lx1, 0.0, 0.42, fz - (k + 0.5) * w - 0.19, fz - (k + 0.5) * w + 0.19), stand, out, 0.025)
+        base._surface(rnd, (gx1 - 1.2, gx1 - 1.2, 0.15, 2.1, z0, -2.85), stand, out, 0.03)
+        base._surface(rnd, (gx1 - 0.6 - 0.19, gx1 - 0.6 + 0.19, 0.0, 0.42, z0, z0 + 0.62), stand, out, 0.025)
     # (its grey wall across the room, 2 m high, both faces and its top)
     for z in (LADIES_SCREEN - 0.05, LADIES_SCREEN + 0.05):
-        base._surface(rnd, (lx0, LADIES_SCREEN_END, 0.0, 2.0, z, z), (0.62, 0.62, 0.63), out, 0.03)
-    base._surface(rnd, (lx0, LADIES_SCREEN_END, 2.0, 2.0, LADIES_SCREEN - 0.05, LADIES_SCREEN + 0.05), (0.62, 0.62, 0.63), out, 0.03)
-    base._surface(rnd, (LADIES_SCREEN_END, LADIES_SCREEN_END, 0.0, 2.0, LADIES_SCREEN - 0.05, LADIES_SCREEN + 0.05), (0.62, 0.62, 0.63), out, 0.03)
+        base._surface(rnd, (LADIES_SCREEN_FROM, lx1, 0.0, 2.0, z, z), (0.62, 0.62, 0.63), out, 0.03)
+    base._surface(rnd, (LADIES_SCREEN_FROM, lx1, 2.0, 2.0, LADIES_SCREEN - 0.05, LADIES_SCREEN + 0.05), (0.62, 0.62, 0.63), out, 0.03)
+    base._surface(rnd, (LADIES_SCREEN_FROM, LADIES_SCREEN_FROM, 0.0, 2.0, LADIES_SCREEN - 0.05, LADIES_SCREEN + 0.05), (0.62, 0.62, 0.63), out, 0.03)
     # (the gents' trough, cubicle, counter and mosaic splashback; the ladies' changing table: fittings())
     with base.as_decor(out):
         base._surface(rnd, (*CHANGING[:2], 0.0, 0.9, *CHANGING[2:]), (0.93, 0.93, 0.92), out, 0.03)
@@ -1077,7 +1087,7 @@ def fittings() -> list:
             ("dome_pendant", (wx1 - 0.55, H - 1.2, SINK_Z), 0.0, (0.80, 0.42, 0.16), None)]
     # the toilets' signs over their doors, the ladies' changing table, the gents' mosaic splashback
     out += [("door_sign", ((a0 + a1) / 2, 2.3, 0.0), 0.0, None, {"man": k}) for k, (a0, a1) in enumerate(WC_DOORS)]
-    out.append(("changing_table", ((CHANGING[0] + CHANGING[1]) / 2, 0.0, CHANGING[3] - 0.275), math.pi, None, None))
+    out.append(("changing_table", (CHANGING[0] + 0.275, 0.0, (CHANGING[2] + CHANGING[3]) / 2), math.pi / 2, None, None))
     out.append(("mosaic_splash", (GENTS[1], 0.84, -1.65), -math.pi / 2, (0.70, 0.62, 0.52), {"w": 1.3, "h": 0.46}))
     # the hall's dining side: a row of downlights over its brick end
     out += [("downlight", (HALF_WALL[0] - 0.35, H - 0.02, 0.35 + 0.5 * k), 0.0, None, None) for k in range(6)]
@@ -1118,13 +1128,15 @@ def fittings() -> list:
         out += [("downlight", (x, WC_CEILING - 0.02, z), 0.0, None, None) for x in (x0 + 0.9, x1 - 0.9) for z in (z0 + 1.0, z1 - 1.0)]
     lx0, lx1, z0, _ = LADIES
     gx0, gx1 = GENTS[:2]
-    counter, lattice = (0.14, 0.08, 0.05), (0.18, 0.11, 0.07)
+    counter, lattice = (0.30, 0.16, 0.10), (0.18, 0.11, 0.07)
     out.append(("wash_counter", (lx0 + 0.25, 0.78, -0.85), math.pi / 2, counter, 1.5))
     out += [("round_mirror", (lx0, 1.22, z), math.pi / 2, None, None) for z in (-0.45, -1.25)]
-    w = (lx1 - lx0 - 1.0) / 2
-    out += [("toilet_cubicle", (lx0 + 1.0 + w * (k + 0.5), 0.0, z0 + 0.6), 0.0, lattice, {"w": round(w, 3), "d": 1.2, "open": k}) for k in range(2)]
+    fx, fz, n = LADIES_STALLS                           # (three in a row along its right wall, facing its left; the middle one's lattice door open)
+    w = (fz - z0) / n
+    out += [("toilet_cubicle", ((fx + lx1) / 2, 0.0, fz - w * (k + 0.5)), -math.pi / 2, lattice, {"w": round(w, 3), "d": round(lx1 - fx, 3), "open": int(k == 1), "plain": int(k != 1)}) for k in range(n)]
     out.append(("trough_urinal", (gx0 + 1.4, 0.0, z0 + 0.175), 0.0, (0.16, 0.16, 0.17), 2.2))
-    out.append(("toilet_cubicle", (gx1 - 0.6, 0.0, (z0 - 2.7) / 2), 0.0, lattice, {"w": 1.2, "d": 1.3}))
+    out.append(("toilet_cubicle", (gx1 - 0.6, 0.0, (z0 - 2.7) / 2), 0.0, (0.62, 0.46, 0.30), {"w": 1.2, "d": 1.3, "plain": 1}))
+    out.append(("wall_plates", (gx0 + 0.01, 0.0, -1.6), math.pi / 2, None, None))   # (three woven plates by the gents' door)
     out.append(("wash_counter", (gx1 - 0.25, 0.78, -1.65), -math.pi / 2, counter, 1.3))
     out.append(("strap_mirror", (gx1, 1.29, -1.65), -math.pi / 2, None, None))
     out += [("globe_lamp", (lx1 - 0.01, 2.28, -1.6), -math.pi / 2, (0.80, 0.92, 0.74), None),

@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's toilets checked against the walkthrough: the ladies' three cubicles stand in a
+  row along its right wall behind a grey wall that runs from it, with the changing table and the
+  leaf mural on the left wall; cubicle doors are plain except one lattice (new **Plain door** knob),
+  the gents' one is light wood with woven plates on the wall; the hall turns from tiles to grey
+  cement past the half wall, and the toilets' door frames are darker.
 - Compare with video: **T** goes in and out of tagging (with the pointer on the video or the
   room, the note opens at that spot), **Esc** leaves it, and Shift with ← or → steps the video one
   frame. A tag remembers whether it was placed on the video or the room; `notes.md` marks the
