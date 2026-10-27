@@ -2,6 +2,10 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's hall (salão), matched again to the walkthrough: short black track lights
+  instead of two long rails, sheer curtains tied back between the windows, bigger worn patches on
+  the rustic tiles, a paler ceiling, an orange-brown beam with posts where the hall widens, and its
+  skirting, floor spotlights, exit sign and speaker drawn as the furniture is, not as splats.
 - The sample venue's way in, matched again to the walkthrough: the deck outside the door is grey
   cement (not boards) with a yellow line along the threshold and the orange steps at its far edge;
   two floor spotlights wash the reception's walls; the vertical garden's glass roof covers nearly

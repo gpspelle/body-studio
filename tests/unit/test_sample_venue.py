@@ -1,4 +1,5 @@
 import base64
+import math
 import json
 import tempfile
 import unittest
@@ -177,11 +178,11 @@ class SampleVenueTest(unittest.TestCase):
         self.assertTrue(steps and all(c[0] > 0.7 and c[0] > c[1] > c[2] for _, c, *_ in steps))
         # its fittings are drawn as the furniture is (decor starters), not splats: skirting boards
         # along the white walls (no painted band), spotlights, the track light, signs, curtains
-        fit = V.fittings()
+        fit = [f for f in V.fittings() if f[1][0] <= V.ANTE[1]]
         kinds = {f[0] for f in fit}
         self.assertEqual(kinds, {"skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain"})
         self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 4)
-        self.assertTrue(all(V.DECK[1] <= f[1][0] <= V.ANTE[1] + 0.01 for f in fit))
+        self.assertTrue(all(V.DECK[1] <= f[1][0] for f in fit))
         boards = [f for f in fit if f[0] == "skirting_board"]
         self.assertGreater(sum(f[4] for f in boards), 2 * (V.RECEPTION[1] - V.RECEPTION[0]) + 2 * (V.ANTE[1] - V.ANTE[0]) - 1.5)
         foot = at(V.RECEPTION[0] + 0.5, V.RECEPTION[1] - 0.5, 0.01, 0.1, -0.001, 0.001)
@@ -198,6 +199,26 @@ class SampleVenueTest(unittest.TestCase):
         # the hall's rustic tiles begin in the ante-room
         tiles = at(V.ANTE[1] - V.ANTE_TILES + 0.05, V.ANTE[1] - 0.05, -0.001, 0.001, 0.2, 3.8)
         self.assertTrue(tiles and min(c[0] for _, c, *_ in tiles) < 0.3 and max(c[0] for _, c, *_ in tiles) > 0.6)
+
+    def test_the_hall_as_the_walkthrough(self):
+        fit = [f for f in V.fittings() if V.HALL[0] <= f[1][0] <= V.HALL[1]]
+        # tied-back curtains each side of each set of windows, short track lights all over its
+        # ceiling (not two rails its whole length), uplights, skirting boards
+        self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 6)
+        tracks = [f for f in fit if f[0] == "track_light"]
+        self.assertGreaterEqual(len(tracks), 6)
+        self.assertTrue(all(f[4] < 2.0 for f in tracks))
+        self.assertGreater(sum(f[4] for f in fit if f[0] == "skirting_board"), V.HALL[1] + 10.0)
+        rows = V.splats()
+        self.assertFalse([r for r in rows if r[1] == V.STEEL and abs(r[0][1] - V.H + 0.02) < 0.03 and V.HALL[0] < r[0][0] < V.HALL[1]],
+                         "no rails of splats along its ceiling")
+        # its ceiling pale, its beam where it widens a warm wood with a post each side
+        self.assertGreater(min(V.CONCRETE), 0.75)
+        beam = [r for r in rows if max(abs(a - b) for a, b in zip(r[1], V.BEAM)) < 0.04 and r[0][1] < 1.0 and abs(r[0][0] - V.NOTCH[1]) < 0.15]
+        self.assertTrue(any(r[0][2] < V.NOTCH[2] + 0.2 for r in beam) and any(r[0][2] > V.HALL[3] - 0.2 for r in beam))
+        # the ante-room's exit sign faces it, on its side of the end wall
+        sign = next(f for f in V.fittings() if f[0] == "exit_sign" and abs(f[1][0]) < 0.01)
+        self.assertAlmostEqual(sign[2], -math.pi / 2)
 
     def test_walls_with_holes(self):
         # a wall 4 m along, 3.4 high, less a door and a window: what is left covers the rest exactly
