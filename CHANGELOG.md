@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's toilets, matched again to the walkthrough: their hall is grey cement from the
+  half wall on (not the hall's tiles), their floors a darker grey; the counters with white bowls
+  and brass spouts, the round mirrors (the gents' on a leather strap), the cubicles with lattice
+  doors, the trough, the green globe lights and the downlights are drawn as the furniture is, each
+  a new starter in the Home tab.
 - The sample venue's hall (salão), matched again to the walkthrough: short black track lights
   instead of two long rails, sheer curtains tied back between the windows, bigger worn patches on
   the rustic tiles, a paler ceiling, an orange-brown beam with posts where the hall widens, and its

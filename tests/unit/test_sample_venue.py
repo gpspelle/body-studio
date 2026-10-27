@@ -95,7 +95,8 @@ class SampleVenueTest(unittest.TestCase):
         self.assertEqual({t["item"] for t in props[len(V.TREES):]},
                          {"living_wall", "tropical_border", "glass_roof", "glass_lantern", "gourd_pendants", "jute_ceiling", "jute_swags",
                           "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave",
-                          "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain"})
+                          "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain",
+                          "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -202,9 +203,9 @@ class SampleVenueTest(unittest.TestCase):
 
     def test_the_hall_as_the_walkthrough(self):
         fit = [f for f in V.fittings() if V.HALL[0] <= f[1][0] <= V.HALL[1]]
-        # tied-back curtains each side of each set of windows, short track lights all over its
+        # tied-back curtains each side of each set of windows and of its open end, short track lights all over its
         # ceiling (not two rails its whole length), uplights, skirting boards
-        self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 6)
+        self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 8)
         tracks = [f for f in fit if f[0] == "track_light"]
         self.assertGreaterEqual(len(tracks), 6)
         self.assertTrue(all(f[4] < 2.0 for f in tracks))
@@ -219,6 +220,22 @@ class SampleVenueTest(unittest.TestCase):
         # the ante-room's exit sign faces it, on its side of the end wall
         sign = next(f for f in V.fittings() if f[0] == "exit_sign" and abs(f[1][0]) < 0.01)
         self.assertAlmostEqual(sign[2], -math.pi / 2)
+
+    def test_the_toilets_as_the_walkthrough(self):
+        # their counters, bowls, mirrors, cubicles, trough and lights drawn as furniture, inside them
+        fit = [f for f in V.fittings() if f[1][2] < 0.0]
+        rooms = (V.LADIES, V.GENTS)
+        self.assertTrue(all(any(r[0] - 0.02 <= f[1][0] <= r[1] + 0.02 and r[2] <= f[1][2] for r in rooms) for f in fit))
+        count = lambda item: sum(f[0] == item for f in fit)
+        self.assertEqual((count("downlight"), count("toilet_cubicle"), count("wash_counter"), count("round_mirror"),
+                          count("strap_mirror"), count("trough_urinal"), count("globe_lamp")), (8, 3, 2, 2, 1, 1, 2))
+        self.assertEqual(sum(f[4].get("open", 0) for f in fit if f[0] == "toilet_cubicle"), 1)
+        # the map passes a fitting's knobs on
+        props = [t for t in self.map["fixtures"]["trees"] if t["item"] == "toilet_cubicle"]
+        self.assertEqual(sorted(t["opts"].get("open", 0) for t in props), [0, 0, 1])
+        # (and the splats no longer draw them: no white bowls left at the counters' height)
+        rows = V.splats()
+        self.assertFalse([r for r in rows if r[1] == (0.95, 0.95, 0.94) and 0.84 <= r[0][1] <= 1.0 and r[0][2] < 0.0])
 
     def test_walls_with_holes(self):
         # a wall 4 m along, 3.4 high, less a door and a window: what is left covers the rest exactly
