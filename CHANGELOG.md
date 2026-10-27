@@ -9,6 +9,10 @@
   ante-room wide; nine woven teardrop lamps glow under the roof (a new **Woven teardrop pendants**
   starter); the ante-room's floor is a cooler near-white, the hall's tiles start in its last
   1.2 m, and its terracotta piece is a standing oval with the eye lamp just over it.
+- The sample venue's way in has its fittings drawn as the furniture is, not as splats: wooden
+  skirting boards, floor spotlights, the reception's track light, exit signs, a speaker and the
+  vertical garden's tied-back sheer curtains (each also a Decor starter). The vertical garden's
+  glass roof has stout rafters at its corners and sides, a purlin round it and clearer glass.
 
 - The sample living room's and tattoo studio's furniture is drawn as the decor is, in place of
   flat boxes and blobs of splats: a linen sofa with loose cushions on walnut feet, a teal armchair,

@@ -93,7 +93,8 @@ class SampleVenueTest(unittest.TestCase):
         # and the planted walls, the beds' borders and the glass roof, as decor too
         self.assertEqual({t["item"] for t in props[len(V.TREES):]},
                          {"living_wall", "tropical_border", "glass_roof", "glass_lantern", "gourd_pendants", "jute_ceiling", "jute_swags",
-                          "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave"})
+                          "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave",
+                          "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -174,13 +175,22 @@ class SampleVenueTest(unittest.TestCase):
         self.assertTrue(line and all(c[0] > 0.7 and c[2] < 0.35 for _, c, *_ in line))
         steps = at(V.DECK[0], V.DECK[0] + 0.85, -V.STEP_DOWN + 0.001, -V.STEP_DOWN + 0.003, 1.0, 3.0)
         self.assertTrue(steps and all(c[0] > 0.7 and c[0] > c[1] > c[2] for _, c, *_ in steps))
-        # the vertical garden's curtains are tied back: narrow at the tie, full under the rod
-        x = V.VERTICAL[0] + 0.2
-        def width(y):
-            zs = [r[0][2] for r in at(x - 1e-6, x + 1e-6, y - 0.03, y + 0.03, 0.0, 1.0)]
-            return max(zs) - min(zs)
-        self.assertLess(width(1.0), 0.15)
-        self.assertGreater(width(3.0), 0.3)
+        # its fittings are drawn as the furniture is (decor starters), not splats: skirting boards
+        # along the white walls (no painted band), spotlights, the track light, signs, curtains
+        fit = V.fittings()
+        kinds = {f[0] for f in fit}
+        self.assertEqual(kinds, {"skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain"})
+        self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 4)
+        self.assertTrue(all(V.DECK[1] <= f[1][0] <= V.ANTE[1] + 0.01 for f in fit))
+        boards = [f for f in fit if f[0] == "skirting_board"]
+        self.assertGreater(sum(f[4] for f in boards), 2 * (V.RECEPTION[1] - V.RECEPTION[0]) + 2 * (V.ANTE[1] - V.ANTE[0]) - 1.5)
+        foot = at(V.RECEPTION[0] + 0.5, V.RECEPTION[1] - 0.5, 0.01, 0.1, -0.001, 0.001)
+        self.assertTrue(foot and not [c for _, c, *_ in foot if c == V.SKIRTING], "no skirting painted on its walls")
+        self.assertFalse(at(V.VERTICAL[0] + 0.1, V.VERTICAL[0] + 0.3, 0.5, 3.0, 0.3, 0.7), "no splat curtains")
+        props = V.fixtures()["trees"]
+        track = next(t for t in props if t["item"] == "track_light")
+        self.assertAlmostEqual(track["at"][1] + 0.24, V.H, places=3)       # (its top against the ceiling)
+        self.assertTrue(all(t.get("opts", {}).get("w", 1) > 0.5 for t in props if t["item"] == "skirting_board"))
         # its wide opening into the ante-room, between the planted walls
         a0, a1 = V.INTO_ANTE
         self.assertGreater(a1 - a0, 3.0)

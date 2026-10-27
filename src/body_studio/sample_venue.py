@@ -54,6 +54,7 @@ COVER_LEN = 20.0                    # m of the garden under the glass rain cover
 PERGOLA_ROOF = 3.2                  # the pergola's flat reed roof
 GARDEN_RIGHT, GARDEN_LEFT = 20.0, 30.0   # (along z = 0 and z = GARDEN_W: the plan's own right and left, as drawn)
 ANTE = (-9.3, 0.0, 0.0, 4.0)
+ANTE_SPOTS = tuple(ANTE[0] + 1.2 + 2.3 * k for k in range(4))   # x: its floor spotlights, along both walls
 ANTE_TILES = 1.2                        # m of the ante-room's end already in the hall's rustic tiles
 KITCHEN = (-9.3, 0.0, 4.0, 8.6)
 KITCHEN_DOOR = (7.6, 8.5)               # z: its lattice door on the hall, at the end of the passage to it
@@ -64,6 +65,7 @@ INTO_ANTE = (0.35, 3.65)                # z: the wide opening from it into the a
 RECEPTION = (-19.8, -13.8, 0.0, 4.0)
 DECK = (-21.8, -19.8, 0.0, 4.0)
 RECEPTION_LAMPS = ((-17.6, 0.0), (-15.8, 4.0))   # its floor spotlights: x, the wall they light
+TRACK = (-16.8, 1.85)                   # its track light's socket on the ceiling: x, z
 STEP_DOWN = 0.08                    # the deck is a step down from the reception's floor (the map's floor is within 10 cm)
 LANDING = (0.7, 0.08)               # inside the front door: a landing across the front wall, how deep, how high
 BUNGALOW = (41.5, 50.5, 12.7, 17.5)
@@ -119,6 +121,7 @@ WHITEWASH = (0.92, 0.91, 0.88)
 SAND = (0.86, 0.79, 0.66)
 SEA_BLUE = (0.36, 0.50, 0.52)
 SKIRTING = (0.56, 0.38, 0.24)       # the wooden skirting along the white walls
+SKIRTING_BOARD = (0.46, 0.29, 0.17)  # the same as a board drawn as the furniture is (its light is brighter)
 TERRACOTTA_ARCH = (0.62, 0.30, 0.17)  # the oval standing at the ante-room's end
 EXIT_GREEN = (0.10, 0.58, 0.32)
 WARM = (1.0, 0.86, 0.6)             # a lamp's lit face
@@ -356,7 +359,7 @@ def door_x(z, a0, a1, out, rnd, h=2.2, colour=DOOR, frame=DOOR_FRAME):
 # ---------------------------------------------------------------- the house
 
 def house(rnd, out):
-    wall = _wall(PLASTER)
+    wall = _wall(PLASTER, skirting=None)   # (the way in's skirting is a wooden board: FITTINGS)
     hall_wall = _wall(HALL_WALL)
     # the floors: smooth grey cement from the door to the toilets, the hall's rustic tiles, the
     # kitchen's white tiles, and the ceilings over them
@@ -389,7 +392,6 @@ def house(rnd, out):
     # (the ante-room's jute ceiling hangs under a black one: the page draws it, from fixtures())
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), base.finish("plaster", (0.12, 0.12, 0.12)), out, CEIL_STEP)
     base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
-    track(rnd, out, -16.8, RECEPTION[1] - 0.2, 1.85)   # its track light, from a round socket on the ceiling
     base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), base.finish("plaster", CEILING), out, CEIL_STEP)
     for (x0, x1, z0, z1) in ((hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1), (hx1, STAGE[1], 0, WC[2])):
         base._surface(rnd, (x0, x1, H, H, z0, z1), _rough(CONCRETE), out, CEIL_STEP)
@@ -398,11 +400,8 @@ def house(rnd, out):
     # the long straight wall on the left (z = 0): the reception's door is at the deck end
     wall_x(0.0, RECEPTION[0], RECEPTION[1], [], _washed(wall, [x for x, z in RECEPTION_LAMPS if z == 0.0]), out, rnd)
     green_x(rnd, 0.0, VERTICAL[0], VERTICAL[1], +1, out)
-    spots = [ANTE[0] + 1.2 + 2.3 * k for k in range(4)]
+    spots = ANTE_SPOTS
     wall_x(0.0, ANTE[0], ANTE[1], [], _washed(wall, spots), out, rnd)   # (the ante-room's walls: white plaster, uplit)
-    for x in spots:
-        for z in (0.15, 3.85):
-            floor_lamp(rnd, out, x, z)
     # (near its end, a tall terracotta oval against the wall, woven in upright strands, and a
     # red-orange lamp like an eye just over it)
     ax, r, cy, hh = ANTE[1] - 1.6, 0.36, 1.05, 0.95
@@ -420,28 +419,12 @@ def house(rnd, out):
     wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.7, -17.8, 0.0, 2.2)], _washed(wall, [x for x, z in RECEPTION_LAMPS if z == 4.0]), out, rnd)
     door_x(4.0, -18.7, -17.8, out, rnd, colour=(0.10, 0.09, 0.08), frame=(0.14, 0.12, 0.11))
     # (beside it: an exit sign, a white notice and a small red fire sign)
-    exit_sign(rnd, out, -17.4, 1.95, 3.988, 0)
     base._surface(rnd, (-17.15, -16.94, 1.45, 1.75, 3.988, 3.988), (0.94, 0.94, 0.92), out, 0.012)
     base._surface(rnd, (-17.47, -17.33, 1.45, 1.65, 3.988, 3.988), (0.80, 0.15, 0.12), out, 0.012)
     base._surface(rnd, (-17.42, -17.38, 1.5, 1.6, 3.986, 3.986), (0.95, 0.95, 0.93), out, 0.008)
     wall_x(4.0, VERTICAL[0], VERTICAL[1], [], wall, out, rnd)
     green_x(rnd, 4.0, VERTICAL[0], VERTICAL[1], -1, out)
-    # (linen curtains tied back at each end of its planted walls, each on a short black rod from the
-    # wall, held under the ceiling; small spotlights at their feet)
-    for x in (VERTICAL[0] + 0.2, VERTICAL[1] - 0.2):
-        for z in (0.5, 3.5):
-            tied_curtain(rnd, out, x, z)
-        for z0, z1 in ((0.03, 1.0), (3.0, 3.97)):
-            curtain_rod(rnd, out, x, z0, z1)
-    for k in range(4):
-        for z in (0.42, 3.58):
-            floor_lamp(rnd, out, VERTICAL[0] + 0.75 + 1.0 * k, z)
-    # exit signs and small speakers high on the walls
-    exit_sign(rnd, out, -16.5, 2.25, 0.012, 0)
-    # (two small spotlights on the reception's floor, each washing its wall warm)
-    for x, z in RECEPTION_LAMPS:
-        floor_lamp(rnd, out, x, z + (0.15 if z < 2 else -0.15))
-    wall_lamp(rnd, out, -15.3, 2.45, 0.0)
+    # (its curtains, spotlights, the reception's track light, exit signs and speaker: FITTINGS)
     for z, side in ((0.0, 1), (4.0, -1)):             # (a wooden post where each white wall meets the green one)
         x, f = RECEPTION[1], z + side * 0.08
         base._surface(rnd, (x - 0.1, x + 0.1, 0.0, H, f, f), _boards(LIGHT_WOOD, width=0.1), out, 0.02)
@@ -571,37 +554,6 @@ def skylight(rnd, out):
         base._surface(rnd, (a0, a1, H, H, b0, b1), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
 
 
-def track(rnd, out, x0, x1, z):
-    """A track light along x under the ceiling, fed from a round black socket at x0: a black rail,
-    spots hung under it on short stems, close together near the socket and lit toward it, the
-    rest lit the other way."""
-    _cylinder_y(rnd, out, x0, H - 0.07, H, z, 0.07, STEEL)
-    base._surface(rnd, (x0, x1, H - 0.04, H, z - 0.025, z + 0.025), STEEL, out, 0.02)
-    x = x0 + 0.35
-    while x < x1:
-        near = x < x0 + 1.6
-        base._surface(rnd, (x - 0.012, x + 0.012, H - 0.12, H - 0.04, z - 0.012, z + 0.012), STEEL, out, 0.01)
-        _cylinder_x(rnd, out, x - 0.07, x + 0.07, H - 0.17, z, 0.045, STEEL, step=0.01)   # (black cans)
-        f = x - 0.071 if near else x + 0.071
-        for k in range(36):                             # (a white rim round each lit face)
-            a = 2 * math.pi * k / 36
-            out.append(((f, H - 0.17 + 0.045 * math.sin(a), z + 0.045 * math.cos(a)), (0.92, 0.92, 0.9), [0.006] * 3))
-        for k in range(50):
-            a, r = 2 * math.pi * rnd.random(), 0.035 * math.sqrt(rnd.random())
-            out.append(((f, H - 0.17 + r * math.sin(a), z + r * math.cos(a)), WARM, [0.006] * 3))
-        x += 0.4 if near else 0.9
-
-
-def _cylinder_x(rnd, out, x0, x1, y, z, r, colour, step=0.015):
-    """A short cylinder lying along x (a spotlight's can)."""
-    sc = [step * 0.8] * 3
-    n, m = max(12, int(2 * math.pi * r / step)), max(1, int((x1 - x0) / step))
-    for k in range(n):
-        a = 2 * math.pi * k / n
-        for j in range(m + 1):
-            out.append(((x0 + (x1 - x0) * j / m, y + r * math.sin(a), z + r * math.cos(a)), colour, sc))
-
-
 def _cylinder_y(rnd, out, x, y0, y1, z, r, colour, step=0.015):
     """A short upright cylinder, closed at the bottom (a socket or a cap on a ceiling)."""
     sc = [step * 0.8] * 3
@@ -617,29 +569,6 @@ def _cylinder_y(rnd, out, x, y0, y1, z, r, colour, step=0.015):
             a = 2 * math.pi * k / q
             out.append(((x + rr * math.cos(a), y0, z + rr * math.sin(a)), colour, sc))
     out.append(((x, y0, z), colour, sc))
-
-
-def curtain_rod(rnd, out, x, z0, z1):
-    """A curtain's short black rod across z under the ceiling, held by a bracket near each end."""
-    y = H - 0.13
-    base._surface(rnd, (x - 0.012, x + 0.012, y - 0.012, y + 0.012, z0, z1), STEEL, out, 0.012)
-    for z in (z0 + 0.08, z1 - 0.08):
-        base._surface(rnd, (x - 0.015, x + 0.015, y, H, z - 0.012, z + 0.012), STEEL, out, 0.012)
-        base._surface(rnd, (x - 0.04, x + 0.04, H - 0.005, H - 0.005, z - 0.03, z + 0.03), STEEL, out, 0.012)
-
-
-def tied_curtain(rnd, out, x, z, step=0.025):
-    """A sheer curtain hung across z at x, gathered and tied back a metre up: full under the rod,
-    pinched at the tie, flaring a little to the floor."""
-    tie, top = 1.0, H - 0.15
-    folds = _folds(SHEER, 2, width=0.06, depth=0.14)
-    for j in range(int(top / step)):
-        y = (j + rnd.random()) * step
-        w = 0.05 + (0.15 * (y - tie) / (top - tie) if y > tie else 0.08 * (tie - y) / tie)
-        for i in range(int(2 * w / step) + 1):
-            zz = z - w + (i + rnd.random()) * min(step, 2 * w)
-            c = (0.78, 0.74, 0.66) if abs(y - tie) < 0.03 else folds(x, y, zz, rnd)   # (its tie, a band of the same linen)
-            out.append(((x, y, zz), c, [0.004, step * 0.8, step * 0.8]))
 
 
 def _cladding(x, y, z, rnd):
@@ -661,16 +590,6 @@ def leaf(rnd, out, x, hinge, width, swing, h=2.85, step=0.03):
             for off in (-0.02, 0.02):
                 p = (x + u * dx + off * dz, y, hinge + u * dz - off * dx)
                 out.append((p, _cladding(0, y, u + 0.3, rnd), [step * 0.7] * 3))
-
-
-def wall_lamp(rnd, out, x, y, z):
-    """A small black wall lamp on the wall along x at z: a box with a round top, 16 cm across."""
-    w, h, d = 0.16, 0.26, 0.06
-    r = w / 2
-    for off in (0.0, d):
-        _paint(rnd, out, x - r, x + r, y, y + h, z + off + 0.004,
-               lambda u, v: v < y + h - r or (u - x) ** 2 + (v - (y + h - r)) ** 2 < r * r, (0.07, 0.07, 0.07), step=0.012)
-    base._surface(rnd, (x - r, x + r, y, y, z + 0.004, z + d), (0.07, 0.07, 0.07), out, 0.012)
 
 
 def _paint(rnd, out, x0, x1, y0, y1, z, inside, colour, step=0.03):
@@ -1132,11 +1051,43 @@ def _along(item, x0, x1, z, turn, width, depth=0.0):
             for k in range(n)]
 
 
+def fittings() -> list:
+    """The way in's fittings, drawn by the page as the decor and furniture are (sample_room's
+    FIXTURES): wooden skirting boards along the white walls, small floor spotlights, the
+    reception's track light, exit signs, a speaker and the vertical garden's tied-back sheer
+    curtains. Each (item, (x, y, z), turn, colour or None, length or None); turn 0 faces +z."""
+    out = []
+    rx0, rx1 = RECEPTION[:2]
+    ax0, ax1 = ANTE[:2]
+    for x0, x1, z, turn in ((rx0, rx1, 0.0, 0.0), (rx0, -18.7, 4.0, math.pi), (-17.8, rx1, 4.0, math.pi),
+                            (ax0, ax1, 0.0, 0.0), (ax0, ax1, 3.98, math.pi)):
+        out.append(("skirting_board", ((x0 + x1) / 2, 0.0, z), turn, SKIRTING_BOARD, x1 - x0))
+    out.append(("skirting_board", (ax1, 0.0, NOTCH[2] / 2 + 0.1), -math.pi / 2, SKIRTING_BOARD, NOTCH[2] + 0.2))
+    lamps = [(x, z) for x, z in RECEPTION_LAMPS] + [(VERTICAL[0] + 0.75 + 1.0 * k, z) for k in range(4) for z in (0.0, 4.0)]
+    lamps += [(x, z) for x in ANTE_SPOTS for z in (0.0, 4.0)]
+    for x, z in lamps:
+        out.append(("floor_spot", (x, 0.0, 0.15 if z == 0.0 else 3.85), 0.0 if z == 0.0 else math.pi, None, None))
+    track = RECEPTION[1] - 0.2 - TRACK[0]
+    out.append(("track_light", (TRACK[0] + track / 2, H - 0.24, TRACK[1]), 0.0, None, track))
+    out += [("exit_sign", (-16.5, 2.25, 0.0), 0.0, EXIT_GREEN, None), ("exit_sign", (-17.4, 1.95, 4.0), math.pi, EXIT_GREEN, None),
+            ("wall_speaker", (-15.3, 2.4, 0.0), 0.0, (0.07, 0.07, 0.07), None)]
+    for x, turn in ((VERTICAL[0] + 0.2, -math.pi / 2), (VERTICAL[1] - 0.2, math.pi / 2)):
+        out += [("sheer_curtain", (x, 0.0, z), turn, SHEER, None) for z in (0.5, 3.5)]
+    return out
+
+
 def fixtures() -> dict:
     """What the page is told besides the splat (room.py's map, in its metres): the trees, and the
     things it draws as it draws the decor (decor.js starters), so they look as the decor does: the
     planted walls, the borders along the garden's walls and the glass rain cover over it."""
     props = [{"item": item, "at": [x, 0.0, z]} for x, z, item in TREES]
+    for item, at, turn, colour, length in fittings():
+        t = {"item": item, "at": [round(v, 4) for v in at], "turn": round(turn, 4)}
+        if colour:
+            t["colour"] = base.hexed(colour)
+        if length:
+            t["opts"] = {"w": round(length, 3)}
+        props.append(t)
     # the planted patio beyond the side room's glass doors
     props += _along("tropical_border", SIDE[0], SIDE[1], SIDE[2] - 2.0, 0.0, 2.0, 0.0)
     x0, x1 = VERTICAL[:2]
