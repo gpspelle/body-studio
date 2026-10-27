@@ -232,6 +232,13 @@ STARTERS = (
     {"id": "track_light", "group": "lights", "height": 0.24, "on": "floor"},
     {"id": "exit_sign", "group": "home", "height": 0.14, "on": "floor"},
     {"id": "wall_speaker", "group": "home", "height": 0.23, "on": "floor"},
+    {"id": "wash_counter", "group": "home", "height": 0.31, "on": "floor"},
+    {"id": "round_mirror", "group": "home", "height": 0.66, "on": "floor"},
+    {"id": "strap_mirror", "group": "home", "height": 0.95, "on": "floor"},
+    {"id": "globe_lamp", "group": "lights", "height": 0.24, "on": "floor"},
+    {"id": "downlight", "group": "lights", "height": 0.02, "on": "floor"},
+    {"id": "toilet_cubicle", "group": "home", "height": 2.1, "on": "floor"},
+    {"id": "trough_urinal", "group": "home", "height": 1.24, "on": "floor"},
     {"id": "sheer_curtain", "group": "home", "height": 3.25, "on": "floor"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}

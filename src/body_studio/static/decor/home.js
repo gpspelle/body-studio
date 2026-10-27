@@ -435,6 +435,117 @@ export const HOME = {
       return s;
     },
   },
+  // ------------------------------------------------ the venue's toilets
+  wash_counter: {
+    group: "home", height: 0.31, hangs: true, on: "floor", colour: "wood", size: { w: 2.0, d: 0.5 }, block: true, built: ["w"],
+    make(col, k = { w: 2.0 }) {
+      // a dark wooden counter floating on a wall (its back at -z; hung, lift it to its foot, 78 cm), a white bowl standing on it
+      // every metre or so, a brass spout out of the wall over each
+      const s = shape(), n = Math.max(1, Math.round(k.w)), z0 = -0.25;
+      made("wood", () => box(s, k.w, 0.06, 0.5, 0, 0, 0, col));
+      for (let i = 0; i < n; i++) {
+        const x = -k.w / 2 + ((i + 0.5) * k.w) / n;
+        made("satin", () => {
+          cyl(s, 0.06, 0.14, 0.06, x, 0.06, 0, COLOURS.white, 28);
+          cyl(s, 0.14, 0.19, 0.07, x, 0.12, 0, COLOURS.white, 28);
+          cyl(s, 0.19, 0.2, 0.04, x, 0.19, 0, COLOURS.white, 28);
+          cyl(s, 0.18, 0.18, 0.002, x, 0.23, 0, [0.84, 0.84, 0.83], 28);
+        });
+        made("metal", () => {
+          cyl(s, 0.025, 0.025, 0.004, x, 0.228, 0, CHROME, 12);
+          facing([0, 0, 1], [x, 0.28, z0], () => cyl(s, 0.03, 0.03, 0.01, 0, 0, 0, COLOURS.gold, 16));
+          rod(s, [x, 0.28, z0], [x, 0.28, z0 + 0.17], 0.01, COLOURS.gold, 8);
+          rod(s, [x, 0.28, z0 + 0.17], [x, 0.25, z0 + 0.18], 0.009, COLOURS.gold, 8);
+        });
+      }
+      return s;
+    },
+  },
+  round_mirror: {
+    group: "home", height: 0.66, hangs: true, on: "floor", colour: "black", size: { w: 0.66, d: 0.02 }, block: false,
+    make(col) {
+      // a round mirror on a wall (its back at z = 0; hung, lift it to its foot), a thin dark rim
+      const s = shape();
+      made("metal", () => facing([0, 0, 1], [0, 0.33, 0.005], () => cyl(s, 0.32, 0.32, 0.006, 0, 0, 0, [0.74, 0.77, 0.79], 48)));
+      made("satin", () => hoop(s, 0.32, 0, 0.33, 0.01, 0.007, col, 0, 2 * Math.PI, 64));
+      return s;
+    },
+  },
+  strap_mirror: {
+    group: "home", height: 0.95, hangs: true, on: "floor", colour: "black", size: { w: 0.62, d: 0.03 }, block: false,
+    make(col) {
+      // a round mirror hung by a leather strap from a peg in the wall (its back at z = 0; hung, lift
+      // it to its foot), a black rim
+      const s = shape(), LEATHER = [0.12, 0.09, 0.07];
+      made("metal", () => facing([0, 0, 1], [0, 0.31, 0.005], () => cyl(s, 0.3, 0.3, 0.006, 0, 0, 0, [0.74, 0.77, 0.79], 48)));
+      made("satin", () => hoop(s, 0.3, 0, 0.31, 0.012, 0.009, col, 0, 2 * Math.PI, 64));
+      made("cloth", () => { for (const x of [-0.12, 0.12]) rod(s, [x, 0.585, 0.014], [0, 0.92, 0.012], 0.008, LEATHER, 6); });
+      made("metal", () => ball(s, 0.02, 0, 0.93, 0.015, COLOURS.gold, 10));
+      return s;
+    },
+  },
+  globe_lamp: {
+    group: "lights", height: 0.24, hangs: true, on: "floor", colour: "white", size: { w: 0.24, d: 0.3 }, block: false,
+    make(col) {
+      // a lit glass globe on a short brass arm out of a wall (its back at z = 0; hung, lift it)
+      const s = shape();
+      made("metal", () => {
+        facing([0, 0, 1], [0, 0.12, 0], () => cyl(s, 0.035, 0.035, 0.012, 0, 0, 0, COLOURS.gold, 16));
+        rod(s, [0, 0.12, 0], [0, 0.12, 0.08], 0.01, COLOURS.gold, 8);
+      });
+      lit(() => ball(s, 0.12, 0, 0.12, 0.18, col, 20));
+      return s;
+    },
+  },
+  downlight: {
+    group: "lights", height: 0.02, hangs: true, on: "floor", colour: "white", size: { r: 0.05 }, block: false,
+    make(col) {
+      // a round downlight set in a ceiling (its top at 0.02; hung, lift it to the ceiling)
+      const s = shape();
+      made("satin", () => cyl(s, 0.05, 0.05, 0.012, 0, 0.008, 0, col, 24));
+      lit(() => cyl(s, 0.036, 0.036, 0.006, 0, 0.004, 0, BULB, 24));
+      return s;
+    },
+  },
+  toilet_cubicle: {
+    group: "home", height: 2.1, on: "floor", colour: "wood", size: { w: 1.1, d: 1.4 }, block: true, built: ["w", "d"],
+    knobs: { open: { min: 0, max: 1, value: 0 } },
+    make(col, k = { w: 1.1, d: 1.4, open: 0 }) {
+      // a toilet cubicle against a wall (its back at -z): a grey panel on its left from 15 cm off the
+      // floor, narrow grey posts each side of its front, a door of dark wood in a diagonal lattice
+      // (shut, or swung out on its left hinge), a white toilet against the back
+      const s = shape(), w = k.w, d = k.d, GREY = [0.52, 0.53, 0.55], front = d / 2, dw = w - 0.1;
+      made("satin", () => {
+        box(s, 0.03, 1.95, d, -w / 2 + 0.015, 0.15, 0, GREY);
+        for (const x of [-w / 2 + 0.025, w / 2 - 0.025]) box(s, 0.05, 1.95, 0.03, x, 0.15, front - 0.015, GREY);
+      });
+      const hinge = [-w / 2 + 0.05, front], along = k.open ? [0, 1] : [1, 0];
+      lattice(s, hinge, along, dw, 0.15, 2.1, col);
+      const tz = -d / 2;
+      made("satin", () => {
+        cyl(s, 0.13, 0.17, 0.3, 0, 0, tz + 0.42, COLOURS.white, 24);
+        blob(s, 0.19, 0.06, 0.24, 0, 0.36, tz + 0.42, COLOURS.white, 0, 16);
+        box(s, 0.38, 0.38, 0.17, 0, 0.4, tz + 0.09, COLOURS.white);
+      });
+      return s;
+    },
+  },
+  trough_urinal: {
+    group: "home", height: 1.24, on: "floor", colour: "black", size: { w: 2.2, d: 0.35 }, block: true, built: ["w"],
+    make(col, k = { w: 2.2 }) {
+      // a long steel trough on a wall (its back at -z), 45 to 85 cm up, a drain down to the floor
+      // at each end, and a narrow wooden shelf over it
+      const s = shape(), z0 = -0.175;
+      made("metal", () => {
+        box(s, k.w, 0.4, 0.35, 0, 0.45, 0, col);
+        box(s, k.w - 0.06, 0.004, 0.29, 0, 0.85, 0.01, col.map((v) => v * 0.6));
+        for (const x of [-k.w / 2 + 0.2, k.w / 2 - 0.2]) rod(s, [x, 0, z0 + 0.08], [x, 0.45, z0 + 0.08], 0.02, col, 8);
+      });
+      made("wood", () => box(s, k.w, 0.04, 0.2, 0, 1.2, z0 + 0.1, [0.52, 0.34, 0.2]));
+      return s;
+    },
+  },
+
 };
 
 // a fiddle-leaf fig's leaf from p toward d (unit), len long: a short stalk, then a broad leaf,
@@ -454,3 +565,24 @@ function figLeaf(s, p, d, len, col) {
 }
 // a ring lying flat at height y, radius R, its tube r thick
 function hoopFlat(s, y, R, r, col) { facing([0, 0, 1], [0, y, 0], () => hoop(s, R, 0, 0, 0, r, col, 0, 2 * Math.PI, 48)); }
+// a door in a diagonal lattice of dark wood, w wide, from y0 to y1: its hinge at [x, z], `along` its
+// width's way in the floor's plane (a stile round it, slats crossing both ways on each face)
+function lattice(s, hinge, along, w, y0, y1, col) {
+  const [ux, uz] = along, nx = -uz, nz = ux, at = (t, y, o) => [hinge[0] + ux * t + nx * o, y, hinge[1] + uz * t + nz * o];
+  const dark = col.map((v) => v * 0.45), h = y1 - y0, gap = 0.07;
+  made("wood", () => {
+    const c = at(w / 2, y0, 0);
+    if (ux) box(s, w, h, 0.012, c[0], y0, c[2], dark); else box(s, 0.012, h, w, c[0], y0, c[2], dark);
+    for (const [a, b] of [[[0, y0], [0, y1]], [[w, y0], [w, y1]], [[0, y0], [w, y0]], [[0, y1], [w, y1]]])
+      for (const o of [-0.012, 0.012]) rod(s, at(a[0], a[1], o), at(b[0], b[1], o), 0.022, col, 4);
+    for (const o of [-0.012, 0.012])
+      for (const dir of [1, -1])
+        for (let c0 = -h; c0 < w + h; c0 += gap) {
+          // the line t = c0 + dir * (y - y0), clipped to the door
+          let ya = 0, yb = h;
+          const t = (yy) => c0 + dir * yy;
+          if (dir > 0) { ya = Math.max(ya, -c0); yb = Math.min(yb, w - c0); } else { ya = Math.max(ya, c0 - w); yb = Math.min(yb, c0); }
+          if (yb - ya > 0.02) rod(s, at(t(ya), y0 + ya, o), at(t(yb), y0 + yb, o), 0.007, col, 4);
+        }
+  });
+}

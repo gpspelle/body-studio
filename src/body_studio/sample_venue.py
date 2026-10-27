@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 15
+VERSION = 16
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -84,7 +84,8 @@ FLOOR_STEP, WALL_STEP, CEIL_STEP, LAWN_STEP = 0.055, 0.07, 0.09, 0.085
 
 # colours as the walkthrough videos show them (Gabriel's mum's, 2026-10-24), measured from the
 # frames and evened out for the camera's exposure
-CEMENT = (0.66, 0.66, 0.65)         # the smooth grey floors: ante-room's step, toilets
+CEMENT = (0.66, 0.66, 0.65)         # the smooth grey floors: the ante-room's step
+WC_FLOOR = (0.53, 0.53, 0.52)       # the toilets' and their hall's grey cement, a shade darker
 POLISHED = (0.48, 0.51, 0.54)       # the reception's and the vertical garden's: polished cement, a cool grey
 SUNLIT = (0.62, 0.63, 0.63)         # the same cement out on the deck, in the sun
 PERGOLA_FLOOR = (0.62, 0.64, 0.66)  # the pergola's, a little bluer
@@ -372,8 +373,10 @@ def house(rnd, out):
     rustic = _shaded(_rustic, HALL, reach=1.2, dark=0.8)
     base._surface(rnd, (ANTE[1] - ANTE_TILES, ANTE[1], 0, 0, ANTE[2], ANTE[3]), rustic, out, 0.05, 0.004)   # (the hall's tiles start in the ante-room)
     base._surface(rnd, (hx0, NOTCH[1], 0, 0, NOTCH[2], hz1), rustic, out, 0.05, 0.004)
-    base._surface(rnd, (NOTCH[1], hx1, 0, 0, hz0, hz1), rustic, out, 0.05, 0.004)
-    base._surface(rnd, (hx1, WC[1], 0, 0, 0, WC[2]), _shaded(_cement(CEMENT), (hx1 - 6, WC[1], 0, WC[2])), out, FLOOR_STEP)
+    base._surface(rnd, (NOTCH[1], hx1, 0, 0, WC[2], hz1), rustic, out, 0.05, 0.004)
+    base._surface(rnd, (NOTCH[1], WC[0], 0, 0, hz0, WC[2]), rustic, out, 0.05, 0.004)
+    # (the toilets' hall, from the half wall on: grey cement, as in the toilets)
+    base._surface(rnd, (WC[0], WC[1], 0, 0, 0, WC[2]), _shaded(_cement(WC_FLOOR), (WC[0] - 2, WC[1], 0, WC[2])), out, FLOOR_STEP)
     # (the deck outside the door: the same grey cement in the sun, not boards)
     base._surface(rnd, (*DECK[:2], -STEP_DOWN, -STEP_DOWN, *DECK[2:]), _cement(SUNLIT, joint=1.5, cloud=0.02), out, 0.04)   # (finer: the map's end)
     # (a step down to it at the front door; inside, a landing a step up across the front wall, its
@@ -513,11 +516,9 @@ def house(rnd, out):
             y = w1 - 0.42 - 0.08 * (k + 1)
             base._surface(rnd, (a + 0.02, b - 0.02, y, y + 0.09, hz1 + 0.04 + 0.045 * k, hz1 + 0.04 + 0.045 * k), _shutters, out, 0.03)
     # (its curtains, tied back each side of each set of windows: fittings())
-    # its end: wide open onto the pergola under a dark beam, sheer curtains drawn back each side, a
+    # its end: wide open onto the pergola under a dark beam, sheer curtains drawn back each side (fittings()), a
     # column of bare brick at the corner with the toilets' hall
     base._surface(rnd, (hx1 - 0.15, hx1 + 0.15, 2.75, H, WC[2], hz1), (0.20, 0.20, 0.21), out, 0.04)
-    for z0, z1 in ((WC[2] + 0.5, WC[2] + 1.0), (hz1 - 0.6, hz1 - 0.1)):
-        base._surface(rnd, (hx1 - 0.2, hx1 - 0.2, 0.02, 2.75, z0, z1), _folds((0.92, 0.90, 0.86), 2, width=0.1), out, 0.03)
     cx, cz = hx1 + 0.05, WC[2] - 0.05
     for (a0, a1, b0, b1) in ((cx - 0.25, cx + 0.25, cz - 0.25, cz - 0.25), (cx - 0.25, cx + 0.25, cz + 0.25, cz + 0.25)):
         base._surface(rnd, (a0, a1, 0.0, H, b0, b1), _brickwork(0), out, 0.04)
@@ -673,20 +674,6 @@ def _ring(rnd, out, cx, cy, cz, r, colour, axis, n=40, s=0.02):
         out.append((p, colour, [s, s, s]))
 
 
-def _basin(rnd, out, x, z, top):
-    """A white bowl on a counter: rings from its foot to its lip."""
-    for k in range(6):
-        _ring(rnd, out, x, top + 0.025 * k, z, 0.12 + 0.017 * k, (0.95, 0.95, 0.94), 1, 30, 0.02)
-    out.append(((x, top + 0.02, z), (0.80, 0.80, 0.80), [0.1, 0.005, 0.1]))
-
-
-def _mirror(rnd, out, x, y, z, r=0.33):
-    """A round mirror on a wall along z (at x), on a rope rim."""
-    base._surface(rnd, (x, x, y - r * 0.7, y + r * 0.7, z - r * 0.7, z + r * 0.7), (0.66, 0.70, 0.72), out, 0.03)
-    for k in range(3):
-        _ring(rnd, out, x, y, z, r - 0.01 * k, (0.72, 0.62, 0.47), 0, 60, 0.015)
-
-
 def toilets(rnd, out):
     """The toilets behind the toilets' hall's left wall, as the walkthrough shows them: grey walls
     under a white ceiling with downlights, a cement floor, small windows high on the far wall. The
@@ -697,11 +684,8 @@ def toilets(rnd, out):
     two_tone = _two_tone((0.74, 0.73, 0.70), WC_GREY, 1.22)   # (the gents': paler below the shelf's line)
     for r in (LADIES, GENTS):
         x0, x1, z0, z1 = r
-        base._surface(rnd, (x0, x1, 0, 0, z0, z1), _shaded(_cement(CEMENT, joint=1.2), r), out, FLOOR_STEP)
+        base._surface(rnd, (x0, x1, 0, 0, z0, z1), _shaded(_cement(WC_FLOOR, joint=1.2), r), out, FLOOR_STEP)
         base._surface(rnd, (x0, x1, WC_CEILING, WC_CEILING, z0, z1), base.finish("plaster", CEILING), out, CEIL_STEP)
-        for x in (x0 + 0.9, x1 - 0.9):
-            for z in (z0 + 1.0, z1 - 1.0):
-                base._surface(rnd, (x - 0.05, x + 0.05, WC_CEILING - 0.005, WC_CEILING - 0.005, z - 0.05, z + 0.05), (1.0, 0.98, 0.9), out, 0.02)
         # the far wall, with its windows high up
         wins = [(x0 + 0.6, x0 + 1.4), (x1 - 1.4, x1 - 0.6)]
         wall_x(z0, x0, x1, [(a, b, 2.1, 2.5) for a, b in wins], grey if r == LADIES else two_tone, out, rnd, h=WC_CEILING)
@@ -714,27 +698,22 @@ def toilets(rnd, out):
     wall_z(gx1, z0, z1, [], two_tone, out, rnd, h=WC_CEILING)
     wall_z(lx1 - 0.01, z0, z1, [], _mural(WC_GREY), out, rnd, h=WC_CEILING)   # (the ladies' side)
     wall_z(lx1 + 0.01, z0, z1, [], two_tone, out, rnd, h=WC_CEILING)
-    for x in (lx1 - 0.14, lx1 + 0.14):              # a green glass globe light on it, each side
-        globe(rnd, out, x, 2.4, -1.6, 0.12, (0.80, 0.92, 0.74))
-    wood = (0.40, 0.25, 0.16)
-    # the ladies': the counter along the wall at the door's left, two bowls, two mirrors
-    base._surface(rnd, (lx0, lx0 + 0.5, 0.78, 0.84, -2.6, -0.5), wood, out, 0.03)
-    for z in (-1.05, -2.05):
-        _basin(rnd, out, lx0 + 0.25, z, 0.84)
-        _mirror(rnd, out, lx0 + 0.01, 1.55, z)
-    # two cubicles at the far end: grey panels, lattice doors (the first open), a toilet in each
-    cubicles(rnd, out, lx0 + 1.0, lx1, z0, -2.6, 2)
+    # (its counter, bowls, mirrors, cubicles, globe lights and downlights: fittings())
+    # (kept, for the map, where they stand: the counters, the trough, the cubicles' panels and toilets)
+    with base.as_decor(out):
+        stand = (0.30, 0.19, 0.12)
+        base._surface(rnd, (lx0, lx0 + 0.5, 0.78, 0.84, -2.6, -0.5), stand, out, 0.03)
+        base._surface(rnd, (gx1 - 0.5, gx1, 0.78, 0.84, -2.3, -1.0), stand, out, 0.03)
+        base._surface(rnd, (gx0 + 0.3, gx0 + 2.5, 0.45, 0.85, z0, z0 + 0.35), stand, out, 0.03)
+        for x in (lx0 + 1.0, lx0 + 2.1, gx1 - 1.2):
+            base._surface(rnd, (x, x, 0.15, 2.1, z0, -2.65), stand, out, 0.03)
+        for x in (lx0 + 1.55, lx0 + 2.65, gx1 - 0.6):
+            base._surface(rnd, (x - 0.19, x + 0.19, 0.0, 0.42, z0, z0 + 0.62), stand, out, 0.025)
     # (and a white baby-changing counter against the painted wall, its pad on top)
     base._surface(rnd, (lx1 - 0.6, lx1 - 0.02, 0.0, 0.9, -2.45, -1.75), (0.93, 0.93, 0.92), out, 0.03)
     base._surface(rnd, (lx1 - 0.55, lx1 - 0.07, 0.9, 0.96, -2.4, -1.8), (0.82, 0.76, 0.82), out, 0.02)
-    # the gents': the trough along the far wall, a shelf over it; a cubicle at its end; a basin
-    base._surface(rnd, (gx0 + 0.3, gx0 + 2.5, 0.45, 0.85, z0, z0 + 0.35), (0.16, 0.16, 0.17), out, 0.03)
-    base._surface(rnd, (gx0 + 0.3, gx0 + 2.5, 1.2, 1.24, z0, z0 + 0.2), wood, out, 0.02)
-    cubicles(rnd, out, gx1 - 1.2, gx1, z0, -2.7, 1)
-    base._surface(rnd, (gx1 - 0.5, gx1, 0.78, 0.84, -2.3, -1.0), wood, out, 0.03)
+    # the gents': a tiled splashback behind its basin (the trough, the cubicle, the counter: fittings())
     base._surface(rnd, (gx1 - 0.01, gx1 - 0.01, 0.84, 1.3, -2.3, -1.0), _tiles((0.70, 0.66, 0.60), 0.05, across=2), out, 0.02)
-    _basin(rnd, out, gx1 - 0.25, -1.65, 0.84)
-    _mirror(rnd, out, gx1 - 0.02, 1.6, -1.65)
 
 
 def _two_tone(lower, upper, at):
@@ -795,24 +774,6 @@ def side_room(rnd, out):
         for k in range(int(2.0 / 0.1)):
             c = tuple(v + rnd.uniform(-0.03, 0.03) for v in (0.52, 0.33, 0.24))
             out.append(((x0 + (i + rnd.random()) * 0.1, 0.0, z0 - (k + rnd.random()) * 0.1), c, [0.07, 0.005, 0.07], FAR))
-
-
-def cubicles(rnd, out, x0, x1, z0, front, n):
-    """n cubicles side by side from x0 to x1, from the wall at z0 to their front: grey panels 15 cm
-    off the floor and 2 m high, a lattice door in each front (the first swung open), a toilet."""
-    panel, w = (0.52, 0.53, 0.55), (x1 - x0) / n
-    for k in range(n + 1):
-        x = x0 + k * w
-        if k < n:                                   # (the wall at x1 is the last side)
-            base._surface(rnd, (x, x, 0.15, 2.1, z0, front), panel, out, 0.03)
-    for k in range(n):
-        a, b = x0 + k * w, x0 + (k + 1) * w
-        if k == 0:
-            base._surface(rnd, (a + 0.05, a + 0.09, 0.15, 2.1, front, front + w - 0.1), _lattice, out, 0.02)
-        else:
-            base._surface(rnd, (a + 0.05, b - 0.05, 0.15, 2.1, front, front), _lattice, out, 0.02)
-        cx = (a + b) / 2
-        base._surface(rnd, (cx - 0.19, cx + 0.19, 0.0, 0.42, z0, z0 + 0.62), (0.95, 0.95, 0.94), out, 0.025)
 
 
 def kitchen(rnd, out):
@@ -1053,7 +1014,8 @@ def fittings() -> list:
     """The way in's fittings, drawn by the page as the decor and furniture are (sample_room's
     FIXTURES): wooden skirting boards along the white walls, small floor spotlights, the
     reception's track light, exit signs, a speaker and the vertical garden's tied-back sheer
-    curtains. Each (item, (x, y, z), turn, colour or None, length or None); turn 0 faces +z."""
+    curtains, the toilets' counters, mirrors and cubicles. Each (item, (x, y, z), turn, colour or None,
+    length or its knobs or None); turn 0 faces +z."""
     out = []
     rx0, rx1 = RECEPTION[:2]
     ax0, ax1 = ANTE[:2]
@@ -1090,6 +1052,26 @@ def fittings() -> list:
         out += [("sheer_curtain", (c, 0.0, hz1 - 0.12), math.pi, SHEER, None) for c in (a - 0.3, b + 0.3)]
     for x, z in ((2.5, 4.0), (6.5, 2.6), (6.5, 6.4), (10.5, 2.6), (10.5, 6.4), (14.5, 2.6), (14.5, 6.4)):
         out.append(("track_light", (x, H - 0.24, z), 0.0, None, 1.2))
+    out += [("sheer_curtain", (hx1 - 0.2, 0.0, z), -math.pi / 2, SHEER, None) for z in (WC[2] + 0.75, hz1 - 0.35)]
+    # the toilets: downlights in their ceilings; in the ladies' a wooden counter on the wall at the
+    # door's left with two bowls and two round mirrors, two cubicles at the far end (the first one's
+    # door open); in the gents' the trough on the far wall, a cubicle, a counter with one bowl and a
+    # mirror on a strap; a green glass globe on the wall between them, on each side
+    for x0, x1, z0, z1 in (LADIES, GENTS):
+        out += [("downlight", (x, WC_CEILING - 0.02, z), 0.0, None, None) for x in (x0 + 0.9, x1 - 0.9) for z in (z0 + 1.0, z1 - 1.0)]
+    lx0, lx1, z0, _ = LADIES
+    gx0, gx1 = GENTS[:2]
+    counter, lattice = (0.14, 0.08, 0.05), (0.18, 0.11, 0.07)
+    out.append(("wash_counter", (lx0 + 0.25, 0.78, -1.55), math.pi / 2, counter, 2.1))
+    out += [("round_mirror", (lx0, 1.22, z), math.pi / 2, None, None) for z in (-1.05, -2.05)]
+    w = (lx1 - lx0 - 1.0) / 2
+    out += [("toilet_cubicle", (lx0 + 1.0 + w * (k + 0.5), 0.0, (z0 - 2.6) / 2), 0.0, lattice, {"w": round(w, 3), "d": 1.4, "open": 1 - k}) for k in range(2)]
+    out.append(("trough_urinal", (gx0 + 1.4, 0.0, z0 + 0.175), 0.0, (0.16, 0.16, 0.17), 2.2))
+    out.append(("toilet_cubicle", (gx1 - 0.6, 0.0, (z0 - 2.7) / 2), 0.0, lattice, {"w": 1.2, "d": 1.3}))
+    out.append(("wash_counter", (gx1 - 0.25, 0.78, -1.65), -math.pi / 2, counter, 1.3))
+    out.append(("strap_mirror", (gx1, 1.29, -1.65), -math.pi / 2, None, None))
+    out += [("globe_lamp", (lx1 - 0.01, 2.28, -1.6), -math.pi / 2, (0.80, 0.92, 0.74), None),
+            ("globe_lamp", (lx1 + 0.01, 2.28, -1.6), math.pi / 2, (0.80, 0.92, 0.74), None)]
     return out
 
 
@@ -1102,7 +1084,9 @@ def fixtures() -> dict:
         t = {"item": item, "at": [round(v, 4) for v in at], "turn": round(turn, 4)}
         if colour:
             t["colour"] = base.hexed(colour)
-        if length:
+        if isinstance(length, dict):
+            t["opts"] = length
+        elif length:
             t["opts"] = {"w": round(length, 3)}
         props.append(t)
     # the planted patio beyond the side room's glass doors
