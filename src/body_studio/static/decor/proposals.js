@@ -36,6 +36,19 @@ export const PROPOSALS = {
       return s;
     },
   },
+  gourd_pendants: {
+    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { w: 2.0, d: 1.6 }, block: false,
+    make(col) {
+      // nine woven teardrops glowing warm from inside, at different heights on long cords, as in
+      // the venue's vertical garden: pointed at the top, round below, open at the bottom
+      const s = shape();
+      for (const [x, y, z, h, r] of [[0, 1.55, 0, 0.58, 0.22], [-0.55, 1.75, 0.4, 0.5, 0.19], [0.6, 1.8, -0.35, 0.5, 0.19],
+                                     [-0.35, 2.15, -0.5, 0.45, 0.17], [0.45, 2.1, 0.55, 0.46, 0.18], [-0.85, 2.2, -0.05, 0.42, 0.17],
+                                     [0.9, 2.25, 0.1, 0.42, 0.17], [0.05, 2.3, 0.65, 0.44, 0.17], [0.1, 2.25, -0.7, 0.44, 0.17]])
+        teardrop(s, x, y, z, h, r, col);
+      return s;
+    },
+  },
   jute_pendant: {
     group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { r: 0.2 }, block: false,
     make(col) {
@@ -424,7 +437,7 @@ export const PROPOSALS = {
       const s = shape(), rnd = rng(173);
       box(s, 2.0, 3.4, 0.08, 0, 0, -0.1, FERN_SHADOW);            // (deep in the leaves: dark)
       for (let k = 0; k < 300; k++) {
-        const len = 0.45 + 0.35 * rnd(), x = (rnd() - 0.5) * 1.8, y = len * 0.75 + rnd() * (3.35 - len * 0.75);
+        const len = 0.6 + 0.4 * rnd(), x = (rnd() - 0.5) * 1.8, y = len * 0.75 + rnd() * (3.35 - len * 0.75);
         fern(s, [x, y, -0.05], len, (rnd() - 0.5) * 0.5, [FERN, FERN_DARK, FERN_LIGHT, FERN][k % 4], rnd);
       }
       return grounded(s);
@@ -437,24 +450,26 @@ export const PROPOSALS = {
   glass_lantern: {
     group: "garden", height: 4.6, hangs: true, on: "floor", colour: "wood", size: { w: 4.5, d: 4.0 }, block: false,
     make() {
-      // a glass roof light over a room, 4.5 by 4 m: hipped, its rafters in reddish timber running up
-      // from a frame round its foot (3.4 m, the ceiling) to a short ridge 1.2 m higher
-      const s = shape(), w = 4.5, d = 4.0, eave = 3.4, top = 4.6, r = (w - d) / 2;
+      // a glass roof light over a room, 4.5 by 4 m, as in the venue's vertical garden: a low hipped
+      // pyramid from a frame round its foot (3.4 m, the ceiling) to a short ridge 1.2 m higher; four
+      // stout reddish rafters at its corners and one up the middle of each side, a purlin round it
+      // part way up, and clear glass between them, the sky pale through it
+      const s = shape(), w = 4.5, d = 4.0, eave = 3.4, top = 4.6, r = (w - d) / 2, up = 0.42;
+      // (the point a fraction t of the way up from (x, eave, z) toward the ridge)
+      const on = (x, z, t) => [x + (Math.max(-r, Math.min(r, x)) - x) * t, eave + (top - eave) * t, z * (1 - t)];
       made("wood", () => {
-        for (const z of [-d / 2, d / 2]) box(s, w + 0.12, 0.14, 0.12, 0, eave - 0.14, z, TIMBER_RED);
-        for (const x of [-w / 2, w / 2]) box(s, 0.12, 0.14, d, x, eave - 0.14, 0, TIMBER_RED);
-        rod(s, [-r, top, 0], [r, top, 0], 0.05, TIMBER_RED, 6);
-        for (const [x, z] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) rod(s, [x * w / 2, eave, z * d / 2], [x * r, top, 0], 0.045, TIMBER_RED, 6);
-        for (const k of [-2, -1, 0, 1, 2]) for (const z of [-1, 1]) {           // up the long sides
-          const x = k * w / 6;
-          rod(s, [x, eave, z * d / 2], [Math.max(-r, Math.min(r, x)), top, 0], 0.035, TIMBER_RED, 6);
-        }
-        for (const x of [-1, 1]) for (const z of [-d / 4, d / 4]) rod(s, [x * w / 2, eave, z], [x * r, top, 0], 0.035, TIMBER_RED, 6);
+        for (const z of [-d / 2, d / 2]) box(s, w + 0.2, 0.18, 0.14, 0, eave - 0.16, z, TIMBER_RED);
+        for (const x of [-w / 2, w / 2]) box(s, 0.14, 0.18, d, x, eave - 0.16, 0, TIMBER_RED);
+        rod(s, [-r, top, 0], [r, top, 0], 0.06, TIMBER_RED, 8);
+        const feet = [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]];
+        for (const [x, z] of feet) rod(s, [x, eave, z], on(x, z, 1), 0.06, TIMBER_RED, 8);
+        for (const [x, z] of [[0, -d / 2], [0, d / 2], [-w / 2, 0], [w / 2, 0]]) rod(s, [x, eave, z], on(x, z, 1), 0.05, TIMBER_RED, 8);
+        for (let k = 0; k < 4; k++) rod(s, on(...feet[k], up), on(...feet[(k + 1) % 4], up), 0.04, TIMBER_RED, 8);   // (the purlin)
       });
       made("glass", () => {
-        const v = (x, y, z) => vert(s, x, y + 0.04, z, GLASS);
-        for (const z of [-1, 1]) quad(s, v(-w / 2, eave, z * d / 2), v(w / 2, eave, z * d / 2), v(r, top, 0), v(-r, top, 0));
-        for (const x of [-1, 1]) { const a = v(x * w / 2, eave, -d / 2), b = v(x * w / 2, eave, d / 2), c = v(x * r, top, 0); s.i.push(a, b, c); }
+        const v = (p) => vert(s, p[0], p[1] + 0.05, p[2], SKY_GLASS);
+        for (const z of [-1, 1]) quad(s, v([-w / 2, eave, z * d / 2]), v([w / 2, eave, z * d / 2]), v([r, top, 0]), v([-r, top, 0]));
+        for (const x of [-1, 1]) { const a = v([x * w / 2, eave, -d / 2]), b = v([x * w / 2, eave, d / 2]), c = v([x * r, top, 0]); s.i.push(a, b, c); }
       });
       return s;
     },
@@ -779,10 +794,27 @@ export const PROPOSALS = {
   },
 };
 
+// A woven teardrop lamp at (x, y, z) (its foot), h high and r at its widest, a third of the way up,
+// hung from a cord to 2.9 m: a warm lit skin inside its weave.
+function teardrop(s, x, y, z, h, r, col) {
+  const rad = (t) => 0.012 + r * Math.sin(Math.PI * (0.05 + 0.95 * t) ** 0.7);   // (a little ring at its top, round the cord)
+  rod(s, [x, 2.9, z], [x, y + h, z], 0.003, WIRE, 3);
+  lit(() => {
+    const rows = [], N = 10, M = 18;
+    for (let j = 0; j <= N; j++) rows.push(Array.from({ length: M }, (_, k) => {
+      const a = (k / M) * 2 * Math.PI, rr = rad(j / N) * 0.95;
+      return vert(s, x + rr * Math.sin(a), y + (h * j) / N, z + rr * Math.cos(a), GLOW);
+    }));
+    for (let j = 0; j < N; j++) for (let k = 0; k < M; k++) quad(s, rows[j][k], rows[j][(k + 1) % M], rows[j + 1][(k + 1) % M], rows[j + 1][k]);
+  });
+  woven(s, h, rad, x, y, z, col.map((v) => v * 0.8), 10, 22);
+}
+
 // The draped jute ceiling of the venue's ante-room and stage, 4 m square, hung from 3.4 m: lengths
 // of burlap across it, each sagging between two bars 0.5 m apart; with `bands`, two black strips
 // along it, sagging a little lower, as in the ante-room.
-const FERN = [0.25, 0.45, 0.12], FERN_DARK = [0.14, 0.29, 0.08], FERN_LIGHT = [0.4, 0.56, 0.16], FERN_SHADOW = [0.07, 0.14, 0.05];
+const FERN = [0.14, 0.25, 0.08], FERN_DARK = [0.07, 0.14, 0.04], FERN_LIGHT = [0.25, 0.35, 0.11], FERN_SHADOW = [0.04, 0.07, 0.03];
+const GLOW = [1.0, 0.7, 0.4], SKY_GLASS = [0.8, 0.88, 0.95];
 const AGAVE = [0.42, 0.56, 0.52], AGAVE_PALE = [0.55, 0.66, 0.6], PINK_FLOWER = [0.93, 0.42, 0.62];
 const TIMBER_RED = [0.5, 0.27, 0.18], BAND = [0.09, 0.09, 0.09], SAND_RUG = [0.86, 0.76, 0.6];
 function swags(s, col, bands) {

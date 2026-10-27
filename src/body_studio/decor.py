@@ -123,6 +123,7 @@ STARTERS = (
     # from two decorators' proposals for the venue: hung clouds and lamps, arches, a swing, lounges
     {"id": "edison_bulbs", "group": "lights", "height": 2.9, "on": "floor"},
     {"id": "rattan_pendants", "group": "lights", "height": 2.9, "on": "floor"},
+    {"id": "gourd_pendants", "group": "lights", "height": 2.9, "on": "floor"},
     {"id": "jute_pendant", "group": "lights", "height": 2.9, "on": "floor"},
     {"id": "globe_lanterns", "group": "lights", "height": 2.9, "on": "floor"},
     {"id": "tropical_cloud", "group": "flowers", "height": 2.9, "on": "floor"},
@@ -226,6 +227,12 @@ STARTERS = (
     {"id": "reception_counter", "group": "home", "height": 1.25, "on": "floor"},
     {"id": "waiting_bench", "group": "home", "height": 0.46, "on": "floor"},
     {"id": "ring_light", "group": "home", "height": 2.7, "on": "floor"},
+    {"id": "skirting_board", "group": "home", "height": 0.12, "on": "floor"},
+    {"id": "floor_spot", "group": "lights", "height": 0.133, "on": "floor"},
+    {"id": "track_light", "group": "lights", "height": 0.24, "on": "floor"},
+    {"id": "exit_sign", "group": "home", "height": 0.14, "on": "floor"},
+    {"id": "wall_speaker", "group": "home", "height": 0.23, "on": "floor"},
+    {"id": "sheer_curtain", "group": "home", "height": 3.25, "on": "floor"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}
 

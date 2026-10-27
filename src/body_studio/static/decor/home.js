@@ -323,6 +323,118 @@ export const HOME = {
       return s;
     },
   },
+
+  // ------------------------------------------------ the wedding venue's fittings (sample_venue.py)
+  skirting_board: {
+    group: "home", height: 0.12, on: "floor", colour: "wood", size: { w: 2.0, d: 0.02 }, block: false, built: ["w"],
+    make(col, k = { w: 2.0 }) {
+      // a wooden skirting board along a wall (its back on the wall, at z = 0), 12 cm high, a
+      // rounded bead along its top
+      const s = shape();
+      made("wood", () => {
+        box(s, k.w, 0.11, 0.016, 0, 0, 0.008, col);
+        rod(s, [-k.w / 2, 0.11, 0.009], [k.w / 2, 0.11, 0.009], 0.009, col, 8);
+      });
+      return s;
+    },
+  },
+  floor_spot: {
+    group: "lights", height: 0.133, on: "floor", colour: "black", size: { r: 0.035 }, block: false,
+    make(col) {
+      // a small spotlight on a stake in the floor, turned up at the wall behind it (-z): a black
+      // can, its warm lit face
+      const s = shape(), aim = [0, 0.82, -0.57], c = [0, 0.08, 0.01];
+      made("satin", () => { rod(s, [0, 0, 0.01], [0, 0.06, 0.01], 0.008, col, 8); box(s, 0.06, 0.012, 0.03, 0, 0.055, 0.01, col); });
+      facing(aim, c, () => {
+        made("satin", () => cyl(s, 0.035, 0.035, 0.08, 0, -0.04, 0, col, 20));
+        lit(() => cyl(s, 0.028, 0.028, 0.004, 0, 0.04, 0, BULB, 20));
+      });
+      return s;
+    },
+  },
+  track_light: {
+    group: "lights", height: 0.24, hangs: true, on: "floor", colour: "black", size: { w: 2.5, d: 0.1 }, block: false, built: ["w"],
+    make(col, k = { w: 2.5 }) {
+      // a track light under a ceiling (its top at 0.24; hung, lift it to the ceiling): a round
+      // socket at its -x end, a black rail, spots on short stems, close together near the socket
+      // and lit toward it, the rest lit the other way, a white rim round each lit face
+      const s = shape(), x0 = -k.w / 2, top = 0.24;
+      made("satin", () => {
+        cyl(s, 0.07, 0.07, 0.07, x0, top - 0.07, 0, col, 24);
+        box(s, k.w, 0.04, 0.05, 0, top - 0.04, 0, col);
+      });
+      for (let x = x0 + 0.35; x < k.w / 2; ) {
+        const near = x < x0 + 1.6, dir = near ? -1 : 1;
+        made("satin", () => rod(s, [x, top - 0.04, 0], [x, top - 0.12, 0], 0.01, col, 6));
+        facing([dir * 0.94, -0.34, 0], [x, top - 0.13, 0], () => {
+          made("satin", () => cyl(s, 0.045, 0.045, 0.14, 0, -0.07, 0, col, 18));
+          made("satin", () => cyl(s, 0.047, 0.047, 0.006, 0, 0.068, 0, COLOURS.white, 18));
+          lit(() => cyl(s, 0.036, 0.036, 0.004, 0, 0.072, 0, BULB, 18));
+        });
+        x += near ? 0.4 : 0.9;
+      }
+      return s;
+    },
+  },
+  exit_sign: {
+    group: "home", height: 0.14, hangs: true, on: "floor", colour: "green", size: { w: 0.32, d: 0.03 }, block: false,
+    make(col) {
+      // a lit exit sign on a wall (its back at z = 0; hung, lift it to its height): a green box,
+      // a white running figure and arrow on its face
+      const s = shape(), W = [0.97, 0.97, 0.95], z = 0.031;
+      made("satin", () => box(s, 0.32, 0.13, 0.03, 0, 0.005, 0.015, col));
+      lit(() => {
+        box(s, 0.02, 0.02, 0.003, -0.05, 0.1, z, W);                         // (its head)
+        rod(s, [-0.055, 0.09, z], [-0.065, 0.055, z], 0.006, W, 4);           // (body, legs and arms)
+        rod(s, [-0.065, 0.055, z], [-0.04, 0.025, z], 0.005, W, 4);
+        rod(s, [-0.065, 0.055, z], [-0.09, 0.03, z], 0.005, W, 4);
+        rod(s, [-0.06, 0.08, z], [-0.035, 0.07, z], 0.004, W, 4);
+        rod(s, [-0.06, 0.08, z], [-0.085, 0.085, z], 0.004, W, 4);
+        rod(s, [0.02, 0.06, z], [0.1, 0.06, z], 0.006, W, 4);                 // (the arrow)
+        rod(s, [0.1, 0.06, z], [0.08, 0.08, z], 0.005, W, 4);
+        rod(s, [0.1, 0.06, z], [0.08, 0.04, z], 0.005, W, 4);
+      });
+      return s;
+    },
+  },
+  wall_speaker: {
+    group: "home", height: 0.23, hangs: true, on: "floor", colour: "black", size: { w: 0.14, d: 0.16 }, block: false,
+    make(col) {
+      // a small black speaker on a wall bracket (its back at z = 0; hung, lift it), its grille
+      // a shade lighter
+      const s = shape();
+      made("satin", () => {
+        box(s, 0.05, 0.08, 0.04, 0, 0.08, 0.02, col);
+        soft(s, 0.13, 0.22, 0.12, 0, 0.01, 0.1, col, 0.012);
+      });
+      made("cloth", () => box(s, 0.11, 0.19, 0.004, 0, 0.025, 0.161, col.map((v) => v + 0.06)));
+      return s;
+    },
+  },
+  sheer_curtain: {
+    group: "home", height: 3.25, on: "floor", colour: "ivory", size: { w: 0.6, d: 0.1 }, block: false,
+    make(col) {
+      // a sheer curtain on a short black rod, gathered and tied back a metre up: full under the
+      // rod, pinched at the tie, flaring a little to the floor, falling in soft folds
+      const s = shape(), top = 3.25, tie = 1.0, N = 40, M = 16;
+      const half = (y) => (y > tie ? 0.04 + 0.2 * ((y - tie) / (top - 0.05 - tie)) ** 0.8 : 0.04 + 0.08 * (tie - y) / tie);
+      made("cloth", () => {
+        const rows = [];
+        for (let j = 0; j <= N; j++) {
+          const y = ((top - 0.05) * j) / N, w = half(y);
+          rows.push(Array.from({ length: M + 1 }, (_, i) => {
+            const u = i / M, fold = Math.sin(u * Math.PI * 6);
+            const shade = 0.9 + 0.1 * fold;
+            return vert(s, -w + 2 * w * u, y, 0.012 + 0.25 * w * fold, col.map((v) => Math.min(1, v * shade)));
+          }));
+        }
+        for (let j = 0; j < N; j++) for (let i = 0; i < M; i++) quad(s, rows[j][i], rows[j][i + 1], rows[j + 1][i + 1], rows[j + 1][i]);
+        cyl(s, 0.055, 0.055, 0.05, 0, tie - 0.025, 0.012, col.map((v) => v * 0.85), 18);   // (its tie)
+      });
+      made("metal", () => rod(s, [-0.3, top - 0.03, 0.012], [0.3, top - 0.03, 0.012], 0.012, INK, 8));
+      return s;
+    },
+  },
 };
 
 // a fiddle-leaf fig's leaf from p toward d (unit), len long: a short stalk, then a broad leaf,
