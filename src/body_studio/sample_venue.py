@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 18
+VERSION = 19
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -147,8 +147,8 @@ def _rustic(x, y, z, rnd):
     """The hall's floor: glazed rustic tiles, 40 cm square, orange worn through to near black in
     blotches (each tile its own: a few overlapping waves above a level), a soft edge round each
     blotch, a pale glint where the windows light the glaze."""
-    if x % 0.4 < 0.006 or z % 0.4 < 0.006:
-        return (0.22, 0.16, 0.12)
+    if math.floor(x / 0.05) % 8 == 0 or math.floor(z / 0.05) % 8 == 0:   # (the joints: one whole cell of the floor's 5 cm mesh, or the mesh blurs them away)
+        return (0.13, 0.10, 0.08)
     r = random.Random(math.floor(x / 0.4) * 7919 + math.floor(z / 0.4))
     a, b, c, d = (r.uniform(0, 6.3) for _ in range(4))
     n = (math.sin(x * 9 + a) * math.sin(z * 8 + b) + 0.6 * math.sin((x - z) * 12 + c)

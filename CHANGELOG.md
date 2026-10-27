@@ -2,6 +2,7 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's hall tiles show their dark joints, as in the walkthrough.
 - The sample venue has a blue sky over it (a new **Sky** starter), seen through the garden's glass
   cover and over the beach, and its stage keeps its big white screen.
 - The sample venue's pergola, stage and garden, matched again to the walkthrough: the pergola's
