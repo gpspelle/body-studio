@@ -123,6 +123,7 @@ STARTERS = (
     # from two decorators' proposals for the venue: hung clouds and lamps, arches, a swing, lounges
     {"id": "edison_bulbs", "group": "lights", "height": 2.9, "on": "floor"},
     {"id": "rattan_pendants", "group": "lights", "height": 2.9, "on": "floor"},
+    {"id": "gourd_pendants", "group": "lights", "height": 2.9, "on": "floor"},
     {"id": "jute_pendant", "group": "lights", "height": 2.9, "on": "floor"},
     {"id": "globe_lanterns", "group": "lights", "height": 2.9, "on": "floor"},
     {"id": "tropical_cloud", "group": "flowers", "height": 2.9, "on": "floor"},

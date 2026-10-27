@@ -361,6 +361,7 @@
       "decor.item.rattan_setting": "Rattan setting",
       "decor.item.edison_bulbs": "Filament bulbs",
       "decor.item.rattan_pendants": "Rattan pendant cluster",
+      "decor.item.gourd_pendants": "Woven teardrop pendants",
       "decor.item.jute_pendant": "Jute pendant",
       "decor.item.globe_lanterns": "Paper globes",
       "decor.item.tropical_cloud": "Tropical cloud",

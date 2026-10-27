@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 14
+VERSION = 15
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -54,13 +54,16 @@ COVER_LEN = 20.0                    # m of the garden under the glass rain cover
 PERGOLA_ROOF = 3.2                  # the pergola's flat reed roof
 GARDEN_RIGHT, GARDEN_LEFT = 20.0, 30.0   # (along z = 0 and z = GARDEN_W: the plan's own right and left, as drawn)
 ANTE = (-9.3, 0.0, 0.0, 4.0)
+ANTE_TILES = 1.2                        # m of the ante-room's end already in the hall's rustic tiles
 KITCHEN = (-9.3, 0.0, 4.0, 8.6)
 KITCHEN_DOOR = (7.6, 8.5)               # z: its lattice door on the hall, at the end of the passage to it
 HATCH = (4.9, 7.2)                      # z: its serving hatch on the hall, a stone sill 1 m up
 PARTITION = 1.3                         # x: the reed-clad partition between the hall and that passage
 VERTICAL = (-13.8, -9.3, 0.0, 4.0)
+INTO_ANTE = (0.35, 3.65)                # z: the wide opening from it into the ante-room, between its planted walls
 RECEPTION = (-19.8, -13.8, 0.0, 4.0)
 DECK = (-21.8, -19.8, 0.0, 4.0)
+RECEPTION_LAMPS = ((-17.6, 0.0), (-15.8, 4.0))   # its floor spotlights: x, the wall they light
 STEP_DOWN = 0.08                    # the deck is a step down from the reception's floor (the map's floor is within 10 cm)
 LANDING = (0.7, 0.08)               # inside the front door: a landing across the front wall, how deep, how high
 BUNGALOW = (41.5, 50.5, 12.7, 17.5)
@@ -81,12 +84,13 @@ FLOOR_STEP, WALL_STEP, CEIL_STEP, LAWN_STEP = 0.055, 0.07, 0.09, 0.085
 # frames and evened out for the camera's exposure
 CEMENT = (0.66, 0.66, 0.65)         # the smooth grey floors: ante-room's step, toilets
 POLISHED = (0.48, 0.51, 0.54)       # the reception's and the vertical garden's: polished cement, a cool grey
+SUNLIT = (0.62, 0.63, 0.63)         # the same cement out on the deck, in the sun
 PERGOLA_FLOOR = (0.62, 0.64, 0.66)  # the pergola's, a little bluer
 ROUGH = (0.70, 0.67, 0.63)          # rough cement: the pergola's wall
 CEILING = (0.95, 0.94, 0.91)
 DARK_CEILING = (0.58, 0.58, 0.57)   # the reception's and the vertical garden's, painted mid grey (drawn
                                     # facing down, out of the light, it shows darker: as the video's)
-SLAB = (0.75, 0.75, 0.73)           # the ante-room's pale cement slabs
+SLAB = (0.74, 0.76, 0.78)           # the ante-room's pale cement slabs, a cool near-white
 WC_GREY = (0.60, 0.61, 0.63)        # the toilets' walls
 RUST = (0.31, 0.18, 0.13)           # the front door's pivoting leaves
 CONCRETE = (0.60, 0.58, 0.55)       # the hall's bare concrete ceiling
@@ -106,6 +110,7 @@ SCREEN = (0.90, 0.90, 0.89)
 BRICK = (0.74, 0.47, 0.33)
 TILE_WHITE = (0.93, 0.93, 0.92)
 LINEN = (0.90, 0.87, 0.81)          # the hall's curtains
+SHEER = (0.97, 0.95, 0.91)          # the vertical garden's, paler: off-white, the light through them
 DECK_WOOD = (0.50, 0.34, 0.25)      # the bungalow's deck
 OAK = (0.55, 0.40, 0.27)
 LIGHT_WOOD = (0.66, 0.50, 0.34)     # the posts where the reception's walls meet the planted ones
@@ -114,7 +119,7 @@ WHITEWASH = (0.92, 0.91, 0.88)
 SAND = (0.86, 0.79, 0.66)
 SEA_BLUE = (0.36, 0.50, 0.52)
 SKIRTING = (0.56, 0.38, 0.24)       # the wooden skirting along the white walls
-TERRACOTTA_ARCH = (0.72, 0.36, 0.20)  # the arch painted at the ante-room's end
+TERRACOTTA_ARCH = (0.62, 0.30, 0.17)  # the oval standing at the ante-room's end
 EXIT_GREEN = (0.10, 0.58, 0.32)
 WARM = (1.0, 0.86, 0.6)             # a lamp's lit face
 FAR = 0.42                          # how opaque what is far off is drawn: under room.OPAQUE
@@ -357,14 +362,16 @@ def house(rnd, out):
     # kitchen's white tiles, and the ceilings over them
     for r in (RECEPTION, VERTICAL):
         base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(_cement(POLISHED, joint=1.5, cloud=0.008, line=FLOOR_STEP, cut=0.86), r, dark=0.9), out, FLOOR_STEP)
-    base._surface(rnd, (ANTE[0], ANTE[1], 0, 0, ANTE[2], ANTE[3]), _shaded(_cement(SLAB, joint=1.0), ANTE, dark=0.85), out, FLOOR_STEP)
+    base._surface(rnd, (ANTE[0], ANTE[1] - ANTE_TILES, 0, 0, ANTE[2], ANTE[3]), _shaded(_cement(SLAB, joint=1.0), ANTE, dark=0.85), out, FLOOR_STEP)
     base._surface(rnd, (KITCHEN[0], KITCHEN[1], 0, 0, KITCHEN[2], KITCHEN[3]), _tiles(TILE_WHITE, 0.45), out, FLOOR_STEP)
     hx0, hx1, hz0, hz1 = HALL
     rustic = _shaded(_rustic, HALL, reach=1.2, dark=0.8)
+    base._surface(rnd, (ANTE[1] - ANTE_TILES, ANTE[1], 0, 0, ANTE[2], ANTE[3]), rustic, out, 0.05, 0.004)   # (the hall's tiles start in the ante-room)
     base._surface(rnd, (hx0, NOTCH[1], 0, 0, NOTCH[2], hz1), rustic, out, 0.05, 0.004)
     base._surface(rnd, (NOTCH[1], hx1, 0, 0, hz0, hz1), rustic, out, 0.05, 0.004)
     base._surface(rnd, (hx1, WC[1], 0, 0, 0, WC[2]), _shaded(_cement(CEMENT), (hx1 - 6, WC[1], 0, WC[2])), out, FLOOR_STEP)
-    base._surface(rnd, (*DECK[:2], -STEP_DOWN, -STEP_DOWN, *DECK[2:]), _boards((0.56, 0.44, 0.32)), out, 0.04)   # (finer: the map's end)
+    # (the deck outside the door: the same grey cement in the sun, not boards)
+    base._surface(rnd, (*DECK[:2], -STEP_DOWN, -STEP_DOWN, *DECK[2:]), _cement(SUNLIT, joint=1.5, cloud=0.02), out, 0.04)   # (finer: the map's end)
     # (a step down to it at the front door; inside, a landing a step up across the front wall, its
     # edge dark)
     base._surface(rnd, (RECEPTION[0], RECEPTION[0], -STEP_DOWN, 0.0, *DECK[2:]), CEMENT, out, 0.02)
@@ -372,8 +379,12 @@ def house(rnd, out):
     base._surface(rnd, (RECEPTION[0], lx, LANDING[1], LANDING[1], 0.05, 3.95), _cement(POLISHED, joint=2.0, cloud=0.008), out, 0.03)
     base._surface(rnd, (lx, lx, 0.0, LANDING[1], 0.05, 3.95), (0.17, 0.11, 0.08), out, 0.015)
     base._surface(rnd, (lx - 0.05, lx, LANDING[1] + 0.002, LANDING[1] + 0.002, 0.05, 3.95), (0.17, 0.11, 0.08), out, 0.015)   # (its dark nosing)
-    # (outside the door, daylight: orange steps down off the deck, and the bright street beyond)
-    base._surface(rnd, (RECEPTION[0] - 0.45, RECEPTION[0], -STEP_DOWN + 0.002, -STEP_DOWN + 0.002, 0.8, 3.2), (0.86, 0.56, 0.34), out, 0.03)
+    # (outside the door, daylight: a yellow line painted along the threshold, orange steps down off
+    # the deck's far edge, and the bright street beyond)
+    base._surface(rnd, (RECEPTION[0] - 0.12, RECEPTION[0] - 0.07, -STEP_DOWN + 0.002, -STEP_DOWN + 0.002, *DECK[2:]), (0.86, 0.72, 0.22), out, 0.012)
+    for k in range(3):
+        base._surface(rnd, (DECK[0] + 0.3 * k, DECK[0] + 0.3 * k + 0.06, -STEP_DOWN + 0.002, -STEP_DOWN + 0.002, 0.8, 3.2), (0.86, 0.50, 0.26), out, 0.02)
+        base._surface(rnd, (DECK[0] + 0.3 * k + 0.06, DECK[0] + 0.3 * (k + 1), -STEP_DOWN + 0.002, -STEP_DOWN + 0.002, 0.8, 3.2), (0.93, 0.62, 0.36), out, 0.03)
     base._surface(rnd, (DECK[0] - 0.3, DECK[0] - 0.3, -STEP_DOWN, H, -0.5, 4.5), (0.96, 0.95, 0.92), out, 0.06)
     # (the ante-room's jute ceiling hangs under a black one: the page draws it, from fixtures())
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), base.finish("plaster", (0.12, 0.12, 0.12)), out, CEIL_STEP)
@@ -385,18 +396,20 @@ def house(rnd, out):
     skylight(rnd, out)
 
     # the long straight wall on the left (z = 0): the reception's door is at the deck end
-    wall_x(0.0, RECEPTION[0], RECEPTION[1], [], wall, out, rnd)
+    wall_x(0.0, RECEPTION[0], RECEPTION[1], [], _washed(wall, [x for x, z in RECEPTION_LAMPS if z == 0.0]), out, rnd)
     green_x(rnd, 0.0, VERTICAL[0], VERTICAL[1], +1, out)
     spots = [ANTE[0] + 1.2 + 2.3 * k for k in range(4)]
     wall_x(0.0, ANTE[0], ANTE[1], [], _washed(wall, spots), out, rnd)   # (the ante-room's walls: white plaster, uplit)
     for x in spots:
         for z in (0.15, 3.85):
             floor_lamp(rnd, out, x, z)
-    # (near its end, a tall terracotta arch painted on the wall, and a red-orange lamp like an eye)
-    ax, r = ANTE[1] - 1.6, 0.62
-    _paint(rnd, out, ax - r, ax + r, 0.12, 1.65 + r, 0.012,
-           lambda x, y: y < 1.65 or (x - ax) ** 2 + (y - 1.65) ** 2 < r * r, TERRACOTTA_ARCH)
-    ex, ey = ANTE[1] - 2.7, 2.45
+    # (near its end, a tall terracotta oval against the wall, woven in upright strands, and a
+    # red-orange lamp like an eye just over it)
+    ax, r, cy, hh = ANTE[1] - 1.6, 0.36, 1.05, 0.95
+    _paint(rnd, out, ax - r, ax + r, cy - hh, cy + hh, 0.03,
+           lambda x, y: ((x - ax) / r) ** 2 + ((y - cy) / hh) ** 2 < 1,
+           lambda x, y: tuple(v * (0.8 if (x - ax) % 0.06 < 0.012 else 1.0) for v in TERRACOTTA_ARCH), step=0.015)
+    ex, ey = ax + 0.15, cy + hh + 0.3
     def eye(x, y):
         u = ((x - ex) / 0.2) ** 2 + ((y - ey) / 0.09) ** 2
         return WARM if u < 0.15 else (0.90, 0.40, 0.18) if u < 0.6 else (0.55, 0.15, 0.08)
@@ -404,7 +417,7 @@ def house(rnd, out):
            lambda x, y: ((x - ex) / 0.2) ** 2 + ((y - ey) / 0.09) ** 2 < 1, eye, step=0.012)
     # the right side of the reception (a dark door near the front), the vertical garden (green both
     # sides) and the ante-room; the kitchen behind
-    wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.7, -17.8, 0.0, 2.2)], wall, out, rnd)
+    wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.7, -17.8, 0.0, 2.2)], _washed(wall, [x for x, z in RECEPTION_LAMPS if z == 4.0]), out, rnd)
     door_x(4.0, -18.7, -17.8, out, rnd, colour=(0.10, 0.09, 0.08), frame=(0.14, 0.12, 0.11))
     # (beside it: an exit sign, a white notice and a small red fire sign)
     exit_sign(rnd, out, -17.4, 1.95, 3.988, 0)
@@ -417,7 +430,7 @@ def house(rnd, out):
     # wall, held under the ceiling; small spotlights at their feet)
     for x in (VERTICAL[0] + 0.2, VERTICAL[1] - 0.2):
         for z in (0.5, 3.5):
-            base._surface(rnd, (x, x, 0.02, H - 0.15, z - 0.18, z + 0.18), _folds(LINEN, 2, width=0.07), out, 0.03)
+            tied_curtain(rnd, out, x, z)
         for z0, z1 in ((0.03, 1.0), (3.0, 3.97)):
             curtain_rod(rnd, out, x, z0, z1)
     for k in range(4):
@@ -425,6 +438,9 @@ def house(rnd, out):
             floor_lamp(rnd, out, VERTICAL[0] + 0.75 + 1.0 * k, z)
     # exit signs and small speakers high on the walls
     exit_sign(rnd, out, -16.5, 2.25, 0.012, 0)
+    # (two small spotlights on the reception's floor, each washing its wall warm)
+    for x, z in RECEPTION_LAMPS:
+        floor_lamp(rnd, out, x, z + (0.15 if z < 2 else -0.15))
     wall_lamp(rnd, out, -15.3, 2.45, 0.0)
     for z, side in ((0.0, 1), (4.0, -1)):             # (a wooden post where each white wall meets the green one)
         x, f = RECEPTION[1], z + side * 0.08
@@ -445,8 +461,8 @@ def house(rnd, out):
     leaf(rnd, out, RECEPTION[0] + 0.02, 0.8, 1.2, math.radians(70))
     # (the reception runs straight into the vertical garden, wall to wall and floor to ceiling; a
     # wide doorway from there into the ante-room)
-    wall_z(VERTICAL[1], 0.0, 4.0, [(0.8, 3.2, 0.0, 2.8)], wall, out, rnd)
-    frame_z(VERTICAL[1], 0.8, 3.2, 0.0, 2.8, out, rnd, colour=TIMBER, t=0.08, d=0.12)
+    wall_z(VERTICAL[1], 0.0, 4.0, [INTO_ANTE + (0.0, 2.9)], wall, out, rnd)
+    frame_z(VERTICAL[1], *INTO_ANTE, 0.0, 2.9, out, rnd, colour=WALNUT, t=0.1, d=0.14)
     # the ante-room into the hall (where the hall is narrower), the kitchen's back wall beside it
     wall_z(0.0, 0.0, 4.0, [(NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9)], hall_wall, out, rnd)
     frame_z(0.0, NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9, out, rnd, colour=TIMBER, t=0.16, d=0.2)   # (tall wooden posts)
@@ -543,7 +559,7 @@ def house(rnd, out):
     base._surface(rnd, (sx0 + 1.4, sx1 - 1.4, sh + 0.9, H - 0.15, 0.06, 0.06), SCREEN, out, 0.04)
 
 
-LANTERN = (3.8, 3.0)                # the vertical garden's glass roof light: its foot, along x and across
+LANTERN = (4.2, 3.6)                # the vertical garden's glass roof light: its foot, along x and across (nearly the whole room)
 
 
 def skylight(rnd, out):
@@ -610,6 +626,20 @@ def curtain_rod(rnd, out, x, z0, z1):
     for z in (z0 + 0.08, z1 - 0.08):
         base._surface(rnd, (x - 0.015, x + 0.015, y, H, z - 0.012, z + 0.012), STEEL, out, 0.012)
         base._surface(rnd, (x - 0.04, x + 0.04, H - 0.005, H - 0.005, z - 0.03, z + 0.03), STEEL, out, 0.012)
+
+
+def tied_curtain(rnd, out, x, z, step=0.025):
+    """A sheer curtain hung across z at x, gathered and tied back a metre up: full under the rod,
+    pinched at the tie, flaring a little to the floor."""
+    tie, top = 1.0, H - 0.15
+    folds = _folds(SHEER, 2, width=0.06, depth=0.14)
+    for j in range(int(top / step)):
+        y = (j + rnd.random()) * step
+        w = 0.05 + (0.15 * (y - tie) / (top - tie) if y > tie else 0.08 * (tie - y) / tie)
+        for i in range(int(2 * w / step) + 1):
+            zz = z - w + (i + rnd.random()) * min(step, 2 * w)
+            c = (0.78, 0.74, 0.66) if abs(y - tie) < 0.03 else folds(x, y, zz, rnd)   # (its tie, a band of the same linen)
+            out.append(((x, y, zz), c, [0.004, step * 0.8, step * 0.8]))
 
 
 def _cladding(x, y, z, rnd):
@@ -1115,7 +1145,7 @@ def fixtures() -> dict:
     # the vertical garden's glass roof light, a cluster of rattan lamps hung in it
     cx, cz = (x0 + x1) / 2, (VERTICAL[2] + VERTICAL[3]) / 2
     props += [{"item": "glass_lantern", "at": [cx, 0.0, cz], "scale": [round(LANTERN[0] / 4.5, 4), 1, round(LANTERN[1] / 4.0, 4)]},
-              {"item": "rattan_pendants", "at": [cx, 0.7, cz], "scale": [1.3, 1, 1.3]}]
+              {"item": "gourd_pendants", "at": [cx, 0.45, cz], "scale": [1.2, 1.2, 1.2]}]
     # the jute ceilings: with black bands over the ante-room, plain over the stage
     for item, (a0, a1, b0, b1) in (("jute_ceiling", ANTE), ("jute_swags", STAGE[:4])):
         nx = max(1, round((a1 - a0) / 4.0))

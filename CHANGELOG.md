@@ -2,6 +2,14 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's way in, matched again to the walkthrough: the deck outside the door is grey
+  cement (not boards) with a yellow line along the threshold and the orange steps at its far edge;
+  two floor spotlights wash the reception's walls; the vertical garden's glass roof covers nearly
+  the whole room, its ferns are darker, its curtains sheer and tied back, its opening into the
+  ante-room wide; nine woven teardrop lamps glow under the roof (a new **Woven teardrop pendants**
+  starter); the ante-room's floor is a cooler near-white, the hall's tiles start in its last
+  1.2 m, and its terracotta piece is a standing oval with the eye lamp just over it.
+
 - The sample living room's and tattoo studio's furniture is drawn as the decor is, in place of
   flat boxes and blobs of splats: a linen sofa with loose cushions on walnut feet, a teal armchair,
   a walnut bookcase full of books, a fluted TV console with a slim television, an oak table and

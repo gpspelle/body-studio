@@ -92,7 +92,7 @@ class SampleVenueTest(unittest.TestCase):
         trees = props[:len(V.TREES)]
         # and the planted walls, the beds' borders and the glass roof, as decor too
         self.assertEqual({t["item"] for t in props[len(V.TREES):]},
-                         {"living_wall", "tropical_border", "glass_roof", "glass_lantern", "rattan_pendants", "jute_ceiling", "jute_swags",
+                         {"living_wall", "tropical_border", "glass_roof", "glass_lantern", "gourd_pendants", "jute_ceiling", "jute_swags",
                           "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
@@ -162,6 +162,32 @@ class SampleVenueTest(unittest.TestCase):
         self.assertFalse([r for r in rows if V.GARDEN_X < r[0][0] < V.GARDEN_X + V.COVER_LEN and r[0][1] > 3.2])
         screen = [r for r in rows if abs(r[0][2] - 0.06) < 1e-6 and V.STAGE[0] < r[0][0] < V.STAGE[1] and min(r[1]) > 0.8]
         self.assertGreater(len(screen), 1000)
+
+    def test_the_way_in_as_the_walkthrough(self):
+        rows = V.splats()
+        def at(x0, x1, y0, y1, z0, z1):
+            return [r for r in rows if x0 <= r[0][0] <= x1 and y0 <= r[0][1] <= y1 and z0 <= r[0][2] <= z1]
+        # the deck is grey cement, not boards; a yellow line along the door's threshold, orange steps at its far edge
+        deck = at(V.DECK[0] + 0.95, V.DECK[1] - 0.25, -V.STEP_DOWN - 0.01, -V.STEP_DOWN + 0.001, 0.5, 3.5)
+        self.assertTrue(deck and all(max(c) - min(c) < 0.06 for _, c, *_ in deck))
+        line = at(V.RECEPTION[0] - 0.11, V.RECEPTION[0] - 0.08, -V.STEP_DOWN + 0.001, -V.STEP_DOWN + 0.003, 0.5, 3.5)
+        self.assertTrue(line and all(c[0] > 0.7 and c[2] < 0.35 for _, c, *_ in line))
+        steps = at(V.DECK[0], V.DECK[0] + 0.85, -V.STEP_DOWN + 0.001, -V.STEP_DOWN + 0.003, 1.0, 3.0)
+        self.assertTrue(steps and all(c[0] > 0.7 and c[0] > c[1] > c[2] for _, c, *_ in steps))
+        # the vertical garden's curtains are tied back: narrow at the tie, full under the rod
+        x = V.VERTICAL[0] + 0.2
+        def width(y):
+            zs = [r[0][2] for r in at(x - 1e-6, x + 1e-6, y - 0.03, y + 0.03, 0.0, 1.0)]
+            return max(zs) - min(zs)
+        self.assertLess(width(1.0), 0.15)
+        self.assertGreater(width(3.0), 0.3)
+        # its wide opening into the ante-room, between the planted walls
+        a0, a1 = V.INTO_ANTE
+        self.assertGreater(a1 - a0, 3.0)
+        self.assertFalse(at(V.VERTICAL[1] - 0.001, V.VERTICAL[1] + 0.001, 0.2, 2.8, a0 + 0.2, a1 - 0.2))
+        # the hall's rustic tiles begin in the ante-room
+        tiles = at(V.ANTE[1] - V.ANTE_TILES + 0.05, V.ANTE[1] - 0.05, -0.001, 0.001, 0.2, 3.8)
+        self.assertTrue(tiles and min(c[0] for _, c, *_ in tiles) < 0.3 and max(c[0] for _, c, *_ in tiles) > 0.6)
 
     def test_walls_with_holes(self):
         # a wall 4 m along, 3.4 high, less a door and a window: what is left covers the rest exactly
