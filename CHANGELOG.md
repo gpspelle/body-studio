@@ -2,6 +2,13 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue, fixed where Gabriel tagged it against the walkthrough: the vertical garden's
+  glass roof light rises to one point where its four rafters meet, with pale aluminium glazing bars
+  and an old weathered beam on the reception's side; the front wall is all dark panels, its shut
+  leaf a little ajar; the reception's signs sit by its side door; the track lights point down; the
+  ante-room has no tall oval and no sign or speaker on its end wall, an orange saucer wall light (a
+  new **Orange saucer wall light** starter) instead, and no wooden frame round the way into the
+  hall, its tiles darker across it.
 - Rooms' ceilings and the undersides of things are a little lighter, lit by the light the floor and
   walls throw back.
 - The sample venue's hall tiles show their dark joints, as in the walkthrough.

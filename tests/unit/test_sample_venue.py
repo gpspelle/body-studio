@@ -97,7 +97,7 @@ class SampleVenueTest(unittest.TestCase):
                           "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave",
                           "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain",
                           "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp",
-                          "reed_roof", "wall_sconce", "sky_dome"})
+                          "reed_roof", "wall_sconce", "sky_dome", "saucer_light"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -177,7 +177,7 @@ class SampleVenueTest(unittest.TestCase):
         # along the white walls (no painted band), spotlights, the track light, signs, curtains
         fit = [f for f in V.fittings() if f[1][0] <= V.ANTE[1]]
         kinds = {f[0] for f in fit}
-        self.assertEqual(kinds, {"skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain"})
+        self.assertEqual(kinds, {"skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain", "saucer_light"})
         self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 4)
         self.assertTrue(all(V.DECK[1] <= f[1][0] for f in fit))
         boards = [f for f in fit if f[0] == "skirting_board"]
@@ -213,9 +213,11 @@ class SampleVenueTest(unittest.TestCase):
         self.assertGreater(min(V.CONCRETE), 0.75)
         beam = [r for r in rows if max(abs(a - b) for a, b in zip(r[1], V.BEAM)) < 0.04 and r[0][1] < 1.0 and abs(r[0][0] - V.NOTCH[1]) < 0.15]
         self.assertTrue(any(r[0][2] < V.NOTCH[2] + 0.2 for r in beam) and any(r[0][2] > V.HALL[3] - 0.2 for r in beam))
-        # the ante-room's exit sign faces it, on its side of the end wall
-        sign = next(f for f in V.fittings() if f[0] == "exit_sign" and abs(f[1][0]) < 0.01)
-        self.assertAlmostEqual(sign[2], -math.pi / 2)
+        # (Gabriel's tags) the ante-room's end wall bare: no sign, no speaker, no wooden frame
+        # round the way into the hall, the tiles darker across it; the saucer lamp on its wall
+        self.assertFalse([f for f in V.fittings() if f[0] in ("exit_sign", "wall_speaker") and abs(f[1][0]) < 0.3])
+        self.assertFalse([r for r in rows if r[1] == V.TIMBER and abs(r[0][0]) < 0.25 and r[0][1] > 0.5 and 1.5 < r[0][2] < 4.0])
+        self.assertTrue(any(f[0] == "saucer_light" and V.ANTE[0] < f[1][0] < V.ANTE[1] for f in V.fittings()))
 
     def test_the_toilets_as_the_walkthrough(self):
         # their counters, bowls, mirrors, cubicles, trough and lights drawn as furniture, inside them

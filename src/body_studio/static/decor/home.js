@@ -357,7 +357,8 @@ export const HOME = {
     make(col, k = { w: 2.5 }) {
       // a track light under a ceiling (its top at 0.24; hung, lift it to the ceiling): a round
       // socket at its -x end, a black rail, spots on short stems, close together near the socket
-      // and lit toward it, the rest lit the other way, a white rim round each lit face
+      // and tipped toward it, the rest the other way, all lit mostly down, a white rim round each
+      // lit face
       const s = shape(), x0 = -k.w / 2, top = 0.24;
       made("satin", () => {
         cyl(s, 0.07, 0.07, 0.07, x0, top - 0.07, 0, col, 24);
@@ -366,7 +367,7 @@ export const HOME = {
       for (let x = x0 + 0.35; x < k.w / 2; ) {
         const near = x < x0 + 1.6, dir = near ? -1 : 1;
         made("satin", () => rod(s, [x, top - 0.04, 0], [x, top - 0.12, 0], 0.01, col, 6));
-        facing([dir * 0.94, -0.34, 0], [x, top - 0.13, 0], () => {
+        facing([dir * 0.42, -0.91, 0], [x, top - 0.13, 0], () => {
           made("satin", () => cyl(s, 0.045, 0.045, 0.14, 0, -0.07, 0, col, 18));
           made("satin", () => cyl(s, 0.047, 0.047, 0.006, 0, 0.068, 0, COLOURS.white, 18));
           lit(() => cyl(s, 0.036, 0.036, 0.004, 0, 0.072, 0, BULB, 18));
@@ -580,6 +581,27 @@ export const HOME = {
         cyl(s, 0.045, 0.045, 0.22, 0, 0.02, 0.09, col, 20);
       });
       lit(() => { cyl(s, 0.037, 0.037, 0.004, 0, 0.017, 0.09, BULB, 20); cyl(s, 0.037, 0.037, 0.004, 0, 0.239, 0.09, BULB, 20); });
+      return s;
+    },
+  },
+
+  saucer_light: {
+    group: "lights", height: 0.18, hangs: true, on: "floor", colour: "coral", size: { w: 0.5, d: 0.42 }, block: false,
+    make(col) {
+      // an orange saucer of a wall light (its back at z = 0; hung, lift it to its foot): a black
+      // arm out from a plate to a wide shade like two shallow bowls rim to rim, lit warm in the
+      // gap between them and underneath
+      const s = shape(), z = 0.17, mid = 0.09;
+      made("satin", () => {
+        box(s, 0.08, 0.08, 0.01, 0, mid - 0.04, 0.005, INK);
+        rod(s, [0, mid, 0.01], [0, mid, z], 0.012, INK, 8);
+      });
+      made("satin", () => {
+        cyl(s, 0.06, 0.24, 0.075, 0, 0.005, z, col, 32);
+        cyl(s, 0.24, 0.05, 0.085, 0, mid + 0.01, z, col, 32);
+        cyl(s, 0.05, 0, 0.005, 0, 0.175, z, col, 32);
+      });
+      lit(() => { cyl(s, 0.245, 0.245, 0.01, 0, mid - 0.005, z, BULB, 32); cyl(s, 0.06, 0, 0.004, 0, 0.0, z, BULB, 24); });
       return s;
     },
   },

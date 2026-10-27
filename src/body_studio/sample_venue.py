@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 19
+VERSION = 20
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -124,7 +124,7 @@ SAND = (0.86, 0.79, 0.66)
 SEA_BLUE = (0.36, 0.50, 0.52)
 SKIRTING = (0.56, 0.38, 0.24)       # the wooden skirting along the white walls
 SKIRTING_BOARD = (0.46, 0.29, 0.17)  # the same as a board drawn as the furniture is (its light is brighter)
-TERRACOTTA_ARCH = (0.62, 0.30, 0.17)  # the oval standing at the ante-room's end
+SAUCER = (0.85, 0.38, 0.16)          # the ante-room's orange saucer of a wall light
 EXIT_GREEN = (0.10, 0.58, 0.32)
 WARM = (1.0, 0.86, 0.6)             # a lamp's lit face
 FAR = 0.42                          # how opaque what is far off is drawn: under room.OPAQUE
@@ -354,7 +354,11 @@ def house(rnd, out):
     base._surface(rnd, (ANTE[0], ANTE[1] - ANTE_TILES, 0, 0, ANTE[2], ANTE[3]), _shaded(_cement(SLAB, joint=1.0), ANTE, dark=0.85), out, FLOOR_STEP)
     base._surface(rnd, (KITCHEN[0], KITCHEN[1], 0, 0, KITCHEN[2], KITCHEN[3]), _tiles(TILE_WHITE, 0.45), out, FLOOR_STEP)
     hx0, hx1, hz0, hz1 = HALL
-    rustic = _shaded(_rustic, HALL, reach=1.2, dark=0.8)
+    shaded = _shaded(_rustic, HALL, reach=1.2, dark=0.8)
+    def rustic(x, y, z, rnd):                          # (darker across the way in from the ante-room)
+        c = shaded(x, y, z, rnd)
+        return tuple(v * 0.6 for v in c) if abs(x) < 0.2 and NOTCH[2] + 0.2 < z < 3.8 else c
+    rustic.finish = shaded.finish
     base._surface(rnd, (ANTE[1] - ANTE_TILES, ANTE[1], 0, 0, ANTE[2], ANTE[3]), rustic, out, 0.05, 0.004)   # (the hall's tiles start in the ante-room)
     base._surface(rnd, (hx0, NOTCH[1], 0, 0, NOTCH[2], hz1), rustic, out, 0.05, 0.004)
     base._surface(rnd, (NOTCH[1], hx1, 0, 0, WC[2], hz1), rustic, out, 0.05, 0.004)
@@ -390,26 +394,14 @@ def house(rnd, out):
     green_x(rnd, 0.0, VERTICAL[0], VERTICAL[1], +1, out)
     spots = ANTE_SPOTS
     wall_x(0.0, ANTE[0], ANTE[1], [], _washed(wall, spots), out, rnd)   # (the ante-room's walls: white plaster, uplit)
-    # (near its end, a tall terracotta oval against the wall, woven in upright strands, and a
-    # red-orange lamp like an eye just over it)
-    ax, r, cy, hh = ANTE[1] - 1.6, 0.36, 1.05, 0.95
-    _paint(rnd, out, ax - r, ax + r, cy - hh, cy + hh, 0.03,
-           lambda x, y: ((x - ax) / r) ** 2 + ((y - cy) / hh) ** 2 < 1,
-           lambda x, y: tuple(v * (0.8 if (x - ax) % 0.06 < 0.012 else 1.0) for v in TERRACOTTA_ARCH), step=0.015)
-    ex, ey = ax + 0.15, cy + hh + 0.3
-    def eye(x, y):
-        u = ((x - ex) / 0.2) ** 2 + ((y - ey) / 0.09) ** 2
-        return WARM if u < 0.15 else (0.90, 0.40, 0.18) if u < 0.6 else (0.55, 0.15, 0.08)
-    _paint(rnd, out, ex - 0.2, ex + 0.2, ey - 0.09, ey + 0.09, 0.03,
-           lambda x, y: ((x - ex) / 0.2) ** 2 + ((y - ey) / 0.09) ** 2 < 1, eye, step=0.012)
     # the right side of the reception (a dark door near the front), the vertical garden (green both
     # sides) and the ante-room; the kitchen behind
     wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.7, -17.8, 0.0, 2.2)], _washed(wall, [x for x, z in RECEPTION_LAMPS if z == 4.0]), out, rnd)
     door_x(4.0, -18.7, -17.8, out, rnd, colour=(0.10, 0.09, 0.08), frame=(0.14, 0.12, 0.11))
     # (beside it: an exit sign, a white notice and a small red fire sign)
-    base._surface(rnd, (-17.15, -16.94, 1.45, 1.75, 3.988, 3.988), (0.94, 0.94, 0.92), out, 0.012)
-    base._surface(rnd, (-17.47, -17.33, 1.45, 1.65, 3.988, 3.988), (0.80, 0.15, 0.12), out, 0.012)
-    base._surface(rnd, (-17.42, -17.38, 1.5, 1.6, 3.986, 3.986), (0.95, 0.95, 0.93), out, 0.008)
+    base._surface(rnd, (-19.3, -19.09, 1.45, 1.75, 3.988, 3.988), (0.94, 0.94, 0.92), out, 0.012)
+    base._surface(rnd, (-19.02, -18.88, 1.45, 1.65, 3.988, 3.988), (0.80, 0.15, 0.12), out, 0.012)
+    base._surface(rnd, (-18.97, -18.93, 1.5, 1.6, 3.986, 3.986), (0.95, 0.95, 0.93), out, 0.008)
     wall_x(4.0, VERTICAL[0], VERTICAL[1], [], wall, out, rnd)
     green_x(rnd, 4.0, VERTICAL[0], VERTICAL[1], -1, out)
     # (its curtains, spotlights, the reception's track light, exit signs and speaker: FITTINGS)
@@ -423,10 +415,10 @@ def house(rnd, out):
     kitchen(rnd, out)
     # the front: the deck and the reception's tall door. Inside, the wall is clad in rust-brown
     # panels to the ceiling, the door's two big leaves the same: the one on the left (from inside)
-    # shut, the one on the right swung in
+    # shut but a hand's width ajar, the one on the right swung in
     wall_z(RECEPTION[0], 0.0, 4.0, [(0.8, 3.2, 0.0, 2.9)], wall, out, rnd)
-    wall_z(RECEPTION[0] + 0.02, 0.0, 3.7, [(0.8, 3.2, 0.0, 2.9)], _cladding, out, rnd, step=0.03)
-    base._surface(rnd, (RECEPTION[0] + 0.02, RECEPTION[0] + 0.02, LANDING[1], 2.85, 2.3, 3.2), _cladding, out, 0.03)
+    wall_z(RECEPTION[0] + 0.02, 0.0, 4.0, [(0.8, 3.2, 0.0, 2.9)], _cladding, out, rnd, step=0.03)
+    leaf(rnd, out, RECEPTION[0] + 0.02, 2.3, 0.84, math.radians(6))
     leaf(rnd, out, RECEPTION[0] + 0.02, 0.8, 1.2, math.radians(70))
     # (the reception runs straight into the vertical garden, wall to wall and floor to ceiling; a
     # wide doorway from there into the ante-room)
@@ -434,7 +426,6 @@ def house(rnd, out):
     frame_z(VERTICAL[1], *INTO_ANTE, 0.0, 2.9, out, rnd, colour=WALNUT, t=0.1, d=0.14)
     # the ante-room into the hall (where the hall is narrower), the kitchen's back wall beside it
     wall_z(0.0, 0.0, 4.0, [(NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9)], hall_wall, out, rnd)
-    frame_z(0.0, NOTCH[2] + 0.2, 4.0 - 0.2, 0.0, 2.9, out, rnd, colour=TIMBER, t=0.16, d=0.2)   # (tall wooden posts)
     # the kitchen from the hall: a passage behind a partition clad in reeds, a serving hatch on a
     # stone sill along it, and the kitchen's lattice door at its end, open, swung in against its side
     wall_z(0.0, 4.0, hz1, [KITCHEN_DOOR + (0.0, 2.2), HATCH + (1.0, 2.1)], hall_wall, out, rnd)
@@ -1008,12 +999,12 @@ def fittings() -> list:
         out.append(("floor_spot", (x, 0.0, 0.15 if z == 0.0 else 3.85), 0.0 if z == 0.0 else math.pi, None, None))
     track = RECEPTION[1] - 0.2 - TRACK[0]
     out.append(("track_light", (TRACK[0] + track / 2, H - 0.24, TRACK[1]), 0.0, None, track))
-    out += [("exit_sign", (-16.5, 2.25, 0.0), 0.0, EXIT_GREEN, None), ("exit_sign", (-17.4, 1.95, 4.0), math.pi, EXIT_GREEN, None),
+    out += [("exit_sign", (-16.5, 2.25, 0.0), 0.0, EXIT_GREEN, None), ("exit_sign", (-18.95, 1.95, 4.0), math.pi, EXIT_GREEN, None),
             ("wall_speaker", (-15.3, 2.4, 0.0), 0.0, (0.07, 0.07, 0.07), None)]
     for x, turn in ((VERTICAL[0] + 0.2, -math.pi / 2), (VERTICAL[1] - 0.2, math.pi / 2)):
         out += [("sheer_curtain", (x, 0.0, z), turn, SHEER, None) for z in (0.5, 3.5)]
-    # the ante-room's end wall: an exit sign and a speaker high up, beside the way into the hall
-    out += [("exit_sign", (0.0, 2.4, 0.9), -math.pi / 2, EXIT_GREEN, None), ("wall_speaker", (0.0, 2.85, 1.3), -math.pi / 2, (0.07, 0.07, 0.07), None)]
+    # the ante-room: an orange saucer of a wall light near its end
+    out.append(("saucer_light", (ANTE[1] - 1.7, 1.95, 0.0), 0.0, SAUCER, None))
     # the hall: skirting along its white walls (not the toilets' hall's), uplights, its curtains
     # tied back each side of each set of windows, short track lights on its ceiling
     hx0, hx1, _, hz1 = HALL
