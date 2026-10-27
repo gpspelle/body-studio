@@ -21,8 +21,8 @@ per room; **Use another video** replaces it). After that, it loads by itself.
   beside the panel (on a phone, one over the other). The room is the camera's whole view, so what
   sits at a spot on the frame should sit at the same spot on the room. A crosshair follows the
   pointer on either picture and marks the same spot on the other.
-- **The video**: drag the time bar, or step **−0.5 s** / **+0.5 s** (the keys ← and →, or `[` and `]`), or
-  **Play** (Space plays and pauses).
+- **The video**: drag the time bar, or step **−0.5 s** / **+0.5 s** (the keys ← and →, or `[` and `]`;
+  with Shift, one frame at a time), or **Play** (Space plays and pauses).
 - **Fly** until the room sits on the frame: drag to look round, W A S D to move (Shift is faster). The arrow keys step the video here, not the camera.
 - **Lens** is the camera's angle from top to bottom (30° to 120°). A phone filming upright at 1× is
   about 70°, and at 0.5× it is wider. **Height** is the camera's height above the floor (0.5 m to
@@ -36,10 +36,14 @@ per room; **Use another video** replaces it). After that, it loads by itself.
 
 ## Tagging
 
-Press **Tag**, then click on the frame or on the room where something is off. Choose what it is (**Missing**,
+Press **Tag** (or **T**), then click on the frame or on the room where something is off. With
+the pointer already on the spot, **T** opens the note right there, at the crosshair. A tag
+remembers which side it was placed on (the video or the room); the spot is the same on both,
+since the room is drawn in the frame's shape, and `notes.md` says "on the render" for the room's. Choose what it is (**Missing**,
 **Wrong**, **Remove** or **Note**), write what should be there, and **Save the tag**. A view that
 wasn't kept is kept first. Tags show on both as numbered pins (wrong and remove in red) and are
-listed in the panel, where ✕ removes one. Press **Tag** again to go back to flying.
+listed in the panel, where ✕ removes one. Press **Tag** or **T** again, or **Esc**, to go back to flying (Esc while writing a note drops
+the note first).
 
 ## After a fix
 
@@ -62,7 +66,7 @@ The zip is what to send back to have the room fixed. The video stays on this com
 ## Where it is kept
 
 `compare/<room>/` in the data folder (the room named as its decor layouts are): `video.<ext>`,
-`views.json` (`{room, views: [{id, t, view: {at, look, pitch, eye, fov}, tags: [{x, y, kind,
+`views.json` (`{room, views: [{id, t, view: {at, look, pitch, eye, fov}, tags: [{x, y, on, kind,
 note}], made}]}`), and `snaps/`. `at` is in the room map's metres (room.py), `look` and `pitch` are
 the flying camera's angles (house.js), `eye` is in metres up, and `fov` is in degrees.
 

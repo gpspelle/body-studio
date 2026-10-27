@@ -2,6 +2,10 @@
 
 ## 0.1.0 (unreleased)
 
+- Compare with video: **T** goes in and out of tagging (with the pointer on the video or the
+  room, the note opens at that spot), **Esc** leaves it, and Shift with ← or → steps the video one
+  frame. A tag remembers whether it was placed on the video or the room; `notes.md` marks the
+  room's "on the render".
 - The sample venue's ladies' room, reworked from the walkthrough: its door hinged on the right, a
   grey wall 2 m high across the room facing it, the counter with its two bowls and mirrors before
   that wall, the cubicles behind it; no baby-changing counter. The brick wall at the end of the

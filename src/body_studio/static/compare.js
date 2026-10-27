@@ -5,7 +5,7 @@
 // picture of both; a click on the frame tags what is missing or wrong there, in your words. All
 // of it is kept per room by compare.py (/api/compare...) and exported as one zip to work from.
 // The maths (where the two sit, the clock) is matchview.js's.
-import { KINDS, around, clock, fromFrame, sideBySide, step, toFrame, viewAt, viewIn } from "/static/matchview.js";
+import { KINDS, around, clock, fromFrame, sideBySide, spotIn, step, viewAt, viewIn } from "/static/matchview.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -13,12 +13,14 @@ const app = window.bodyApp;
 const V = app.viewer;
 const video = $("compareVideo");
 const STEP = 0.5;                                   // s: one step through the video
+const FRAME = 1 / 30;                               // s: one frame (Shift with the arrows)
 const LENS = 70, EYE = 1.5;                         // a phone's lens up and down (portrait), held at the chest
 
 let room = null;            // the room's file while open
 let S = { video: null, views: [] };                 // compare.py's state for it
 let cur = null;             // the kept view shown (at the video's time), or null
 let tagging = false, pending = null, wasFov = null, url = null;
+let pointer = null;         // where the pointer last was in the window, [x, y]
 let L = null;               // where the frame and the room are drawn (sideBySide), while open
 
 const q = () => "room=" + encodeURIComponent(room);
@@ -116,18 +118,27 @@ video.addEventListener("pause", () => ($("comparePlay").textContent = t("compare
 $("comparePrev").onclick = () => { const v = around(S.views, now()).prev; if (v) go(v); };
 $("compareNext").onclick = () => { const v = around(S.views, now()).next; if (v) go(v); };
 $("compareViews").onchange = (e) => { const v = S.views.find((x) => x.id === e.target.value); if (v) go(v); };
-// ← and → (or [ and ]) step the video, Space plays and pauses it, K keeps the view: taken before the fly-through's
-// arrows and the walk's jump see them (capture), and from a slider or button that has the focus
-const KEYS = { ArrowLeft: -STEP, ArrowRight: STEP, BracketLeft: -STEP, BracketRight: STEP };
+// ← and → (or [ and ]) step the video, with Shift a frame at a time; Space plays and pauses it, K keeps
+// the view, T goes in and out of tagging (with the pointer on a picture, a tag right there), Esc
+// leaves it: taken before the fly-through's arrows and the walk's jump see them (capture), and from
+// a slider or button that has the focus
+const KEYS = { ArrowLeft: -1, ArrowRight: 1, BracketLeft: -1, BracketRight: 1 };
 addEventListener("keydown", (e) => {
   if ($("compare").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.code === "Escape" && (tagging || pending)) {
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (pending) note(null); else setTagging(false);
+    return;
+  }
   if (e.target.closest?.("textarea, select, input:not([type=range])")) return;
-  if (!(e.code in KEYS) && e.code !== "Space" && e.code !== "KeyK") return;
+  if (!(e.code in KEYS) && !["Space", "KeyK", "KeyT"].includes(e.code)) return;
   e.preventDefault();
   e.stopImmediatePropagation();
-  if (e.code === "KeyK") { if (!e.repeat) $("compareKeep").click(); }
-  else if (e.code === "Space") { if (!e.repeat) $("comparePlay").click(); }
-  else { video.pause(); seek(step(now(), KEYS[e.code], video.duration)); }
+  if (e.repeat && !(e.code in KEYS)) return;
+  if (e.code === "KeyK") $("compareKeep").click();
+  else if (e.code === "Space") $("comparePlay").click();
+  else if (e.code === "KeyT") toggleTagging();
+  else { video.pause(); seek(step(now(), KEYS[e.code] * (e.shiftKey ? FRAME : STEP), video.duration)); }
 }, true);
 
 // ---------------------------------------------------------------- the camera
@@ -243,12 +254,19 @@ function setTagging(on) {
   if (!on) note(null);
 }
 $("compareTag").onclick = () => setTagging(!tagging);
-// a point in the window -> [u, v] on the frame, from the video or the room beside it; or null
-const spot = (x, y) => (L ? toFrame(x, y, L.video) || toFrame(x, y, L.room) : null);
+// T: out of tagging, or in; in with the pointer on the video or the room, the note opens at that spot
+function toggleTagging() {
+  if (tagging) return setTagging(false);
+  setTagging(true);
+  const s = pointer && spot(...pointer);
+  if (s && S.video) note(s, pointer);
+}
+// a point in the window -> { uv: [u, v] on the frame, on: "video" | "room" }, from either side; or null
+const spot = (x, y) => spotIn(x, y, L);
 $("compareFrame").addEventListener("click", (e) => {
   if (!tagging || e.target.closest("form")) return;
-  const uv = spot(e.clientX, e.clientY);
-  if (uv) note(uv, [e.clientX, e.clientY]);
+  const s = spot(e.clientX, e.clientY);
+  if (s) note(s, [e.clientX, e.clientY]);
 });
 // the crosshair: where the pointer is on one, the same spot on the other
 function cross(uv) {
@@ -260,20 +278,21 @@ function cross(uv) {
     c.style.left = x + "px"; c.style.top = y + "px";
   }
 }
-addEventListener("pointermove", (e) => { if (L) cross(spot(e.clientX, e.clientY)); });
+addEventListener("pointermove", (e) => { pointer = [e.clientX, e.clientY]; if (L) cross(spot(...pointer)?.uv); });
 for (const k of KINDS) {
   const b = document.createElement("button");
   b.type = "button"; b.dataset.kind = k; b.textContent = t("compare.kind." + k);
   b.onclick = () => { for (const x of $("compareKinds").children) x.classList.toggle("on", x === b); };
   $("compareKinds").append(b);
 }
-// the note's form by the spot clicked (at: where in the window), or put away (null)
-function note(uv, at) {
-  pending = uv;
-  $("compareNote").hidden = !uv;
+// the note's form by the spot clicked ({uv, on}; at: where in the window), or put away (null)
+function note(s, at) {
+  pending = s;
+  if (!s && $("compareNote").contains(document.activeElement)) document.activeElement.blur();   // (the keys are the tool's again)
+  $("compareNote").hidden = !s;
   pins();
-  if (!uv) return;
-  const [x, y] = at || fromFrame(uv[0], uv[1], L.video);
+  if (!s) return;
+  const [x, y] = at || fromFrame(s.uv[0], s.uv[1], L[s.on]);
   const f = $("compareNote");
   f.style.left = Math.min(innerWidth - 280, Math.max(8, x + 12)) + "px";
   f.style.top = Math.min(innerHeight - 200, Math.max(8, y - 20)) + "px";
@@ -285,16 +304,17 @@ $("compareNoteCancel").onclick = () => note(null);
 $("compareNote").onsubmit = async (e) => {
   e.preventDefault();
   const kind = $("compareKinds").querySelector(".on")?.dataset.kind || "missing";
-  await tag(pending[0], pending[1], kind, e.target.elements.note.value);
+  await tag(pending.uv[0], pending.uv[1], kind, e.target.elements.note.value, pending.on);
   note(null);
 };
-// a tag on the view at this time (kept first, with its pictures, if it wasn't)
-async function tag(x, y, kind, text) {
+// a tag on the view at this time (kept first, with its pictures, if it wasn't); on: the side it was
+// placed on, "video" or "room" (the same spot on the frame either way)
+async function tag(x, y, kind, text, on = "video") {
   const id = cur ? cur.id : await keep();
   const v = S.views.find((w) => w.id === id);
   if (!v) return;
   const r = await api("/api/compare/view", { method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id, t: v.t, view: v.view, tags: [...v.tags, { x, y, kind, note: text }] }) });
+    body: JSON.stringify({ id, t: v.t, view: v.view, tags: [...v.tags, { x, y, kind, note: text, on }] }) });
   S = r.state;
   cur = S.views.find((w) => w.id === id);
   show();
@@ -332,7 +352,7 @@ function pins() {
   el.replaceChildren();
   if (!L) return;
   const all = (cur ? cur.tags : []).map((g, k) => [g.x, g.y, String(k + 1), g.kind]);
-  if (pending) all.push([pending[0], pending[1], "+", "new"]);
+  if (pending) all.push([pending.uv[0], pending.uv[1], "+", "new"]);
   for (const r of [L.video, L.room]) for (const [x, y, label, kind] of all) {
     const p = document.createElement("span");
     const [px, py] = fromFrame(x, y, r);

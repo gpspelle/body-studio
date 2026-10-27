@@ -1,7 +1,7 @@
 // The Compare tool's maths (src/body_studio/static/matchview.js). Run by tests/unit/test_matchview_js.py.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { KINDS, around, clock, frameRect, fromFrame, sideBySide, step, toFrame, viewAt, viewIn } from "../../src/body_studio/static/matchview.js";
+import { KINDS, SIDES, around, clock, frameRect, fromFrame, sideBySide, spotIn, step, toFrame, viewAt, viewIn } from "../../src/body_studio/static/matchview.js";
 
 test("a portrait frame fills the window's height, centred", () => {
   const r = frameRect(480, 848, 1280, 800);
@@ -75,4 +75,17 @@ test("the camera's whole view lands in the room's rect", () => {
   assert.equal((r.left + o.x) / o.fullWidth, 0);
   assert.equal((r.left + r.width + o.x) / o.fullWidth, 1);
   assert.equal((r.top + r.height + o.y) / o.fullHeight, 1);
+});
+
+test("a click on the video or on the room is the same spot on the frame, and says which side", () => {
+  const L = sideBySide(480, 848, { left: 16, top: 64, width: 900, height: 700 });
+  const onVideo = spotIn(...fromFrame(0.3, 0.6, L.video), L);
+  const onRoom = spotIn(...fromFrame(0.3, 0.6, L.room), L);
+  assert.equal(onVideo.on, "video");
+  assert.equal(onRoom.on, "room");
+  for (const s of [onVideo, onRoom]) assert.ok(Math.abs(s.uv[0] - 0.3) < 1e-9 && Math.abs(s.uv[1] - 0.6) < 1e-9);
+  // the gap between them, and no layout yet, are nothing
+  assert.equal(spotIn(L.video.left + L.video.width + 4, L.video.top + 10, L), null);
+  assert.equal(spotIn(100, 100, null), null);
+  assert.deepEqual(SIDES, ["video", "room"]);
 });

@@ -51,12 +51,15 @@ class Compare(unittest.TestCase):
         self.assertEqual([v["id"] for v in st["views"]], [early, late])
         self.assertEqual(st["views"][0]["tags"][0]["note"], "An exit sign over the door")
         compare.save_view(self.d, self.room, {"id": late, "t": 83.5, "view": {**VIEW, "fov": 90},
-                                              "tags": [{"x": 1, "y": 0, "kind": "wrong", "note": "the skirting is wood"}]})
+                                              "tags": [{"x": 1, "y": 0, "kind": "wrong", "note": "the skirting is wood", "on": "room"}]})
         st = compare.state(self.d, self.room)
         self.assertEqual((st["views"][1]["view"]["fov"], st["views"][1]["tags"][0]["kind"]), (90, "wrong"))
+        # the side a tag was placed on: the room's, or the video's when not said
+        self.assertEqual([st["views"][0]["tags"][0]["on"], st["views"][1]["tags"][0]["on"]], ["video", "room"])
         for bad in ({"t": -1, "view": VIEW}, {"t": 1, "view": {**VIEW, "at": [1]}}, {"t": 1, "view": {**VIEW, "fov": 400}},
                     {"t": 1, "view": VIEW, "tags": [{"x": 2, "y": 0, "kind": "missing"}]},
                     {"t": 1, "view": VIEW, "tags": [{"x": 0, "y": 0, "kind": "maybe"}]},
+                    {"t": 1, "view": VIEW, "tags": [{"x": 0, "y": 0, "kind": "note", "on": "left"}]},
                     {"id": "abcdef1234", "t": 1, "view": VIEW}, "not a dict"):
             with self.assertRaises(compare.CompareError, msg=bad):
                 compare.save_view(self.d, self.room, bad)
@@ -74,6 +77,7 @@ class Compare(unittest.TestCase):
         self.assertIn("## 0:12.0", notes)
         self.assertIn("## 1:23.5", notes)
         self.assertIn("1. **missing** at (0.25, 0.50): An exit sign over the door", notes)
+        self.assertIn("1. **wrong** at (1.00, 0.00) on the render: the skirting is wood", notes)
         self.assertEqual(json.loads(z.read("views.json"))["views"][1]["id"], late)
         # forgotten, with its pictures
         compare.delete_view(self.d, self.room, early)

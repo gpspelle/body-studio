@@ -16,7 +16,8 @@ decor.layout_file):
 
 A view's `view` is the fly-through camera: {at: [x, z] in the room map's metres, look (its yaw),
 pitch, eye (m up from the floor), fov (degrees, up and down)}. A tag is {x, y} on the frame (0..1
-from its top left), a kind (KINDS) and a note.
+from its top left), a kind (KINDS), a note, and the side it was placed on (SIDES: the video's frame
+or the room beside it, the same spot on the frame either way; "video" when not said).
 
 export() puts it all in one zip with notes.md, a list a person (or Claude) can work through.
 """
@@ -41,6 +42,7 @@ MAX_VIEWS = 500
 MAX_TAGS = 60
 MAX_NOTE = 600
 KINDS = ("missing", "wrong", "remove", "note")
+SIDES = ("video", "room")             # where a tag was placed: on the frame, or on the room beside it
 SNAPS = ("video", "render")
 
 
@@ -137,8 +139,10 @@ def _tags(tags) -> list:
     for g in tags:
         if not isinstance(g, dict) or g.get("kind") not in KINDS:
             raise CompareError("a tag's kind is one of " + ", ".join(KINDS), "bad_request")
+        if g.get("on", "video") not in SIDES:
+            raise CompareError("a tag is on one of " + ", ".join(SIDES), "bad_request")
         out.append({"x": _num(g.get("x"), 0, 1, "x"), "y": _num(g.get("y"), 0, 1, "y"), "kind": g["kind"],
-                    "note": str(g.get("note") or "").strip()[:MAX_NOTE]})
+                    "note": str(g.get("note") or "").strip()[:MAX_NOTE], "on": g.get("on", "video")})
     return out
 
 
@@ -216,7 +220,8 @@ def notes(data_dir: Path, room_file: str) -> str:
                      f"look {w['look']}, pitch {w['pitch']}, lens {w['fov']}°. "
                      f"Pictures: snaps/{v['id']}-video.jpg, snaps/{v['id']}-render.jpg")
         for k, g in enumerate(v["tags"], 1):
-            lines.append(f"{k}. **{g['kind']}** at ({g['x']:.2f}, {g['y']:.2f}): {g['note'] or '(no note)'}")
+            side = " on the render" if g.get("on") == "room" else ""
+            lines.append(f"{k}. **{g['kind']}** at ({g['x']:.2f}, {g['y']:.2f}){side}: {g['note'] or '(no note)'}")
         lines.append("")
     return "\n".join(lines)
 

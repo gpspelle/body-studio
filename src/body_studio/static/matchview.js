@@ -36,6 +36,18 @@ export function toFrame(px, py, r) {
   return u >= 0 && u <= 1 && v >= 0 && v <= 1 ? [u, v] : null;
 }
 
+// A point in the window -> the spot on the frame and the side it was on ("video" or "room": the
+// room is the camera's whole view in the frame's shape, so a spot on it is the same spot on the
+// frame), from the pair sideBySide placed: { uv: [u, v], on } or null off both.
+export function spotIn(px, py, L) {
+  if (!L) return null;
+  for (const on of ["video", "room"]) {
+    const uv = toFrame(px, py, L[on]);
+    if (uv) return { uv, on };
+  }
+  return null;
+}
+
 // [u, v] on the frame -> the point in the box.
 export function fromFrame(u, v, r) {
   return [r.left + u * r.width, r.top + v * r.height];
@@ -71,3 +83,4 @@ export function around(views, t) {
 }
 
 export const KINDS = ["missing", "wrong", "remove", "note"];
+export const SIDES = ["video", "room"];
