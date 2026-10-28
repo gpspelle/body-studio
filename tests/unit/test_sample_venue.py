@@ -64,13 +64,14 @@ class SampleVenueTest(unittest.TestCase):
                              "vertical garden": (-11.5, 2.0), "ante-room": (-4.0, 2.0), "into the hall": (0.0, 2.8),
                              "hall": (9.0, 5.0), "the kitchen": (-4.0, 6.0), "the kitchen door": (0.0, 6.85), "the passage to the kitchen": (0.6, 6.0), "by the half wall": (11.3, 4.2), "toilets' hall": (14.0, 1.6),
                              "glass doors": (17.8, 3.9),
-                             "into the ladies'": (13.45, -0.5), "the passage to the side room": (5.8, -1.0), "through its louvred door": (5.8, -2.1), "the side room": (7.2, -4.0), "the ladies'": (12.6, -0.9), "the gents'": (16.5, -2.0), "pergola": (23.0, 7.0), "garden, under its cover": (38.0, 8.0),
+                             "into the ladies'": (13.45, -0.5), "out by the glass panel": (5.0, 1.0), "the corridor round": (2.0, -1.0), "round its corner": (3.3, -4.25), "through its louvred door": (4.0, -4.25), "the side room": (7.2, -4.0),
+                             "out the kitchen's left door": (-9.3, 8.05), "the passage outside": (5.0, 9.6), "its door onto the pergola": (17.8, 9.6), "the ladies'": (12.6, -0.9), "the gents'": (16.5, -2.0), "pergola": (23.0, 7.0), "garden, under its cover": (38.0, 8.0),
                              "on the bungalow's deck": (46.0, 15.0),
                              "beside the pergola": (22.0, 14.0), "by the far side": (52.4, 8.9),
                              "on the beach": (V._garden_end(8.9) + 3.0, 8.9)}.items():
             self.assertTrue(self.free(x, z), name)
         for name, (x, z) in {"the kitchen's back wall": (-9.3, 6.0), "the ante-room's wall": (-4.0, 4.0), "the hall's side": (9.0, 8.6),
-                             "the notch": (2.5, 0.7), "the ladies' counter": (11.55, -1.5), "the trough": (15.5, -3.85),
+                             "the notch": (0.7, 0.7), "where the old passage was": (5.8, -1.0), "the side room's old door": (5.8, -2.0), "the passage's low wall": (5.0, V.OUT_WAY), "the ladies' counter": (11.55, -1.5), "the trough": (15.5, -3.85),
                              "a cubicle's toilet": (14.0, -3.8), "between the toilets": (14.5, -1.5), "behind the toilets": (16.0, -4.3), "the patio past the glass doors": (7.2, -6.6), "the reed partition": (1.3, 7.0), "the stone wall at the beach": (V._garden_end(3.0) - 0.5, 3.0), "the kitchen's stove": (-4.8, 5.8), "a sink bench": (-7.0, 8.3), "the half wall": (11.3, 1.5), "the stage": (24.0, 1.6),
                              "the pergola's far wall": (22.0, V.PERGOLA[3]),
                              "the beds along the garden's wall": (40.0, 0.6), "the left wall": (40.0, V.GARDEN_W),
