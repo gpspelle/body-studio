@@ -821,9 +821,9 @@ const GLOW = [1.0, 0.7, 0.4], SKY_GLASS = [0.8, 0.88, 0.95];
 const AGAVE = [0.42, 0.56, 0.52], AGAVE_PALE = [0.55, 0.66, 0.6], PINK_FLOWER = [0.93, 0.42, 0.62];
 const TIMBER_RED = [0.5, 0.27, 0.18], WEATHERED = [0.33, 0.27, 0.22], ALUMINIUM = [0.8, 0.81, 0.82], BAND = [0.09, 0.09, 0.09], SAND_RUG = [0.86, 0.76, 0.6];
 function swags(s, col, bands) {
-  // (with bands, as over the venue's ante-room: rows across the room, each two panels hung from
-  // dark battens across the ceiling, from near each wall to a gap down the middle, sagging deep
-  // between the battens; the black ceiling shows in that gap, between the rows and along the walls)
+  // (with bands, as over the venue's ante-room: rows across the room, each three pieces of fabric
+  // side by side hung from dark battens across the ceiling, sagging deep between the battens; the
+  // black ceiling shows in the two gaps between the pieces and along the walls)
   const top = 3.4, sag = 0.28, n = bands ? 6 : 8;
   for (let k = 0; k <= n; k++) rod(s, [-2 + (4 * k) / n, top - (bands ? 0.02 : 0), -2], [-2 + (4 * k) / n, top - (bands ? 0.02 : 0), 2], bands ? 0.02 : 0.008, bands ? BAND : WIRE, bands ? 6 : 4);
   const sheet = (x0, x1, z0, z1, deep, c, below = 0) => {
@@ -841,8 +841,8 @@ function swags(s, col, bands) {
     for (let k = 0; k < n; k++) {
       const x0 = -2 + (4 * k) / n, x1 = x0 + 4 / n, c = col.map((v) => Math.min(1, v * 1.15 * (0.94 + 0.06 * (k % 2))));   // (burlap: paler than rattan)
       if (!bands) { sheet(x0, x1, -2, 2, sag, c); continue; }
-      sheet(x0 + 0.05, x1 - 0.05, -1.9, -0.2, sag * (0.9 + 0.2 * ((k * 7) % 3) / 2), c);
-      sheet(x0 + 0.05, x1 - 0.05, 0.2, 1.9, sag * (0.9 + 0.2 * ((k * 5) % 3) / 2), c);
+      for (const [j, z0, z1] of [[0, -1.9, -0.72], [1, -0.58, 0.58], [2, 0.72, 1.9]])
+        sheet(x0 + 0.05, x1 - 0.05, z0, z1, sag * (0.9 + 0.2 * ((k * (5 + j) + j) % 3) / 2), c);
     }
   });
 }
