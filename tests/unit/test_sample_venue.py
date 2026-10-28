@@ -147,13 +147,15 @@ class SampleVenueTest(unittest.TestCase):
         self.assertLess(self.to_map(24.0, 1.6)[1], hall, "stage")
 
     def test_as_the_videos_show_it(self):
-        # the hall's rustic tiles: glazed orange worn near black in blotches, a dark grout line between them
+        # the hall's rustic tiles: a red-brown ground, patches glazed orange and patches worn near
+        # black, a dark grout line between them
         import random
         rnd = random.Random(1)
         seen = [V._rustic(0.013 * i + 0.003, 0.0, 0.017 * k + 0.003, rnd) for i in range(300) for k in range(300)]
         self.assertTrue(all(r >= g >= b for r, g, b in seen))
-        orange, black = sum(r > 0.6 for r, g, b in seen), sum(r < 0.3 for r, g, b in seen)
-        self.assertTrue(0.2 < orange / len(seen) < 0.8 and 0.15 < black / len(seen) < 0.7, (orange, black))
+        orange, black = sum(r > 0.6 for r, g, b in seen), sum(r < 0.25 for r, g, b in seen)
+        ground = sum(0.3 < r < 0.5 for r, g, b in seen)
+        self.assertTrue(0.1 < orange / len(seen) < 0.5 and 0.1 < black / len(seen) < 0.5 and ground / len(seen) > 0.15, (orange, black, ground))
         self.assertEqual(V._rustic(0.0, 0.0, 1.13, rnd), V._rustic(5.1, 0.0, 0.0, rnd))
         # the ante-room's walls are plaster, not planted (only the vertical garden's are)
         walls = [t for t in V.fixtures()["trees"] if t["item"] == "living_wall" and t["at"][0] < V.HALL[0]]
@@ -205,7 +207,7 @@ class SampleVenueTest(unittest.TestCase):
         self.assertFalse(at(V.VERTICAL[1] - 0.001, V.VERTICAL[1] + 0.001, 0.2, 2.8, a0 + 0.2, a1 - 0.2))
         # the hall's rustic tiles begin in the ante-room
         tiles = at(V.ANTE[1] - V.ANTE_TILES + 0.05, V.ANTE[1] - 0.05, -0.001, 0.001, 0.2, 3.8)
-        self.assertTrue(tiles and min(c[0] for _, c, *_ in tiles) < 0.3 and max(c[0] for _, c, *_ in tiles) > 0.6)
+        self.assertTrue(tiles and min(c[0] for _, c, *_ in tiles) < 0.3 and max(c[0] for _, c, *_ in tiles) > 0.5)
 
     def test_views8_drawn_as_the_furniture_is(self):
         fit = V.fittings()
@@ -241,8 +243,8 @@ class SampleVenueTest(unittest.TestCase):
         rows = V.splats()
         self.assertFalse([r for r in rows if r[1] == V.STEEL and abs(r[0][1] - V.H + 0.02) < 0.03 and V.HALL[0] < r[0][0] < V.HALL[1]],
                          "no rails of splats along its ceiling")
-        # its ceiling pale, its beam where it widens a warm wood with a post each side
-        self.assertGreater(min(V.CONCRETE), 0.75)
+        # its ceiling bare concrete, a mid grey (dim, as filmed), its beam where it widens a warm wood with a post each side
+        self.assertTrue(0.45 < min(V.CONCRETE) and max(V.CONCRETE) < 0.7)
         beam = [r for r in rows if max(abs(a - b) for a, b in zip(r[1], V.BEAM)) < 0.04 and r[0][1] < 1.0 and abs(r[0][0] - V.NOTCH[1]) < 0.15]
         self.assertTrue(any(r[0][2] < V.NOTCH[2] + 0.2 for r in beam) and any(r[0][2] > V.HALL[3] - 0.2 for r in beam))
         # (Gabriel's tags) the ante-room's end wall bare: no sign, no speaker, no wooden frame
@@ -300,12 +302,12 @@ class SampleVenueTest(unittest.TestCase):
         self.assertEqual((roof[1][1], roof[4]["w"], roof[4]["d"]), (V.PERGOLA_ROOF, round(x1 - x0, 3), round(z1 - z0, 3)))
         rows = V.splats()
         self.assertFalse([r for r in rows if x0 < r[0][0] < x1 and z0 < r[0][2] < z1 and abs(r[0][1] - V.PERGOLA_ROOF - 0.01) < 1e-6])
-        # track lights on its beams, up-and-down lights on its wall, the beams orange-brown
+        # track lights on its beams, up-and-down lights on its wall, the beams dark wood
         self.assertEqual(sum(f[0] == "track_light" for f in fit), 3)
         sconces = [f for f in fit if f[0] == "wall_sconce"]
         self.assertEqual(len(sconces), 2 * len(V._strips()))
         self.assertTrue(all(f[1][2] == z1 and f[2] == math.pi for f in sconces))
-        self.assertTrue([r for r in rows if max(abs(a - b) for a, b in zip(r[1], V.BEAM)) < 0.04 and r[0][1] > V.PERGOLA_ROOF - 0.4 and x0 < r[0][0] < x1])
+        self.assertTrue([r for r in rows if max(abs(a - b) for a, b in zip(r[1], V.PERGOLA_BEAM)) < 0.04 and r[0][1] > V.PERGOLA_ROOF - 0.4 and x0 < r[0][0] < x1])
         # its floor a darker grey; the stage keeps its big white screen (Gabriel's call)
         self.assertLess(max(V.PERGOLA_FLOOR), 0.6)
         sx0, sx1, sz0, sz1, sh = V.STAGE
@@ -316,6 +318,26 @@ class SampleVenueTest(unittest.TestCase):
         rows = V.splats()
         grass = [r for r in rows if r[0][0] > V.GARDEN_X and abs(r[0][1]) < 0.02 and r[1][1] > r[1][0] + 0.1]
         self.assertFalse(grass)
+
+    def test_hunt_two_as_the_walkthrough(self):
+        # (2026-10-28) grey floors on the way in, not near white; the garden's sand grey-brown, the
+        # beach's still pale; palms all round the garden; big broad trees; the hall's curtains wide
+        # and gathered; the kitchen's grout clear; the bungalow's frame dark and open
+        self.assertLess(max(V.POLISHED), 0.45)
+        self.assertLess(sum(V.GARDEN_SAND), sum(V.SAND) - 0.5)
+        palms = [t for t in V.TREES if t[2] == "coconut_palm"]
+        self.assertGreaterEqual(sum(t[1] < 0 for t in palms), 4)
+        self.assertGreaterEqual(sum(t[1] > V.GARDEN_W for t in palms), 4)
+        props = V.fixtures()["trees"]
+        self.assertTrue(all(t.get("scale", [1])[0] > 1.2 for t in props if t["item"] == "broad_tree"))
+        fit = V.fittings()
+        hall = [f for f in fit if f[0] == "sheer_curtain" and f[1][2] > V.HALL[3] - 0.5 and f[1][0] < V.HALL[1] - 0.5]
+        self.assertTrue(hall and all(f[4]["full"] > 1.5 for f in hall))
+        kitchen = next(f for f in fit if f[0] == "tile_floor" and f[3] == V.KITCHEN_TILE)
+        self.assertGreater(kitchen[4]["grout"], 0.008)
+        x0, x1, z0, z1 = V.BUNGALOW
+        rows = [r for r in V.splats() if x0 - 0.4 < r[0][0] < x1 + 0.4 and z0 - 0.4 < r[0][2] < z1 + 0.4 and r[0][1] > 2.7]
+        self.assertTrue(rows and all(max(r[1]) < 0.3 for r in rows))
 
     def test_walls_with_holes(self):
         # a wall 4 m along, 3.4 high, less a door and a window: what is left covers the rest exactly

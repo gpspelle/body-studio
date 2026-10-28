@@ -545,6 +545,8 @@
       "decor.knob.tie": "Tie-back",
       "decor.knob.left": "Tied to the left",
       "decor.knob.drop": "Cord",
+      "decor.knob.full": "Fullness",
+      "decor.knob.grout": "Grout width",
       "decor.material": "Made of",
       "decor.material.own": "As made",
       "decor.material.cloth": "Matte",

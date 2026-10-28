@@ -571,26 +571,31 @@ export function border(s, w, d, seed) {
     for (let j = 0; j < 12; j++) leaf(s, [x, 0.04, z], tipped(j * 2.4 + rnd(), 0.6 + 0.6 * (j / 12)), 0.32, 0.14, red && j % 2 ? CORDYLINE : [0.4, 0.58, 0.32]);
   }
 }
-// one bay of a glass roof on dark steel: posts at its two ends, a pitched rafter, purlins along,
-// two panes of glass; w along (x), d across (z)
+// one bay of a glass roof on painted steel: posts at its two ends, a deep pitched rafter, a heavy
+// beam along each eave, purlins along, two panes of tinted glass (the sky darker through them, as
+// filmed); w along (x), d across (z)
 export function roofBay(s, w, d, eave, ridge, steel = STEEL_DARK) {
   const roof = (z) => eave + (ridge - eave) * (1 - Math.abs(z) / (d / 2));
   made("metal", () => {
-    for (const z of [-d / 2, d / 2]) box(s, 0.1, eave, 0.1, 0, 0, z, steel);
-    for (const z of [-d / 2, d / 2]) rod(s, [0, roof(z), z], [0, ridge, 0], 0.04, steel, 6);
+    for (const z of [-d / 2, d / 2]) box(s, 0.14, eave, 0.14, 0, 0, z, steel);
+    for (const z of [-d / 2, d / 2]) {
+      box(s, w, 0.22, 0.12, 0, eave - 0.2, z, steel);
+      rod(s, [0, roof(z), z], [0, ridge, 0], 0.07, steel, 6);
+    }
     for (const f of [0, 0.25, 0.5, 0.75, 1]) for (const side of [-1, 1]) {
       const z = side * f * d / 2;
-      rod(s, [-w / 2, roof(z) + 0.02, z], [w / 2, roof(z) + 0.02, z], 0.025, steel, 6);
+      rod(s, [-w / 2, roof(z) + 0.04, z], [w / 2, roof(z) + 0.04, z], 0.035, steel, 6);
     }
   });
   made("glass", () => {
     for (const side of [-1, 1]) {
-      const a = vert(s, -w / 2, ridge + 0.05, 0, GLASS), b = vert(s, w / 2, ridge + 0.05, 0, GLASS);
-      const c = vert(s, w / 2, eave + 0.05, side * d / 2, GLASS), e = vert(s, -w / 2, eave + 0.05, side * d / 2, GLASS);
+      const a = vert(s, -w / 2, ridge + 0.08, 0, TINTED), b = vert(s, w / 2, ridge + 0.08, 0, TINTED);
+      const c = vert(s, w / 2, eave + 0.08, side * d / 2, TINTED), e = vert(s, -w / 2, eave + 0.08, side * d / 2, TINTED);
       quad(s, a, b, c, e);
     }
   });
 }
+export const TINTED = [0.3, 0.38, 0.38];   // a glass roof's panes, grey-green
 export const STEEL_DARK = [0.13, 0.13, 0.14];
 export const STEEL_MAROON = [0.36, 0.13, 0.11];   // painted steel, as the venue's garden cover
 // a woven shell (wicker, rattan) of rings and staves: radius r(t) from t = 0 (foot) to 1 (top)

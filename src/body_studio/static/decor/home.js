@@ -416,13 +416,15 @@ export const HOME = {
   },
   sheer_curtain: {
     group: "home", height: 3.25, on: "floor", colour: "ivory", size: { w: 0.6, d: 0.1 }, block: false,
-    knobs: { tie: { min: 0, max: 1, value: 0, size: true, step: 0.01 }, left: { min: 0, max: 1, value: 0 } },
-    make(col, k = { tie: 0, left: 0 }) {
+    knobs: { tie: { min: 0, max: 1, value: 0, size: true, step: 0.01 }, left: { min: 0, max: 1, value: 0 },
+             full: { min: 1, max: 3, value: 1, size: true, step: 0.05 } },
+    make(col, k = { tie: 0, left: 0, full: 1 }) {
       // a sheer curtain on a short black rod, gathered and tied back a metre up: full under the
       // rod, pinched at the tie, flaring a little to the floor, falling in soft folds; with a tie
-      // `tie` long, its band runs off to its right (or left) to the post it is tied to
-      const s = shape(), top = 3.25, tie = 1.0, N = 40, M = 16;
-      const half = (y) => (y > tie ? 0.04 + 0.2 * ((y - tie) / (top - 0.05 - tie)) ** 0.8 : 0.04 + 0.08 * (tie - y) / tie);
+      // `tie` long, its band runs off to its right (or left) to the post it is tied to; `full`
+      // times as wide above and below the tie (a wide panel gathered in at its waist)
+      const s = shape(), top = 3.25, tie = 1.0, N = 40, M = 16, f = k.full || 1;
+      const half = (y) => (y > tie ? 0.04 + 0.2 * f * ((y - tie) / (top - 0.05 - tie)) ** 0.8 : 0.04 + 0.08 * f * (tie - y) / tie);
       made("cloth", () => {
         const rows = [];
         for (let j = 0; j <= N; j++) {
@@ -441,7 +443,7 @@ export const HOME = {
           cyl(s, 0.03, 0.03, 0.06, end, tie - 0.03, 0.0, col.map((v) => v * 0.85), 12);
         }
       });
-      made("metal", () => rod(s, [-0.3, top - 0.03, 0.012], [0.3, top - 0.03, 0.012], 0.012, INK, 8));
+      made("metal", () => rod(s, [-0.3 * f, top - 0.03, 0.012], [0.3 * f, top - 0.03, 0.012], 0.012, INK, 8));
       return s;
     },
   },
@@ -561,20 +563,20 @@ export const HOME = {
   reed_roof: {
     group: "garden", height: 0.03, hangs: true, on: "floor", colour: "rattan", size: { w: 4.0, d: 4.0 }, block: false, built: ["w", "d"],
     make(col, k = { w: 4.0, d: 4.0 }) {
-      // a flat roof of coarse woven reed matting (hung, lift it to its beams' tops): bands of three
-      // or five stalks each way, every 21 cm or so, each band its own straw shade, the sky through
-      // the gaps between them
+      // a flat roof of finely woven reed matting (hung, lift it to its beams' tops): bands of three
+      // or four stalks each way, every 9 cm or so, each band its own straw shade, the sky in small
+      // gaps between them
       const s = shape(), rnd = rng(97), shade = () => { const t = 0.12 * (rnd() - 0.6); return col.map((v) => Math.max(0, v + t)); };
       const band = (along, at, len, y) => {
-        const n = 4 + Math.floor(rnd() * 2), c = shade();
+        const n = 3 + Math.floor(rnd() * 2), c = shade();
         for (let i = 0; i < n; i++) {
-          const o = at + (i - (n - 1) / 2) * 0.024, cc = i % 2 ? c : c.map((v) => v * 0.92);
-          if (along === "x") box(s, len, 0.012, 0.02, 0, y, o, cc); else box(s, 0.02, 0.012, len, o, y, 0, cc);
+          const o = at + (i - (n - 1) / 2) * 0.016, cc = i % 2 ? c : c.map((v) => v * 0.92);
+          if (along === "x") box(s, len, 0.012, 0.015, 0, y, o, cc); else box(s, 0.015, 0.012, len, o, y, 0, cc);
         }
       };
       made("wood", () => {
-        for (let z = -k.d / 2 + 0.07; z < k.d / 2 - 0.05; z += 0.19 + 0.05 * rnd()) band("x", z, k.w, 0.0);
-        for (let x = -k.w / 2 + 0.07; x < k.w / 2 - 0.05; x += 0.19 + 0.05 * rnd()) band("z", x, k.d, 0.016);
+        for (let z = -k.d / 2 + 0.05; z < k.d / 2 - 0.04; z += 0.085 + 0.015 * rnd()) band("x", z, k.w, 0.0);
+        for (let x = -k.w / 2 + 0.05; x < k.w / 2 - 0.04; x += 0.085 + 0.015 * rnd()) band("z", x, k.d, 0.016);
       });
       return s;
     },
@@ -852,15 +854,15 @@ export const HOME = {
     group: "home", height: 0.012, on: "floor", colour: "white", size: { w: 4, d: 4 }, block: false, built: ["w", "d"],
     knobs: { tx: { min: 0.1, max: 3, value: 0.45, size: true, step: 0.01 }, tz: { min: 0.1, max: 3, value: 0.45, size: true, step: 0.01 },
              ox: { min: 0, max: 3, value: 0, size: true, step: 0.01 }, oz: { min: 0, max: 3, value: 0, size: true, step: 0.01 },
-             matte: { min: 0, max: 1, value: 0 } },
-    make(col, k = { w: 4, d: 4, tx: 0.45, tz: 0.45, ox: 0, oz: 0, matte: 0 }) {
+             matte: { min: 0, max: 1, value: 0 }, grout: { min: 0, max: 0.03, value: 0, size: true, step: 0.001 } },
+    make(col, k = { w: 4, d: 4, tx: 0.45, tz: 0.45, ox: 0, oz: 0, matte: 0, grout: 0 }) {
       // a floor laid in tiles or slabs tx by tz (a joint every tx along x, every tz along z, the
       // first ox and oz in from its -x and -z edges), cut at its edges: each a shade of its own,
-      // glazed (or matte, as cement slabs are), on grout a shade darker
-      const s = shape(), rnd = rng(Math.round(k.w * 37 + k.d * 11 + k.tx * 101)), g = Math.min(0.006, k.tx * 0.04), top = 0.012;
+      // glazed (or matte, as cement slabs are), on grout a shade darker (`grout` wide, or thin)
+      const s = shape(), rnd = rng(Math.round(k.w * 37 + k.d * 11 + k.tx * 101)), g = k.grout || Math.min(0.006, k.tx * 0.04), top = 0.012;
       const cuts = (len, t, o) => { const out = [-len / 2]; for (let v = -len / 2 + (o > 0.01 ? o : t); v < len / 2 - 0.02; v += t) out.push(v); out.push(len / 2); return out; };
       const xs = cuts(k.w, k.tx, k.ox), zs = cuts(k.d, k.tz, k.oz);
-      made("cloth", () => sharpBox(s, k.w, top * 0.4, k.d, 0, 0, 0, col.map((v) => v * 0.78)));
+      made("cloth", () => sharpBox(s, k.w, top * 0.4, k.d, 0, 0, 0, col.map((v) => v * (k.grout ? 0.62 : 0.78))));
       made(k.matte ? "cloth" : "satin", () => {
         for (let i = 0; i + 1 < xs.length; i++) for (let j = 0; j + 1 < zs.length; j++) {
           const t = 0.96 + 0.06 * rnd(), w = xs[i + 1] - xs[i] - g, d = zs[j + 1] - zs[j] - g;
