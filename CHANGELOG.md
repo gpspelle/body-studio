@@ -6,6 +6,8 @@
   and the ante-room floors; the ante-room's fabric in three pieces across; the garden's sand back
   to the beach's; the kitchen's hatch and floor as before; no post over the hall's window where its
   beam rests; no rattan lamp by the bungalow.
+- The venue's hall tiles drawn as the furniture is: a new **Rustic tiles** starter, square glazed
+  tiles in dark grout, each a red-brown ground with its own crisp patches of orange glaze and worn black.
 - The sample venue against the walkthrough, hunt 2: grey cement floors on the way in (not near
   white); the hall's tiles red-brown with orange and worn black patches and a clear grout grid, its
   concrete ceiling a darker grey, its curtains wide and gathered at the tie (**Fullness** knob); the

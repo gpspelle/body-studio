@@ -100,7 +100,7 @@ class SampleVenueTest(unittest.TestCase):
                           "reed_roof", "wall_sconce", "sky_dome", "saucer_light",
                           "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher",
                           "brick_wall", "brick_pier", "brick_bench", "door_sign", "sink_cabinet", "changing_table", "mosaic_splash",
-                          "dome_pendant", "plain_counter", "wall_plates", "tile_floor", "wall_tiles",
+                          "dome_pendant", "plain_counter", "wall_plates", "tile_floor", "rustic_tiles", "wall_tiles",
                           "pivot_door", "panel_door", "security_camera"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
@@ -187,7 +187,7 @@ class SampleVenueTest(unittest.TestCase):
         fit = [f for f in V.fittings() if f[1][0] <= V.ANTE[1] and not V.KITCHEN[2] < f[1][2] <= V.KITCHEN[3]]
         kinds = {f[0] for f in fit}
         self.assertEqual(kinds, {"skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain", "saucer_light",
-                                 "security_camera", "pivot_door", "tile_floor"})
+                                 "security_camera", "pivot_door", "tile_floor", "rustic_tiles"})
         self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 4)
         self.assertTrue(all(V.DECK[1] <= f[1][0] for f in fit))
         boards = [f for f in fit if f[0] == "skirting_board"]
@@ -334,6 +334,11 @@ class SampleVenueTest(unittest.TestCase):
         fit = V.fittings()
         hall = [f for f in fit if f[0] == "sheer_curtain" and f[1][2] > V.HALL[3] - 0.5 and f[1][0] < V.HALL[1] - 0.5]
         self.assertTrue(hall and all(f[4]["full"] > 1.5 for f in hall))
+        # the hall's rustic tiles drawn as furniture over all its tiled floor, on the 40 cm grid
+        rustic = [f for f in fit if f[0] == "rustic_tiles"]
+        self.assertAlmostEqual(sum(f[4]["w"] * f[4]["d"] for f in rustic),
+                               V.ANTE_TILES * 4.0 + V.NOTCH[1] * (V.HALL[3] - V.NOTCH[2]) + (V.TILES_END - V.NOTCH[1]) * V.HALL[3], places=2)
+        self.assertTrue(all(f[4]["w"] <= 10 and f[4]["d"] <= 10 for f in rustic))
         # no rattan lamp by the bungalow's front (Gabriel)
         bx0, bx1, bz0, _ = V.BUNGALOW
         lamps = [t for t in props if t["item"] == "wicker_pendant" and t["at"][1] > 0]

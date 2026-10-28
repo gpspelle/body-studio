@@ -435,6 +435,7 @@
       "decor.item.sky_dome": "Sky",
       "decor.item.saucer_light": "Orange saucer wall light",
       "decor.item.tile_floor": "Tiled floor",
+      "decor.item.rustic_tiles": "Rustic tiles",
       "decor.item.wall_tiles": "Wall tiles",
       "decor.item.pivot_door": "Pivot door",
       "decor.item.panel_door": "Panelled door",

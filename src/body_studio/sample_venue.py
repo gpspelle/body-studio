@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 29
+VERSION = 30
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -1089,6 +1089,12 @@ def fittings() -> list:
     for (x0, x1), colour, (tx, tz) in (((lx, VERTICAL[0]), POLISHED, (1.5, 2.0)), (VERTICAL[:2], POLISHED, (1.5, 2.0)),
                                        ((ANTE[0], ANTE[1] - ANTE_TILES), SLAB, (2.5, 4 / 3))):
         out.append(("tile_floor", (round((x0 + x1) / 2, 3), 0.0, 2.0), 0.0, colour, {"w": round(x1 - x0, 3), "d": 4.0, "tx": tx, "tz": tz, "matte": 1}))
+    # the hall's rustic tiles drawn as the furniture is, each 40 cm tile its own (from the ante-room's
+    # end to where the cement starts), their joints on the floor's own 40 cm grid
+    for x0, x1, z0, z1 in ((ANTE[1] - ANTE_TILES, ANTE[1], ANTE[2], ANTE[3]), (HALL[0], NOTCH[1], NOTCH[2], HALL[3]),
+                           (NOTCH[1], TILES_END, HALL[2], HALL[3])):
+        out.append(("rustic_tiles", (round((x0 + x1) / 2, 3), 0.0, round((z0 + z1) / 2, 3)), 0.0, None,
+                    {"w": round(x1 - x0, 3), "d": round(z1 - z0, 3), "ox": round(-x0 % 0.4, 3), "oz": round(-z0 % 0.4, 3)}))
     # the vertical garden's curtains, each tied back to the wooden post (or the doorway's frame) beside it
     for x, turn, ties in ((VERTICAL[0] + 0.2, -math.pi / 2, ((0.35, 1), (3.65, 0))), (VERTICAL[1] - 0.2, math.pi / 2, ((0.6, 0), (3.4, 1)))):
         out += [("sheer_curtain", (x, 0.0, z), turn, SHEER, {"tie": 0.25, "left": left}) for z, left in ties]

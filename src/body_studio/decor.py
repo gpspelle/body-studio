@@ -244,6 +244,7 @@ STARTERS = (
     {"id": "sky_dome", "group": "garden", "height": 280, "on": "floor"},
     {"id": "saucer_light", "group": "lights", "height": 0.18, "on": "floor"},
     {"id": "tile_floor", "group": "home", "height": 0.012, "on": "floor"},
+    {"id": "rustic_tiles", "group": "home", "height": 0.014, "on": "floor"},
     {"id": "wall_tiles", "group": "home", "height": 2.0, "on": "floor"},
     {"id": "pivot_door", "group": "home", "height": 2.85, "on": "floor"},
     {"id": "panel_door", "group": "home", "height": 2.1, "on": "floor"},
