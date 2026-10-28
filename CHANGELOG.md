@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's layout, as Gabriel drew it: the side room is now reached through a door beside
+  the dark glass panel at the hall's step, along a khaki corridor back outside the hall's left wall
+  and up past the room to its louvred door (no more short passage straight off the hall); and a
+  cement passage outside runs from the kitchen's left door along the kitchen's and the hall's
+  windows to a wooden door onto the pergola.
 - The sample venue, Gabriel's corrections to hunt 2: one cement for the reception, the vertical garden
   and the ante-room floors; the ante-room's fabric in three pieces across; the garden's sand back
   to the beach's; the kitchen's hatch and floor as before; no post over the hall's window where its
