@@ -2,6 +2,14 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue against the walkthrough, hunt 2: grey cement floors on the way in (not near
+  white); the hall's tiles red-brown with orange and worn black patches and a clear grout grid, its
+  concrete ceiling a darker grey, its curtains wide and gathered at the tie (**Fullness** knob); the
+  ante-room's burlap sagging deep, the black ceiling showing down its middle; the vertical garden's
+  lamps in a lower, tighter cluster; the kitchen's grout clear (**Grout width** knob) and the hatch's
+  grey sill; the pergola's reed woven fine on dark beams; the garden's sand grey-brown, its glass
+  cover on heavy rafters with tinted panes, palms all round it, bigger broad trees; the bungalow's
+  frame dark and open; the side room's passage walls khaki like the room.
 - The sample venue against Gabriel's views8 tags: the front door's rusted leaves, the floors' slabs
   and the kitchen's floor and wall tiles drawn as the furniture is (new **Pivot door**, **Panelled
   door**, **Tiled floor**, **Wall tiles** and **Security camera** starters); the landing inside the

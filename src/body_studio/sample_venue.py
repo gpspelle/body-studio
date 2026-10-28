@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 27
+VERSION = 28
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -81,6 +81,7 @@ RECEPTION_LAMPS = ((-17.6, 0.0), (-15.8, 4.0))   # its floor spotlights: x, the 
 TRACK = (-16.8, 1.85)                   # its track light's socket on the ceiling: x, z
 STEP_DOWN = 0.08                    # the deck is a step down from the reception's floor (the map's floor is within 10 cm)
 FRONT_LEAVES = ((2.3, 0.84, math.radians(6)), (0.8, 1.2, math.radians(70)))   # the front door's leaves: where each pivots (z), how wide, how far swung in
+LANDING_GREY = (0.42, 0.44, 0.46)   # its top: the floor's cement, lighter in the door's light
 LANDING = (1.25, 0.08)              # inside the front door: a landing across the front wall, how deep (the open leaf fits on it), how high
 BUNGALOW = (41.5, 50.5, 12.7, 17.5)
 DECK_UP = 0.09                      # its deck, a step up off the sand (any higher and the map no longer sees a floor there)
@@ -103,21 +104,22 @@ FLOOR_STEP, WALL_STEP, CEIL_STEP, LAWN_STEP = 0.055, 0.07, 0.09, 0.085
 CEMENT = (0.66, 0.66, 0.65)         # the smooth grey floors: the ante-room's step
 HALL_CEMENT = (0.60, 0.59, 0.57)    # the hall's far end, past its tiles
 WC_FLOOR = (0.53, 0.53, 0.52)       # the toilets' and their hall's grey cement, a shade darker
-POLISHED = (0.48, 0.51, 0.54)       # the reception's and the vertical garden's: polished cement, a cool grey
+POLISHED = (0.15, 0.18, 0.23)       # the reception's and the vertical garden's: polished cement, a cool mid grey
 SUNLIT = (0.62, 0.63, 0.63)         # the same cement out on the deck, in the sun
 PERGOLA_FLOOR = (0.50, 0.52, 0.54)  # the pergola's, a darker blue-grey
 ROUGH = (0.70, 0.67, 0.63)          # rough cement: the pergola's wall
 CEILING = (0.95, 0.94, 0.91)
 DARK_CEILING = (0.58, 0.58, 0.57)   # the reception's and the vertical garden's, painted mid grey (drawn
                                     # facing down, out of the light, it shows darker: as the video's)
-SLAB = (0.74, 0.76, 0.78)           # the ante-room's pale cement slabs, a cool near-white
+SLAB = (0.62, 0.66, 0.72)           # the ante-room's pale cement slabs, a cool light grey
 WC_GREY = (0.60, 0.61, 0.63)        # the toilets' walls
 RUST = (0.31, 0.18, 0.13)           # the front door's pivoting leaves
-CONCRETE = (0.86, 0.83, 0.78)       # the hall's ceiling, a pale warm grey (light from the windows on it)
+CONCRETE = (0.60, 0.58, 0.55)       # the hall's ceiling, bare concrete, a mid warm grey (dim, as filmed)
 HALL_WALL = (0.88, 0.88, 0.87)
 WC_WALL = (0.78, 0.81, 0.84)        # pale blue-grey
 PLASTER = (0.93, 0.92, 0.90)        # smooth white paint (the walkthrough's walls)
-TERRACOTTA = (0.74, 0.40, 0.17)     # the hall's rustic tiles, glazed orange, worn black in patches
+TERRACOTTA = (0.66, 0.42, 0.26)     # the hall's rustic tiles: patches of glazed orange on a red-brown
+TILE_RED = (0.38, 0.26, 0.23)       # ground, worn near black in others
 DARK_TILE = (0.17, 0.11, 0.08)
 TIMBER = (0.40, 0.27, 0.19)         # beams, strips and posts in dark wood
 BEAM = (0.52, 0.31, 0.17)           # the hall's beam and posts where it widens, a warm orange-brown
@@ -135,11 +137,14 @@ KITCHEN_TILE = (0.88, 0.89, 0.90)    # its floor's glazed tiles, a cool white
 LINEN = (0.90, 0.87, 0.81)          # the hall's curtains
 SHEER = (0.97, 0.95, 0.91)          # the vertical garden's, paler: off-white, the light through them
 DECK_WOOD = (0.50, 0.34, 0.25)      # the bungalow's deck
+BUNGALOW_TIMBER = (0.24, 0.13, 0.10)  # its posts and beams, a dark red-brown
+PERGOLA_BEAM = (0.34, 0.22, 0.15)   # the pergola's beams, dark wood
 OAK = (0.55, 0.40, 0.27)
 LIGHT_WOOD = (0.66, 0.50, 0.34)     # the posts where the reception's walls meet the planted ones
 WALNUT = (0.34, 0.23, 0.16)
 WHITEWASH = (0.92, 0.91, 0.88)
 SAND = (0.86, 0.79, 0.66)
+GARDEN_SAND = (0.50, 0.47, 0.43)    # the garden's: packed, grey-brown, mostly in shade
 SEA_BLUE = (0.36, 0.50, 0.52)
 SKIRTING = (0.56, 0.38, 0.24)       # the wooden skirting along the white walls
 SKIRTING_BOARD = (0.46, 0.29, 0.17)  # the same as a board drawn as the furniture is (its light is brighter)
@@ -163,19 +168,21 @@ def _cement(colour, joint=1.5, cloud=0.025, line=0.008, cut=0.82):
 
 
 def _rustic(x, y, z, rnd):
-    """The hall's floor: glazed rustic tiles, 40 cm square, orange worn through to near black in
-    blotches (each tile its own: a few overlapping waves above a level), a soft edge round each
-    blotch, a pale glint where the windows light the glaze."""
+    """The hall's floor: glazed rustic tiles, 40 cm square, a red-brown ground with patches of
+    orange glaze and patches worn near black (each tile its own: a few overlapping waves above a
+    level), a dark grout line round each, a pale glint where the windows light the glaze."""
     if math.floor(x / 0.05) % 8 == 0 or math.floor(z / 0.05) % 8 == 0:   # (the joints: one whole cell of the floor's 5 cm mesh, or the mesh blurs them away)
-        return (0.13, 0.10, 0.08)
+        return (0.09, 0.07, 0.06)
     r = random.Random(math.floor(x / 0.4) * 7919 + math.floor(z / 0.4))
-    a, b, c, d = (r.uniform(0, 6.3) for _ in range(4))
+    a, b, c, d, e = (r.uniform(0, 6.3) for _ in range(5))
     n = (math.sin(x * 9 + a) * math.sin(z * 8 + b) + 0.6 * math.sin((x - z) * 12 + c)
          + 0.25 * math.sin(x * 23 + z * 19 + d))          # (big patches, as filmed: a few to a tile)
-    k = min(1.0, max(0.0, (n - r.uniform(-0.6, 0.5)) / 0.25 + 0.5))    # 0 orange .. 1 worn black
-    shade = r.uniform(-0.06, 0.04)
-    col = [o + shade + (w - o) * k for o, w in zip(TERRACOTTA, DARK_TILE)]
-    glint = 0.08 * max(0.0, math.sin(z * 0.9 + 1.2)) ** 6
+    m = math.sin(x * 7 + e) * math.sin(z * 10 + a) + 0.5 * math.sin((x + z) * 15 + b)
+    glaze = min(1.0, max(0.0, (n - r.uniform(-0.2, 0.6)) / 0.25 + 0.5))      # 0 the ground .. 1 orange
+    worn = min(1.0, max(0.0, (m - r.uniform(-0.1, 0.7)) / 0.25 + 0.5)) * (1 - glaze)   # .. or near black
+    shade = r.uniform(-0.05, 0.03)
+    col = [g + shade + (o - g) * glaze + (w - g) * worn for g, o, w in zip(TILE_RED, TERRACOTTA, DARK_TILE)]
+    glint = 0.06 * max(0.0, math.sin(z * 0.9 + 1.2)) ** 6
     return tuple(v + glint for v in col)
 _rustic.finish = "tile"
 
@@ -290,6 +297,14 @@ def _sand(x, y, z, rnd):
 _sand.finish = "sand"
 
 
+def _garden_sand(x, y, z, rnd):
+    """The garden's sand: trodden flat, grey-brown, darker under the trees and the glass cover's
+    shade, lighter in patches of sun."""
+    t = 0.05 * math.sin(x * 0.7 + 2 * math.sin(z * 0.5)) * math.sin(z * 0.9 + x * 0.3) + rnd.uniform(-0.03, 0.03)
+    return (GARDEN_SAND[0] + t, GARDEN_SAND[1] + t, GARDEN_SAND[2] + t * 0.9)
+_garden_sand.finish = "sand"
+
+
 def _greenwall(x, y, z, rnd):
     """The vertical garden's wall: ferns and ivy, light and dark."""
     m = math.sin(x * 5.3 + y * 3.1) * math.sin(x * 2.1 - y * 4.7)
@@ -393,7 +408,7 @@ def house(rnd, out):
     # edge dark)
     base._surface(rnd, (RECEPTION[0], RECEPTION[0], -STEP_DOWN, 0.0, *DECK[2:]), CEMENT, out, 0.02)
     lx = RECEPTION[0] + LANDING[0]
-    base._surface(rnd, (RECEPTION[0], lx, LANDING[1], LANDING[1], 0.05, 3.95), _cement(POLISHED, joint=2.0, cloud=0.008), out, 0.03)
+    base._surface(rnd, (RECEPTION[0], lx, LANDING[1], LANDING[1], 0.05, 3.95), _cement(LANDING_GREY, joint=2.0, cloud=0.008), out, 0.03)
     base._surface(rnd, (lx, lx, 0.0, LANDING[1], 0.05, 3.95), (0.17, 0.11, 0.08), out, 0.015)
     base._surface(rnd, (lx - 0.05, lx, LANDING[1] + 0.002, LANDING[1] + 0.002, 0.05, 3.95), (0.86, 0.72, 0.22), out, 0.012)   # (a yellow line along its edge)
     # (outside the door, daylight: orange steps down off the deck's far edge, and the bright street
@@ -456,11 +471,15 @@ def house(rnd, out):
     # opening, its leaf of dark wooden panels swung out across the passage
     wall_z(0.0, 4.0, hz1, [KITCHEN_DOOR + (0.0, 2.2), HATCH + (1.0, 2.1)], hall_wall, out, rnd)
     # (the kitchen's door swung into the kitchen, the passage's own dark door ajar at its end:
-    # fittings(); the hatch a plain hole through the wall, its sill and sides white, nothing out)
+    # fittings(); the hatch a plain hole through the wall, its sides white)
     h0, h1 = HATCH
-    for (x0, x1, y0, y1, z0, z1) in ((-0.03, 0.03, 1.0, 1.0, h0, h1), (-0.03, 0.03, 2.1, 2.1, h0, h1),
+    for (x0, x1, y0, y1, z0, z1) in ((-0.03, 0.03, 2.1, 2.1, h0, h1),
                                      (-0.03, 0.03, 1.0, 2.1, h0, h0), (-0.03, 0.03, 1.0, 2.1, h1, h1)):
         base._surface(rnd, (x0, x1, y0, y1, z0, z1), (0.93, 0.93, 0.92), out, 0.02)
+    # (its sill a grey cement ledge standing out into the passage, a dark wooden front under it)
+    base._surface(rnd, (-0.03, 0.18, 1.0, 1.0, h0, h1), (0.62, 0.62, 0.60), out, 0.02)
+    base._surface(rnd, (0.18, 0.18, 0.94, 1.0, h0, h1), (0.55, 0.55, 0.53), out, 0.02)
+    base._surface(rnd, (0.035, 0.035, 0.0, 0.94, h0, h1), (0.24, 0.15, 0.10), out, 0.02)
     with base.as_decor(out):
         base._surface(rnd, (-0.9, 0.0, 0.0, 2.2, KITCHEN_DOOR[1] - 0.02, KITCHEN_DOOR[1] - 0.02), DOOR, out, 0.03)
         hx_, hz_, w_, a_ = PASSAGE_DOOR
@@ -780,18 +799,18 @@ def _louvres(x, y, z, rnd):
 
 def side_room(rnd, out):
     """The small room off the hall (the walkthrough at 1:22-1:33): from the hall's left wall where
-    the notch ends, a short passage to a louvred double door (swung in), then a room with beige
-    walls, dark stone tiles and wooden glass doors onto a planted patio. The kitchen's staff come in
+    the notch ends, a short passage to a louvred double door (swung in), then a room with khaki
+    walls (the passage's too), dark stone tiles and wooden glass doors onto a planted patio. The kitchen's staff come in
     this way; the venue stops at the glass doors, the patio only seen through them (faint: the map
     leaves it out; the page draws its plants, from fixtures())."""
     a, b, end = PASSAGE
     x0, x1, z0, z1 = SIDE
-    beige = _wall((0.66, 0.58, 0.47))
+    beige = _wall((0.60, 0.57, 0.47))                 # (khaki, as filmed: the passage too)
     floor = _tiles((0.30, 0.26, 0.23), 0.5, grout=(0.22, 0.19, 0.17))
     base._surface(rnd, (a, b, 0, 0, end, 0.0), floor, out, FLOOR_STEP)
     base._surface(rnd, (a, b, WC_CEILING, WC_CEILING, end, 0.0), base.finish("plaster", CEILING), out, CEIL_STEP)
     for x in (a, b):
-        wall_z(x, end, 0.0, [], _wall(HALL_WALL), out, rnd, h=WC_CEILING)
+        wall_z(x, end, 0.0, [], beige, out, rnd, h=WC_CEILING)
     frame_x(0.0, a, b, 0.0, 2.4, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
     frame_x(end, a, b, 0.0, 2.3, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
     for x in (a + 0.02, b - 0.06):                   # the louvred leaves, swung into the room
@@ -882,13 +901,13 @@ def pergola(rnd, out):
     for x in _strips():
         base._surface(rnd, (x - 0.05, x + 0.05, 0.6, 2.8, z1 - 0.02, z1 - 0.02), TIMBER, out, 0.02)
     # (its exit sign and the up-and-down lights between the strips: fittings())
-    # the roof: beams across in orange-brown wood, two along under them, a post at each end of the
+    # the roof: beams across in dark wood, two along under them, a post at each end of the
     # garden side (the reed matting over them, and the track lights on them: fittings())
     for x in _pergola_beams():
-        base._surface(rnd, (x - 0.08, x + 0.08, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z1), BEAM, out, 0.05)
-    base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z0 + 0.16), BEAM, out, 0.05)
+        base._surface(rnd, (x - 0.08, x + 0.08, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z1), PERGOLA_BEAM, out, 0.05)
+    base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z0 + 0.16), PERGOLA_BEAM, out, 0.05)
     for z in (z0 + (z1 - z0) / 3, z0 + 2 * (z1 - z0) / 3):
-        base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.36, PERGOLA_ROOF - 0.22, z - 0.07, z + 0.07), BEAM, out, 0.05)
+        base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.36, PERGOLA_ROOF - 0.22, z - 0.07, z + 0.07), PERGOLA_BEAM, out, 0.05)
     for z in PIERS:                                  # (on the garden side, piers of bare brick)
         pier(rnd, out, x1 - 0.1, z, 0.18, PERGOLA_ROOF - 0.22)
     # 14: along its edge on the garden, a strip of irregular flagstones
@@ -942,7 +961,7 @@ def garden(rnd, out):
     # sand, from the stage's end (where the house ends) and the pergola to the far side, round the
     # bungalow too (the walkthrough shows no grass: plants stand in the sand)
     def ground(x, y, z, rnd):
-        return _sand(x, y, z, rnd)
+        return _garden_sand(x, y, z, rnd)
     # (one sheet, so the page draws it smooth: the cells past the slanted far side left out)
     long = max(GARDEN_LEFT, GARDEN_RIGHT)
     ground.finish = "sand"
@@ -950,7 +969,7 @@ def garden(rnd, out):
                round(GARDEN_W / LAWN_STEP), ground, out, [LAWN_STEP * 0.75, LAWN_STEP * 0.09, LAWN_STEP * 0.75],
                keep=lambda x, z: x < _garden_end(z))
     # beside the pergola, to the garden's right wall
-    base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _sand, out, LAWN_STEP)
+    base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _garden_sand, out, LAWN_STEP)
     # its walls, along the left (on from the house's) and the right, and across beside the pergola,
     # 2 m high and painted near black, to where the sand starts; tropical beds along them behind a
     # kerb (planted all along: the page draws the borders in front of them, from fixtures())
@@ -977,7 +996,10 @@ def garden(rnd, out):
 # so the map walks round them
 TREES = ((44.5, 3.2, "broad_tree"), (52.5, 10.8, "broad_tree"),
          (_garden_end(3.0) + 2.5, 3.0, "beach_almond"), (_garden_end(13.0) + 2.0, 13.0, "beach_almond"),
-         (34.0, -1.4, "coconut_palm"), (47.0, -1.4, "coconut_palm"), (36.0, GARDEN_W + 1.4, "coconut_palm"))
+         (34.0, -1.4, "coconut_palm"), (47.0, -1.4, "coconut_palm"), (36.0, GARDEN_W + 1.4, "coconut_palm"),
+         (30.5, -1.6, "coconut_palm"), (39.5, -1.5, "coconut_palm"), (43.0, -1.7, "coconut_palm"),
+         (31.0, GARDEN_W + 1.5, "coconut_palm"), (41.0, GARDEN_W + 1.6, "coconut_palm"), (45.5, GARDEN_W + 1.4, "coconut_palm"))
+TREE_SCALE = {"broad_tree": 1.35}      # (the walkthrough's are big: tall dark trunks, crowns filling a bay)
 TRUNK = {"small_tree": 0.05, "broad_tree": 0.1, "beach_almond": 0.1, "coconut_palm": 0.07}
 
 
@@ -1091,7 +1113,7 @@ def fittings() -> list:
             ("steel_duct", (kx0 + 0.4, H - 0.3, (stove[1] + KITCHEN_DOORS[1][1]) / 2), math.pi / 2, None, round(KITCHEN_DOORS[1][1] - stove[1], 3)),
             ("fire_extinguisher", (kx0, 0.95, 6.15), math.pi / 2, None, None)]
     kx1, kz0 = KITCHEN[1], KITCHEN[2]
-    out.append(("tile_floor", ((kx0 + kx1) / 2, 0.0, (kz0 + kz1) / 2), 0.0, KITCHEN_TILE, {"w": round(kx1 - kx0, 3), "d": round(kz1 - kz0, 3), "tx": 0.45, "tz": 0.45}))
+    out.append(("tile_floor", ((kx0 + kx1) / 2, 0.0, (kz0 + kz1) / 2), 0.0, KITCHEN_TILE, {"w": round(kx1 - kx0, 3), "d": round(kz1 - kz0, 3), "tx": 0.45, "tz": 0.45, "grout": 0.012}))   # (its grey grout clear, as filmed)
     # (white tiles up its walls: under the windows, along the ante-room's side, round the doors)
     out.append(("wall_tiles", ((kx0 + kx1) / 2, 0.0, kz1 - 0.005), math.pi, TILE_WHITE, {"w": round(kx1 - kx0, 3), "h": 1.4}))
     out.append(("wall_tiles", ((kx0 + kx1) / 2, 0.0, kz0 + 0.035), 0.0, TILE_WHITE, {"w": round(kx1 - kx0, 3), "h": 2.2}))
@@ -1158,7 +1180,7 @@ def fittings() -> list:
     for j in range(3):
         a, b = windows[3 * j][0], windows[3 * j + 2][1]
         mids = [(windows[3 * j + k][1] + windows[3 * j + k + 1][0]) / 2 for k in range(2)]   # (and in front of the mullions between)
-        out += [("sheer_curtain", (round(c, 3), 0.0, hz1 - 0.12), math.pi, SHEER, None) for c in (a - 0.3, *mids, b + 0.3)]
+        out += [("sheer_curtain", (round(c, 3), 0.0, hz1 - 0.12), math.pi, SHEER, {"full": 2.2}) for c in (a - 0.3, *mids, b + 0.3)]   # (wide, gathered at the tie)
     for x, z in ((2.5, 4.0), (6.5, 2.6), (6.5, 6.4), (10.5, 2.6), (10.5, 6.4), (14.5, 2.6), (14.5, 6.4)):
         out.append(("track_light", (x, H - 0.24, z), math.pi / 2, None, 1.2))   # (across the hall)
     out += [("sheer_curtain", (hx1 - 0.2, 0.0, z), -math.pi / 2, SHEER, None) for z in (WC[2] + 0.75, hz1 - 0.35)]
@@ -1211,7 +1233,7 @@ def fixtures() -> dict:
     """What the page is told besides the splat (room.py's map, in its metres): the trees, and the
     things it draws as it draws the decor (decor.js starters), so they look as the decor does: the
     planted walls, the borders along the garden's walls and the glass rain cover over it."""
-    props = [{"item": item, "at": [x, 0.0, z]} for x, z, item in TREES]
+    props = [dict({"item": item, "at": [x, 0.0, z]}, **({"scale": [TREE_SCALE[item]] * 3} if item in TREE_SCALE else {})) for x, z, item in TREES]
     for item, at, turn, colour, length in fittings():
         t = {"item": item, "at": [round(v, 4) for v in at], "turn": round(turn, 4)}
         if colour:
@@ -1229,7 +1251,7 @@ def fixtures() -> dict:
     # the vertical garden's glass roof light, a cluster of rattan lamps hung in it
     cx, cz = (x0 + x1) / 2, (VERTICAL[2] + VERTICAL[3]) / 2
     props += [{"item": "glass_lantern", "at": [cx, 0.0, cz], "scale": [round(LANTERN[0] / 4.5, 4), 1, round(LANTERN[1] / 4.0, 4)]},
-              {"item": "gourd_pendants", "at": [cx, 0.45, cz], "scale": [1.2, 1.2, 1.2]}]
+              {"item": "gourd_pendants", "at": [cx, 0.2, cz], "scale": [1.0, 1.2, 1.0]}]   # (a tight cluster, hung low under the glass)
     # the jute ceilings: with black bands over the ante-room, plain over the stage
     for item, (a0, a1, b0, b1) in (("jute_ceiling", ANTE), ("jute_swags", STAGE[:4])):
         nx = max(1, round((a1 - a0) / 4.0))
@@ -1335,7 +1357,7 @@ def beach(rnd, out):
 
 def bungalow(rnd, out):
     """The bungalow (bangalô): an open wooden deck a step up off the sand, under a frame of dark
-    timber, posts and beams, no walls and no roof."""
+    red-brown timber, heavy posts and beams (three across, over the posts), no walls and no roof."""
     x0, x1, z0, z1 = BUNGALOW
     h, top = DECK_UP, 2.7
     base._surface(rnd, (x0, x1, h, h, z0, z1), _boards(DECK_WOOD, gap=(0.20, 0.13, 0.10), width=0.15), out, FLOOR_STEP)
@@ -1345,13 +1367,12 @@ def bungalow(rnd, out):
     cx = (x0 + x1) / 2
     base._surface(rnd, (cx - 0.7, cx + 0.7, 0.0, h / 2, z0 - 0.35, z0), DECK_WOOD, out, 0.03)
     posts = [(x, z) for x in (x0 + 0.1, (x0 + x1) / 2, x1 - 0.1) for z in (z0 + 0.1, z1 - 0.1)]
-    for x, z in posts:
-        base._surface(rnd, (x - 0.08, x + 0.08, h, top, z - 0.08, z + 0.08), TIMBER, out, 0.05)
-    for z in (z0 + 0.1, z1 - 0.1):                       # the beams along it, and across on them
-        base._surface(rnd, (x0 - 0.3, x1 + 0.3, top, top + 0.22, z - 0.05, z + 0.05), TIMBER, out, 0.05)
-    for k in range(int((x1 - x0) / 0.9) + 1):
-        x = min(x1, x0 + k * 0.9)
-        base._surface(rnd, (x - 0.04, x + 0.04, top + 0.22, top + 0.36, z0 - 0.3, z1 + 0.3), TIMBER, out, 0.05)
+    for x, z in posts:                                   # (heavy square posts, as filmed)
+        base._surface(rnd, (x - 0.11, x + 0.11, h, top, z - 0.11, z + 0.11), BUNGALOW_TIMBER, out, 0.05)
+    for z in (z0 + 0.1, z1 - 0.1):                       # the beams along it, and a few across on them over the posts
+        base._surface(rnd, (x0 - 0.3, x1 + 0.3, top, top + 0.25, z - 0.08, z + 0.08), BUNGALOW_TIMBER, out, 0.05)
+    for x in (x0 + 0.1, (x0 + x1) / 2, x1 - 0.1):
+        base._surface(rnd, (x - 0.07, x + 0.07, top + 0.25, top + 0.45, z0 - 0.3, z1 + 0.3), BUNGALOW_TIMBER, out, 0.05)
 
 
 def splats(seed: int = SEED) -> list:
