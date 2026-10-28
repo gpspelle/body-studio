@@ -872,6 +872,48 @@ export const HOME = {
       return s;
     },
   },
+  rustic_tiles: {
+    group: "home", height: 0.014, on: "floor", colour: "copper", size: { w: 4, d: 4 }, block: false, built: ["w", "d"],
+    knobs: { tx: { min: 0.2, max: 0.8, value: 0.4, size: true, step: 0.01 },
+             ox: { min: 0, max: 0.8, value: 0, size: true, step: 0.01 }, oz: { min: 0, max: 0.8, value: 0, size: true, step: 0.01 } },
+    make(col, k = { w: 4, d: 4, tx: 0.4, ox: 0, oz: 0 }) {
+      // old glazed rustic tiles, as the venue's hall: square, tx a side, set in dark grout; each a
+      // red-brown ground (a shade of the colour) with a few crisp patches of orange glaze and a few
+      // worn through near black, as filmed, every tile its own, cut at the floor's edges
+      const s = shape(), rnd = rng(Math.round(k.w * 41 + k.d * 13 + k.tx * 97)), g = 0.007, top = 0.012;
+      const ground = col.map((v) => v * 0.28), glaze = [0.6, 0.32, 0.12], worn = [0.06, 0.045, 0.04];   // (dark: a floor takes the most light)
+      const cuts = (len, o) => { const out = [-len / 2]; for (let v = -len / 2 + (o > 0.01 ? o : k.tx); v < len / 2 - 0.02; v += k.tx) out.push(v); out.push(len / 2); return out; };
+      const xs = cuts(k.w, k.ox), zs = cuts(k.d, k.oz);
+      made("cloth", () => sharpBox(s, k.w, top * 0.5, k.d, 0, 0, 0, [0.12, 0.09, 0.07]));       // (the grout)
+      // a patch: a ragged blob round (cx, cz), r across, kept inside the tile [a0, a1] x [b0, b1]
+      const patch = (cx, cz, r, c, y, a0, a1, b0, b1) => {
+        const n = 14, ring = [], mid = vert(s, cx, y, cz, c), lobe = rnd() * 6.3;
+        for (let j = 0; j < n; j++) {
+          const a = -(j / n) * 2 * Math.PI, rr = r * (0.45 + 0.5 * rnd() + 0.4 * Math.max(0, Math.cos(a - lobe)));
+          ring.push(vert(s, Math.min(a1, Math.max(a0, cx + rr * Math.cos(a))), y, Math.min(b1, Math.max(b0, cz + rr * Math.sin(a))), c));
+        }
+        for (let j = 0; j < n; j++) s.i.push(mid, ring[j], ring[(j + 1) % n]);
+      };
+      made("satin", () => {
+        for (let i = 0; i + 1 < xs.length; i++) for (let j = 0; j + 1 < zs.length; j++) {
+          const a0 = xs[i] + g / 2, a1 = xs[i + 1] - g / 2, b0 = zs[j] + g / 2, b1 = zs[j + 1] - g / 2, w = a1 - a0, d = b1 - b0;
+          if (w < 0.01 || d < 0.01) continue;
+          const t = 0.85 + 0.3 * rnd();
+          sharpBox(s, w, top, d, (a0 + a1) / 2, 0, (b0 + b1) / 2, ground.map((v) => Math.min(1, v * t)));
+          const at = () => [a0 + w * (0.1 + 0.8 * rnd()), b0 + d * (0.1 + 0.8 * rnd())];
+          for (let n = 2 + Math.floor(rnd() * 3); n > 0; n--) {
+            const [x, z] = at(), u = 0.85 + 0.3 * rnd();
+            patch(x, z, k.tx * (0.18 + 0.27 * rnd()), glaze.map((v) => Math.min(1, v * u)), top + 0.001, a0, a1, b0, b1);
+          }
+          for (let n = 1 + Math.floor(rnd() * 3); n > 0; n--) {
+            const [x, z] = at();
+            patch(x, z, k.tx * (0.1 + 0.25 * rnd()), worn, top + 0.002, a0, a1, b0, b1);
+          }
+        }
+      });
+      return s;
+    },
+  },
   wall_tiles: {
     group: "home", height: 2.0, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 0.012 }, block: false, built: ["w", "h"],
     knobs: { tx: { min: 0.05, max: 1, value: 0.2, size: true, step: 0.01 }, ty: { min: 0.05, max: 1, value: 0.2, size: true, step: 0.01 } },

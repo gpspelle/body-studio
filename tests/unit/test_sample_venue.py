@@ -100,7 +100,7 @@ class SampleVenueTest(unittest.TestCase):
                           "reed_roof", "wall_sconce", "sky_dome", "saucer_light",
                           "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher",
                           "brick_wall", "brick_pier", "brick_bench", "door_sign", "sink_cabinet", "changing_table", "mosaic_splash",
-                          "dome_pendant", "plain_counter", "wall_plates", "tile_floor", "wall_tiles",
+                          "dome_pendant", "plain_counter", "wall_plates", "tile_floor", "rustic_tiles", "wall_tiles",
                           "pivot_door", "panel_door", "security_camera"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
@@ -187,7 +187,7 @@ class SampleVenueTest(unittest.TestCase):
         fit = [f for f in V.fittings() if f[1][0] <= V.ANTE[1] and not V.KITCHEN[2] < f[1][2] <= V.KITCHEN[3]]
         kinds = {f[0] for f in fit}
         self.assertEqual(kinds, {"skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain", "saucer_light",
-                                 "security_camera", "pivot_door", "tile_floor"})
+                                 "security_camera", "pivot_door", "tile_floor", "rustic_tiles"})
         self.assertEqual(sum(f[0] == "sheer_curtain" for f in fit), 4)
         self.assertTrue(all(V.DECK[1] <= f[1][0] for f in fit))
         boards = [f for f in fit if f[0] == "skirting_board"]
@@ -243,10 +243,11 @@ class SampleVenueTest(unittest.TestCase):
         rows = V.splats()
         self.assertFalse([r for r in rows if r[1] == V.STEEL and abs(r[0][1] - V.H + 0.02) < 0.03 and V.HALL[0] < r[0][0] < V.HALL[1]],
                          "no rails of splats along its ceiling")
-        # its ceiling bare concrete, a mid grey (dim, as filmed), its beam where it widens a warm wood with a post each side
+        # its ceiling bare concrete, a mid grey (dim, as filmed), its beam where it widens a warm wood with a post on the left
         self.assertTrue(0.45 < min(V.CONCRETE) and max(V.CONCRETE) < 0.7)
         beam = [r for r in rows if max(abs(a - b) for a, b in zip(r[1], V.BEAM)) < 0.04 and r[0][1] < 1.0 and abs(r[0][0] - V.NOTCH[1]) < 0.15]
-        self.assertTrue(any(r[0][2] < V.NOTCH[2] + 0.2 for r in beam) and any(r[0][2] > V.HALL[3] - 0.2 for r in beam))
+        self.assertTrue(any(r[0][2] < V.NOTCH[2] + 0.2 for r in beam))
+        self.assertFalse([r for r in beam if r[0][2] > V.HALL[3] - 0.3], "no post over the windows")
         # (Gabriel's tags) the ante-room's end wall bare: no sign, no speaker, no wooden frame
         # round the way into the hall, the tiles darker across it; the saucer lamp on its wall
         self.assertFalse([f for f in V.fittings() if f[0] in ("exit_sign", "wall_speaker") and abs(f[1][0]) < 0.3 and abs(f[2] + math.pi / 2) < 0.1])
@@ -323,8 +324,8 @@ class SampleVenueTest(unittest.TestCase):
         # (2026-10-28) grey floors on the way in, not near white; the garden's sand grey-brown, the
         # beach's still pale; palms all round the garden; big broad trees; the hall's curtains wide
         # and gathered; the kitchen's grout clear; the bungalow's frame dark and open
-        self.assertLess(max(V.POLISHED), 0.45)
-        self.assertLess(sum(V.GARDEN_SAND), sum(V.SAND) - 0.5)
+        # (Gabriel: the way in's three floors are one cement; the light makes them look different)
+        self.assertEqual(V.SLAB, V.POLISHED)
         palms = [t for t in V.TREES if t[2] == "coconut_palm"]
         self.assertGreaterEqual(sum(t[1] < 0 for t in palms), 4)
         self.assertGreaterEqual(sum(t[1] > V.GARDEN_W for t in palms), 4)
@@ -333,8 +334,16 @@ class SampleVenueTest(unittest.TestCase):
         fit = V.fittings()
         hall = [f for f in fit if f[0] == "sheer_curtain" and f[1][2] > V.HALL[3] - 0.5 and f[1][0] < V.HALL[1] - 0.5]
         self.assertTrue(hall and all(f[4]["full"] > 1.5 for f in hall))
-        kitchen = next(f for f in fit if f[0] == "tile_floor" and f[3] == V.KITCHEN_TILE)
-        self.assertGreater(kitchen[4]["grout"], 0.008)
+        # the hall's rustic tiles drawn as furniture over all its tiled floor, on the 40 cm grid
+        rustic = [f for f in fit if f[0] == "rustic_tiles"]
+        self.assertAlmostEqual(sum(f[4]["w"] * f[4]["d"] for f in rustic),
+                               V.ANTE_TILES * 4.0 + V.NOTCH[1] * (V.HALL[3] - V.NOTCH[2]) + (V.TILES_END - V.NOTCH[1]) * V.HALL[3], places=2)
+        self.assertTrue(all(f[4]["w"] <= 10 and f[4]["d"] <= 10 for f in rustic))
+        # no rattan lamp by the bungalow's front (Gabriel)
+        bx0, bx1, bz0, _ = V.BUNGALOW
+        lamps = [t for t in props if t["item"] == "wicker_pendant" and t["at"][1] > 0]
+        self.assertTrue(lamps)
+        self.assertFalse([t for t in V.fixtures()["trees"] if t["item"] == "wicker_pendant" and bx0 - 1 < t["at"][0] < bx1 and abs(t["at"][2] - (V.GARDEN_W / 2 + 3.0)) < 0.01])
         x0, x1, z0, z1 = V.BUNGALOW
         rows = [r for r in V.splats() if x0 - 0.4 < r[0][0] < x1 + 0.4 and z0 - 0.4 < r[0][2] < z1 + 0.4 and r[0][1] > 2.7]
         self.assertTrue(rows and all(max(r[1]) < 0.3 for r in rows))
