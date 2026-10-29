@@ -2,6 +2,10 @@
 
 ## 0.1.0 (unreleased)
 
+- The sample venue's side room, from Gabriel's views9 tags: the hall's step is open (no door, glass
+  panel or skirting), a short corridor runs on from it, and the louvred door is just past its
+  corner with the room right behind it (no more bend up past the room). The corridor's and the
+  room's dark stone tiles and skirting are now drawn as the furniture is.
 - The sample venue's layout, as Gabriel drew it: the side room is now reached through a door beside
   the dark glass panel at the hall's step, along a khaki corridor back outside the hall's left wall
   and up past the room to its louvred door (no more short passage straight off the hall); and a

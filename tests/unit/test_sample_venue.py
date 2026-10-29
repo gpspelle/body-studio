@@ -64,15 +64,15 @@ class SampleVenueTest(unittest.TestCase):
                              "vertical garden": (-11.5, 2.0), "ante-room": (-4.0, 2.0), "into the hall": (0.0, 2.8),
                              "hall": (9.0, 5.0), "the kitchen": (-4.0, 6.0), "the kitchen door": (0.0, 6.85), "the passage to the kitchen": (0.6, 6.0), "by the half wall": (11.3, 4.2), "toilets' hall": (14.0, 1.6),
                              "glass doors": (17.8, 3.9),
-                             "into the ladies'": (13.45, -0.5), "out by the glass panel": (5.0, 1.0), "the corridor round": (2.0, -1.0), "round its corner": (3.3, -4.25), "through its louvred door": (4.0, -4.25), "the side room": (7.2, -4.0),
+                             "into the ladies'": (13.45, -0.5), "into the corridor at the step": (5.0, 0.7), "along it": (2.2, 0.7), "through its louvred door": (2.25, 0.0), "the side room": (3.0, -1.8),
                              "out the kitchen's left door": (-9.3, 8.05), "the passage outside": (5.0, 9.6), "its door onto the pergola": (17.8, 9.6), "the ladies'": (12.6, -0.9), "the gents'": (16.5, -2.0), "pergola": (23.0, 7.0), "garden, under its cover": (38.0, 8.0),
                              "on the bungalow's deck": (46.0, 15.0),
                              "beside the pergola": (22.0, 14.0), "by the far side": (52.4, 8.9),
                              "on the beach": (V._garden_end(8.9) + 3.0, 8.9)}.items():
             self.assertTrue(self.free(x, z), name)
         for name, (x, z) in {"the kitchen's back wall": (-9.3, 6.0), "the ante-room's wall": (-4.0, 4.0), "the hall's side": (9.0, 8.6),
-                             "the notch": (0.7, 0.7), "where the old passage was": (5.8, -1.0), "the side room's old door": (5.8, -2.0), "the passage's low wall": (5.0, V.OUT_WAY), "the ladies' counter": (11.55, -1.5), "the trough": (15.5, -3.85),
-                             "a cubicle's toilet": (14.0, -3.8), "between the toilets": (14.5, -1.5), "behind the toilets": (16.0, -4.3), "the patio past the glass doors": (7.2, -6.6), "the reed partition": (1.3, 7.0), "the stone wall at the beach": (V._garden_end(3.0) - 0.5, 3.0), "the kitchen's stove": (-4.8, 5.8), "a sink bench": (-7.0, 8.3), "the half wall": (11.3, 1.5), "the stage": (24.0, 1.6),
+                             "past the corridor's end": (0.7, 0.7), "the corridor's wall past the door": (4.0, 0.0), "the side room's far wall": (3.0, -3.6), "the passage's low wall": (5.0, V.OUT_WAY), "the ladies' counter": (11.55, -1.5), "the trough": (15.5, -3.85),
+                             "a cubicle's toilet": (14.0, -3.8), "between the toilets": (14.5, -1.5), "behind the toilets": (16.0, -4.3), "the patio past the glass doors": (3.2, -4.6), "the reed partition": (1.3, 7.0), "the stone wall at the beach": (V._garden_end(3.0) - 0.5, 3.0), "the kitchen's stove": (-4.8, 5.8), "a sink bench": (-7.0, 8.3), "the half wall": (11.3, 1.5), "the stage": (24.0, 1.6),
                              "the pergola's far wall": (22.0, V.PERGOLA[3]),
                              "the beds along the garden's wall": (40.0, 0.6), "the left wall": (40.0, V.GARDEN_W),
                              "outside": (40.0, 19.0), "the sea": (V._garden_end(8.9) + V.BEACH + 6.0, 8.9)}.items():
@@ -210,13 +210,29 @@ class SampleVenueTest(unittest.TestCase):
         tiles = at(V.ANTE[1] - V.ANTE_TILES + 0.05, V.ANTE[1] - 0.05, -0.001, 0.001, 0.2, 3.8)
         self.assertTrue(tiles and min(c[0] for _, c, *_ in tiles) < 0.3 and max(c[0] for _, c, *_ in tiles) > 0.5)
 
+    def test_views9_side_room_off_the_corridor(self):
+        # the step open (no frame, panel or skirting), the louvred door just past the corridor's corner
+        # and the room right behind it; its floor and the corridor's tiles and skirting drawn as furniture
+        fit = V.fittings()
+        boards = [f for f in fit if f[0] == "skirting_board"]
+        self.assertFalse([f for f in boards if abs(f[1][0] - V.NOTCH[1]) < 0.01 and 0.0 < f[1][2] < V.NOTCH[2]])
+        side = [f for f in fit if f[0] == "tile_floor" and f[3] == V.SIDE_TILE]
+        self.assertEqual(len(side), 2)
+        self.assertAlmostEqual(sum(f[4]["w"] * f[4]["d"] for f in side), (V.NOTCH[1] - V.CORRIDOR[0]) * V.CORRIDOR[1] + 6.0 * 3.6, delta=0.01)
+        self.assertTrue(V.CORRIDOR[0] < V.SIDE_DOOR[0] < V.SIDE_DOOR[1] < V.NOTCH[1] and V.SIDE[3] == 0.0)
+        rows = V.splats()
+        wall = [p for p, c, *_ in rows if abs(p[2] - V.SIDE[3]) < 0.005 and V.SIDE_DOOR[0] + 0.1 < p[0] < V.SIDE_DOOR[1] - 0.1 and 0.2 < p[1] < 2.0]
+        self.assertFalse(wall)
+        step = [p for p, c, *_ in rows if abs(p[0] - V.NOTCH[1]) < 0.005 and 0.1 < p[2] < V.NOTCH[2] - 0.1 and 0.2 < p[1] < 2.0]
+        self.assertFalse(step)
+
     def test_views8_drawn_as_the_furniture_is(self):
         fit = V.fittings()
         kinds = [f[0] for f in fit]
         # the front door's two rusted leaves, one with its bar; the floors and the kitchen's walls in tiles
         doors = [f for f in fit if f[0] == "pivot_door"]
         self.assertEqual(sorted(f[4]["bar"] for f in doors), [0, 1])
-        self.assertEqual(kinds.count("tile_floor"), 4)
+        self.assertEqual(kinds.count("tile_floor"), 6)
         tiles = [f for f in fit if f[0] == "wall_tiles"]
         self.assertTrue(all(V.KITCHEN[0] - 0.01 <= f[1][0] <= V.KITCHEN[1] + 0.01 and V.KITCHEN[2] <= f[1][2] <= V.KITCHEN[3] for f in tiles))
         for f in tiles:                                 # (none over a door or the way out)
@@ -257,7 +273,7 @@ class SampleVenueTest(unittest.TestCase):
 
     def test_the_toilets_as_the_walkthrough(self):
         # their counters, bowls, mirrors, cubicles, trough and lights drawn as furniture, inside them
-        fit = [f for f in V.fittings() if f[1][2] < 0.0]
+        fit = [f for f in V.fittings() if f[1][2] < 0.0 and f[1][0] > V.SIDE[1]]   # (past the side room)
         rooms = (V.LADIES, V.GENTS)
         self.assertTrue(all(any(r[0] - 0.02 <= f[1][0] <= r[1] + 0.02 and r[2] <= f[1][2] for r in rooms) for f in fit))
         count = lambda item: sum(f[0] == item for f in fit)
