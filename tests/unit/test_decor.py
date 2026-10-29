@@ -198,10 +198,16 @@ class Inventory(unittest.TestCase):
         lay = decor.clean_layouts({"layouts": [{"items": [
             {"item": "bar", "x": 0, "z": 0, "opts": {"w": 3.2, "slab": 0.08, "finish": "metal"}}]}]})
         self.assertEqual(lay["layouts"][0]["items"][0]["opts"], {"w": 3.2, "slab": 0.08, "finish": "metal"})
-        for bad in ({"w": "wide"}, {"finish": "plaid"}, {"Bad Key": 1}, {"w": -1}, {"w": 1e6}, [1, 2],
-                    {f"k{'abcdefghijklm'[i]}": 1 for i in range(13)}):
+        for bad in ({"w": "Wide 2"}, {"finish": "plaid"}, {"Bad Key": 1}, {"w": -1}, {"w": 1e6}, [1, 2], {"tint": "#12345"},
+                    {"k" + a + b: 1 for a in "abcdef" for b in "abcdef"}):
             with self.assertRaises(decor.DecorError, msg=bad):
                 decor.clean_opts(bad)
+
+    def test_a_choice_and_a_colour_kept_with_a_built_starter(self):
+        # (an arch you build: its shape and flower by their words, the roses' colour as #rrggbb)
+        o = decor.clean_opts({"shape": "hexagon", "flower": "peony", "tint": "#C41A24", "crown": 100, "feet": "both"})
+        self.assertEqual(o, {"shape": "hexagon", "flower": "peony", "tint": "#c41a24", "crown": 100, "feet": "both"})
+        self.assertTrue({"custom_arch", "floral_cloud", "table_flowers"} <= decor.STARTER_IDS)
 
     def test_the_venues_fittings_kept_as_a_layout_of_their_own(self):
         from body_studio import sample_venue

@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { geometry, materials, picture, shadow, studio } from "/static/decorlook.js";
 import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, fixtureTurn, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
          bounds, fromHex, fromRgb, hexOf, setTable, standY, starterShape, toHex, turnToward, unpack, wrap,
-         knobs, knobValues, cleanOpts, optsKey, sized, MATERIALS, movable, fittingItems, fittingChanges } from "/static/decor.js";
+         knobs, knobValues, cleanOpts, optsKey, sized, MATERIALS, movable, fittingItems, fittingChanges, isChoice, PALETTES } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -525,22 +525,79 @@ $("decorChangeBtn").onclick = () => {
   $("decorChange").hidden = !$("decorChange").hidden;
   $("decorChangeBtn").setAttribute("aria-expanded", String(!$("decorChange").hidden));
 };
-const knobText = (k, v) => (k.size ? Math.round(v * 100) + " cm" : String(v));
+const knobText = (k, v) => (k.size ? Math.round(v * 100) + " cm" : k.unit ? v + k.unit : String(v));
+// the knobs in their parts (sizes first, then the shape, the flowers, how much of an arch they
+// cover, the greenery, the lights, the glasses), each part under its name: a slider for a size or
+// a count, chips for a choice (a shape, a kind of flower), swatches and a picker for a colour
+const PARTS = ["", "shape", "flowers", "cover", "greenery", "lights", "glasses", "table"];
 function knobsUI() {
   const p = placed()[sel];
   if (!p || !STARTERS[p.item]) return;
-  const v = knobValues(p.item, p.opts);
-  $("decorKnobs").replaceChildren(...knobs(p.item).map((k) => {
-    const label = document.createElement("label"), name = document.createElement("span"), out = document.createElement("output");
-    const input = Object.assign(document.createElement("input"), { type: "range", min: String(k.min), max: String(k.max), step: String(k.step), value: String(v[k.name]) });
-    name.textContent = t("decor.knob." + k.name);
-    input.dataset.knob = k.name;
-    out.textContent = knobText(k, v[k.name]);
-    input.oninput = () => { out.textContent = knobText(k, +input.value); setOpts({ ...p.opts, [k.name]: +input.value }, false); };
-    input.onchange = () => setOpts({ ...p.opts, [k.name]: +input.value }, true);
-    label.append(name, input, out);
-    return label;
-  }));
+  const v = knobValues(p.item, p.opts), all = knobs(p.item), out = [];
+  const set = (name, value, done) => setOpts({ ...p.opts, [name]: value }, done);
+  for (const part of PARTS) {
+    const ks = all.filter((k) => (k.part || "") === part);
+    if (!ks.length) continue;
+    if (part) out.push(Object.assign(document.createElement("h3"), { textContent: t("decor.part." + part) }));
+    const sliders = document.createElement("div");
+    sliders.className = "sliders";
+    out.push(sliders);
+    for (const k of ks) {
+      const label = document.createElement("label"), name = document.createElement("span");
+      name.textContent = t("decor.knob." + k.name);
+      if (isChoice(k) || k.colour) {
+        // (a choice or a colour: its name over a row of chips)
+        const row = document.createElement("div");
+        row.className = k.colour ? "chips swatches" : "chips";
+        row.dataset.knob = k.name;
+        row.setAttribute("role", "group");
+        row.setAttribute("aria-label", t("decor.knob." + k.name));
+        if (isChoice(k)) row.append(...k.choices.map((c) => {
+          const b = document.createElement("button");
+          b.textContent = t("decor.choice." + c); b.dataset.choice = c;
+          b.classList.toggle("on", v[k.name] === c);
+          b.onclick = () => set(k.name, c, true);
+          return b;
+        }));
+        else {
+          const now = hexOf(v[k.name]), list = PALETTES[k.palette] || PALETTES.flowers;
+          row.append(...list.map((c) => {
+            const b = document.createElement("button");
+            b.style.setProperty("--swatch", c); b.dataset.colour = c; b.title = c;
+            b.setAttribute("aria-label", c);
+            b.classList.toggle("on", now === c);
+            b.onclick = () => set(k.name, c, true);
+            return b;
+          }));
+          // (any other colour, from the picker)
+          const own = document.createElement("label"), pick = Object.assign(document.createElement("input"), { type: "color", value: now });
+          own.className = "own" + (list.includes(now) ? "" : " set on");
+          own.style.setProperty("--swatch", now);
+          own.title = t("decor.own");
+          pick.setAttribute("aria-label", t("decor.own"));
+          pick.oninput = () => set(k.name, pick.value, false);
+          pick.onchange = () => set(k.name, pick.value, true);
+          own.append(pick);
+          row.append(own);
+        }
+        const wrap = document.createElement("div");
+        wrap.className = "choice";
+        wrap.append(name, row);
+        sliders.append(wrap);
+        continue;
+      }
+      const out2 = document.createElement("output");
+      const input = Object.assign(document.createElement("input"), { type: "range", min: String(k.min), max: String(k.max), step: String(k.step), value: String(v[k.name]) });
+      input.dataset.knob = k.name;
+      out2.textContent = knobText(k, v[k.name]);
+      // (one that takes a while to build, an arch thick with flowers, is built when the slider is let go)
+      input.oninput = () => { out2.textContent = knobText(k, +input.value); if (!STARTERS[p.item].heavy) set(k.name, +input.value, false); };
+      input.onchange = () => set(k.name, +input.value, true);
+      label.append(name, input, out2);
+      sliders.append(label);
+    }
+  }
+  $("decorKnobs").replaceChildren(...out);
   const finish = p.opts?.finish || "";
   for (const b of $("decorMaterials").children) b.classList.toggle("on", b.dataset.finish === finish);
   $("decorKeepName").placeholder = t("decor.keepName", { name: t("decor.item." + p.item).toLowerCase() });
@@ -979,6 +1036,9 @@ window.decor = {
   drawn: () => (group ? group.children.filter((c) => c.isMesh && !c.userData.fixed).length : 0),
   group: () => group,
   move: (k, x, z, turn) => { const p = placed()[k]; p.x = x; p.z = z; if (turn != null) p.turn = turn; if (!p.was) p.y = standY(defs(p.item, p), placed(), defs, p, roomTop); changed(); },
+  // a placed thing's knobs changed (as "Change it" does)
+  knob: (k, opts) => { const p = placed()[k], o = cleanOpts(p.item, { ...p.opts, ...opts }); if (o) p.opts = o; else delete p.opts;
+                       p.y = standY(defs(p.item, p), placed(), defs, p, roomTop); if (k === sel) pick(sel); changed(); },
   tab: (which) => { if (which) setTab(which); return tab; },
   handles: () => (gizmo && gizmo.visible ? Object.fromEntries(["turn", "lift", "ring"].map((h) => {
     const m = gizmo.getObjectByName(h);

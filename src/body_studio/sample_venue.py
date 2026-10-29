@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 33
+VERSION = 34
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -529,9 +529,7 @@ def house(rnd, out):
     pc, qc = (p0 + p1) / 2, (q0 + q1) / 2
     ring = lambda x, y, z, rnd: (0.25, 0.22, 0.2) if abs(math.hypot(z - pc, y - qc) - 0.27) < 0.012 else (0.92, 0.91, 0.88)
     base._surface(rnd, (hx - 0.125, hx - 0.125, q0 + 0.07, q1 - 0.07, p0 + 0.07, p1 - 0.07), ring, out, 0.01)
-    sunk = [WC[1] - 2.2 + 0.7 * k for k in range(4)]   # (bare brick on the pergola's side, lit from lights sunk in the floor)
-    for x in sunk:
-        floor_lamp(rnd, out, x, WC[2] + 0.12, sunk=True)
+    # (bare brick on the pergola's side, lit from lights sunk in the floor: fittings())
     # the toilets' hall's end, the stage's side: bare brick, a passage through it to the stage; a
     # black counter before that, a sink cabinet under a mirror and an orange dome beside it
     # (the bricks, the counter, the cabinet: fittings(); kept here for the map)
@@ -638,17 +636,6 @@ def _paint(rnd, out, x0, x1, y0, y1, z, inside, colour, step=0.03):
             if inside(x, y):
                 c = colour(x, y) if callable(colour) else colour
                 out.append(((x, y, z), tuple(v + rnd.uniform(-0.02, 0.02) for v in c), [step * 0.75, step * 0.75, 0.004]))
-
-
-def floor_lamp(rnd, out, x, z, sunk=False):
-    """A small spotlight on the floor turned up at a wall: a black can and its warm face (or, sunk,
-    only its lit face in the floor)."""
-    if not sunk:
-        base._cylinder(rnd, x, z, 0.04, 0.04, 0.0, 0.07, (0.22, 0.22, 0.23), out, top=False, step=0.02)
-    y = 0.003 if sunk else 0.071
-    for k in range(16):
-        a, r = 2 * math.pi * k / 7, 0.036 * math.sqrt(k / 16)
-        out.append(((x + r * math.cos(a), y, z + r * math.sin(a)), WARM, [0.018, 0.004, 0.018]))
 
 
 def exit_sign(rnd, out, x, y, z, axis):
@@ -825,14 +812,11 @@ def side_room(rnd, out):
         base._surface(rnd, (x - 0.025, x + 0.025, 0.0, 2.4, z0 - 0.02, z0 + 0.02), wood, out, 0.02)
     for y in (0.05, 0.9, 2.35):
         base._surface(rnd, (ga, gb, y, y + 0.06, z0 - 0.02, z0 + 0.02), wood, out, 0.02)
-    # (the glass, and the patio's terracotta through it: seen, not walked)
-    for i in range(int((gb - ga) / 0.05)):
-        for k in range(int(2.4 / 0.05)):
-            out.append(((ga + (i + rnd.random()) * 0.05, (k + rnd.random()) * 0.05, z0), (0.80, 0.86, 0.87), [0.03, 0.03, 0.005], 0.12))
-    for i in range(int((x1 - x0) / 0.1)):
-        for k in range(int(2.0 / 0.1)):
-            c = tuple(v + rnd.uniform(-0.03, 0.03) for v in (0.52, 0.33, 0.24))
-            out.append(((x0 + (i + rnd.random()) * 0.1, 0.0, z0 - (k + rnd.random()) * 0.1), c, [0.07, 0.005, 0.07], FAR))
+    # (the glass, kept for the map; the page draws it, and the patio's terracotta through it: fittings())
+    with base.as_decor(out):
+        for i in range(int((gb - ga) / 0.05)):
+            for k in range(int(2.4 / 0.05)):
+                out.append(((ga + (i + rnd.random()) * 0.05, (k + rnd.random()) * 0.05, z0), (0.80, 0.86, 0.87), [0.03, 0.03, 0.005], 0.12))
 
 
 def kitchen(rnd, out):
@@ -995,9 +979,11 @@ def garden(rnd, out):
     for z0, z1, x0, x1 in ((0.0, 1.5, GARDEN_X, _garden_end(0.0) - 0.5), (GARDEN_W - 1.5, GARDEN_W, PERGOLA[0] + 0.3, _garden_end(GARDEN_W) - 0.5)):
         base._surface(rnd, (x0, x1, 1.0, 1.0, z0, z1), (0.20, 0.36, 0.17), out, 0.08)
     bungalow(rnd, out)
-    sea_wall(rnd, out)
-    for t in TREES:
-        trunk(rnd, out, *t)
+    # (the sea wall's stones and the trees' trunks, for the map: the page draws them, fixtures())
+    with base.as_decor(out):
+        sea_wall(rnd, out)
+        for t in TREES:
+            trunk(rnd, out, *t)
 
 
 # the trees the walkthrough shows (x, z, the decor starter that draws it): a broad tree in the sand
@@ -1015,7 +1001,7 @@ TRUNK = {"small_tree": 0.05, "broad_tree": 0.1, "beach_almond": 0.1, "coconut_pa
 
 
 def trunk(rnd, out, x, z, item):
-    """A tree's trunk to 1.9 m, well inside the one the page draws over it (so it never shows)."""
+    """A tree's trunk to 1.9 m, for the map (the page draws the tree)."""
     r, y = TRUNK[item], 0.0
     while y < 1.9:
         for k in range(10):
@@ -1037,7 +1023,8 @@ SEA_GAP = 0.12                          # the opening in the sea wall for the pa
 
 def sea_wall(rnd, out):
     """The low wall of dark stones along the garden's far side, between it and the beach (45 cm high,
-    40 cm thick), open in the middle for the path; the page draws the clipped hedge along its top."""
+    40 cm thick), open in the middle for the path, for the map: the page draws it (stone_wall, fixtures())
+    and the clipped hedge along its top."""
     (ax, az), L, (tx, tz), (nx, nz) = _far_side()
     st, h, w = 0.05, 0.45, 0.4
     def stone(u, y):
@@ -1243,6 +1230,13 @@ def fittings() -> list:
     out.append(("strap_mirror", (gx1, 1.29, -1.65), -math.pi / 2, None, None))
     out += [("globe_lamp", (lx1 - 0.01, 2.28, -1.6), -math.pi / 2, (0.80, 0.92, 0.74), None),
             ("globe_lamp", (lx1 + 0.01, 2.28, -1.6), math.pi / 2, (0.80, 0.92, 0.74), None)]
+    # the lights sunk in the floor along the bare brick on the pergola's side; the side room's glass
+    # doors and the planted patio's terracotta through them
+    out += [("sunk_light", (WC[1] - 2.2 + 0.7 * k, 0.0, WC[2] + 0.12), 0.0, None, None) for k in range(4)]
+    ga, gb = GARDEN_DOOR
+    sx0, sx1, sz0, _ = SIDE
+    out.append(("glass_pane", ((ga + gb) / 2, 0.0, sz0), 0.0, (0.80, 0.86, 0.87), {"w": gb - ga, "h": 2.4}))
+    out.append(("tile_floor", ((sx0 + sx1) / 2, -0.01, sz0 - 1.0), 0.0, (0.52, 0.33, 0.24), {"w": sx1 - sx0, "d": 2.0, "tx": 0.3, "tz": 0.3, "matte": 1}))
     # (a skirting board longer than a starter can be made, 5 m, laid as several end to end)
     boards = []
     for f in out:
@@ -1302,9 +1296,15 @@ def fixtures() -> dict:
     bx0, bx1, bz0, bz1 = BUNGALOW
     for x, turn in ((bx0 - 1.0, -math.pi / 2), (bx1 + 1.0, math.pi / 2)):
         props += [{"item": "tropical_border", "at": [x, 0.0, round(bz0 + 1.2 + 2.0 * k, 3)], "turn": round(turn, 4)} for k in range(2)]
-    # a low clipped hedge where the garden meets the beach, open in the middle for the path down to it
-    # (on the low stone wall there)
+    # the low wall of dark stones where the garden meets the beach, open in the middle for the path
+    # down to it, in lengths of about 3.4 m; on it a low clipped hedge
     (ax, az), L, (tx, tz), (nx, nz) = _far_side()
+    for u0, u1 in ((0.0, L * (0.5 - SEA_GAP)), (L * (0.5 + SEA_GAP), L)):
+        n = max(1, math.ceil((u1 - u0) / 3.4))
+        for k in range(n):
+            u = u0 + (k + 0.5) * (u1 - u0) / n
+            props.append({"item": "stone_wall", "at": [round(ax + tx * u + 0.5 * nx, 3), 0.0, round(az + tz * u + 0.5 * nz, 3)],
+                          "turn": round(-math.atan2(tz, tx), 4), "opts": {"w": round((u1 - u0) / n, 3)}})
     for k in range(int(L / 2.0)):
         u = (k + 0.5) * 2.0
         if abs(u / L - 0.5) > SEA_GAP + 0.04:

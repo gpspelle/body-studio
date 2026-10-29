@@ -5,7 +5,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { COLOURS, FINISHES, GROUPS, STARTERS, fixtureTurn, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
-         knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges } from "../../src/body_studio/static/decor.js";
+         knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, PALETTES, isChoice } from "../../src/body_studio/static/decor.js";
+import { ARCHES, PARTS, archLine, along, coverPick, archPosts, frameOf } from "../../src/body_studio/static/decor/custom.js";
+import { FLOWERS, GREENS } from "../../src/body_studio/static/decor/florals.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
 const env = (k) => process.env[k] && JSON.parse(fs.readFileSync(process.env[k], "utf8"));
@@ -354,7 +356,7 @@ test("every starter can be made wider, deeper, taller: its shape and its footpri
     const ks = knobs(id), names = ks.map((k) => k.name), st = STARTERS[id];
     assert.ok(names.includes("w"), id + " has a width");
     assert.equal(names.includes("d"), st.size.r === undefined, id + ": a depth unless round");
-    for (const k of ks) assert.ok(k.min <= k.value && k.value <= k.max, `${id} ${k.name} in its range`);
+    for (const k of ks) assert.ok(isChoice(k) ? k.choices.includes(k.value) : k.colour ? !!(COLOURS[k.value] || fromHex(k.value)) : k.min <= k.value && k.value <= k.max, `${id} ${k.name} in its range`);
     // the starter's own values change nothing
     assert.deepEqual(starterShape(id, null, cleanOpts(id, knobValues(id, null))).p, starterShape(id).p, id);
     for (const f of [0.6, 1.7]) {
@@ -364,6 +366,8 @@ test("every starter can be made wider, deeper, taller: its shape and its footpri
       const [w, dd, h] = dims(d), [w0, d0, h0] = dims(defs(id)), [bw, bd] = [b.hi[0] - b.lo[0], b.hi[2] - b.lo[2]];
       const b0 = bounds(starterShape(id).p);
       // as wide (deep, tall) as asked, as much as the starter itself is as wide as it says
+      // (what you dress with flowers keeps its flowers' own size: its line is tested below)
+      if (names.includes("bloomsize")) continue;
       near(bw / (b0.hi[0] - b0.lo[0]), w / w0, 0.06 * w / w0 + 0.03, `${id} x${f} width`);
       near(bd / (b0.hi[2] - b0.lo[2]), dd / d0, 0.06 * dd / d0 + 0.03, `${id} x${f} depth`);
       if (opts.h !== undefined) near(b.hi[1], h, Math.max(0.01, 0.05 * h), `${id} x${f} height`);
@@ -465,4 +469,102 @@ test("the room's own fittings, moved by hand, come back as what changed", () => 
   assert.deepEqual(c[0].was.at, [1, 1.2, 2]);
   assert.deepEqual(c[1].opts, { w: 3 });
   assert.ok(Math.abs(c[3].was.turn - Math.PI / 2) < 1e-9);
+});
+
+// ---------------------------------------------------------------- what you build yourself
+const share = (sh, f) => { let n = 0; for (let v = 0; v < sh.p.length / 3; v++) if (f(sh.p[3 * v], sh.p[3 * v + 1], sh.p[3 * v + 2])) n++; return n / (sh.p.length / 3); };
+
+test("an arch's line, in every shape, from the floor to its height and within its width", () => {
+  for (const kind of ARCHES) {
+    const line = archLine(kind, 2.2, 2.6), xs = line.map((p) => p[0]), ys = line.map((p) => p[1]);
+    near(Math.min(...ys), 0, 0.03, kind + " stands on the floor");
+    near(Math.max(...ys), 2.6, 0.03, kind + " is as high as asked");
+    assert.ok(Math.max(...xs) <= 1.1 + 1e-9 && Math.min(...xs) >= -1.1 - 1e-9, kind + " within its width");
+    const path = along(line);
+    assert.ok(path.length > 2, kind);
+    for (const t of [0, 0.3, 0.77, 1]) near(Math.hypot(...path.at(t).d), 1, 1e-6, kind + ": a unit way along");
+  }
+  // an arch through which the body walks stands on two feet; a ring on its foot
+  // (its frame inside the flowers round it, so the whole arch is as wide as asked)
+  const k = { w: 2.4, h: 2.4, d: 0.4 }, fw = frameOf(k).w;
+  assert.ok(fw < 2.4 && fw > 1.8);
+  assert.deepEqual(archPosts({ ...k, shape: "round" }), [[-fw / 2, 0], [fw / 2, 0]]);
+  assert.deepEqual(archPosts({ ...k, shape: "hexagon" }), [[-fw / 4, 0], [fw / 4, 0]]);
+  assert.equal(archPosts({ ...k, shape: "circle" }).length, 1);
+  const hex = defs("custom_arch", { opts: { shape: "hexagon" } }), wide = defs("custom_arch", { opts: { shape: "hexagon", w: 3 } });
+  near(hex.posts[1][0], frameOf({ w: 2.2, h: 2.6, d: 0.9 }).w / 4, 1e-9, "the hexagon's feet");
+  near(wide.posts[1][0] - hex.posts[1][0], 0.8 / 4, 1e-9, "wider, its feet further apart");
+});
+
+test("the flowers go where each part of an arch is covered, as thickly as asked", () => {
+  const none = Object.fromEntries(PARTS.map((n) => [n, 0]));
+  assert.equal(coverPick(none, 0.5, 0.5), null);
+  for (let k = 0; k < 50; k++) {
+    const t = coverPick({ ...none, crown: 100 }, k / 50, (k * 7 % 50) / 50);
+    assert.ok(t >= 0.4 && t < 0.6, "only on the top: " + t);
+  }
+  // (twice the cover, twice the flowers there)
+  let left = 0;
+  for (let k = 0; k < 1000; k++) if (coverPick({ ...none, lside: 100, rside: 50 }, (k + 0.5) / 1000, 0.5) < 0.5) left++;
+  near(left / 1000, 2 / 3, 0.01, "the left side's share");
+  // an arch covered on its right only has its flowers there
+  const bare = { greens: 0, trails: 0, feet: "none", ...none };
+  const right = starterShape("custom_arch", null, { ...bare, rside: 100, rfoot: 100 });
+  assert.ok(share(right, (x) => x > 0.3) > 0.8, "on its right");
+  const lots = starterShape("custom_arch", null, { ...bare, rside: 100, rfoot: 100, flowers: 300 });
+  assert.ok(lots.p.length > right.p.length * 1.4, "more flowers, more of them");
+  // (whatever hangs from it, the frame stands on the floor: its legs to y = 0)
+  const legs = starterShape("custom_arch", null, { ...none, lside: 100, crown: 100, green: "ivy", greens: 200, feet: "none" });
+  const post = defs("custom_arch").posts[1][0];
+  let foot = Infinity;
+  for (let v = 0; v < legs.p.length; v += 3) if (Math.abs(legs.p[v] - post) < 0.03) foot = Math.min(foot, legs.p[v + 1]);
+  near(foot, 0, 0.005, "its right leg on the floor");
+  const leafless = starterShape("custom_arch", null, { ...bare, flowers: 0 });
+  assert.ok(leafless.p.length < right.p.length / 20, "no flowers, no greenery: the bare frame");
+});
+
+test("a built starter's choices and colours: kept when they are ones it has, else its own", () => {
+  const v = knobValues("custom_arch", { shape: "spaceship", flower: "peony", tint: "#C41A24", accenttint: "plaid", flowers: 1e6 });
+  assert.equal(v.shape, "round");
+  assert.equal(v.flower, "peony");
+  assert.equal(v.tint, "#c41a24");
+  assert.equal(v.accenttint, STARTERS.custom_arch.knobs.accenttint.value);
+  assert.equal(v.flowers, 400);
+  assert.deepEqual(cleanOpts("custom_arch", { shape: "round", flower: "peony", tint: "#c41a24" }), { flower: "peony", tint: "#c41a24" });
+  for (const k of knobs("custom_arch")) if (isChoice(k)) assert.ok(k.choices.includes(k.value), k.name);
+  assert.ok(knobs("custom_arch").some((k) => isChoice(k) && k.choices === FLOWERS));
+  assert.ok(knobs("floral_cloud").some((k) => isChoice(k) && k.choices === GREENS));
+  for (const list of Object.values(PALETTES)) assert.ok(list.every((c) => fromHex(c) && toHex(fromHex(c)) === c));
+  // every knob's word and every choice is one decor.py keeps ([a-z], 16 at most)
+  for (const id of ["custom_arch", "floral_cloud", "table_flowers", "place_setting"])
+    for (const k of knobs(id)) {
+      assert.match(k.name, /^[a-z]{1,16}$/, id);
+      for (const c of k.choices || []) assert.match(c, /^[a-z]{1,16}$/, id + " " + k.name);
+    }
+});
+
+test("each shape and kind builds; the colour asked for is the flowers' and the glasses'", () => {
+  const has = (sh, hex) => { const c = fromHex(hex).map((v) => v / 255); for (let v = 0; v < sh.c.length; v += 3) if (Math.abs(sh.c[v] - c[0]) + Math.abs(sh.c[v + 1] - c[1]) + Math.abs(sh.c[v + 2] - c[2]) < 0.02) return true; return false; };
+  for (const shape of ARCHES) assert.ok(starterShape("custom_arch", null, { shape, flowers: 20, greens: 10 }).i.length > 0, shape);
+  for (const flower of FLOWERS) {
+    const sh = starterShape("custom_arch", null, { flower, share: 0, flowers: 10, greens: 0, trails: 0, tint: "#7a4a9a", bloomsize: 0.1 });
+    assert.ok(sh.i.every((i) => i < sh.p.length / 3), flower);
+    assert.ok(has(sh, "#7a4a9a"), flower + " in the colour asked");
+  }
+  for (const green of GREENS) assert.ok(starterShape("floral_cloud", null, { green, flowers: 0, greens: 10 }).p.every(Number.isFinite), green);
+  for (const shape of ["cloud", "ring", "garland", "rain"]) {
+    const sh = starterShape("floral_cloud", null, { shape });
+    assert.ok(bounds(sh.p).hi[1] <= 2.9 + 1e-6, shape + ": hung from the roof");
+  }
+  const lit = (sh) => sh.g.filter(Boolean).length;
+  assert.ok(lit(starterShape("floral_cloud", null, { bulbs: 0, lamps: 4 })) > lit(starterShape("floral_cloud", null, { bulbs: 0, lamps: 0 })), "woven lamps glow");
+  for (const style of ["low", "tall", "garland", "bud", "candles"]) {
+    const sh = starterShape("table_flowers", null, { style, vase: "#5f8f6a" });
+    assert.ok(bounds(sh.p).lo[1] > -0.05, style + " on the table");
+    if (style !== "garland") assert.ok(has(sh, "#5f8f6a"), style + ": its glass in the colour asked");
+  }
+  // a place setting's glasses in a colour, and as many as asked
+  const one = starterShape("place_setting", null, { glasses: 1 }), three = starterShape("place_setting", null, { glasses: 3, glass: "#c98a3c" });
+  assert.ok(three.p.length > one.p.length);
+  assert.ok(has(three, "#c98a3c") && !has(starterShape("place_setting"), "#c98a3c"));
 });

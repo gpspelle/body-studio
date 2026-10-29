@@ -2,6 +2,25 @@
 
 ## 0.1.0 (unreleased)
 
+- Decor you build yourself, as the decorators do. **Arch, your own** (Ceremony): seven shapes (round,
+  pointed, square, circle, hexagon, triangle, half moon), how thickly each of its five parts is
+  covered (left foot, left side, top, right side, right foot), flowers at one foot or both, falling
+  strands. **Hanging flowers, your own** (Flowers): a cloud, a ring, a garland or a rain of flower
+  strands hung from the roof, with ivy strands, filament bulbs and woven lamps under it, as in the
+  decorators' "decoração aérea". **Table flowers, your own** (Table): a low bowl, a tall vase, a
+  garland, bud vases or candles in glass, the glass in any colour. Each takes ten kinds of flower
+  (rose, peony, hydrangea, orchid, gerbera, calla, anthurium, torch ginger, baby's breath, mixed), a
+  main and an accent flower each in its own colour, how many, their size, and the greenery
+  (eucalyptus, fern, palm, monstera, ivy, mixed) and how much.
+- A place setting's glasses now come in a colour (clear, amber, smoke, green, blue, pink, lilac,
+  gold), one to three of them (water, wine, a flute), and its napkin in a colour.
+- "Change it" shows a starter's knobs in parts (Shape, Flowers, Where the flowers go, Greenery,
+  Lights, Glasses), choices as chips and colours as swatches with a picker.
+- The sample venue: the last near things still drawn as splats are now drawn as the furniture is:
+  the low stone wall where the garden meets the beach (a new **Low stone wall** starter), the side
+  room's glass doors (**Pane of glass**) and the patio's terracotta through them, the lights sunk in
+  the floor by the toilets' hall (**Light sunk in the floor**). Only the far beach, the sea and the
+  island stay as splats.
 - The sample venue's side room, from Gabriel's views9 tags: the hall's step is open (no door, glass
   panel or skirting), a short corridor runs on from it, and the louvred door is just past its
   corner with the room right behind it (no more bend up past the room). The corridor's and the

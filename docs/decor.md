@@ -55,7 +55,7 @@ stool that was put in the room.
 
 ## Changing a starter
 
-**Change it: size, material, how many**, under the picked starter's colours, opens its knobs:
+**Change it: shape, flowers, colours, size**, under the picked starter's colours, opens its knobs:
 
 - **Width**, **Depth** (not for a round thing) and **Height**, in centimetres, from 40% to 2.5
   times its own. The footprint, the top things stand on and the seats move with it: a taller table
@@ -76,6 +76,28 @@ stool that was put in the room.
 
 A placed thing keeps only the knobs that differ (`opts` in the layout), so layouts made before
 stay as they were.
+
+### Building your own: arches, hanging flowers, table flowers
+
+Three starters are kits rather than things (`static/decor/custom.js`, dressed by
+`static/decor/florals.js`), for what a decorator designs for each wedding. Their knobs come in parts:
+
+- **Shape**: the arch's line (round, pointed, square, circle, hexagon, triangle, half moon), drawn
+  inside the flowers round it so the whole arch is as wide and high as asked; where it stands on the
+  floor follows it (`postsFor`). A hung installation is a cloud, a ring, a garland or a rain of
+  strands, its **Cord** how far under the roof it hangs. Table flowers are a low bowl, a tall vase, a
+  garland, bud vases or candles, their **Glass** in any colour.
+- **Flowers**: how many, the **Main flower** and **Its colour**, the **Accent flower** and **Accent
+  colour**, the **Accents** share (in a hundred) and **Flower size**.
+- **Where the flowers go** (an arch): a cover for each fifth of its line, from the left foot over
+  the top to the right foot. The flowers are shared out by cover, so a corner at 100 and the rest at
+  0 puts all of them in that corner (as thick as asked), and **Flowers at its feet** adds mounds.
+- **Greenery**: how much and which kind; **Falling strands** of ivy and their length.
+- **Lights** (hung): filament bulbs and woven lamps under it.
+
+A choice knob is `{choices, value}` and a colour knob `{colour: true, palette, value}` (a name or
+"#rrggbb"); decor.py keeps either by its word. The arch and the hung flowers build in a fraction of
+a second, so their sliders build when let go (`heavy`).
 
 ### Why knobs on the starters
 

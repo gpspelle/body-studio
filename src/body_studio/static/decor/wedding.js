@@ -63,16 +63,22 @@ export const WEDDING = {
   // ------------------------------------------------ on the table
   place_setting: {
     group: "table", height: 0.19, on: "top", colour: "gold", size: { w: 0.5, d: 0.42 }, block: false,
-    make(col) {
-      // for the guest sitting at +z: the plates, the fork to the left, the knife and the glasses to the right
+    knobs: { glass: { colour: true, palette: "glass", value: "#dbe6e6", part: "glasses" }, glasses: { min: 1, max: 3, value: 2, part: "glasses" },
+             napkin: { colour: true, palette: "cloth", value: "#f0e6cf", part: "table" } },
+    make(col, k = { glass: GLASS, glasses: 2, napkin: COLOURS.ivory }) {
+      // for the guest sitting at +z: the charger (in its colour) and plate, the napkin, the fork to
+      // the left, the knife and the glasses to the right (water, wine, a flute), in the glass's colour
       const s = shape();
       cyl(s, 0.16, 0.16, 0.006, 0, 0, 0.04, col, 40);
       cyl(s, 0.12, 0.135, 0.016, 0, 0.006, 0.04, COLOURS.white, 40);
-      box(s, 0.13, 0.025, 0.07, 0, 0.022, 0.04, COLOURS.ivory);
+      box(s, 0.13, 0.025, 0.07, 0, 0.022, 0.04, k.napkin);
       box(s, 0.02, 0.004, 0.19, -0.2, 0, 0.04, SILVER);
       box(s, 0.016, 0.004, 0.21, 0.2, 0, 0.04, SILVER);
-      glassAt(s, 0.17, 0, -0.14);
-      glassAt(s, 0.06, 0, -0.17);
+      made("glass", () => {
+        tinted(s, 0.17, -0.14, k.glass, "goblet");
+        if (k.glasses > 1) tinted(s, 0.06, -0.17, k.glass, "wine");
+        if (k.glasses > 2) tinted(s, -0.05, -0.17, k.glass, "flute");
+      });
       return s;
     },
   },
@@ -460,3 +466,13 @@ export const WEDDING = {
     },
   },
 };
+
+// a glass in a colour at (x, 0, z): a water goblet, a wine glass or a champagne flute
+function tinted(s, x, z, col, kind) {
+  cyl(s, 0.03, 0.03, 0.004, x, 0, z, col, 12);
+  const stem = kind === "flute" ? 0.06 : kind === "goblet" ? 0.07 : 0.1;
+  rod(s, [x, 0, z], [x, stem, z], 0.004, col, 5);
+  if (kind === "flute") cyl(s, 0.012, 0.026, 0.13, x, stem, z, col, 14);
+  else if (kind === "goblet") cyl(s, 0.02, 0.045, 0.09, x, stem, z, col, 16);
+  else cyl(s, 0.015, 0.038, 0.09, x, stem, z, col, 14);
+}

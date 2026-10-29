@@ -422,6 +422,16 @@ label.btn { display: inline-block; }
 #decor .change[hidden] { display: none; }
 #decor .change { margin: 6px 0 6px; padding: 10px 12px; background: var(--card); border-radius: 12px; }
 #decor .change .sliders { margin: 0 0 8px; }
+#decor .knobs h3 { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--soft); margin: 12px 0 6px; padding-top: 10px; border-top: 1px solid var(--hair); }
+#decor .knobs .choice { display: grid; gap: 4px; font-size: 12px; color: var(--soft); margin: 2px 0 4px; }
+#decor .knobs .choice .chips { margin: 0; flex-wrap: wrap; }
+#decor .knobs .chips.swatches { gap: 6px; }
+#decor .knobs .chips.swatches button, #decor .knobs .swatches label.own { width: 20px; height: 20px; }
+.swatches label.own { display: inline-block; border-radius: 50%; position: relative; cursor: pointer; border: 1px solid rgba(0, 0, 0, 0.12);
+                      background: conic-gradient(from 90deg, #e6a5a1, #e8cf8f, #a9c79a, #94b9cf, #b3a3d1, #e6a5a1); }
+.swatches label.own.set { background: var(--swatch); }
+.swatches label.own.on { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+.swatches label.own input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; border: 0; padding: 0; }
 #decor .change .chips { gap: 4px; margin: 0 0 10px; }
 #decor .change .chips button.on { border-color: var(--ink); color: var(--ink); }
 #decor .keep { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }

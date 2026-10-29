@@ -44,7 +44,7 @@ MAX_ITEMS = 2000                # placed items in one layout
 MAX_LAYOUTS = 40
 COLOURS = ("white", "ivory", "gold", "wood", "green", "blush", "black", "coral", "rattan", "copper", "blue")
 MATERIALS = ("cloth", "satin", "wood", "metal", "glass")   # what a starter's own colour may be made of
-MAX_OPTS = 12
+MAX_OPTS = 32
 
 # The page draws these (static/decor.js STARTERS has the same ids, in the same groups). on: "floor",
 # or "top" (stands on a table or anything else with a top). The names are the page's (i18n
@@ -264,6 +264,13 @@ STARTERS = (
     {"id": "dome_pendant", "group": "lights", "height": 1.2, "on": "floor"},
     {"id": "plain_counter", "group": "bar", "height": 1.05, "on": "floor"},
     {"id": "sheer_curtain", "group": "home", "height": 3.25, "on": "floor"},
+    {"id": "stone_wall", "group": "garden", "height": 0.45, "on": "floor"},
+    {"id": "sunk_light", "group": "lights", "height": 0.004, "on": "floor"},
+    {"id": "glass_pane", "group": "home", "height": 2.4, "on": "floor"},
+    # built your own (static/decor/custom.js): an arch, a hung floral installation, a table's flowers
+    {"id": "custom_arch", "group": "ceremony", "height": 2.6, "on": "floor"},
+    {"id": "floral_cloud", "group": "flowers", "height": 2.9, "on": "floor"},
+    {"id": "table_flowers", "group": "table", "height": 0.4, "on": "top"},
 )
 STARTER_IDS = {s["id"] for s in STARTERS}
 
@@ -636,7 +643,8 @@ def clean_colour(c) -> str:
 
 def clean_opts(o) -> dict:
     """A starter's knobs as the page changed them (static/decor.js knobs()): sizes in metres and
-    counts by name, and what its colour is made of. The page keeps each in its range."""
+    counts by name, what its colour is made of, a choice by its word (an arch's shape, a flower's
+    kind) and a colour as a name or "#rrggbb" (the roses', the glasses'). The page keeps each in its range."""
     if not isinstance(o, dict) or len(o) > MAX_OPTS:
         raise DecorError("opts is a few {knob: value}", "bad_request")
     out = {}
@@ -647,6 +655,10 @@ def clean_opts(o) -> dict:
             if v not in MATERIALS:
                 raise DecorError("no such material", "bad_request")
             out[k] = v
+        elif isinstance(v, str):
+            if not re.fullmatch(r"[a-z]{1,16}|#[0-9a-f]{6}", v.lower()):
+                raise DecorError("no such choice", "bad_request")
+            out[k] = v.lower()
         else:
             out[k] = _num(v, 0, 1000, k)
     return out

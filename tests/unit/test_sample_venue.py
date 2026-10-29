@@ -102,7 +102,7 @@ class SampleVenueTest(unittest.TestCase):
                           "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher",
                           "brick_wall", "brick_pier", "brick_bench", "door_sign", "sink_cabinet", "changing_table", "mosaic_splash",
                           "dome_pendant", "plain_counter", "wall_plates", "tile_floor", "rustic_tiles", "wall_tiles",
-                          "pivot_door", "panel_door", "security_camera"})
+                          "pivot_door", "panel_door", "security_camera", "stone_wall", "sunk_light", "glass_pane"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -136,6 +136,24 @@ class SampleVenueTest(unittest.TestCase):
         # the map stops at the water: its far end within a few metres of the dry sand's
         mx, _ = self.to_map(V._garden_end(V.GARDEN_W) + V.BEACH, V.GARDEN_W)
         self.assertLess(abs(self.map["x0"] + self.map["nx"] * self.map["cell"] - mx), 4.5)   # (its thin slanted corner is cut off)
+
+    def test_nothing_near_is_drawn_in_splats(self):
+        # (Gabriel, 2026-10-29: the old way) what the page shows as splats is only the far beach, the
+        # sea and the island; the rest is the shell's smooth sheets or drawn as the furniture is
+        _, rest, _ = sample_room.drawing(V.splats)
+        self.assertTrue(rest)
+        self.assertTrue(all(len(r) > 3 and r[3] == V.FAR for r in rest))
+        props = V.fixtures()["trees"]
+        walls = [t for t in props if t["item"] == "stone_wall"]
+        (ax, az), L, _, _ = V._far_side()
+        self.assertAlmostEqual(sum(t["opts"]["w"] for t in walls), L * (1 - 2 * V.SEA_GAP), places=2)
+        self.assertTrue(all(abs(t["at"][2] - az) <= V.GARDEN_W + 1 for t in walls))
+        self.assertEqual(sum(t["item"] == "sunk_light" for t in props), 4)
+        self.assertEqual([t["item"] for t in props if t["item"] in ("glass_pane", "tile_floor") and t["at"][2] < V.SIDE[2] + 0.01],
+                         ["glass_pane", "tile_floor"])
+        # (the sea wall is still in the map: the body walks out to the beach through its gap only)
+        (ax, az), L, (tx, tz), (nx, nz) = V._far_side()
+        self.assertFalse(self.free(ax + tx * L * 0.2 + nx * 0.5, az + tz * L * 0.2 + nz * 0.5))
 
     def test_sides_as_the_plan(self):
         # walking in from the door (along +x, y up), the kitchen and the bungalow are on the right,
@@ -232,7 +250,7 @@ class SampleVenueTest(unittest.TestCase):
         # the front door's two rusted leaves, one with its bar; the floors and the kitchen's walls in tiles
         doors = [f for f in fit if f[0] == "pivot_door"]
         self.assertEqual(sorted(f[4]["bar"] for f in doors), [0, 1])
-        self.assertEqual(kinds.count("tile_floor"), 6)
+        self.assertEqual(kinds.count("tile_floor"), 7)   # (and the side room's patio, through its glass doors)
         tiles = [f for f in fit if f[0] == "wall_tiles"]
         self.assertTrue(all(V.KITCHEN[0] - 0.01 <= f[1][0] <= V.KITCHEN[1] + 0.01 and V.KITCHEN[2] <= f[1][2] <= V.KITCHEN[3] for f in tiles))
         for f in tiles:                                 # (none over a door or the way out)

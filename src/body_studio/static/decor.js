@@ -13,15 +13,17 @@ import { GARDEN } from "./decor/garden.js";
 import { PROPOSALS } from "./decor/proposals.js";
 import { EXTRAS } from "./decor/extras.js";
 import { HOME } from "./decor/home.js";
+import { CUSTOM } from "./decor/custom.js";
+import { PALETTES } from "./decor/florals.js";
 
-export { COLOURS, FINISHES };
+export { COLOURS, FINISHES, PALETTES };
 
 // ---------------------------------------------------------------- the starters
 // Each one (decor/*.js): size, the footprint, for walking and for what stands on it ({r} round, or
 // {w, d}); top: the height things put on it stand at; seat: where the body sits on it (its hips,
 // facing its front); block: whether the body walks round it; make(colour, knob values) -> its
 // shape; knobs, built: what can be changed (knobs() below).
-export const STARTERS = { ...BASICS, ...WEDDING, ...GARDEN, ...PROPOSALS, ...EXTRAS, ...HOME };
+export const STARTERS = { ...BASICS, ...WEDDING, ...GARDEN, ...PROPOSALS, ...EXTRAS, ...HOME, ...CUSTOM };
 
 // the groups the panel shows the starters in, in order
 export const GROUPS = ["tables", "flowers", "table", "ceremony", "bar", "lights", "lounge", "garden", "home"];
@@ -31,7 +33,10 @@ export const GROUPS = ["tables", "flowers", "table", "ceremony", "bar", "lights"
 export function starterShape(id, colour, opts = null) {
   const def = STARTERS[id];
   if (!def) throw new Error("no such starter " + id);
-  const col = colourOf(colour, def.colour), k = knobValues(id, opts), s = def.make(col, k);
+  const col = colourOf(colour, def.colour), k = knobValues(id, opts);
+  // (a colour knob reaches make() as its colour: a rose's, a glass's)
+  for (const kn of knobs(id)) if (kn.colour) k[kn.name] = colourOf(k[kn.name], kn.value);
+  const s = def.make(col, k);
   // a size its make() doesn't draw to is stretched to (round things stay round)
   const [w0, d0, h0] = dims(def), built = def.built || [];
   const sx = built.includes("w") ? 1 : k.w / w0, sy = built.includes("h") ? 1 : k.h / h0;
@@ -73,10 +78,18 @@ export function knobs(id) {
   for (const [name, k] of Object.entries(def.knobs || {})) out.push({ name, size: !!k.size, step: 1, ...k });
   return out;
 }
+// A knob can also be a choice (choices: ["round", "square", ...], value one of them: an arch's
+// shape, a flower's kind) or a colour (colour: true, value a name in COLOURS or "#rrggbb": the
+// roses', the glasses'); a knob may name the part of the panel it is shown in (part: "flowers").
+export const isChoice = (k) => Array.isArray(k.choices);
+export const okColour = (v) => typeof v === "string" && (!!COLOURS[v] || !!fromHex(v));
 // the knobs' values for opts (the starter's own where opts has none, or one out of range)
 export function knobValues(id, opts) {
   const out = {};
   for (const k of knobs(id)) {
+    const o = opts ? opts[k.name] : undefined;
+    if (isChoice(k)) { out[k.name] = k.choices.includes(o) ? o : k.value; continue; }
+    if (k.colour) { out[k.name] = okColour(o) ? (fromHex(o) ? toHex(fromHex(o)) : o) : k.value; continue; }
     const v = opts && Number.isFinite(+opts[k.name]) && opts[k.name] !== null ? +opts[k.name] : k.value;
     out[k.name] = Math.min(k.max, Math.max(k.min, k.size ? v : Math.round(v)));
   }
@@ -89,7 +102,11 @@ export function knobValues(id, opts) {
 export function cleanOpts(id, opts) {
   if (!opts) return null;
   const out = {}, v = knobValues(id, opts);
-  for (const k of knobs(id)) if (opts[k.name] !== undefined && Math.abs(v[k.name] - k.value) > 1e-6) out[k.name] = v[k.name];
+  for (const k of knobs(id)) {
+    if (opts[k.name] === undefined) continue;
+    if (isChoice(k) || k.colour) { if (v[k.name] !== k.value) out[k.name] = v[k.name]; }
+    else if (Math.abs(v[k.name] - k.value) > 1e-6) out[k.name] = v[k.name];
+  }
   if (MATERIALS.includes(opts.finish)) out.finish = opts.finish;
   return Object.keys(out).length ? out : null;
 }
@@ -98,7 +115,10 @@ export const optsKey = (opts) => (opts ? Object.keys(opts).sort().map((k) => k +
 // What the page knows of a placed starter p (itemDef), at the size its opts give it: its footprint,
 // top and seats move with it.
 export function sized(def, p) {
-  const o = p && p.opts;
+  const o = p && p.opts, st = def && STARTERS[def.id];
+  // (where an arch stands on the floor follows its shape: postsFor(knob values))
+  if (st && st.postsFor && def.starter && o && (o.w === undefined && o.d === undefined && o.h === undefined))
+    return { ...def, posts: st.postsFor(knobValues(def.id, o)) };
   if (!def || !def.starter || !o || (o.w === undefined && o.d === undefined && o.h === undefined)) return def;
   const [w0, d0, h0] = dims(def), v = knobValues(def.id, o);
   const rx = v.w / w0, ry = v.h / h0, rz = def.size.r !== undefined ? rx : v.d / d0;
@@ -106,7 +126,8 @@ export function sized(def, p) {
   return {
     ...def, height: def.height * ry, top: def.top === undefined ? undefined : def.top * ry,
     size: def.size.r !== undefined ? { r: def.size.r * rx } : { w: def.size.w * rx, d: def.size.d * rz },
-    seat: at(def.seat), seats: def.seats && def.seats.map(at), posts: def.posts && def.posts.map(([x, z]) => [x * rx, z * rz]),
+    seat: at(def.seat), seats: def.seats && def.seats.map(at),
+    posts: st && st.postsFor ? st.postsFor(v) : def.posts && def.posts.map(([x, z]) => [x * rx, z * rz]),
   };
 }
 
@@ -173,7 +194,7 @@ export function unpack(m) {
 export function itemDef(item, mesh = null) {
   const st = STARTERS[item.id];
   if (st) return { id: item.id, starter: true, height: st.height, on: st.on, size: st.size, top: st.top, seat: st.seat,
-                   seats: st.seats, block: st.block, posts: st.posts, colour: st.colour, group: st.group };
+                   seats: st.seats, block: st.block, posts: st.postsFor ? st.postsFor(knobValues(item.id, null)) : st.posts, colour: st.colour, group: st.group };
   const h = item.height || 1;
   const size = mesh ? { w: (mesh.hi[0] - mesh.lo[0]) * h, d: (mesh.hi[2] - mesh.lo[2]) * h } : { r: 0.25 * h };
   return { id: item.id, starter: false, height: h, on: item.on || "floor", size, block: h > 0.25 };

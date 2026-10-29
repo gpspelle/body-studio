@@ -1017,7 +1017,53 @@ export const HOME = {
       return s;
     },
   },
-
+  stone_wall: {
+    group: "garden", height: 0.45, on: "floor", colour: "black", size: { w: 3.0, d: 0.4 }, block: true, built: ["w", "d", "h"],
+    make(col, k = { w: 3.0, d: 0.4, h: 0.45 }) {
+      // a low wall of dark stones laid dry, as where the venue's garden meets the beach: courses of
+      // rounded stones of every length on both faces, each its own shade, a darker core between
+      // them, flat stones laid across its top
+      const s = shape(), rnd = rng(Math.round(k.w * 53 + k.h * 17 + k.d * 7)), w = k.w, d = k.d, h = k.h;
+      const stone = () => { const t = 0.7 + 0.5 * rnd(); return col.map((v, n) => Math.min(1, (v + 0.2) * t * (n === 2 ? 0.95 : 1))); };
+      made("cloth", () => sharpBox(s, w - 0.03, h - 0.02, d - 0.04, 0, 0, 0, col.map((v) => v * 0.6)));
+      made("satin", () => {
+        const rows = Math.max(1, Math.round((h - 0.06) / 0.14)), C = (h - 0.06) / rows;
+        for (const side of [-1, 1]) for (let j = 0; j < rows; j++) {
+          for (let x = -w / 2 + (j % 2 ? 0.12 * rnd() : 0); x < w / 2 - 0.04;) {
+            const L = Math.min(w / 2 - x, 0.2 + 0.22 * rnd()), sh = C * (0.82 + 0.15 * rnd()), sd = 0.08 + 0.04 * rnd();
+            soft(s, L - 0.015, sh, sd, x + L / 2, j * C + 0.005, side * (d / 2 - sd / 2 + 0.005), stone(), Math.min(0.035, sh / 2.5), 2);
+            x += L;
+          }
+        }
+        // (the capstones, across the top)
+        for (let x = -w / 2; x < w / 2 - 0.04;) {
+          const L = Math.min(w / 2 - x, 0.22 + 0.2 * rnd());
+          soft(s, L - 0.012, 0.06, d + 0.02 * rnd(), x + L / 2, h - 0.06, 0, stone(), 0.025, 2);
+          x += L;
+        }
+      });
+      return s;
+    },
+  },
+  sunk_light: {
+    group: "lights", height: 0.004, on: "floor", colour: "black", size: { r: 0.045 }, block: false,
+    make(col) {
+      // a light sunk in the floor, lighting the wall over it: a thin dark ring, its warm glass
+      const s = shape();
+      made("metal", () => cyl(s, 0.045, 0.045, 0.003, 0, 0, 0, col, 24));
+      lit(() => cyl(s, 0.034, 0.034, 0.004, 0, 0, 0, BULB, 24));
+      return s;
+    },
+  },
+  glass_pane: {
+    group: "home", height: 2.4, on: "floor", colour: "white", size: { w: 1.6, d: 0.02 }, block: true, built: ["w", "h"],
+    make(col, k = { w: 1.6, h: 2.4 }) {
+      // a pane of clear glass, floor to its height, in a door or a window's frame (the frame is the room's)
+      const s = shape();
+      made("glass", () => sharpBox(s, k.w, k.h, 0.008, 0, 0, 0, col.map((v) => v * 0.9)));
+      return s;
+    },
+  },
 };
 
 // a fiddle-leaf fig's leaf from p toward d (unit), len long: a short stalk, then a broad leaf,
