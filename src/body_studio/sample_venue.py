@@ -37,7 +37,7 @@ from pathlib import Path
 
 from . import sample_room as base
 
-VERSION = 31
+VERSION = 33
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -91,16 +91,14 @@ WC_DOORS = ((13.0, 13.9), (15.2, 16.1))
 LADIES_SCREEN, LADIES_SCREEN_FROM = -1.65, 12.6  # z of the ladies' grey wall across the room, and where it starts (x; it runs to the right wall)
 LADIES_STALLS = (13.1, -1.8, 3)                   # its cubicles in a row along its right wall: their fronts' x, the first's side (z), how many
 WC_CEILING = 2.8
-SIDE_WAY = (1.4, 2.6, 0.1, 1.45, -4.9)   # the corridor round to the side room, out of the notch's step wall: back along
-                                        # the hall's left wall (z0, z1), then up past the room's far side (x0, x1, to z)
-SIDE_WAY_DOOR = (0.62, 1.38)            # z: its door in the step wall, beside the dark glass panel
-SIDE_PANEL = (0.15, 0.5)                # z: that panel
-SIDE = (4.0, 10.0, -5.6, -2.0)          # the small room at its end, behind its louvred double door
-SIDE_DOOR = (-4.8, -3.7)                # z: that door, in the room's wall nearest the house's front
+CORRIDOR = (1.4, 1.4)                   # on from the notch's step (left open) to the side room: x where it ends, how wide (z from 0)
+SIDE = (0.0, 6.0, -3.6, 0.0)            # the small room behind it, through its louvred double door
+SIDE_DOOR = (1.75, 2.75)                # x: that door, in the corridor's wall just past the corner
+GARDEN_DOOR = (2.4, 4.0)                # x: the room's glass doors onto a planted patio (where the venue stops), across from it
+SIDE_TILE = (0.08, 0.065, 0.055)         # its stone tiles and the corridor's (dark: a floor drawn as the furniture is is lit brighter)
 OUT_WAY = 10.6                          # z: the outside passage's far side, from the kitchen's yard along the hall's
                                         # windows to the pergola (as far out as the pergola goes)
 OUT_DOOR = (9.15, 10.05)                # z: its wooden door onto the pergola, in the wall beside the hall's end
-GARDEN_DOOR = (6.4, 8.0)                # x: the room's glass doors onto a planted patio (where the venue stops)
 BEACH = 8.0                         # m of dry sand from the garden's far side to the water
 SEA = 130.0                         # m out to the island across the channel
 
@@ -503,9 +501,7 @@ def house(rnd, out):
     # the hall: the notch on the left, the half wall, the toilets' hall and the stage beside it
     wc_wall = _wall(WC_WALL, skirting=None)
     wall_x(NOTCH[2], 0.0, NOTCH[1], [], hall_wall, out, rnd)
-    wall_z(NOTCH[1], 0.0, NOTCH[2], [SIDE_PANEL + (1.0, 2.3), SIDE_WAY_DOOR + (0.0, 2.3)], hall_wall, out, rnd)
-    frame_z(NOTCH[1], *SIDE_PANEL, 1.0, 2.3, out, rnd, colour=GREY_FRAME, t=0.04)
-    base._surface(rnd, (NOTCH[1] - 0.03, NOTCH[1] - 0.03, 1.0, 2.3) + SIDE_PANEL, _view, out, 0.04)
+    base._surface(rnd, (NOTCH[1], NOTCH[1], WC_CEILING, H, 0.0, NOTCH[2]), hall_wall, out, WALL_STEP)   # (the step open under it: the corridor)
     wall_x(0.0, NOTCH[1], HALF_WALL[0], [], hall_wall, out, rnd)
     side_room(rnd, out)
     wall_x(0.0, HALF_WALL[0], WC[1], [(a, b, 0.0, 2.2) for a, b in WC_DOORS], wc_wall, out, rnd)
@@ -795,36 +791,31 @@ def _louvres(x, y, z, rnd):
 
 
 def side_room(rnd, out):
-    """The small room behind the hall (the walkthrough at 1:22-1:33): through a door in the notch's
-    step wall, beside its dark glass panel, a corridor runs back along the outside of the hall's
-    left wall, turns up past the room's far side and round its corner to a louvred double door
-    (swung in); then a room with khaki walls (the corridor's too), dark stone tiles and wooden glass
-    doors onto a planted patio. The kitchen's staff come in this way; the venue stops at the glass
-    doors, the patio only seen through them (faint: the map leaves it out; the page draws its
-    plants, from fixtures())."""
-    a, b, c0, c1, end = SIDE_WAY
+    """The small room behind the hall (the walkthrough at 1:22-1:33): the notch's step is open, a
+    short corridor running on from it along the outside of the hall's left wall; just past its
+    corner, in its wall on the right, a louvred double door (swung in), and right behind it the
+    room: khaki walls (the corridor's too), dark stone tiles (drawn as the furniture is, and the
+    skirting: fittings()) and across it wooden glass doors onto a planted patio. The kitchen's staff come in this way; the
+    venue stops at the glass doors, the patio only seen through them (faint: the map leaves it
+    out; the page draws its plants, from fixtures())."""
+    end, w = CORRIDOR
     x0, x1, z0, z1 = SIDE
     d0, d1 = SIDE_DOOR
-    beige = _wall((0.60, 0.57, 0.47))                 # (khaki, as filmed: the corridor too)
-    floor = _tiles((0.30, 0.26, 0.23), 0.5, grout=(0.22, 0.19, 0.17))
-    for box in ((b, NOTCH[1], c0, c1), (a, b, end, c1), (b, x0, end, d1 + 0.1)):   # (its three legs)
-        base._surface(rnd, (box[0], box[1], 0, 0, box[2], box[3]), floor, out, FLOOR_STEP)
-        base._surface(rnd, (box[0], box[1], WC_CEILING, WC_CEILING, box[2], box[3]), base.finish("plaster", CEILING), out, CEIL_STEP)
-    wall_x(c1, a, NOTCH[1], [], beige, out, rnd, h=WC_CEILING)
-    wall_x(c0, b, NOTCH[1], [], beige, out, rnd, h=WC_CEILING)
-    wall_z(a, end, c1, [], beige, out, rnd, h=WC_CEILING)
-    wall_z(b, d1 + 0.1, c0, [], beige, out, rnd, h=WC_CEILING)
-    wall_x(end, a, x0, [], beige, out, rnd, h=WC_CEILING)
-    wall_x(d1 + 0.1, b, x0, [], beige, out, rnd, h=WC_CEILING)
-    frame_z(NOTCH[1], *SIDE_WAY_DOOR, 0.0, 2.3, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
-    frame_z(x0, d0, d1, 0.0, 2.3, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
-    for z in (d0 + 0.02, d1 - 0.06):                  # the louvred leaves, swung into the room
-        base._surface(rnd, (x0 + 0.04, x0 + (d1 - d0) / 2, 0.0, 2.25, z, z + 0.04), _louvres, out, 0.02)
+    beige = _wall((0.60, 0.57, 0.47), skirting=None)   # (khaki, as filmed: the corridor too)
+    floor = (0.30, 0.26, 0.23)
+    base._surface(rnd, (end, NOTCH[1], 0, 0, 0.0, w), floor, out, FLOOR_STEP)
+    base._surface(rnd, (end, NOTCH[1], WC_CEILING, WC_CEILING, 0.0, w), base.finish("plaster", CEILING), out, CEIL_STEP)
+    wall_x(w, end, NOTCH[1], [], beige, out, rnd, h=WC_CEILING)
+    wall_z(end, 0.0, w, [], beige, out, rnd, h=WC_CEILING)
+    frame_x(z1, d0, d1, 0.0, 2.3, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
+    for x in (d0 + 0.02, d1 - 0.06):                  # the louvred leaves, swung into the room
+        base._surface(rnd, (x, x + 0.04, 0.0, 2.25, z1 - (d1 - d0) / 2, z1 - 0.04), _louvres, out, 0.02)
     base._surface(rnd, (x0, x1, 0, 0, z0, z1), _shaded(floor, SIDE), out, FLOOR_STEP)
     base._surface(rnd, (x0, x1, WC_CEILING, WC_CEILING, z0, z1), base.finish("plaster", CEILING), out, CEIL_STEP)
-    wall_z(x0, z0, z1, [(d0, d1, 0.0, 2.3)], beige, out, rnd, h=WC_CEILING)
+    wall_z(x0 + 0.02, z0, z1, [], beige, out, rnd, h=WC_CEILING)   # (just off the ante-room's wall)
     wall_z(x1, z0, z1, [], beige, out, rnd, h=WC_CEILING)
-    wall_x(z1, x0, x1, [], beige, out, rnd, h=WC_CEILING)
+    wall_x(z1, x0, NOTCH[1], [(d0, d1, 0.0, 2.3)], beige, out, rnd, h=WC_CEILING)
+    wall_x(z1 - 0.03, NOTCH[1], x1, [], beige, out, rnd, h=WC_CEILING)   # (behind the hall's own wall)
     ga, gb = GARDEN_DOOR
     wall_x(z0, x0, x1, [(ga, gb, 0.0, 2.4)], beige, out, rnd, h=WC_CEILING)
     wood = (0.42, 0.28, 0.18)
@@ -1125,6 +1116,20 @@ def fittings() -> list:
                            (NOTCH[1], TILES_END, HALL[2], HALL[3])):
         out.append(("rustic_tiles", (round((x0 + x1) / 2, 3), 0.0, round((z0 + z1) / 2, 3)), 0.0, None,
                     {"w": round(x1 - x0, 3), "d": round(z1 - z0, 3), "ox": round(-x0 % 0.4, 3), "oz": round(-z0 % 0.4, 3)}))
+    # the side room's and its corridor's dark stone tiles, and skirting boards along their khaki walls
+    end, w = CORRIDOR
+    sx0, sx1, sz0, sz1 = SIDE
+    for x0, x1, z0, z1 in ((end, NOTCH[1], 0.0, w), (sx0, sx1, sz0, sz1)):
+        out.append(("tile_floor", (round((x0 + x1) / 2, 3), 0.0, round((z0 + z1) / 2, 3)), 0.0, SIDE_TILE,
+                    {"w": round(x1 - x0, 3), "d": round(z1 - z0, 3), "tx": 0.5, "tz": 0.5, "ox": round(-x0 % 0.5, 3), "oz": round(-z0 % 0.5, 3), "matte": 1, "grout": 0.006}))
+    ga, gb = GARDEN_DOOR
+    d0, d1 = SIDE_DOOR
+    for x0, x1, z, turn in ((end, NOTCH[1], w, math.pi), (end, d0 - 0.07, 0.0, 0.0), (d1 + 0.07, NOTCH[1], 0.0, 0.0),
+                            (sx0, d0 - 0.07, sz1, math.pi), (d1 + 0.07, sx1, sz1, math.pi), (sx0, ga - 0.08, sz0, 0.0), (gb + 0.08, sx1, sz0, 0.0)):
+        if x1 - x0 > 0.5:                              # (none in the short bit by the door's frame)
+            out.append(("skirting_board", (round((x0 + x1) / 2, 3), 0.0, z), turn, SKIRTING_BOARD, round(x1 - x0, 3)))
+    for z0, z1, x, turn in ((0.0, w, end, math.pi / 2), (sz0, sz1, sx0 + 0.02, math.pi / 2), (sz0, sz1, sx1, -math.pi / 2)):
+        out.append(("skirting_board", (x, 0.0, round((z0 + z1) / 2, 3)), turn, SKIRTING_BOARD, round(z1 - z0, 3)))
     # the vertical garden's curtains, each tied back to the wooden post (or the doorway's frame) beside it
     for x, turn, ties in ((VERTICAL[0] + 0.2, -math.pi / 2, ((0.35, 1), (3.65, 0))), (VERTICAL[1] - 0.2, math.pi / 2, ((0.6, 0), (3.4, 1)))):
         out += [("sheer_curtain", (x, 0.0, z), turn, SHEER, {"tie": 0.25, "left": left}) for z, left in ties]
@@ -1197,8 +1202,7 @@ def fittings() -> list:
     nx, nz = NOTCH[1], NOTCH[2]
     for x0, x1, z, turn in ((hx0, hx1, hz1, math.pi), (hx0, nx, nz, 0.0), (nx, HALF_WALL[0], 0.0, 0.0)):
         out.append(("skirting_board", ((x0 + x1) / 2, 0.0, z), turn, SKIRTING_BOARD, x1 - x0))
-    for z0, z1, x, turn in ((4.0, KITCHEN_DOOR[0], hx0, math.pi / 2), (0.0, SIDE_WAY_DOOR[0] - 0.07, nx, math.pi / 2)):
-        out.append(("skirting_board", (x, 0.0, (z0 + z1) / 2), turn, SKIRTING_BOARD, z1 - z0))
+    out.append(("skirting_board", (hx0, 0.0, (4.0 + KITCHEN_DOOR[0]) / 2), math.pi / 2, SKIRTING_BOARD, KITCHEN_DOOR[0] - 4.0))
     windows, lights = hall_windows()
     out += [("floor_spot", (x, 0.0, hz1 - 0.15), math.pi, None, None) for x in lights]
     out += [("floor_spot", (hx0 + 0.3, 0.0, 3.6), math.pi / 2, None, None)]
