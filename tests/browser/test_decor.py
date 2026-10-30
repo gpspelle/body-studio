@@ -274,6 +274,10 @@ class Decor(Viewer):
         page.locator("#roomList button[data-file^='workspace/_sample_room/']").click()
         page.wait_for_function("house.shown() && decor.group() && house.shell()", timeout=300000)
         page.click("#roomBtn")
+        # only when asked: nothing is worked out until Bake the light is pressed
+        self.assertEqual(page.evaluate("bakelight.state()"), {"baked": 0, "passes": 0, "at": 0, "working": False})
+        self.assertTrue(page.locator("#bakeBtn").is_visible())
+        page.click("#bakeBtn")
         # the sun's shadows and the sky's light worked out once and kept on the walls and the furniture
         page.wait_for_function("bakelight.state().baked > 0 && !bakelight.state().working", timeout=600000)
         lit = page.evaluate("""(() => { const s = house.shell(), g = s.geometry.getAttribute('bake');
@@ -285,9 +289,14 @@ class Decor(Viewer):
         self.assertGreater(lit["shades"], 3, "light and shade, not one flat value")
         self.assertGreater(lit["decor"], 0)
         self.assertTrue(lit["shows"], "the shell's materials show the baked light")
-        # moved, it is worked out again; off, the lamps' light is back
-        at = page.evaluate("bakelight.state().at")
+        self.assertTrue(page.locator("#bakeStatus").is_hidden(), "the light's progress goes once it is done")
+        # the decor drawn again where it was keeps its light, nothing is worked out again by itself
         page.evaluate("dispatchEvent(new Event('decorchange'))")
+        self.assertFalse(page.evaluate("bakelight.state().working"))
+        self.assertTrue(page.evaluate("!!house.shell().geometry.getAttribute('bake')"))
+        # pressed again, worked out again; off, the lamps' light is back
+        at = page.evaluate("bakelight.state().at")
+        page.click("#bakeBtn")
         page.wait_for_function(f"bakelight.state().at > {at} && !bakelight.state().working", timeout=600000)
         page.evaluate("bakelight.enable(false)")
         self.assertFalse(page.evaluate("!!house.shell().geometry.getAttribute('bake')"))

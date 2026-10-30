@@ -504,6 +504,11 @@ label.btn { display: inline-block; }
    its own over the page, as big as fits, with what it is doing and Save under it */
 .photo-btn { position: absolute; right: 20px; bottom: 14px; }
 .photo-btn[hidden] { display: none; }
+/* (above it: Bake the light, and how far it is: bakelight.js) */
+.bake-btn { position: absolute; right: 20px; bottom: 56px; }
+.bake-btn[hidden] { display: none; }
+.bake-status { position: absolute; right: 20px; bottom: 98px; margin: 0; font-size: 12px; color: var(--soft); }
+.bake-status[hidden] { display: none; }
 .photo {
   position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center;
   justify-content: center; gap: 12px; padding: 24px; background: var(--bg);

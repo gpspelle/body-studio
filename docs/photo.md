@@ -52,21 +52,23 @@ beside the path-traced one, captioned, and that one stays the one to plan with.
 
 ## Baked light
 
-A photo can't be walked round, so the same light is also kept on the room itself. A few seconds
-after a drawn room opens, or after its decor changes or it is moved round the body, the page works
-out the light on every corner of its walls, floors, fittings and decor, and the live view shows
-that in place of its lamps: the sun's shadows soft at their edges, the sky's light dimmer under the
-roofs and in the corners, the light the floor and walls throw back, tinted by their colour. Walking
-round then costs what it did before. The shine on metal and glass is still the live view's.
+A photo can't be walked round, so the same light can also be kept on the room itself. **Bake the
+light** (above Take a photo) works out the light on every corner of the room's walls, floors,
+fittings and decor, and the live view then shows that in place of its lamps: the sun's shadows
+soft at their edges, the sky's light dimmer under the roofs and in the corners, the light the floor
+and walls throw back, tinted by their colour. Walking round then costs what it did before. It runs
+only when pressed, a slice a frame with "Working out the light · 42%" by the button, and walking is
+slower until it is done (minutes in the venue). Decor drawn again where it was keeps its light;
+moved or new decor shows the lamps' light until the next bake. The shine on metal and glass is still
+the live view's.
 
-- `static/bake.js` (numbers, `tests/js/bake.test.mjs`): how many rays (48 per corner), the sun's
+- `static/bake.js` (numbers, `tests/js/bake.test.mjs`): how many rays (96 per corner), the sun's
   and the sky's light, the texture's layout and bands, the light kept as bytes, the keys.
 - `static/bakelight.js`: puts the room's meshes together (without the glass) and builds a BVH over
   them (three-mesh-bvh, from `pathtracer/`); one texel per corner (two for walls, a side each);
   a shader casts from each a ray toward the sun, one round about (the sky, or the light where it
   lands) and averages them over the passes, a band of rows a frame so the page keeps moving; then
   reads it back once and keeps it on each mesh (`bake`, `bake2`), shown by copies of its materials.
-  A thing drawn again where it was keeps its light while the rest is worked out again.
   `bakelight.enable(false)` shows the lamps' light again.
 - Coarse where a wall has few corners (a long wall's shadow is as sharp as its corners are close);
   bodies don't cast it (they are splats).
