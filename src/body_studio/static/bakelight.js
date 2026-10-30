@@ -9,19 +9,23 @@
 //    hit, else the light where it lands, coloured by what it lands on) and averages them;
 //  - read back once, kept as bytes on each mesh (attributes bake and bake2: the back of a wall),
 //    which the meshes' materials (copies, made here) show in place of their lamps' light.
-// Worked out again a moment after the decor or the room's place changes; a thing drawn again where
-// it was keeps its light meanwhile. Design: docs/photo.md ("Baked light").
+// Worked out only when asked (Bake the light): a thing drawn again where it was keeps its light, a
+// thing moved or added shows the lamps' light until it is baked again. Design: docs/photo.md ("Baked light").
 import * as THREE from "three";
 import { MeshBVH, MeshBVHUniformStruct, BVHShaderGLSL, FloatVertexAttributeTexture, CENTER } from "/static/pathtracer/pathtracer.js";
-import { BAKE, band, keyOf, layout, pack } from "/static/bake.js";
+import { BAKE, band, keyOf, layout, pack, progress } from "/static/bake.js";
 import { sunWay } from "/static/photo.js";
 
 const app = window.bodyApp;
+const status = document.getElementById("bakeStatus"), button = document.getElementById("bakeBtn");
+const say = (n) => {
+  status.hidden = n === null; button.disabled = n !== null;
+  if (n !== null) status.textContent = window.t("bake.working", { n });
+};
 const V = app.viewer;
 
 let passes = BAKE.passes;
 let job = null;             // the bake under way: { stop, ... }
-let timer = 0;
 let enabled = true;
 const kept = new Map();     // keyOf(mesh) -> { bake, bake2 } (bytes), for the room shown
 const state = { baked: 0, passes: 0, at: 0 };   // (tests) meshes lit, passes done, when it ended
@@ -280,6 +284,7 @@ function bake() {
     R.render(scene, cam);
     R.setRenderTarget(was);
     R.autoClear = clear;
+    say(progress(pass, k + 1, passes));
     if (++k < BAKE.band) return requestAnimationFrame(step);
     k = 0; pass++; state.passes = pass;
     [a, b] = [b, a];
@@ -297,22 +302,19 @@ function bake() {
       light(s.mesh, front, back);
     }
     state.baked = room.spans.length; state.at = performance.now();
+    say(null);
     job = null; free();
     V.redraw();
   };
   requestAnimationFrame(step);
 }
-function stop() { if (job) { job.stop(); job = null; } }
-// worked out again a moment after the last change
-function soon() {
-  clearTimeout(timer);
-  reuse();
-  timer = setTimeout(bake, BAKE.wait);
-}
+function stop() { if (job) { job.stop(); job = null; } say(null); }
 
-addEventListener("roomchange", () => { stop(); kept.clear(); state.baked = 0; if (window.house?.shell?.()) soon(); });
-addEventListener("decorchange", () => { if (window.house?.shell?.()) soon(); });
-addEventListener("roomplaced", () => { if (window.house?.shell?.()) soon(); });
+// only a drawn room (a filmed room's splats keep the light they were filmed in)
+addEventListener("roomchange", () => { stop(); kept.clear(); state.baked = 0; button.hidden = !window.house?.shell?.(); });
+addEventListener("decorchange", () => { if (enabled) reuse(); });
+addEventListener("roomplaced", () => { if (enabled) reuse(); });
+button.onclick = () => { if (!job) bake(); };
 
 window.bakelight = {
   state: () => ({ ...state, working: !!job }),
@@ -320,7 +322,8 @@ window.bakelight = {
   passes: (n) => { if (n) passes = n; return passes; },
   enable: (on) => {
     enabled = !!on;
-    if (!enabled) { stop(); for (const { mesh } of receivers()) unlight(mesh); V.redraw(); } else soon();
+    if (!enabled) { stop(); for (const { mesh } of receivers()) unlight(mesh); } else reuse();
+    V.redraw();
   },
   bake,
 };

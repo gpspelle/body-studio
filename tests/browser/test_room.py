@@ -127,6 +127,7 @@ class Room(Viewer):
         page.evaluate("tattooStudio.stepFor(2)")
         # a filmed room is splats: no photo of it (decor test: a drawn room's)
         self.assertTrue(page.locator("#photoBtn").is_hidden())
+        self.assertTrue(page.locator("#bakeBtn").is_hidden())
         # no room: she stands on the plain floor again, walls gone
         page.click("#roomBtn")
         page.locator("#roomList button").first.click()

@@ -1,7 +1,7 @@
 // Baked light's numbers (src/body_studio/static/bake.js). Run by tests/unit/test_bake_js.py.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BAKE, band, keyOf, layout, pack, skyLight } from "../../src/body_studio/static/bake.js";
+import { BAKE, band, keyOf, layout, pack, progress, skyLight } from "../../src/body_studio/static/bake.js";
 
 test("one texel per corner: as wide as allowed, as many rows as it takes", () => {
   assert.deepEqual(layout(10, 2048), { width: 10, height: 1 });
@@ -48,4 +48,12 @@ test("a sunny floor shows brighter than a shaded one, and neither past what a by
   const sunny = BAKE.ambient + BAKE.sun + Math.max(...sky), shaded = BAKE.ambient + Math.max(...sky) * 0.6;
   assert.ok(sunny / shaded > 1.5);
   assert.ok(sunny <= BAKE.scale);
+});
+
+test("how far it is: 0 at the start, 100 once the last band of the last pass is drawn, never back", () => {
+  assert.equal(progress(0, 0, 4, 8), 0);
+  assert.equal(progress(2, 0, 4, 8), 50);
+  assert.equal(progress(3, 8, 4, 8), 100);
+  let last = -1;
+  for (let p = 0; p < 4; p++) for (let k = 1; k <= 8; k++) { const n = progress(p, k, 4, 8); assert.ok(n >= last); last = n; }
 });

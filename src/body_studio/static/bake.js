@@ -2,14 +2,13 @@
 // rays the way Take a photo does (the sun's shadows, soft at their edges; the sky's light, darker
 // under roofs and in corners and indoors; the light the floor and walls throw back) and kept on
 // every corner of the walls, floors, fittings and decor, so walking round shows it at no cost.
-// Worked out again a moment after the decor changes. Free of three.js, so it can be tested on its
+// Worked out only when asked (Bake the light, by Take a photo). Free of three.js, so it can be tested on its
 // own (tests/js/bake.test.mjs). Design: docs/photo.md ("Baked light").
 
 export const BAKE = {
   passes: 96,           // rays per corner: each pass one toward the sun, one round about, one more from where that lands
   width: 2048,          // the corners' texture is this wide (one texel per corner, per side for walls)
-  band: 8,              // a pass is drawn in this many bands of rows, one a frame, so the page keeps moving
-  wait: 1200,           // ms after the last change before it is worked out again
+  band: 32,             // a pass is drawn in this many bands of rows, one a frame, so walking stays smooth
   // the light, as how many times its own colour a surface shows: the sun at noon on a floor facing
   // it, the open sky (blue overhead, paler at the horizon, the ground below), and a little light
   // everywhere for the lamps a room has indoors
@@ -30,6 +29,11 @@ export function layout(n, width = BAKE.width) {
 export function band(k, height, bands = BAKE.band) {
   const step = Math.ceil(height / bands);
   return [Math.min(height, k * step), Math.min(height, (k + 1) * step)];
+}
+
+// how far the bake is, 0..100 (shown by the room's views while it works): pass `pass`, band k
+export function progress(pass, k, passes = BAKE.passes, bands = BAKE.band) {
+  return Math.min(100, Math.floor(100 * (pass * bands + k) / Math.max(1, passes * bands)));
 }
 
 // light (r, g, b: times the colour; a: how much of the sky is seen, 0..1) to bytes

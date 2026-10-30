@@ -226,6 +226,8 @@
       "decor.make": "Make it in 3D",
       "decor.cancel": "Cancel",
       "photo.take": "Take a photo",
+      "bake.button": "Bake the light",
+      "bake.working": "Working out the light · {n}%",
       "photo.title": "Photo of this view",
       "photo.setting": "Setting up the light…",
       "photo.making": "Making the photo: {n}%. The light settles as it goes.",
