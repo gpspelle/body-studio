@@ -264,6 +264,39 @@ class Decor(Viewer):
         self.assertIn("was", saved["layouts"][saved["current"]]["items"][0])
         self.assertEqual(errors, [])
 
+    def test_takes_a_photo_of_a_drawn_room(self):
+        page, errors = self.open_page()
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+        page.evaluate("modes.show('rooms')")
+        page.click("#roomBtn")
+        page.locator("#roomList button[data-file^='workspace/_sample_room/']").click()
+        page.wait_for_function("house.shown() && decor.group() && house.shell()", timeout=300000)
+        page.click("#roomBtn")
+        # the room's meshes path traced (a small photo, a few passes): its shell and furniture, not her
+        page.wait_for_function("!document.getElementById('photoBtn').hidden")
+        self.assertTrue(page.locator("#photoBtn").is_visible())
+        page.evaluate("darkroom.open({ long: 160, passes: 2 })")
+        page.wait_for_function("darkroom.done()", timeout=600000)
+        made = page.evaluate("darkroom.scene()")
+        self.assertGreater(made["meshes"], 0)
+        self.assertTrue(page.locator("#photoSave").is_enabled())
+        shades = page.evaluate("""(() => { const c = document.getElementById('photoCanvas'), g = document.createElement('canvas');
+            g.width = c.width; g.height = c.height; const x = g.getContext('2d'); x.drawImage(c, 0, 0);
+            const d = x.getImageData(0, 0, g.width, g.height).data, seen = new Set();
+            for (let i = 0; i < d.length; i += 4 * 37) seen.add(d[i] >> 4 << 8 | d[i + 1] >> 4 << 4 | d[i + 2] >> 4);
+            return seen.size; })()""")
+        self.assertGreater(shades, 8, "the photo shows something, not one flat colour")
+        # made into a photograph on the Mac (the stand-in model gives the photo back), shown beside it
+        page.click("#photoMakeReal")
+        page.wait_for_function("darkroom.real()", timeout=120000)
+        self.assertTrue(page.locator("#photoRealFig").is_visible())
+        self.assertIn("-ai.png", page.locator("#photoRealSave").get_attribute("download"))
+        page.click("#photoClose")
+        self.assertTrue(page.locator("#photo").is_hidden())
+        self.assertTrue(page.locator("#photoRealFig").is_hidden())
+        self.assertEqual(errors, [])
+
     def test_compares_the_room_with_a_video(self):
         page, errors = self.open_page()
         page.locator(".shelf button", has_text="Mia").click()

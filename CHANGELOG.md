@@ -2,6 +2,16 @@
 
 ## 0.1.0 (unreleased)
 
+- **Take a photo** (bottom right, in a drawn room: the sample rooms and the venue): the view you are looking at, path traced on the GPU so
+  the light does what light does (soft sun shadows, sky light through doors and windows bounced
+  into the corners, shine on metal, light through glass, bulbs that light what is round them).
+  A minute or two per photo; **Save the photo** keeps it as a PNG. Walking round is as fast as
+  before. The body is not in the photo yet. See docs/photo.md.
+- **Make it a photo** (under a finished photo): the image model on your Mac (FLUX.2 klein 4B, run by
+  mflux) turns the path-traced photo into one that looks like a photograph, shown beside it; keep
+  it with **Save it**. About a minute; the first time also installs mflux and downloads the model
+  (about 8 GB). Needs a Mac with Apple silicon. `body-studio setup` installs it, `body-studio
+  check` says whether it is there.
 - Decor you build yourself, as the decorators do. **Arch, your own** (Ceremony): seven shapes (round,
   pointed, square, circle, hexagon, triangle, half moon), how thickly each of its five parts is
   covered (left foot, left side, top, right side, right foot), flowers at one foot or both, falling

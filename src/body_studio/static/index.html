@@ -71,6 +71,8 @@
     <button type="button" id="skyBtn" data-view="above" aria-pressed="false" data-i18n="room.sky"></button>
     <button type="button" id="flyBtn" data-view="fly" aria-pressed="false" data-i18n="room.fly"></button>
   </div>
+  <!-- a photo of the view (darkroom.js) -->
+  <button type="button" id="photoBtn" class="btn photo-btn in-rooms" data-i18n="photo.take" hidden></button>
   <div id="studioViews" class="chips views" role="group" data-i18n-aria-label="studio.views" hidden>
     <button type="button" data-view="room" class="on" data-i18n="studio.viewRoom"></button>
     <button type="button" data-view="artist" data-i18n="studio.viewArtist"></button>
@@ -270,6 +272,21 @@
     <button id="decorFittingsExport" class="btn" data-i18n="decor.fittingsExport" hidden></button>
   </section>
 </aside>
+<!-- A photo of the room's view (darkroom.js): path traced in its own window, then saved; made into
+     a photograph by the image model on the Mac (photoreal.py), shown beside it. -->
+<div id="photo" class="photo" role="dialog" aria-modal="true" data-i18n-aria-label="photo.title" hidden>
+  <div class="photo-pair">
+    <figure><canvas id="photoCanvas"></canvas><figcaption class="small" data-i18n="photo.traced" hidden></figcaption></figure>
+    <figure id="photoRealFig" hidden><img id="photoReal" alt=""><figcaption class="small"><span data-i18n="photo.realHow"></span> <a id="photoRealSave" class="link" download data-i18n="photo.saveReal"></a></figcaption></figure>
+  </div>
+  <div class="photo-bar">
+    <p id="photoStatus" class="small" role="status"></p>
+    <span class="grow"></span>
+    <button id="photoMakeReal" class="btn" data-i18n="photo.makeReal" disabled></button>
+    <button id="photoSave" class="btn primary" data-i18n="photo.save" disabled></button>
+    <button id="photoClose" class="link close" data-i18n-aria-label="photo.close">✕</button>
+  </div>
+</div>
 <!-- Compare the room with a video of the real place (compare.js): the video's frame over the 3D
      view, and a panel to line them up, keep the view and tag what is missing or wrong. -->
 <div id="compare" hidden>
@@ -408,5 +425,6 @@
 <script type="module" src="/static/modes.js"></script>
 <script type="module" src="/static/decorate.js"></script>
 <script type="module" src="/static/compare.js"></script>
+<script type="module" src="/static/darkroom.js"></script>
 </body>
 </html>

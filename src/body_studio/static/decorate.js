@@ -744,6 +744,7 @@ function draw() {
     m.rotation.y = turn;
     m.scale.set(sc[0], sc[1], sc[2]);
     m.userData.fixed = true;
+    m.userData.item = t.item;               // (darkroom.js: the photo has its own sky)
     group.add(m);
     // (what hangs overhead casts no soft shadow at its feet)
     if (t.item !== "glass_roof" && !STARTERS[t.item].hangs)
@@ -758,6 +759,7 @@ function draw() {
     m.rotation.y = p.turn || 0;
     if (!d.starter) m.scale.setScalar(d.height);
     m.userData.index = k;
+    m.userData.item = p.item;
     group.add(m);
     // a soft shadow under what stands (not under what lies flat or hangs)
     if (d.height > 0.05 && !STARTERS[p.item]?.hangs) shade(d, p);

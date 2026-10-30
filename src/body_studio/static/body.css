@@ -103,7 +103,7 @@ body[data-mode="tattoos"] #wear + section { border-top: 0; padding-top: 0; }
   font: inherit; font-size: 13px; line-height: 1.3; color: var(--ink); cursor: pointer;
   border: 1px solid var(--hair); background: transparent; border-radius: 999px; padding: 6px 14px;
 }
-.bar .btn, .shelf button {
+.bar .btn, .bottom .btn, .shelf button {
   font-size: 14px; background: var(--chip); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
 }
@@ -499,3 +499,28 @@ label.btn { display: inline-block; }
 #compareBar #compareTime { width: 100%; }
 #compareBar select { flex: 1; }
 .comparing #decorBar, .comparing .bottom { display: none; }   /* (the camera flies the whole time) */
+
+/* Take a photo (darkroom.js): a button at the bottom right in a room, the photo in a window of
+   its own over the page, as big as fits, with what it is doing and Save under it */
+.photo-btn { position: absolute; right: 20px; bottom: 14px; }
+.photo-btn[hidden] { display: none; }
+.photo {
+  position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 12px; padding: 24px; background: var(--bg);
+}
+.photo[hidden] { display: none; }
+/* (as big as fits, in the photo's shape: --aspect is set by darkroom.js; two side by side once the
+   AI photo is made, each with a caption under it) */
+.photo-pair { display: flex; gap: 16px; justify-content: center; align-items: flex-start; max-width: 100%; }
+.photo-pair figure { margin: 0; display: grid; gap: 6px; }
+.photo-pair figure[hidden], .photo-pair figcaption[hidden] { display: none; }
+.photo-pair canvas, .photo-pair img { display: block; border-radius: 6px; box-shadow: var(--shadow);
+  width: min(calc(100vw - 48px), calc((100vh - 110px) * var(--aspect, 1.6))); }
+.photo.pair .photo-pair canvas, .photo.pair .photo-pair img {
+  width: min(calc(50vw - 32px), calc((100vh - 140px) * var(--aspect, 1.6))); }
+.photo-pair figcaption { margin: 0; }
+.photo-bar {
+  display: flex; align-items: center; gap: 12px; width: min(720px, 100%);
+  padding: 8px 10px 8px 16px; border-radius: 999px; background: var(--paper); box-shadow: var(--shadow);
+}
+.photo-bar .small { margin: 0; }

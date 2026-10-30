@@ -49,8 +49,9 @@ def _start():
     design = Path(tmp.name) / "design.png"
     design.write_bytes(arrow_png())
     # decor from a photo: tests/fakes/photo3d.py stands in for TripoSR
-    env = {k: os.environ.get(k) for k in ("BODY_STUDIO_PHOTO3D",)}
+    env = {k: os.environ.get(k) for k in ("BODY_STUDIO_PHOTO3D", "BODY_STUDIO_PHOTOREAL")}
     os.environ["BODY_STUDIO_PHOTO3D"] = str(Path(__file__).resolve().parents[1] / "fakes" / "photo3d.py")
+    os.environ["BODY_STUDIO_PHOTOREAL"] = str(Path(__file__).resolve().parents[1] / "fakes" / "photoreal.py")
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.make_handler(data, Runner(data, start=False)))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     pw = sync_playwright().start()

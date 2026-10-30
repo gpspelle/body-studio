@@ -80,12 +80,14 @@ def main(argv: list[str] | None = None) -> None:
     if cmd in ("setup", "check"):
         from splat_studio.__main__ import main as splat_main
 
-        from . import anny_fit, photo3d
+        from . import anny_fit, photo3d, photoreal
         if cmd == "check":
             print(f"  {'✓' if anny_fit.available() else '·'} {'Anny':<9} body model trial in Try on "
                   "(PyTorch; body-studio setup installs it)")
             print(f"  {'✓' if photo3d.available() else '·'} {'TripoSR':<9} decor from a photo "
                   "(PyTorch; body-studio setup installs it)")
+            print(f"  {'✓' if photoreal.available() else '·'} {'mflux':<9} Make it a photo "
+                  f"({photoreal.supported() or 'a Mac with Apple silicon; body-studio setup installs it'})")
         elif not {"--masking", "--dry-run", "-h", "--help"} & set(rest):
             try:
                 anny_fit.install(print)
@@ -96,6 +98,12 @@ def main(argv: list[str] | None = None) -> None:
             except photo3d.Missing as e:
                 print(f"{e}. Decor from photos is left out for now; the app installs it the first time "
                       "a photo is added.")
+            if not photoreal.supported():
+                try:
+                    photoreal.install(print)
+                except photoreal.Missing as e:
+                    print(f"{e}. Make it a photo is left out for now; the app installs it the first time "
+                          "a photo is made real.")
         return splat_main([cmd, *rest])
     sys.exit(f"unknown command {cmd!r}. Try: body-studio --help")
 
