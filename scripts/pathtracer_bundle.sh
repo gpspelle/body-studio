@@ -1,5 +1,6 @@
 #!/bin/sh
-# Bundles the path tracer Take a photo uses (darkroom.js) into src/body_studio/static/pathtracer/:
+# Bundles the path tracer Take a photo uses (darkroom.js), and the BVH the baked light casts its
+# rays through (bakelight.js), into src/body_studio/static/pathtracer/:
 # three-gpu-pathtracer and three-mesh-bvh as one module that imports three from the page's own
 # copy (the import map's "three" and "three/addons/": splat-studio's, so there is one three).
 # Versions: the newest that still accept splat-studio's three (r180). Needs Node (npx).
@@ -10,7 +11,8 @@ TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 cd "$TMP"
 npm init -y >/dev/null
 npm i -s "three@$THREE" "three-gpu-pathtracer@$PT" "three-mesh-bvh@$BVH" xatlas-web@0.1.0 esbuild@0.25 >/dev/null
-echo 'export { WebGLPathTracer, GradientEquirectTexture } from "three-gpu-pathtracer";' > entry.js
+{ echo 'export { WebGLPathTracer, GradientEquirectTexture } from "three-gpu-pathtracer";'
+  echo 'export { MeshBVH, MeshBVHUniformStruct, BVHShaderGLSL, FloatVertexAttributeTexture, CENTER } from "three-mesh-bvh";'; } > entry.js
 npx esbuild entry.js --bundle --format=esm --minify --external:three --external:'three/*' \
   --external:xatlas-web --legal-comments=eof --outfile=bundle.js
 mkdir -p "$OUT"

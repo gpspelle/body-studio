@@ -767,6 +767,7 @@ function draw() {
   placeGizmo();
   const map = H()?.map();
   if (map) map.setDecor(blocker(placed(), defs), seats(placed(), defs));
+  dispatchEvent(new Event("decorchange"));      // (bakelight.js: the light is worked out again)
 }
 
 // ---------------------------------------------------------------- the handles on the picked thing
