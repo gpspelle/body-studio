@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- **Baked light** in the drawn rooms (the sample rooms and the venue): a few seconds after a room
+  opens or its decor changes, the light Take a photo follows (the sun's soft shadows, the sky's
+  light, darker under roofs and in corners, the light walls and floors throw back) is worked out on
+  the GPU and kept on every wall, floor, fitting and piece of decor, so walking round shows it at
+  the same speed as before. See docs/photo.md ("Baked light").
 - **Take a photo** (bottom right, in a drawn room: the sample rooms and the venue): the view you are looking at, path traced on the GPU so
   the light does what light does (soft sun shadows, sky light through doors and windows bounced
   into the corners, shine on metal, light through glass, bulbs that light what is round them).

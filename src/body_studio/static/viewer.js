@@ -22,10 +22,11 @@
 //   panelopen    tattoo.js, decorate.js: detail "studio" | "decor" -> the other one steps aside
 //   modechange   modes.js: <body data-mode> changed          -> tattoo.js, wardrobe.js
 //   roomslisted  house.js: the Room menu knows its rooms     -> modes.js
-//   roomchange   house.js: a room put round the body or gone -> house.js, wardrobe.js, decorate.js, parlour.js
-//   roomplaced   house.js: the room moved round the body     -> modes.js, parlour.js
+//   roomchange   house.js: a room put round the body or gone -> house.js, wardrobe.js, decorate.js, parlour.js, bakelight.js
+//   roomplaced   house.js: the room moved round the body     -> modes.js, parlour.js, bakelight.js
 //   viewchange   house.js: body / eyes / fly / above         -> (tests)
 //   decorready   decorate.js: the Decor panel is set up      -> (tests)
+//   decorchange  decorate.js: the decor was drawn again     -> bakelight.js
 // (check with: grep -n 'dispatchEvent\|addEventListener("' src/body_studio/static/*.js)
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";

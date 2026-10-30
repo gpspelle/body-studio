@@ -264,6 +264,35 @@ class Decor(Viewer):
         self.assertIn("was", saved["layouts"][saved["current"]]["items"][0])
         self.assertEqual(errors, [])
 
+    def test_bakes_the_light_into_a_drawn_room(self):
+        page, errors = self.open_page()
+        page.evaluate("bakelight.passes(1)")
+        page.locator(".shelf button", has_text="Mia").click()
+        page.wait_for_function("bodyViewer.file().includes('Mia') && bodyViewer.numSplats() > 0", timeout=60000)
+        page.evaluate("modes.show('rooms')")
+        page.click("#roomBtn")
+        page.locator("#roomList button[data-file^='workspace/_sample_room/']").click()
+        page.wait_for_function("house.shown() && decor.group() && house.shell()", timeout=300000)
+        page.click("#roomBtn")
+        # the sun's shadows and the sky's light worked out once and kept on the walls and the furniture
+        page.wait_for_function("bakelight.state().baked > 0 && !bakelight.state().working", timeout=600000)
+        lit = page.evaluate("""(() => { const s = house.shell(), g = s.geometry.getAttribute('bake');
+            const shades = new Set(g ? Array.from(g.array).filter((_, i) => i % 4 !== 3).map((v) => v >> 4) : []);
+            const decorLit = decor.group().children.filter((c) => c.geometry?.getAttribute('bake')).length;
+            return { shell: !!g, back: !!s.geometry.getAttribute('bake2'), shades: shades.size, decor: decorLit,
+                     shows: [].concat(s.material).some((m) => m.userData.baked) }; })()""")
+        self.assertTrue(lit["shell"] and lit["back"], lit)
+        self.assertGreater(lit["shades"], 3, "light and shade, not one flat value")
+        self.assertGreater(lit["decor"], 0)
+        self.assertTrue(lit["shows"], "the shell's materials show the baked light")
+        # moved, it is worked out again; off, the lamps' light is back
+        at = page.evaluate("bakelight.state().at")
+        page.evaluate("dispatchEvent(new Event('decorchange'))")
+        page.wait_for_function(f"bakelight.state().at > {at} && !bakelight.state().working", timeout=600000)
+        page.evaluate("bakelight.enable(false)")
+        self.assertFalse(page.evaluate("!!house.shell().geometry.getAttribute('bake')"))
+        self.assertEqual(errors, [])
+
     def test_takes_a_photo_of_a_drawn_room(self):
         page, errors = self.open_page()
         page.locator(".shelf button", has_text="Mia").click()
