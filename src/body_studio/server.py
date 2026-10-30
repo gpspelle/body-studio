@@ -34,6 +34,8 @@
     POST /api/decor/<id>                {name, height, on}: change an item; .../retry makes a failed one again
     DELETE /api/decor/<id>              remove an item
     GET  /api/decor/layout?room=<file>  the room's decor layouts; POST the same to save them
+    POST /api/photoreal                 a path-traced photo (PNG): made into a photograph in the background (photoreal.py)
+    GET  /api/photoreal/<id>            {id, status: working|ready|failed, error}; .../photo.png, .../real.png the pictures
 
 Runs go through splat-studio's own job runner (splat_studio.server.jobs.Runner): one at a time,
 under a pseudo-terminal, with measured time left, lock files, timeline.jsonl and advice in
@@ -43,6 +45,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import re
 import threading
 import webbrowser
@@ -53,7 +56,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from splat_studio.server.jobs import Runner, validate_options
 from splat_studio.server.library import DataDir
 
-from . import __version__, anny_fit, compare, decor, fit, history, library, rig, room, sample_room, wardrobe
+from . import __version__, anny_fit, compare, decor, fit, history, library, photoreal, rig, room, sample_room, wardrobe
 from .pipeline import job_options, room_job_options
 
 STATIC = Path(__file__).resolve().parent / "static"
@@ -149,6 +152,7 @@ def make_handler(data: DataDir, runner: Runner):
     maps = Builder(room, room.map_file, room.RoomError)
     fitted = {}                                # (fit file, its mtime) -> decoded fit, the latest only
     maker = decor.Maker(data.root)             # decor items made from photos, one at a time
+    realer = photoreal.Maker(data.root)        # path-traced photos made into photographs, one at a time
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -229,6 +233,12 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._file(out) if state == "ready" else None
             if p == "/api/version":
                 return self._json({"version": __version__})
+            m = re.fullmatch(r"/api/photoreal/(\w+)(?:/(photo|real)\.png)?", p)
+            if m:
+                if m.group(2):
+                    return self._file(photoreal.picture(data.root, m.group(1), m.group(2) == "real"))
+                st = photoreal.status(data.root, m.group(1))
+                return self._json(st) if st else self._json({"error": "no such photo", "code": "no_photo"}, 404)
             if p.startswith("/files/"):
                 return self._file(library.safe_path(data.root, p[len("/files/"):]))
             if p == "/api/fit/models":
@@ -496,6 +506,17 @@ def make_handler(data: DataDir, runner: Runner):
                 return self._decor(lambda: self._decor_post(u))
             if u.path.startswith("/api/compare/"):
                 return self._compare(lambda: self._compare_post(u))
+            if u.path == "/api/photoreal":
+                png = self._read(photoreal.MAX_PHOTO)
+                why = photoreal.supported() if not os.environ.get("BODY_STUDIO_PHOTOREAL") else None
+                if why:
+                    return self._json({"error": why, "code": "photoreal_unsupported"}, 400)
+                try:
+                    st = photoreal.add(data.root, png or b"")
+                except photoreal.Failed as e:
+                    return self._json({"error": str(e), "code": e.code}, 400)
+                realer.add(st["id"])
+                return self._json(st, 201)
             if u.path != "/api/upload":
                 return self.send_error(404)
             q = parse_qs(u.query)

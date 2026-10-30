@@ -48,6 +48,7 @@
   | Tattoo studio | `sample_studio.py` (fixtures; room.py maps them) | S/`flash.js` | S/`parlour.js`, designs in S/`flash/` | `test_studio` | `docs/tattoo.md` |
   | Decor | `decor.py` (`decor/` in the data folder), `photo3d.py` (TripoSR), `sample_venue.py`; fake: `tests/fakes/photo3d.py` | S/`decor.js` (where things go), S/`decor/*.js` (the starters' shapes) | S/`decorate.js`, S/`decorlook.js`, S/`decorpics.js` (worker) | `test_decor` | `docs/decor.md` |
   | Compare with a video | `compare.py` (`compare/<room>/` in the data folder) | S/`matchview.js` | S/`compare.js` | `test_decor` | `docs/compare.md` |
+  | Take a photo | `photoreal.py` (Make it a photo: mflux on the Mac, its own process); fake: `tests/fakes/photoreal.py` | S/`photo.js` | S/`darkroom.js`, S/`pathtracer/` (bundled by `scripts/pathtracer_bundle.sh`) | `test_decor` | `docs/photo.md` |
 | Progress | `history.py`, `measure.py` | | S/`progress.js` | `test_progress` | `docs/progress.md`, `docs/body-fat.md` |
 
   Rules per feature: splats are moved by Spark's `SplatSkinning`; don't fit a body model with a

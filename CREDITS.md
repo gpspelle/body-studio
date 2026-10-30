@@ -96,3 +96,18 @@ are built from MakeHuman's base mesh.
 The sample tattoo studio (`sample_studio.py`) and the twelve starter designs on its flash wall
 (`src/body_studio/static/flash/`: rose, swallow, anchor, heart, dagger, snake, moth, mandala,
 geometric, wave, sun, lightning) are drawn by Body Studio itself and released under **CC0 1.0**.
+
+## The path tracer (Take a photo)
+
+`src/body_studio/static/pathtracer/pathtracer.js` bundles
+[three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer) 0.0.24 and
+[three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) 0.9.9, both by Garrett Johnson
+under the **MIT** licence (copied in `src/body_studio/static/pathtracer/LICENSE`), made by
+`scripts/pathtracer_bundle.sh`.
+
+## Make it a photo
+
+Not shipped with the app: installed on the Mac the first time it is used (`photoreal.py`).
+[mflux](https://github.com/mflux-community/mflux) 0.24.0 by Filip Strand and contributors (**MIT**)
+runs [FLUX.2 klein 4B](https://huggingface.co/black-forest-labs/FLUX.2-klein-4B) by Black Forest
+Labs (**Apache 2.0**).
