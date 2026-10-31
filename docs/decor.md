@@ -20,7 +20,8 @@ room**:
   and Yours once there is one: things made from photos and starters you changed and kept; the kind
   shown is remembered). Tap one to put it in the room, on
   the floor in view beside the body (flowers, candles: on the table there), turned to face the
-  camera.
+  camera. Flying or from above the body isn't there, so it lands beside the camera instead
+  (flying: where you are; from above: the middle of the view).
 - **Add from a photo…**: pick a photo, give it a name and its **real height** in centimetres (the
   photo can't tell its size), **Make it in 3D**. It shows as "making…" until it is ready, a minute
   or two later; a thing that failed says why, and a tap tries again.
@@ -41,7 +42,11 @@ room**:
   over it (drag: raise or lower, 0–5 m; **Raised** in the panel does the same). Drag the thing
   itself to move it. The handles are drawn over everything, so the thing never hides them, and
   are found on the screen (within 24 px of a knob, 12 px of the ring), not by what the pointer's
-  ray touches; the pointer shows a hand over a thing or the ring's knob, up and down arrows over
+  ray touches. A press on the thing moves it even where the ring's line crosses it on the screen
+  (the knobs still win; `grabFor` in decor.js), and a press on a thing's footprint takes it where
+  nothing drawn is under the pointer (a thin chair, a ring of flowers from above). Seen from
+  nearly straight above, the lift knob would sit over the thing's middle, so it is hidden there
+  and the press moves the thing (the **Raised** slider still raises it). The pointer shows a hand over a thing or the ring's knob, up and down arrows over
   the lift knob, and the knob under it grows. A small
   toolbar floats just above it: turn a step left or right, **Duplicate** (a copy beside it),
   remove.

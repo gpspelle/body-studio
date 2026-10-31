@@ -8,7 +8,8 @@ import * as THREE from "three";
 import { geometry, materials, picture, shadow, studio } from "/static/decorlook.js";
 import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, fixtureTurn, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
          bounds, fromHex, fromRgb, hexOf, setTable, standY, starterShape, toHex, turnToward, unpack, wrap,
-         knobs, knobValues, cleanOpts, optsKey, sized, MATERIALS, movable, fittingItems, fittingChanges, isChoice, PALETTES } from "/static/decor.js";
+         knobs, knobValues, cleanOpts, optsKey, sized, MATERIALS, movable, fittingItems, fittingChanges, isChoice, PALETTES,
+         grabFor, steep, underPointer, landSpot } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -327,24 +328,34 @@ function saveSoon() {
 const roomTop = (x, z) => { const m = H().map(); return m ? m.topAt(x, z) : 0; };
 
 // A new thing goes on the floor where the camera sees it, beside the body (or on the table there,
-// for flowers), turned to face the camera; with no floor in view, a step ahead of the body.
+// for flowers), turned to face the camera; with no floor in view, a step ahead of the body. Flying
+// or from above, the body isn't there: beside the camera instead (flying: where it is; from above:
+// the middle of the view), a step the way it looks.
 function landing(d) {
   const cover = $("decor").hidden ? 0 : $("decor").getBoundingClientRect().width;
-  const w = window.tattooStudio.walker(), P = H().placement(), at = H().where();
-  let spot = null;
-  for (const [fx, fy] of [[0.3, 0.72], [0.7, 0.72], [0.3, 0.6], [0.5, 0.82]]) {
-    const xy = floorAt({ clientX: fx * (innerWidth - cover), clientY: fy * innerHeight }, 0);
-    if (xy && Math.hypot(xy[0] - at[0], xy[1] - at[1]) < 6) { spot = xy; break; }
-  }
-  if (!spot) {
-    const face = P.wayToMap(w.facing()), n = Math.hypot(face[0], face[1]) || 1;
-    const reach = 0.9 + (d.size.r !== undefined ? d.size.r : d.size.d / 2);
-    spot = [at[0] + face[0] / n * reach, at[1] + face[1] / n * reach];
-  }
+  const spots = [[0.3, 0.72], [0.7, 0.72], [0.3, 0.6], [0.5, 0.82], [0.5, 0.5]]
+    .map(([fx, fy]) => floorAt({ clientX: fx * (innerWidth - cover), clientY: fy * innerHeight }, 0));
+  const [at, ahead] = viewer();
+  const spot = landSpot(d, at, ahead, spots);
   const [x, z] = freeSpot(d, placed(), defs, spot[0], spot[1], (px, pz) => H().map().free(px, pz));
   group.updateMatrixWorld(true);
   const eye = group.worldToLocal(V.camera.position.clone());
   return { x, z, turn: wrap(Math.atan2(eye.x - x, eye.z - z)) };
+}
+// where new things go beside, in map metres [x, z], and the way ahead there [x, z]: the body and
+// the way it faces; flying, the camera and the way it looks; from above, the middle of the view
+function viewer() {
+  const mode = H().mode?.();
+  if (mode === "fly" || mode === "above") {
+    group.updateMatrixWorld(true);
+    const inv = group.matrixWorld.clone().invert();
+    const eye = V.camera.position.clone().applyMatrix4(inv), look = V.controls.target.clone().applyMatrix4(inv);
+    const way = V.camera.getWorldDirection(new THREE.Vector3()).transformDirection(inv);
+    const at = mode === "fly" ? eye : look;
+    return [[at.x, at.z], [way.x, way.z]];
+  }
+  const P = H().placement();
+  return [H().where(), P.wayToMap(window.tattooStudio.walker().facing())];
 }
 
 async function add(id) {
@@ -845,6 +856,13 @@ $("barCopy").onclick = () => {
 function barTitles() { for (const b of $("decorBar").querySelectorAll("button")) b.title = b.getAttribute("aria-label") || ""; }
 barTitles();
 V.frameHooks.push((before) => { if (!before) placeBar(); });
+// seen from nearly straight above, the lift knob would sit over the thing's middle, where a press
+// moves it: it and its stalk aren't shown then (the Lift slider still raises it)
+V.frameHooks.push((before) => {
+  if (!before || !gizmo || !gizmo.visible) return;
+  const up = !steepNow();
+  gizmo.getObjectByName("lift").visible = gizmo.getObjectByName("stalk").visible = up;
+});
 
 function show() {
   hide();
@@ -880,34 +898,44 @@ function aim(e) {
   const r = V.canvas.getBoundingClientRect();
   ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), V.camera);
 }
+// the placed thing under the pointer (its index), -1: none; a thing drawn there, else one whose
+// footprint the pointer is on (decor.js underPointer)
 function hit(e) {
   aim(e);
   const h = ray.intersectObjects(group.children.filter((c) => c.isMesh && !c.userData.fixed), false)[0];
-  return h ? h.object.userData.index : -1;
+  if (h) return h.object.userData.index;
+  return underPointer(placed(), defs, (y) => floorAt(e, y));
 }
-// the handle under the pointer: "turn" (the ring or its knob), "lift", or null
-// The handle under the pointer, measured on the screen (as the body's joints are): a knob within
-// KNOB_PX of its centre, else the ring within RING_PX of its line; the lift knob wins.
-const KNOB_PX = 24, RING_PX = 12;
-function handleAt(e) {
-  if (!gizmo || !gizmo.visible) return null;
+// whether the view looks nearly straight down (from above): the lift knob is then over the thing
+function steepNow() {
+  if (!group) return false;
+  group.updateMatrixWorld(true);
+  const d = V.camera.getWorldDirection(new THREE.Vector3()).transformDirection(group.matrixWorld.clone().invert());
+  return steep(d.toArray());
+}
+// What a press there takes: { grab: "lift" | "turn" | "move" | null, k: the thing under it }. The
+// handles are measured on the screen (as the body's joints are): how far each knob's centre is,
+// and the ring's line; decor.js grabFor says which wins.
+function grabAt(e) {
+  const k = hit(e);
+  if (!gizmo || !gizmo.visible) return { grab: k >= 0 ? "move" : null, k };
   const r = V.canvas.getBoundingClientRect(), v = new THREE.Vector3();
   const screen = (o) => { v.copy(o).project(V.camera); return v.z > 1 ? null : [(v.x + 1) / 2 * r.width + r.left, (1 - v.y) / 2 * r.height + r.top]; };
-  const near = (q, px) => q && Math.hypot(q[0] - e.clientX, q[1] - e.clientY) < px;
+  const away = (q) => (q ? Math.hypot(q[0] - e.clientX, q[1] - e.clientY) : Infinity);
   gizmo.updateMatrixWorld(true);
-  for (const name of ["lift", "turn"]) if (near(screen(gizmo.getObjectByName(name).getWorldPosition(new THREE.Vector3())), KNOB_PX)) return name;
+  const knob = (name) => away(screen(gizmo.getObjectByName(name).getWorldPosition(new THREE.Vector3())));
   const ring = gizmo.getObjectByName("ring");
-  let a = null;
-  for (let k = 0; k <= 64; k++) {
-    const t = k / 64 * 2 * Math.PI, b = screen(ring.localToWorld(new THREE.Vector3(Math.cos(t), Math.sin(t), 0)));
+  let a = null, line = Infinity;
+  for (let j = 0; j <= 64; j++) {
+    const t = j / 64 * 2 * Math.PI, b = screen(ring.localToWorld(new THREE.Vector3(Math.cos(t), Math.sin(t), 0)));
     if (a && b) {
       const dx = b[0] - a[0], dy = b[1] - a[1], l = dx * dx + dy * dy || 1;
       const u = Math.max(0, Math.min(1, ((e.clientX - a[0]) * dx + (e.clientY - a[1]) * dy) / l));
-      if (Math.hypot(a[0] + u * dx - e.clientX, a[1] + u * dy - e.clientY) < RING_PX) return "turn";
+      line = Math.min(line, Math.hypot(a[0] + u * dx - e.clientX, a[1] + u * dy - e.clientY));
     }
     a = b && [...b];
   }
-  return null;
+  return { grab: grabFor({ lift: knob("lift"), turn: knob("turn"), ring: line, onThing: k >= 0, steep: steepNow() }), k };
 }
 // what the pointer shows over the room while Decor is open: a hand over a thing or a handle
 let hoverAt = null;
@@ -916,8 +944,8 @@ function hover() {
   hoverAt = null;
   if (!e || drag) return;
   const on = group && !$("decor").hidden && e.target === V.canvas;
-  const h = on && handleAt(e);
-  const cursor = !on ? "" : h === "lift" ? "ns-resize" : h ? "grab" : hit(e) >= 0 ? "grab" : "";
+  const h = on ? grabAt(e).grab : null;
+  const cursor = !on ? "" : h === "lift" ? "ns-resize" : h ? "grab" : "";
   if (V.canvas.style.cursor !== cursor) V.canvas.style.cursor = cursor;
   if (gizmo) for (const name of ["lift", "turn"]) gizmo.getObjectByName(name).scale.setScalar(h === name ? 1.25 : 1);
 }
@@ -945,8 +973,9 @@ function floorAt(e, y) {
 }
 addEventListener("pointerdown", (e) => {
   if (!group || $("decor").hidden || e.target !== V.canvas || e.button !== 0) return;
-  const handle = handleAt(e);
-  if (handle) {
+  const { grab, k } = grabAt(e);
+  if (grab === "lift" || grab === "turn") {
+    const handle = grab;
     const p = placed()[sel], base = (p.y || 0) - (p.lift || 0);
     const [o, d] = rayInMap(e), y = heightOnRay(p, o, d);
     drag = { k: sel, handle, base, off: y === null ? 0 : y - (p.lift || 0) };
@@ -956,8 +985,7 @@ addEventListener("pointerdown", (e) => {
     V.canvas.setPointerCapture?.(e.pointerId);
     return;
   }
-  const k = hit(e);
-  if (k < 0) return;                            // the camera turns as usual
+  if (grab !== "move") return;                  // the camera turns as usual
   pick(k);
   const p = placed()[k], at = floorAt(e, p.y || 0);
   drag = { k, off: at ? [p.x - at[0], p.z - at[1]] : [0, 0], y: p.y || 0 };
@@ -1035,6 +1063,8 @@ window.decor = {
   add,
   pick,
   selected: () => sel,
+  // what a press at (x, y) on the page would take: { grab: "lift" | "turn" | "move" | null, k }
+  grabAt: (x, y) => grabAt({ clientX: x, clientY: y }),
   open: () => setOpen(true),
   drawn: () => (group ? group.children.filter((c) => c.isMesh && !c.userData.fixed).length : 0),
   group: () => group,

@@ -5,7 +5,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { COLOURS, FINISHES, GROUPS, STARTERS, fixtureTurn, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
-         knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, PALETTES, isChoice } from "../../src/body_studio/static/decor.js";
+         knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, PALETTES, isChoice,
+         grabFor, steep, underPointer, landSpot, KNOB_PX, RING_PX } from "../../src/body_studio/static/decor.js";
 import { ARCHES, PARTS, archLine, along, coverPick, archPosts, frameOf, fabricRuns } from "../../src/body_studio/static/decor/custom.js";
 import { FLOWERS, GREENS } from "../../src/body_studio/static/decor/florals.js";
 import { F } from "../../src/body_studio/static/decor/shapes.js";
@@ -638,4 +639,51 @@ test("overhead: its own shelf, everything on it hung; fabric overhead built your
   // (made of what is asked, in the colour asked: a sheer voile)
   const voile = starterShape("aerial_fabric", "blush", { finish: "glass" });
   assert.ok(voile.m.some((m) => m === F.glass));
+});
+
+test("a press on the thing moves it, though the ring's line crosses it; its knobs are still taken", () => {
+  assert.equal(grabFor({ ring: 3, onThing: true }), "move", "on the thing, the ring drawn through it");
+  assert.equal(grabFor({ ring: 3 }), "turn", "the ring's line, off the thing");
+  assert.equal(grabFor({ ring: RING_PX + 1 }), null, "nothing near: the camera turns");
+  assert.equal(grabFor({ lift: KNOB_PX - 1, onThing: true }), "lift", "the lift knob over the thing");
+  assert.equal(grabFor({ turn: 5, onThing: true }), "turn", "the turn knob");
+  assert.equal(grabFor({ lift: 5, turn: 5 }), "lift", "the lift knob wins");
+  // from above the lift knob is over the thing's middle: the press moves it
+  assert.equal(grabFor({ lift: 2, onThing: true, steep: true }), "move");
+  assert.equal(grabFor({ lift: 2, turn: 10, steep: true }), "turn");
+});
+
+test("a view nearly straight down is steep, one across the room isn't", () => {
+  assert.ok(steep([0, -1, 0]));
+  assert.ok(steep([0.3, -1, 0.2]));
+  assert.ok(!steep([1, -0.4, 0]), "from eye height, looking down a little");
+  assert.ok(!steep([0.6, -1, 0.6]), "from above, at a slant");
+});
+
+test("the pointer on a thing's footprint takes it, the smallest first, at its own height", () => {
+  const table = { item: "round_table", x: 0, y: 0, z: 0, turn: 0 }, vase = { item: "candle", x: 0.1, y: 0.76, z: 0, turn: 0 };
+  const placed = [table, vase];
+  // straight down through (x, z): the same point at every height
+  const down = (x, z) => () => [x, z];
+  assert.equal(underPointer(placed, defs, down(0.1, 0)), 1, "the candle on the table");
+  assert.equal(underPointer(placed, defs, down(-0.5, 0)), 0, "the table");
+  assert.equal(underPointer(placed, defs, down(4, 4)), -1, "the floor");
+  // a slanting ray meets the table's level and the candle's at different places
+  const slant = (y) => [0.1 + (0.76 - y), 0];
+  assert.equal(underPointer(placed, defs, slant), 1);
+  assert.equal(underPointer(placed, defs, () => null), -1, "the ray misses every level");
+});
+
+test("something new lands by the camera when flying, not by the body", () => {
+  const def = defs("round_table");
+  const body = [0, 0], camera = [12, 3];
+  // the floor in view is round the camera, far from the body: there, when the camera is the centre
+  const spots = [null, [13, 3.5]];
+  assert.deepEqual(landSpot(def, camera, [1, 0], spots), [13, 3.5]);
+  assert.notDeepEqual(landSpot(def, body, [1, 0], spots), [13, 3.5], "(by the body, that spot is too far)");
+  // no floor in view: a step the way the camera looks
+  const [x, z] = landSpot(def, camera, [0, 2], []);
+  near(x, 12, 1e-9); assert.ok(z > 3.5 && z < 5);
+  // straight down, no way ahead: right under the camera
+  assert.deepEqual(landSpot(def, camera, [0, 0], []), [12, 3]);
 });

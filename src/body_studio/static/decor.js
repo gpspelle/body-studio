@@ -432,6 +432,47 @@ export function heightOnRay(p, o, d) {
   return (a * w[1] - d[1] * dw) / denom;
 }
 
+// ---------------------------------------------------------------- what a press takes
+// A press near the picked thing's handles (distances in screen pixels, Infinity: not shown): its
+// knobs first (they are small, so meant), then the thing itself (on a thing it moves: the ring is
+// drawn through it, over everything, so its line crosses the thing on the screen), then the
+// ring's line. Seen from nearly straight above, the lift knob is over the thing's middle and a
+// drag can't raise it: there the press moves the thing. "lift", "turn", "move" or null.
+export const KNOB_PX = 24, RING_PX = 12;
+export function grabFor({ lift = Infinity, turn = Infinity, ring = Infinity, onThing = false, steep = false }) {
+  if (!steep && lift < KNOB_PX) return "lift";
+  if (turn < KNOB_PX) return "turn";
+  if (onThing) return "move";
+  return ring < RING_PX ? "turn" : null;
+}
+// whether a way [x, y, z] looks nearly straight down or up (within about 25° of upright)
+export const steep = (d) => Math.abs(d[1]) > 0.9 * Math.hypot(d[0], d[1], d[2]);
+
+// The placed thing whose footprint the pointer is on, where nothing drawn was hit (a thin chair
+// leg, a flower, the space inside a ring of flowers, as seen from above): at(y) is where the
+// pointer's ray meets the level y ([x, z] or null). The smallest one wins, so a vase on a table
+// is taken before the table. -1: none.
+export function underPointer(placed, defs, at, pad = 0.05) {
+  let best = -1, area = Infinity;
+  placed.forEach((p, k) => {
+    const d = defs(p.item, p), xz = d && at(p.y || 0);
+    if (!xz || !covers(d, p, xz[0], xz[1], pad)) return;
+    const a = d.size.r !== undefined ? Math.PI * d.size.r ** 2 : d.size.w * d.size.d;
+    if (a < area) { best = k; area = a; }
+  });
+  return best;
+}
+
+// Where a new thing lands: the first floor point the camera sees (spots, [x, z] or null) within
+// `near` metres of `at` (the body, or the camera when there is no body: flying, from above), else
+// a step `ahead` ([x, z], the way the body or the camera looks) of `at`.
+export function landSpot(def, at, ahead, spots, near = 6) {
+  for (const xy of spots) if (xy && Math.hypot(xy[0] - at[0], xy[1] - at[1]) < near) return xy;
+  const n = Math.hypot(ahead[0], ahead[1]) || 1;
+  const reach = 0.9 + (def.size.r !== undefined ? def.size.r : def.size.d / 2);
+  return [at[0] + ahead[0] / n * reach, at[1] + ahead[1] / n * reach];
+}
+
 // a lift kept to 0..MAX_LIFT, in centimetres
 export const clampLift = (v) => Math.round(Math.min(MAX_LIFT, Math.max(0, v)) / STEP_LIFT) * STEP_LIFT;
 

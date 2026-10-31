@@ -6,7 +6,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from tests.browser.base import PlaywrightTimeout, Viewer, dist
+from tests.browser.base import PlaywrightTimeout, Viewer, dist, settled
 
 
 class Decor(Viewer):
@@ -214,6 +214,24 @@ class Decor(Viewer):
         self.assertEqual(page.evaluate("decor.placed().filter((q) => q.item === 'round_table').length"), 0)
         self.assertEqual(rows.count(), 24)
         self.assertIn("(24)", page.text_content("#decorRoomTab"))
+        # flying through: something new lands by the camera, not where the body was left
+        body = page.evaluate("house.where()")
+        page.evaluate("house.fly(true); house.flyView({ ...house.flyView(), at: [house.where()[0] + 2.5, house.where()[1]] })")
+        settled(page)
+        camera = page.evaluate("house.fly()")
+        page.click("#decorAddTab")
+        page.evaluate("decor.shelf('tables')")
+        page.locator("#decorItems button[data-item=chair]").click()
+        chair = page.evaluate("decor.placed()[decor.selected()]")
+        self.assertLess(dist([chair["x"], chair["z"]], camera), dist([chair["x"], chair["z"]], body))
+        # from above, a press in the middle of the picked thing moves it (the lift knob is over it)
+        page.evaluate("house.fromAbove(true)")
+        settled(page)
+        at = page.evaluate("""(() => { const p = decor.placed()[decor.selected()], g = decor.group();
+            const v = g.localToWorld(new g.position.constructor(p.x, (p.y || 0) + 0.45, p.z)).project(bodyApp.viewer.camera);
+            return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; })()""")
+        self.assertEqual(page.evaluate(f"decor.grabAt({at[0]}, {at[1]}).grab"), "move")
+        page.evaluate("house.fromAbove(false)")
         self.assertEqual(errors, [])
 
 

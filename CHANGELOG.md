@@ -9,6 +9,11 @@
 - **Arch, your own**: **Made of** now changes its frame (wood, clear acrylic, wrapped in fabric,
   painted, metal), which before only changed the shine of the thin tube under the flowers; a frame
   **Thickness**; **Slide them along** moves the flowers over the arch.
+- **Moving decor is easier**: a press on the picked thing moves it, where before the ring round
+  it (drawn across its foot) often took the press and turned it instead. From above, a press in
+  the middle of a thing moves it (the lift knob that sat there is hidden in that view; the Raised
+  slider still lifts it), and a thin thing is taken by its footprint. Flying or from above,
+  something new lands beside the camera, not back where the body was left.
 - **Bake the light** (above Take a photo, in the drawn rooms: the sample rooms and the venue): works
   out the light Take a photo follows (the sun's soft shadows, the sky's light, darker under roofs and
   in corners, the light walls and floors throw back) on the GPU and keeps it on every wall, floor,
