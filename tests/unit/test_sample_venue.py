@@ -1,3 +1,5 @@
+"""The sample wedding venue: sample_venue.py (the splats), venue_plan.py (where everything is) and
+venue_fittings.py (what the page draws as decor)."""
 import base64
 import math
 import json
@@ -68,14 +70,14 @@ class SampleVenueTest(unittest.TestCase):
                              "out the kitchen's left door": (-9.3, 8.05), "the passage outside": (5.0, 9.6), "its door onto the pergola": (17.8, 9.6), "the ladies'": (12.6, -0.9), "the gents'": (16.5, -2.0), "pergola": (23.0, 7.0), "garden, under its cover": (38.0, 8.0),
                              "on the bungalow's deck": (46.0, 15.0),
                              "beside the pergola": (22.0, 14.0), "by the far side": (52.4, 8.9),
-                             "on the beach": (V._garden_end(8.9) + 3.0, 8.9)}.items():
+                             "on the beach": (V.garden_end(8.9) + 3.0, 8.9)}.items():
             self.assertTrue(self.free(x, z), name)
         for name, (x, z) in {"the kitchen's back wall": (-9.3, 6.0), "the ante-room's wall": (-4.0, 4.0), "the hall's side": (9.0, 8.6),
                              "past the corridor's end": (0.7, 0.7), "the corridor's wall past the door": (4.0, 0.0), "the side room's far wall": (3.0, -3.6), "the passage's low wall": (5.0, V.OUT_WAY), "the ladies' counter": (11.55, -1.5), "the trough": (15.5, -3.85),
-                             "a cubicle's toilet": (14.0, -3.8), "between the toilets": (14.5, -1.5), "behind the toilets": (16.0, -4.3), "the patio past the glass doors": (3.2, -4.6), "the reed partition": (1.3, 7.0), "the stone wall at the beach": (V._garden_end(3.0) - 0.5, 3.0), "the kitchen's stove": (-4.8, 5.8), "a sink bench": (-7.0, 8.3), "the half wall": (11.3, 1.5), "the stage": (24.0, 1.6),
+                             "a cubicle's toilet": (14.0, -3.8), "between the toilets": (14.5, -1.5), "behind the toilets": (16.0, -4.3), "the patio past the glass doors": (3.2, -4.6), "the reed partition": (1.3, 7.0), "the stone wall at the beach": (V.garden_end(3.0) - 0.5, 3.0), "the kitchen's stove": (-4.8, 5.8), "a sink bench": (-7.0, 8.3), "the half wall": (11.3, 1.5), "the stage": (24.0, 1.6),
                              "the pergola's far wall": (22.0, V.PERGOLA[3]),
                              "the beds along the garden's wall": (40.0, 0.6), "the left wall": (40.0, V.GARDEN_W),
-                             "outside": (40.0, 19.0), "the sea": (V._garden_end(8.9) + V.BEACH + 6.0, 8.9)}.items():
+                             "outside": (40.0, 19.0), "the sea": (V.garden_end(8.9) + V.BEACH + 6.0, 8.9)}.items():
             self.assertFalse(self.free(x, z), name)
 
     def test_the_body_starts_in_the_hall(self):
@@ -134,7 +136,7 @@ class SampleVenueTest(unittest.TestCase):
         self.assertGreater(len(far), 10000)
         self.assertTrue(all(r[3] < room.OPAQUE for r in far))
         # the map stops at the water: its far end within a few metres of the dry sand's
-        mx, _ = self.to_map(V._garden_end(V.GARDEN_W) + V.BEACH, V.GARDEN_W)
+        mx, _ = self.to_map(V.garden_end(V.GARDEN_W) + V.BEACH, V.GARDEN_W)
         self.assertLess(abs(self.map["x0"] + self.map["nx"] * self.map["cell"] - mx), 4.5)   # (its thin slanted corner is cut off)
 
     def test_nothing_near_is_drawn_in_splats(self):
@@ -145,14 +147,14 @@ class SampleVenueTest(unittest.TestCase):
         self.assertTrue(all(len(r) > 3 and r[3] == V.FAR for r in rest))
         props = V.fixtures()["trees"]
         walls = [t for t in props if t["item"] == "stone_wall"]
-        (ax, az), L, _, _ = V._far_side()
+        (ax, az), L, _, _ = V.far_side()
         self.assertAlmostEqual(sum(t["opts"]["w"] for t in walls), L * (1 - 2 * V.SEA_GAP), places=2)
         self.assertTrue(all(abs(t["at"][2] - az) <= V.GARDEN_W + 1 for t in walls))
         self.assertEqual(sum(t["item"] == "sunk_light" for t in props), 4)
         self.assertEqual([t["item"] for t in props if t["item"] in ("glass_pane", "tile_floor") and t["at"][2] < V.SIDE[2] + 0.01],
                          ["glass_pane", "tile_floor"])
         # (the sea wall is still in the map: the body walks out to the beach through its gap only)
-        (ax, az), L, (tx, tz), (nx, nz) = V._far_side()
+        (ax, az), L, (tx, tz), (nx, nz) = V.far_side()
         self.assertFalse(self.free(ax + tx * L * 0.2 + nx * 0.5, az + tz * L * 0.2 + nz * 0.5))
 
     def test_sides_as_the_plan(self):
@@ -341,7 +343,7 @@ class SampleVenueTest(unittest.TestCase):
         # track lights on its beams, up-and-down lights on its wall, the beams dark wood
         self.assertEqual(sum(f[0] == "track_light" for f in fit), 3)
         sconces = [f for f in fit if f[0] == "wall_sconce"]
-        self.assertEqual(len(sconces), 2 * len(V._strips()))
+        self.assertEqual(len(sconces), 2 * len(V.strips()))
         self.assertTrue(all(f[1][2] == z1 and f[2] == math.pi for f in sconces))
         self.assertTrue([r for r in rows if max(abs(a - b) for a, b in zip(r[1], V.PERGOLA_BEAM)) < 0.04 and r[0][1] > V.PERGOLA_ROOF - 0.4 and x0 < r[0][0] < x1])
         # its floor a darker grey; the stage keeps its big white screen (Gabriel's call)

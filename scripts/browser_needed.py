@@ -22,7 +22,7 @@ PAGE_FREE = ("tests/unit/", "tests/js/", "tests/integration/", "scripts/", "docs
 S = "src/body_studio/"
 # a feature's own files: nothing outside it imports them
 FEATURES = {
-    "decor": (S + "decor.py", S + "photo3d.py", S + "sample_venue.py", S + "static/decor.js", S + "static/decor/",
+    "decor": (S + "decor.py", S + "photo3d.py", S + "sample_venue.py", S + "venue_", S + "static/decor.js", S + "static/decor/",
               S + "static/decorate.js", S + "static/decorlook.js", S + "static/decorpics.js",
               S + "compare.py", S + "static/compare.js", S + "static/matchview.js"),
     "studio": (S + "sample_studio.py", S + "static/parlour.js", S + "static/flash/"),
