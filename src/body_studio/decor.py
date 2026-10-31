@@ -44,7 +44,7 @@ MAX_ITEMS = 2000                # placed items in one layout
 MAX_LAYOUTS = 40
 COLOURS = ("white", "ivory", "gold", "wood", "green", "blush", "black", "coral", "rattan", "copper", "blue")
 MATERIALS = ("cloth", "satin", "wood", "metal", "glass")   # what a starter's own colour may be made of
-MAX_OPTS = 32
+MAX_OPTS = 48
 
 # The page draws these (static/decor.js STARTERS has the same ids, in the same groups). on: "floor",
 # or "top" (stands on a table or anything else with a top). The names are the page's (i18n

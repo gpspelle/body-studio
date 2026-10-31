@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { geometry, materials, picture, shadow, studio } from "/static/decorlook.js";
 import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, fixtureTurn, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
          bounds, fromHex, fromRgb, hexOf, setTable, standY, starterShape, toHex, turnToward, unpack, wrap,
-         knobs, knobValues, cleanOpts, optsKey, sized, MATERIALS, movable, fittingItems, fittingChanges, isChoice, PALETTES,
+         knobs, knobValues, presets, presetOf, cleanOpts, optsKey, sized, MATERIALS, movable, fittingItems, fittingChanges, isChoice, PALETTES,
          grabFor, steep, underPointer, landSpot } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
@@ -540,12 +540,31 @@ const knobText = (k, v) => (k.size ? Math.round(v * 100) + " cm" : k.unit ? v + 
 // the knobs in their parts (sizes first, then the shape, the flowers, how much of an arch they
 // cover, the greenery, the lights, the glasses), each part under its name: a slider for a size or
 // a count, chips for a choice (a shape, a kind of flower), swatches and a picker for a colour
-const PARTS = ["", "shape", "frame", "flowers", "cover", "greenery", "lights", "glasses", "table"];
+const PARTS = ["", "shape", "frame", "flowers", "mix", "cover", "greenery", "lights", "glasses", "table"];
 function knobsUI() {
   const p = placed()[sel];
   if (!p || !STARTERS[p.item]) return;
   const v = knobValues(p.item, p.opts), all = knobs(p.item), out = [];
   const set = (name, value, done) => setOpts({ ...p.opts, [name]: value }, done);
+  // (a piece built your own comes in sizes to pick at once: its width, depth, height and counts)
+  const sizes = presets(p.item);
+  if (sizes) {
+    const row = document.createElement("div"), now = presetOf(p.item, p.opts), wrap = document.createElement("div");
+    row.className = "chips"; row.id = "decorPresets";
+    row.setAttribute("role", "group"); row.setAttribute("aria-label", t("decor.presets"));
+    row.append(...Object.keys(sizes).map((name) => {
+      const b = document.createElement("button");
+      b.textContent = t("decor.preset." + name); b.dataset.preset = name;
+      b.classList.toggle("on", now === name);
+      b.onclick = () => setOpts({ ...p.opts, ...sizes[name] }, true);
+      return b;
+    }));
+    wrap.className = "choice";
+    wrap.append(Object.assign(document.createElement("span"), { textContent: t("decor.presets") }), row);
+    const sl = document.createElement("div");
+    sl.className = "sliders"; sl.append(wrap);
+    out.push(sl);
+  }
   for (const part of PARTS) {
     const ks = all.filter((k) => (k.part || "") === part);
     if (!ks.length) continue;

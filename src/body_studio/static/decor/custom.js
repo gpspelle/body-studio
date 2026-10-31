@@ -181,6 +181,12 @@ export const CUSTOM = {
   custom_arch: {
     group: "ceremony", height: 2.6, on: "floor", colour: "gold", size: { w: 2.2, d: 0.9 }, block: "posts", posts: [[-0.755, 0], [0.755, 0]],
     built: ["w", "d", "h"], postsFor: archPosts, heavy: true, finishes: true,
+    presets: {
+      small: { w: 1.6, d: 0.7, h: 2.2, flowers: 110, greens: 70, fillers: 35 },
+      medium: { w: 2.2, d: 0.9, h: 2.6, flowers: 180, greens: 110, fillers: 54 },
+      large: { w: 2.8, d: 1.0, h: 3.0, flowers: 260, greens: 160, fillers: 80 },
+      grand: { w: 3.6, d: 1.2, h: 3.4, flowers: 360, greens: 220, fillers: 110 },
+    },
     knobs: {
       shape: { choices: ARCHES, value: "round", part: "shape" },
       thick: { min: 0.01, max: 0.12, step: 0.005, value: 0.02, size: true, part: "frame" },
@@ -235,9 +241,16 @@ export const CUSTOM = {
   },
   floral_cloud: {
     group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "black", size: { w: 2.4, d: 1.2 }, block: false, built: ["w", "d"], heavy: true,
+    presets: {
+      small: { w: 1.2, d: 0.7, flowers: 70, greens: 90, fillers: 20, trails: 12 },
+      medium: { w: 2.4, d: 1.2, flowers: 140, greens: 180, fillers: 42, trails: 24 },
+      large: { w: 3.6, d: 1.8, flowers: 240, greens: 280, fillers: 70, trails: 36 },
+      grand: { w: 5, d: 2.5, flowers: 360, greens: 300, fillers: 100, trails: 50 },
+    },
     knobs: {
       shape: { choices: ["cloud", "ring", "garland", "rain"], value: "cloud", part: "shape" },
       drop: { min: 0.1, max: 1.5, step: 0.05, value: 0.4, size: true, part: "shape" },
+      mass: { min: 0.1, max: 1.2, step: 0.05, value: 0.36, size: true, part: "shape" },
       ...floralKnobs({ flowers: 140, flower: "orchid", tint: "#f7f5ef", accent: "rose", accenttint: "#f2c4c0", share: 20, greens: 180, green: "mixed" }),
       trails: { min: 0, max: 80, value: 24, part: "greenery" },
       traillen: { min: 0.2, max: 2, step: 0.05, value: 0.6, size: true, part: "greenery" },
@@ -249,7 +262,7 @@ export const CUSTOM = {
       // below them: a cloud of greenery and flowers, a ring of them (a chandelier), a long garland,
       // or a rain of strands; strands of ivy falling from it, filament bulbs and woven lamps under it
       const s = shape(), top = 2.9, y = top - k.drop, w = k.w, d = k.d, rnd = rng(151);
-      const R = w / 2, thick = Math.min(0.5, Math.max(0.12, d * 0.3));
+      const R = w / 2, thick = k.mass;
       // a point in (or on) the mass, the way out from it there
       const inMass = (r) => {
         if (k.shape === "ring" || k.shape === "garland") {
@@ -298,6 +311,9 @@ export const CUSTOM = {
   },
   aerial_fabric: {
     group: "aerial", height: 3.0, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 4 }, block: false, built: ["w", "d"], heavy: true,
+    presets: {
+      small: { w: 2.5, d: 2.5, strips: 4 }, medium: { w: 4, d: 4, strips: 6 }, large: { w: 6, d: 6, strips: 9 }, grand: { w: 8, d: 8, strips: 12 },
+    },
     knobs: {
       style: { choices: ["swags", "canopy", "radial", "waves"], value: "swags", part: "shape" },
       strips: { min: 2, max: 24, value: 6, part: "shape" },

@@ -113,6 +113,16 @@ export function cleanOpts(id, opts) {
   if (MATERIALS.includes(opts.finish)) out.finish = opts.finish;
   return Object.keys(out).length ? out : null;
 }
+// The sizes a starter offers to pick at once (def.presets: { small: {w, d, h, counts...}, ... }),
+// and which of them a placed one is at now (null when none: its sliders moved since)
+export function presets(id) { return STARTERS[id]?.presets || null; }
+export function presetOf(id, opts) {
+  const all = presets(id);
+  if (!all) return null;
+  const v = knobValues(id, opts);
+  for (const [name, p] of Object.entries(all)) if (Object.entries(p).every(([k, x]) => Math.abs(v[k] - x) < 1e-6)) return name;
+  return null;
+}
 // a short key for opts, for a shape and its picture made once
 export const optsKey = (opts) => (opts ? Object.keys(opts).sort().map((k) => k + "=" + opts[k]).join(",") : "");
 // What the page knows of a placed starter p (itemDef), at the size its opts give it: its footprint,

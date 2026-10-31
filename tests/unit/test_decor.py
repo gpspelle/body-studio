@@ -199,7 +199,7 @@ class Inventory(unittest.TestCase):
             {"item": "bar", "x": 0, "z": 0, "opts": {"w": 3.2, "slab": 0.08, "finish": "metal"}}]}]})
         self.assertEqual(lay["layouts"][0]["items"][0]["opts"], {"w": 3.2, "slab": 0.08, "finish": "metal"})
         for bad in ({"w": "Wide 2"}, {"finish": "plaid"}, {"Bad Key": 1}, {"w": -1}, {"w": 1e6}, [1, 2], {"tint": "#12345"},
-                    {"k" + a + b: 1 for a in "abcdef" for b in "abcdef"}):
+                    {"k" + a + b: 1 for a in "abcdefg" for b in "abcdefg"}):
             with self.assertRaises(decor.DecorError, msg=bad):
                 decor.clean_opts(bad)
 

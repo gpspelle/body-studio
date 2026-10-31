@@ -5,10 +5,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { COLOURS, FINISHES, GROUPS, STARTERS, fixtureTurn, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
-         knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, PALETTES, isChoice,
+         knobs, knobValues, presets, presetOf, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, PALETTES, isChoice,
          grabFor, steep, underPointer, landSpot, KNOB_PX, RING_PX } from "../../src/body_studio/static/decor.js";
 import { ARCHES, PARTS, archLine, along, coverPick, archPosts, frameOf, fabricRuns } from "../../src/body_studio/static/decor/custom.js";
-import { FLOWERS, GREENS } from "../../src/body_studio/static/decor/florals.js";
+import { FLOWERS, GREENS, FILLERS, BLENDS, drift, mixColour, mixSize, toHsl, fromHsl } from "../../src/body_studio/static/decor/florals.js";
 import { F } from "../../src/body_studio/static/decor/shapes.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
@@ -550,7 +550,7 @@ test("each shape and kind builds; the colour asked for is the flowers' and the g
   const has = (sh, hex) => { const c = fromHex(hex).map((v) => v / 255); for (let v = 0; v < sh.c.length; v += 3) if (Math.abs(sh.c[v] - c[0]) + Math.abs(sh.c[v + 1] - c[1]) + Math.abs(sh.c[v + 2] - c[2]) < 0.02) return true; return false; };
   for (const shape of ARCHES) assert.ok(starterShape("custom_arch", null, { shape, flowers: 20, greens: 10 }).i.length > 0, shape);
   for (const flower of FLOWERS) {
-    const sh = starterShape("custom_arch", null, { flower, share: 0, flowers: 10, greens: 0, trails: 0, tint: "#7a4a9a", bloomsize: 0.1 });
+    const sh = starterShape("custom_arch", null, { flower, share: 0, flowers: 10, fillers: 0, blend: "one", greens: 0, trails: 0, tint: "#7a4a9a", bloomsize: 0.1 });
     assert.ok(sh.i.every((i) => i < sh.p.length / 3), flower);
     assert.ok(has(sh, "#7a4a9a"), flower + " in the colour asked");
   }
@@ -592,7 +592,7 @@ test("an arch's flowers slide along it; round a ring they come round the other s
 });
 
 test("what an arch is made of is its frame's: wood, acrylic, fabric, as thick as asked", () => {
-  const bare = { flowers: 0, greens: 0, trails: 0, feet: "none" };
+  const bare = { flowers: 0, fillers: 0, greens: 0, trails: 0, feet: "none" };
   const of = (sh, f) => sh.m.filter((m) => m === F[f]).length;
   const metal = starterShape("custom_arch", null, bare);
   assert.ok(of(metal, "metal") > 0, "a brass tube as made");
@@ -686,4 +686,84 @@ test("something new lands by the camera when flying, not by the body", () => {
   near(x, 12, 1e-9); assert.ok(z > 3.5 && z < 5);
   // straight down, no way ahead: right under the camera
   assert.deepEqual(landSpot(def, camera, [0, 0], []), [12, 3]);
+});
+
+test("the florist's kit: every flower, greenery and filler builds, light enough", () => {
+  assert.ok(FLOWERS.length >= 20 && GREENS.length >= 12);
+  for (const f of FILLERS) assert.ok(f === "none" || FLOWERS.includes(f), f);
+  for (const flower of FLOWERS) {
+    const sh = starterShape("table_flowers", null, { flower, flowers: 12, greens: 0, fillers: 0 });
+    assert.ok(sh.p.every(Number.isFinite) && sh.i.every((i) => i < sh.p.length / 3), flower);
+  }
+  for (const green of GREENS) {
+    const sh = starterShape("custom_arch", null, { green, flowers: 0, fillers: 0, greens: 40, trails: 0 });
+    assert.ok(sh.p.every(Number.isFinite) && sh.i.length / 3 < 90000, green);
+  }
+  for (const filler of FILLERS) assert.ok(starterShape("custom_arch", null, { filler, fillers: 40 }).p.every(Number.isFinite), filler);
+  const none = starterShape("custom_arch", null, { filler: "none" }), some = starterShape("custom_arch", null, { filler: "waxflower", fillers: 80 });
+  assert.ok(some.p.length > none.p.length, "fillers among the flowers");
+});
+
+test("colours mixed as a florist does: shades of each, a blend or an ombre, never all one flat colour", () => {
+  for (const c of [[0.95, 0.2, 0.3], [0.1, 0.5, 0.9], [0.97, 0.96, 0.94]]) {
+    const back = fromHsl(toHsl(c));
+    for (let i = 0; i < 3; i++) near(back[i], c[i], 1e-9, "hsl both ways");
+  }
+  const rose = [0.76, 0.18, 0.51], white = [0.97, 0.96, 0.94], k = { vary: 60, accenttint: white };
+  assert.deepEqual(mixColour({ ...k, blend: "one" }, rose, false, 0.9, 0.5, 0.1, 0.9, 0.3), rose);
+  assert.deepEqual(mixColour({ ...k, blend: "shades", vary: 0 }, rose, false, 0.9, 0.5, 0.1, 0.9, 0.3), rose);
+  // (shades: lighter and darker of the same colour, the same hue near enough)
+  const ls = [];
+  for (let n = 0; n < 200; n++) {
+    const c = mixColour({ ...k, blend: "shades" }, rose, false, (n % 20) / 19, 0.5, (n * 7 % 13) / 13, (n * 3 % 11) / 11, (n * 5 % 17) / 17);
+    ls.push(toHsl(c)[2]);
+    assert.ok(Math.abs(toHsl(c)[0] - toHsl(rose)[0]) < 0.03, "the same hue");
+  }
+  assert.ok(Math.max(...ls) - Math.min(...ls) > 0.12, "lighter and darker");
+  // (ombre: the main colour at one side, the accent's at the other)
+  const left = mixColour({ ...k, blend: "ombre" }, rose, false, 0.5, 0, 0.5, 0.5, 0.5), right = mixColour({ ...k, blend: "ombre" }, rose, false, 0.5, 1, 0.5, 0.5, 0.5);
+  assert.ok(toHsl(right)[2] > toHsl(left)[2] + 0.2, "toward white across it");
+  // (blend: the colours between the main and the accent)
+  const mid = mixColour({ ...k, blend: "blend" }, rose, false, 0.5, 0.5, 0.5, 0.5, 0.5);
+  assert.ok(toHsl(mid)[2] > toHsl(rose)[2] + 0.1 && toHsl(mid)[2] < toHsl(white)[2], "between them");
+  // (drifts: smooth, so neighbours are alike, and spread over 0..1 over a piece)
+  const ds = [];
+  for (let x = -1.5; x <= 1.5; x += 0.05) for (let y = 0; y <= 2.5; y += 0.05) ds.push(drift([x, y, 0], 7));
+  assert.ok(ds.every((d) => d >= 0 && d <= 1) && Math.max(...ds) - Math.min(...ds) > 0.6);
+  assert.ok(Math.abs(drift([0.3, 1, 0], 7) - drift([0.32, 1, 0], 7)) < 0.1, "neighbours alike");
+  // a dressed arch in shades has many colours; in one colour, few (its petals' own light and dark)
+  const colours = (sh) => new Set(Array.from({ length: sh.c.length / 3 }, (_, v) => sh.c.slice(3 * v, 3 * v + 3).map((x) => x.toFixed(3)).join())).size;
+  const opts = { tint: "#c72e83", greens: 0, trails: 0, fillers: 0, share: 0, flowers: 60 };
+  assert.ok(colours(starterShape("custom_arch", null, { ...opts, blend: "shades" })) > 4 * colours(starterShape("custom_arch", null, { ...opts, blend: "one" })));
+  assert.ok(BLENDS.includes(STARTERS.custom_arch.knobs.blend.value) && STARTERS.custom_arch.knobs.blend.value !== "one", "mixed by default");
+});
+
+test("sizes spread round the one asked: big heads among smaller buds", () => {
+  const spread = (sizes) => { const v = []; for (let n = 1; n < 400; n++) v.push(mixSize({ sizes }, (n % 23) / 22, n / 400, (n * 37 % 400) / 400)); return v; };
+  const flat = spread(0), wide = spread(100);
+  assert.ok(Math.max(...flat) - Math.min(...flat) < 0.2, "no variety: about the size asked");
+  assert.ok(Math.max(...wide) / Math.min(...wide) > 2, "variety: twice as big as the smallest and more");
+  assert.ok(wide.every((v) => v >= 0.5 && v <= 1.9));
+  const mean = wide.reduce((a, b) => a + b, 0) / wide.length;
+  near(mean, 1, 0.15, "round the size asked");
+});
+
+test("an arch and the overhead pieces come in sizes to pick at once", () => {
+  for (const id of ["custom_arch", "floral_cloud", "aerial_fabric"]) {
+    const all = presets(id);
+    assert.deepEqual(Object.keys(all), ["small", "medium", "large", "grand"], id);
+    assert.equal(presetOf(id, null), "medium", id + ": as it comes, medium");
+    for (const [name, p] of Object.entries(all)) {
+      // (each within its knobs' ranges: kept as asked, not clamped)
+      assert.equal(presetOf(id, p), name, id + " " + name);
+      const v = knobValues(id, p);
+      for (const [k, x] of Object.entries(p)) near(v[k], x, 1e-9, id + " " + name + " " + k);
+    }
+    assert.ok(all.grand.w > all.large.w && all.large.w > all.medium.w && all.medium.w > all.small.w, id);
+    assert.equal(presetOf(id, { ...all.large, w: all.large.w + 0.1 }), null, "a slider moved since");
+  }
+  // (a grand arch is wider and higher, and thicker with flowers)
+  const b = (o) => bounds(starterShape("custom_arch", null, o).p);
+  assert.ok(b(presets("custom_arch").grand).hi[1] > b(presets("custom_arch").small).hi[1] + 1);
+  assert.equal(presetOf("custom_arch", { w: 1.6, d: 0.7, h: 2.2, flowers: 110, greens: 70, fillers: 35 }), "small");
 });

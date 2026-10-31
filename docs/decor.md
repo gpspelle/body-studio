@@ -105,6 +105,17 @@ Four starters are kits rather than things (`static/decor/custom.js`, dressed by
   material's (wood brown, clear, ivory); a colour you pick is kept. (Before, Made of only changed the
   shine of the thin tube under the flowers, so it looked as if it did nothing.)
 - **Greenery**: how much and which kind; **Falling strands** of ivy and their length.
+- **Mixing colours and sizes**: no flower is quite the colour of the next. **Colour mix** is
+  *Shades* (lighter and darker of each colour), *Blend* (the main colour, the accent's and those
+  between), *Ombre* (from one to the other across the piece) or *One colour*; **Colour variety**
+  says how far a flower may stray. **Size variety** spreads sizes round the one asked (log-normal,
+  so a few big heads among smaller buds). Kinds, colours and sizes follow smooth "drifts" over the
+  piece (`drift()` in florals.js), so the same flower gathers in groups as florists place them,
+  not dotted evenly. A **Filler flower** (baby's breath, waxflower, button chrysanthemum,
+  delphinium) fills between the big ones. Research and the flower list:
+  `/mnt/project-files/body-studio/custom-decor/flowers-and-greenery.md` (project files).
+- **Size** chips (arch, hanging flowers, fabric overhead): Small, Medium, Large, Grand set width,
+  depth, height and the counts together (`presets`); the sliders still fine-tune.
 - **Lights** (hung): filament bulbs and woven lamps under it.
 
 **Fabric overhead** (the decorators' "tecidos aéreos"): lengths of fabric under the roof, w by d, as

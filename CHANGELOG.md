@@ -2,6 +2,14 @@
 
 ## 0.1.0 (unreleased)
 
+- **Flowers you build** (arch, hanging flowers, fabric overhead, table flowers): 12 more flowers
+  (ranunculus, lisianthus, dahlia, king protea, anemone, carnation, tulip, sunflower, delphinium,
+  bird of paradise, button chrysanthemum, waxflower) and 7 more greens (Italian ruscus, olive,
+  pittosporum, asparagus fern, pampas grass, magnolia, salal). Colours and sizes are now mixed as a
+  florist does: **Colour mix** (shades of each colour, a blend of the two, an ombre across the piece,
+  or one colour), **Colour variety**, **Size variety**, the accent flower in drifts, and a **Filler
+  flower** between the big ones. Arches and the overhead pieces come in **Small / Medium / Large /
+  Grand**; hanging flowers have a **How deep** for their mass.
 - **Decor, overhead**: a new **Overhead** shelf with everything hung from the roof (hanging
   flowers, fabric ceilings and swags, pendants, string lights, the chandelier), and **Fabric
   overhead, your own**: swags, a canopy, a tent from the middle or waves of fabric, how many and how
