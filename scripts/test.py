@@ -77,6 +77,7 @@ def pick(changed: list, modules: list) -> list:
             stem = p.name.split(".")[0]          # pose.js, pose.test.mjs, rig.py -> pose, rig
             if stem not in ("__init__", "__main__", "index"):
                 words.add(stem)
+                words.add(stem.split("_")[0])    # rig_weights.py, venue_plan.py: the tests of rig, venue
             if p.parent.parent.name == "static":   # static/decor/shapes.js -> decor
                 words.add(p.parent.name)
             if f.startswith(".github/"):

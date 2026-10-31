@@ -76,7 +76,7 @@ class Skeleton(unittest.TestCase):
         H = r["height"]
         seen = 0
         for c, cell in enumerate(cells):
-            i, j = cell // (ny * nz), (cell // nz) % ny                   # rig.Grid.key
+            i, j = cell // (ny * nz), (cell // nz) % ny                   # rig_weights.Grid.key
             x, y = lo[0] + (i + 0.5) * size, lo[1] + (j + 0.5) * size
             if x > 0.04 * H and y < 0.35 * H:
                 used = {names[bones[4 * c + k]] for k in range(4) if weights[4 * c + k]}

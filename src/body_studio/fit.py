@@ -36,7 +36,7 @@ from array import array
 from functools import lru_cache
 from pathlib import Path
 
-from . import rig, wardrobe
+from . import rig, rig_weights, wardrobe
 
 FIT_VERSION = 4         # 2: the skin's normals, for finding the skin under clothes; 3: body shape;
                         # 4: the "what if" sliders (whatif())
@@ -189,10 +189,10 @@ def base_rig() -> dict:
     J = rig.find_joints(X, Y, Z, list(opaque), H)
     lo = [min(min(X), min(c[0] for c in J.values())), min(Y), min(Z)]
     hi = [max(max(X), max(c[0] for c in J.values())), max(Y), max(Z)]
-    grid = rig.Grid(lo, hi, rig.VOXEL * H)
-    solid = rig.solid_voxels(grid, X, Y, Z, list(opaque))
-    weights = rig.bind(grid, solid, J, H)
-    segs = rig.bone_segments(J)
+    grid = rig_weights.Grid(lo, hi, rig_weights.VOXEL * H)
+    solid = rig_weights.solid_voxels(grid, X, Y, Z, list(opaque))
+    weights = rig_weights.bind(grid, solid, J, H)
+    segs = rig_weights.bone_segments(J)
     Xa, Ya, Za = rig.to_body(fr, [v[0] for v in V], [v[1] for v in V], [v[2] for v in V])
     P = [(Xa[i], Ya[i], Za[i]) for i in range(len(V))]
     W = [_weights_at(grid, weights, P[i], segs) for i in range(nb)]
