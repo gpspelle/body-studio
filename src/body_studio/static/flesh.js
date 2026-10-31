@@ -525,19 +525,6 @@ export function weightGradients(centres, bones, weights, n, radius) {
   return out;
 }
 
-// how much the skin at rest point p (gradient g of bone b2's share, from b1) is stretched by the
-// bone transforms (dual quaternions as dualQuats(), rot: the splat's own blended rotation)
-export function stretchAt(p, g, b1, b2, dq, rot) {
-  const gl = v3.len(g);
-  if (gl < 1e-12) return 1;
-  const apply = (b) => {
-    const o = b * 8, r = [dq[o], dq[o + 1], dq[o + 2], dq[o + 3]], d = [dq[o + 4], dq[o + 5], dq[o + 6], dq[o + 7]];
-    const t = v3.scale(q.mul(d, q.conj(r)), 2);
-    return v3.add(q.rot(r, p), [t[0], t[1], t[2]]);
-  };
-  const d = v3.sub(apply(b2), apply(b1));
-  return v3.len(v3.add(q.rot(rot, v3.scale(g, 1 / gl)), v3.scale(d, gl)));
-}
 export const STRETCH = { max: 3, power: 0.75 };
 
 // ---------------------------------------------------------------- a field over the fitted skin

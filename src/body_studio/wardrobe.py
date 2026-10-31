@@ -249,6 +249,3 @@ def _b64(a: array) -> str:
     return base64.b64encode(a.tobytes()).decode()
 
 
-def credits() -> list:
-    return [{"id": c["id"], "author": c["author"], "license": c["license"], "source": c["source"]} for c in CATALOG]
-

@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 from body_studio import __main__ as cli
-from body_studio import anny_fit, fit, photo3d, rig, wardrobe
+from body_studio import anny_fit, fit, photo3d, wardrobe
 from tests.fakes.makehuman import skin_normals, surface, write_body
 from tests.unit.test_wardrobe import distances, pct
 

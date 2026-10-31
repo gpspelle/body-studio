@@ -4,7 +4,6 @@ and the server's /api/photoreal. mflux itself only runs on a Mac with Apple sili
 import json
 import os
 import struct
-import sys
 import tempfile
 import threading
 import time

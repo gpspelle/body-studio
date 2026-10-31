@@ -47,7 +47,6 @@ SEAT_ROOM = 0.45            # m: free above a seat
 SEAT_AREA = 0.10            # m²: the smallest seat (a stool is about 0.1)
 SEAT_IN = 0.26              # m: the hips sit this far in from the seat's front edge (the thighs on it)
 SEAT_APART = 0.55           # m: between two places to sit on one seat (a sofa has several)
-WALL = 1.5                  # m: something this tall is a wall (or a wardrobe) to lean on
 CAMERA_HEIGHT = 1.45        # m: a phone filming a room
 CEILING = 2.5               # m: a ceiling, when nothing else tells the size
 MAX_CELLS = 400             # cells along a side of a square place (as many in all for a long one); bigger takes bigger cells

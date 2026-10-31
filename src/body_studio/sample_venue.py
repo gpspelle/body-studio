@@ -140,22 +140,18 @@ BRICK = (0.74, 0.47, 0.33)
 FIREPLACE_BRICK = (0.70, 0.56, 0.46)  # the half wall's: pale, warm
 TILE_WHITE = (0.93, 0.93, 0.92)
 KITCHEN_TILE = (0.88, 0.89, 0.90)    # its floor's glazed tiles, a cool white
-LINEN = (0.90, 0.87, 0.81)          # the hall's curtains
 SHEER = (0.97, 0.95, 0.91)          # the vertical garden's, paler: off-white, the light through them
 DECK_WOOD = (0.50, 0.34, 0.25)      # the bungalow's deck
 BUNGALOW_TIMBER = (0.24, 0.13, 0.10)  # its posts and beams, a dark red-brown
 PERGOLA_BEAM = (0.34, 0.22, 0.15)   # the pergola's beams, dark wood
-OAK = (0.55, 0.40, 0.27)
 LIGHT_WOOD = (0.66, 0.50, 0.34)     # the posts where the reception's walls meet the planted ones
 WALNUT = (0.34, 0.23, 0.16)
-WHITEWASH = (0.92, 0.91, 0.88)
 SAND = (0.86, 0.79, 0.66)
 SEA_BLUE = (0.36, 0.50, 0.52)
 SKIRTING = (0.56, 0.38, 0.24)       # the wooden skirting along the white walls
 SKIRTING_BOARD = (0.46, 0.29, 0.17)  # the same as a board drawn as the furniture is (its light is brighter)
 SAUCER = (0.85, 0.38, 0.16)          # the ante-room's orange saucer of a wall light
 EXIT_GREEN = (0.10, 0.58, 0.32)
-WARM = (1.0, 0.86, 0.6)             # a lamp's lit face
 FAR = 0.42                          # how opaque what is far off is drawn: under room.OPAQUE
 
 
@@ -214,16 +210,6 @@ def _rough(colour, strength=0.06):
     return base.finish("concrete", f)
 
 
-def _tiles(colour, size, grout=(0.72, 0.72, 0.71), across=0, joint=0.005):
-    """Square tiles with a grey grout line: on a floor (across 0: x and z) or a wall along x (1: x
-    and y) or along z (2: z and y). (A floor's joint as wide as its mesh's 5 cm cells, or it blurs away.)"""
-    def f(x, y, z, rnd):
-        a, b = ((x, z), (x, y), (z, y))[across]
-        if a % size < joint or b % size < joint:
-            return grout
-        t = rnd.uniform(-0.012, 0.012)
-        return tuple(c + t for c in colour)
-    return base.finish("tile", f)
 
 
 def _brickwork(along, colour=BRICK):
@@ -361,11 +347,6 @@ def frame_z(x, a0, a1, y0, y1, out, rnd, colour=STEEL, t=0.05, d=0.06):
         base._surface(rnd, (x - d, x + d, y0 - t, y0, a0 - t, a1 + t), colour, out, 0.03)
 
 
-def door_z(x, a0, a1, out, rnd, h=2.2):
-    """A closed door in dark wood in a wall along z, in a reddish wooden frame, a steel handle."""
-    base._surface(rnd, (x, x, 0.0, h, a0, a1), DOOR, out, 0.03)
-    base._surface(rnd, (x - 0.03, x + 0.03, 1.0, 1.04, a1 - 0.14, a1 - 0.06), (0.70, 0.70, 0.68), out, 0.01)
-    frame_z(x, a0, a1, 0.0, h, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
 
 
 def door_x(z, a0, a1, out, rnd, h=2.2, colour=DOOR, frame=DOOR_FRAME):
@@ -590,21 +571,6 @@ def skylight(rnd, out):
         base._surface(rnd, (a0, a1, H, H, b0, b1), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
 
 
-def _cylinder_y(rnd, out, x, y0, y1, z, r, colour, step=0.015):
-    """A short upright cylinder, closed at the bottom (a socket or a cap on a ceiling)."""
-    sc = [step * 0.8] * 3
-    n, m = max(12, int(2 * math.pi * r / step)), max(1, int((y1 - y0) / step))
-    for k in range(n):
-        a = 2 * math.pi * k / n
-        for j in range(m + 1):
-            out.append(((x + r * math.cos(a), y0 + (y1 - y0) * j / m, z + r * math.sin(a)), colour, sc))
-    for i in range(1, int(r / step) + 1):
-        rr = r * i / int(r / step)
-        q = max(6, int(2 * math.pi * rr / step))
-        for k in range(q):
-            a = 2 * math.pi * k / q
-            out.append(((x + rr * math.cos(a), y0, z + rr * math.sin(a)), colour, sc))
-    out.append(((x, y0, z), colour, sc))
 
 
 def _cladding(x, y, z, rnd):
@@ -628,43 +594,12 @@ def leaf(rnd, out, x, hinge, width, swing, h=2.85, step=0.03):
                 out.append((p, _cladding(0, y, u + 0.3, rnd), [step * 0.7] * 3))
 
 
-def _paint(rnd, out, x0, x1, y0, y1, z, inside, colour, step=0.03):
-    """Paint on a wall along x, just in front of it at z: splats where inside(x, y) holds."""
-    for i in range(int((x1 - x0) / step)):
-        for k in range(int((y1 - y0) / step)):
-            x, y = x0 + (i + rnd.random()) * step, y0 + (k + rnd.random()) * step
-            if inside(x, y):
-                c = colour(x, y) if callable(colour) else colour
-                out.append(((x, y, z), tuple(v + rnd.uniform(-0.02, 0.02) for v in c), [step * 0.75, step * 0.75, 0.004]))
 
 
-def exit_sign(rnd, out, x, y, z, axis):
-    """A green exit sign on a wall (along x if axis is 0, along z if 2), a white figure on it."""
-    w, h = 0.32, 0.13
-    if axis == 0:
-        base._surface(rnd, (x - w / 2, x + w / 2, y, y + h, z, z), EXIT_GREEN, out, 0.015)
-        base._surface(rnd, (x - 0.04, x + 0.04, y + 0.03, y + 0.1, z, z), (0.95, 0.95, 0.93), out, 0.01)
-    else:
-        base._surface(rnd, (x, x, y, y + h, z - w / 2, z + w / 2), EXIT_GREEN, out, 0.015)
-        base._surface(rnd, (x, x, y + 0.03, y + 0.1, z - 0.04, z + 0.04), (0.95, 0.95, 0.93), out, 0.01)
 
 
-def globe(rnd, out, x, y, z, r, colour):
-    """A glass globe light: a ball of splats, lit."""
-    n = int(4 * math.pi * r * r / 0.0004)
-    for _ in range(n):
-        u, a = rnd.uniform(-1, 1), rnd.uniform(0, 2 * math.pi)
-        q = math.sqrt(1 - u * u)
-        out.append(((x + r * q * math.cos(a), y + r * u, z + r * q * math.sin(a)), colour, [0.02, 0.02, 0.02]))
 
 
-def dome_pendant(rnd, out, x, z, y, r, colour):
-    """A dome lampshade hung on its cord from the ceiling, its lit bulb under it."""
-    for k in range(8):
-        t = k / 8 * math.pi / 2
-        _ring(rnd, out, x, y + r * math.sin(t), z, r * math.cos(t), colour, 1, max(8, int(60 * math.cos(t))), 0.025)
-    globe(rnd, out, x, y - 0.03, z, 0.05, WARM)
-    base._surface(rnd, (x - 0.006, x + 0.006, y + r, H, z - 0.006, z + 0.006), STEEL, out, 0.02)
 
 
 def open_door_x(z, a0, a1, out, rnd, h=2.2, hinge=0, frame=DOOR_FRAME):
@@ -691,13 +626,6 @@ def _mural(colour, dz=0.0):
     return base.finish("plaster", f)
 
 
-def _ring(rnd, out, cx, cy, cz, r, colour, axis, n=40, s=0.02):
-    """A ring of splats round (cx, cy, cz), radius r, in the plane across `axis` (0 x, 1 y, 2 z)."""
-    for k in range(n):
-        a = 2 * math.pi * k / n
-        u, v = r * math.cos(a), r * math.sin(a)
-        p = [(cx, cy + u, cz + v), (cx + u, cy, cz + v), (cx + u, cy + v, cz)][axis]
-        out.append((p, colour, [s, s, s]))
 
 
 def toilets(rnd, out):
@@ -756,11 +684,6 @@ def _two_tone(lower, upper, at):
     return base.finish("plaster", lambda x, y, z, rnd: lo(x, y, z, rnd) if y < at else up(x, y, z, rnd))
 
 
-def _reed_wall(x, y, z, rnd):
-    """Woven reed cladding: thin stalks standing side by side, each its own straw shade."""
-    r = random.Random(math.floor(z / 0.012))
-    t = r.uniform(-0.08, 0.06) + 0.03 * math.sin(y * 9 + r.random() * 6)
-    return (REED[0] + t, REED[1] + t, REED[2] + t * 0.8)
 
 
 def _reed_panel(x, y, z, rnd):

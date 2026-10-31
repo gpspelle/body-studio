@@ -4,7 +4,6 @@ for TripoSR."""
 import io
 import json
 import os
-import sys
 import tarfile
 import tempfile
 import threading
@@ -328,7 +327,7 @@ class Routes(unittest.TestCase):
         code, item = self.call("/api/decor/photo?name=arch.png&label=Flower%20arch&height=2.2", PNG)
         self.assertEqual(code, 201)
         self.assertEqual((item["name"], item["height"], item["status"]), ("Flower arch", 2.2, "working"))
-        self.assertTrue(wait(lambda: self.call(f"/api/decor")[1][-1]["status"] == "ready"))
+        self.assertTrue(wait(lambda: self.call("/api/decor")[1][-1]["status"] == "ready"))
         code, mesh = self.call(f"/api/decor/{item['id']}/mesh")
         self.assertEqual(code, 200)
         self.assertEqual(mesh["version"], 1)

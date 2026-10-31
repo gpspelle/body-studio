@@ -29,7 +29,8 @@ UNIT = ROOT / "tests" / "unit"
 # the slowest modules start first, so they aren't left running alone at the end
 SLOW = ("test_wardrobe", "test_server", "test_pose_js", "test_rig", "test_anny_fit")
 # changes that can break any test
-EVERYTHING = ("pyproject.toml", "tests/fakes/", "tests/__init__.py", "tests/unit/__init__.py", "scripts/test.py")
+EVERYTHING = ("pyproject.toml", "tests/fakes/", "tests/__init__.py", "tests/unit/__init__.py", "tests/unit/node.py",
+              "scripts/test.py")
 
 
 def classes(modules: list) -> list:
@@ -84,7 +85,10 @@ def pick(changed: list, modules: list) -> list:
     for m in modules:
         text = (UNIT / (m + ".py")).read_text()
         # the JS tests a module runs count as its own text
-        for js in re.findall(r"(\w+)\.test\.mjs", text):
+        js_names = re.findall(r"(\w+)\.test\.mjs", text)
+        for args in re.findall(r"run_js\(self((?:, \"\w+\")+)", text):    # run_js(self, "pose", "walk")
+            js_names += re.findall(r'"(\w+)"', args)
+        for js in dict.fromkeys(js_names):
             path = ROOT / "tests" / "js" / (js + ".test.mjs")
             if path.exists():
                 text += path.read_text()
