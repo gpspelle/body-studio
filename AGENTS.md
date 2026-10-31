@@ -20,9 +20,13 @@
   which runs in seconds and never flakes, not in a browser test.
 - Every feature touches: `static/i18n.js` (English only), `CHANGELOG.md`, `CREDITS.md`
   for any outside asset, a CI shard for a new browser test file, unit tests for new code.
-- README, its screenshots and docs/images: at milestones or when asked, not on every push. A PR
-  that skips them says `No docs needed: <reason>`. Screenshots: `python3 scripts/screenshots.py
-  <name>` for just the one you changed; look at it at 100% before committing.
+- A change a user sees (the page, a CLI flag, a default, a file the app writes) adds a line to
+  `CHANGELOG.md`. README, its screenshots and docs/images catch up at milestones or when asked;
+  CI (`docs.yml`) fails a PR touching user-facing code without README or docs/ unless its
+  description has `No docs needed: <reason>`. Screenshots: `python3 scripts/screenshots.py <name>`
+  for just the one you changed; look at it at 100% before committing.
+- Big files are cut into sections headed `// ------...` (JS) or `# ------...` (Python): grep for
+  those headers and read the section you need, not the whole file.
 - splat-studio changes: batch them, then bump the pin once.
 
 ## What lives where
@@ -75,25 +79,15 @@
   need a reason in the PR description.
 - Data stays in splat-studio's layout (`videos/`, `frames/`, `workspace/<name>/run_*/`), so
   either app can open a run.
-- Every string on the page lives in `static/i18n.js`, in English (the app is English only for now).
 
 ## Tests
 
 - `tests/unit`: fast, no tools needed. Includes the contract tests against the pinned splat-studio.
+  A JS test is run by its `test_<name>_js.py` with `run_js(self, "<name>", env=...)` (`tests/unit/node.py`).
 - `tests/integration/test_end_to_end.py`: the real splat-studio pipeline with splat-studio's own
   stand-in COLMAP and Brush (the fake Brush rejects unknown flags). Needs ffmpeg and
   `SPLAT_STUDIO_SRC="$(python3 scripts/splat_studio_src.py)"`.
-- `tests/browser`: the page in Chromium. Wait for page state, never a fixed delay. CI runs them in
-  shards side by side (`.github/workflows/ci.yml`): put a new test in one, by how long it takes
+- `tests/browser`: the page in Chromium. CI runs them in shards side by side (`.github/workflows/ci.yml`): put a new test in one, by how long it takes
   (`tests/unit/test_ci.py` checks).
 - `tests/fakes/makehuman.py`: the MakeHuman base mesh (CC0) with artist-placed joints, as a
   splat PLY in several shapes and poses; the realistic body for skeleton and tattoo tests.
-
-## Keep the README current
-
-A change a user sees (the page, a CLI flag, a default, a file the app writes) adds a line to
-`CHANGELOG.md` in the same PR; `README.md` catches up at milestones. CI
-(`.github/workflows/docs.yml`) fails a PR that touches user-facing code without touching
-`README.md` or `docs/`, unless the PR description has a line `No docs needed: <reason>`.
-A change to how the page looks regenerates `docs/images/` with `python3 scripts/screenshots.py`,
-and you look at every image before committing it.
