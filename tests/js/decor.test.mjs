@@ -7,9 +7,9 @@ import fs from "node:fs";
 import { COLOURS, FINISHES, GROUPS, STARTERS, fixtureTurn, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
          knobs, knobValues, presets, presetOf, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, PALETTES, isChoice,
          grabFor, steep, underPointer, landSpot, KNOB_PX, RING_PX } from "../../src/body_studio/static/decor.js";
-import { ARCHES, PARTS, archLine, along, coverPick, coverAt, mechanics, mechanicSpot, CAGE_STEP, archPosts, frameOf, fabricRuns } from "../../src/body_studio/static/decor/custom.js";
+import { ARCHES, PARTS, archLine, along, coverPick, coverAt, mechanics, mechanicSpot, CAGE_STEP, cover, archPosts, frameOf, fabricRuns } from "../../src/body_studio/static/decor/custom.js";
 import { FLOWERS, GREENS, FILLERS, BLENDS, drift, mixColour, mixSize, toHsl, fromHsl } from "../../src/body_studio/static/decor/florals.js";
-import { F } from "../../src/body_studio/static/decor/shapes.js";
+import { F, shape } from "../../src/body_studio/static/decor/shapes.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
 const env = (k) => process.env[k] && JSON.parse(fs.readFileSync(process.env[k], "utf8"));
@@ -607,7 +607,7 @@ test("what an arch is made of is its frame's: wood, acrylic, fabric, as thick as
   const black = starterShape("custom_arch", "black", { ...bare, finish: "wood" });
   assert.ok(!black.c.some((v, n) => n % 3 === 0 && v === COLOURS.wood[0] && black.c[n + 1] === COLOURS.wood[1]), "painted black");
   // (thicker, further round its line)
-  const thin = bounds(starterShape("custom_arch", null, { ...bare, thick: 0.01 }).p), thick = bounds(starterShape("custom_arch", null, { ...bare, thick: 0.1 }).p);
+  const thin = bounds(starterShape("custom_arch", null, { ...bare, mount: "none", thick: 0.01 }).p), thick = bounds(starterShape("custom_arch", null, { ...bare, mount: "none", thick: 0.1 }).p);
   near(thick.hi[2] - thin.hi[2], 0.09, 0.01, "a thicker frame");
   assert.deepEqual(cleanOpts("custom_arch", { finish: "wood" }), { finish: "wood" });
 });
@@ -697,7 +697,7 @@ test("the florist's kit: every flower, greenery and filler builds, light enough"
   }
   for (const green of GREENS) {
     const sh = starterShape("custom_arch", null, { green, flowers: 0, fillers: 0, greens: 40, trails: 0 });
-    assert.ok(sh.p.every(Number.isFinite) && sh.i.length / 3 < 90000, green);
+    assert.ok(sh.p.every(Number.isFinite) && sh.i.length / 3 < 100000, green);
   }
   for (const filler of FILLERS) assert.ok(starterShape("custom_arch", null, { filler, fillers: 40 }).p.every(Number.isFinite), filler);
   const none = starterShape("custom_arch", null, { filler: "none" }), some = starterShape("custom_arch", null, { filler: "waxflower", fillers: 80 });
@@ -797,3 +797,31 @@ test("an arch's flowers are set as a florist sets them: in foam or moss tied on 
   assert.ok(has(roses, [0.29, 0.45, 0.27]), "leaves on them");
   assert.equal(STARTERS.custom_arch.knobs.mount.value, "foam");
 });
+
+test("the foam and the moss are never seen: wrapped all round in leaves, end to end", () => {
+  // one cage on a frame running up y: leaves round it in every direction, along all its length
+  const s = shape(), c = { p: [0, 1], d: [0, 1], t: 0.5, w: 100 }, rnd = (() => { let q = 3; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })();
+  cover(s, c, 0.12, 0.068, [[0.3, 0.45, 0.22]], rnd);
+  const bins = new Set(), along = new Set();
+  for (let v = 0; v < s.p.length; v += 3) {
+    const x = s.p[v], y = s.p[v + 1] - 1, z = s.p[v + 2], r = Math.hypot(x, z);
+    if (r < 0.05) continue;
+    bins.add(Math.floor(((Math.atan2(z, x) + Math.PI) / (2 * Math.PI)) * 12) % 12);
+    along.add(Math.round(y / 0.03));
+  }
+  assert.equal(bins.size, 12, "seen from any side, a leaf");
+  for (let y = -3; y <= 3; y++) assert.ok(along.has(y), "covered along its length: " + y * 0.03);
+  // on an arch, the foam (and the moss) stay inside that sheath
+  const bare = { flowers: 0, fillers: 0, greens: 0, trails: 0, feet: "none" }, FOAM = [0.33, 0.45, 0.3];
+  for (const mount of ["foam", "moss"]) {
+    const sh = starterShape("custom_arch", null, { ...bare, mount }), k = knobValues("custom_arch", { ...bare, mount });
+    const path = along_(k), cages = mechanics(k, path);
+    for (let v = 0; v < sh.c.length; v += 3) {
+      const foam = Math.abs(sh.c[v] - FOAM[0]) < 1e-6 && Math.abs(sh.c[v + 1] - FOAM[1]) < 1e-6;
+      if (!foam) continue;
+      const near0 = Math.min(...cages.map((q) => Math.hypot(sh.p[v] - q.p[0], sh.p[v + 1] - q.p[1], sh.p[v + 2])));
+      assert.ok(near0 < 0.11, mount + ": foam within its leaves");
+    }
+  }
+});
+const along_ = (k) => { const { w, h } = frameOf(k); return along(archLine(k.shape, w, h)); };

@@ -116,7 +116,9 @@ Four starters are kits rather than things (`static/decor/custom.js`, dressed by
   `/mnt/project-files/body-studio/custom-decor/flowers-and-greenery.md` (project files).
 - **Mechanics** (an arch, `mechanics()` in custom.js): florists never stick flowers to a bare
   frame. They zip-tie foam cages (a brick of wet floral foam in a plastic cage) to it, or wrap moss
-  in chicken wire round it, cover those with short greenery, then push every stem in. So the arch
+  in chicken wire round it, hide those completely under leaves, then push every stem in. The
+  arch wraps each cage or lump of moss all round in flat leaves of its greenery (`cover()`), from
+  both ends and the middle, so they never show from any side. So the arch
   draws a cage every 30 cm where it is covered (or lumps of moss), a few short greens over each,
   and each flower on a stem from its head back into one (`stem()` in florals.js: leaves on the
   leafy kinds), heads clustered round the mechanics, most facing the front. Mounds at its feet

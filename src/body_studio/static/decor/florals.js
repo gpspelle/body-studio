@@ -216,6 +216,13 @@ export function green(s, kind, p, d, len, seed) {
 }
 const RUSCUS = [0.2, 0.4, 0.18], OLIVE = [0.52, 0.58, 0.46], PITTO = [0.18, 0.35, 0.17], PLUMOSUS = [0.38, 0.58, 0.29];
 const MAGNOLIA = [0.13, 0.27, 0.13], MAGNOLIA_BACK = [0.47, 0.32, 0.19], SALAL = [0.28, 0.45, 0.22];
+// the colours of a greenery's leaves, for leaves of it laid flat (over an arch's foam); the ones
+// with no flat leaf to speak of (ferns, palms, pampas, asparagus) are covered with salal
+export function leafColours(kind) {
+  const of = { eucalyptus: [EUCALYPTUS, [0.44, 0.57, 0.5]], ruscus: [RUSCUS, LEAF], olive: [OLIVE, [0.45, 0.52, 0.4]], salal: [SALAL, LEAF],
+               pittosporum: [PITTO, DARK_LEAF], magnolia: [MAGNOLIA, MAGNOLIA_BACK], ivy: [IVY, LEAF], monstera: [MONSTERA, DARK_LEAF] };
+  return kind === "mixed" ? [EUCALYPTUS, RUSCUS, SALAL] : of[kind] || [SALAL, LEAF];
+}
 // a stem from p toward d, len long, with n leaves (leafAt(point, len, the way it points)) along it,
 // either side, pointing out and on toward the tip
 function stemmed(s, p, d, len, seed, n, leafAt) {
@@ -235,10 +242,10 @@ function across(d) {
 }
 // dir turned by a about the front's way (+z): leaves of a rosette round their stem
 function turnAbout(dir, a) { return unit([dir[0] * Math.cos(a) - dir[1] * Math.sin(a), dir[0] * Math.sin(a) + dir[1] * Math.cos(a), dir[2]]); }
-// A flat leaf from p toward dir (unit), len long and wide across, facing the front (+z) as far as
+// A flat leaf from p toward dir (unit), len long and wide across, facing the front (+z, or `face`) as far as
 // its way allows (so a leaf on an arch shows its face to the guests, not its edge): a pointed oval.
-export function flatLeaf(s, p, dir, len, wide, col) {
-  let n = [0, 0, 1];
+export function flatLeaf(s, p, dir, len, wide, col, face = [0, 0, 1]) {
+  let n = face;
   const dn = n[0] * dir[0] + n[1] * dir[1] + n[2] * dir[2];
   n = unit(n.map((v, i) => v - dir[i] * dn + (Math.abs(dn) > 0.95 ? [0, 1, 0][i] : 0)));
   const w = unit([dir[1] * n[2] - dir[2] * n[1], dir[2] * n[0] - dir[0] * n[2], dir[0] * n[1] - dir[1] * n[0]]);

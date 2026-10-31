@@ -3,7 +3,7 @@
 // Each is dressed by florals.js from its knobs: the flowers' kinds, colours and how many, the
 // greenery, and for an arch how thickly each part of it is covered.
 import { shape, made, vert, quad, rod, cyl, box, ball, blob, bulb, shade, lit, tipped, rng, facing, COLOURS, GLASS, WIRE, WAX, FLAME, MOSS } from "./shapes.js";
-import { floralKnobs, dress, ivy, flower, green, around } from "./florals.js";
+import { floralKnobs, dress, ivy, flower, green, around, flatLeaf, leafColours } from "./florals.js";
 
 // ---------------------------------------------------------------- an arch's line
 export const ARCHES = ["round", "pointed", "square", "circle", "hexagon", "triangle", "halfmoon"];
@@ -125,7 +125,13 @@ function drawMechanics(s, k, cages, path, r) {
     }));
     for (const o of [-0.06, 0.06]) tie(s, [c.p[0] + c.d[0] * o, c.p[1] + c.d[1] * o, 0], c.d, (k.thick || 0.02) + 0.038);
   }
-  // (the foam hidden first under short pieces of the greenery, tucked in flat over its front)
+  // (never seen: each cage or lump of moss wrapped all round in leaves of the greenery, laid flat
+  // over it from both ends, overlapping, before anything else goes in; then a few short sprigs
+  // over its front)
+  if (k.mount === "foam" || k.mount === "moss") {
+    const rnd = rng(145), cols = leafColours(k.green), foam = k.mount === "foam";
+    for (const c of cages) cover(s, c, foam ? 0.12 : 0.15, foam ? 0.068 : 0.08, cols, rnd);
+  }
   if (k.mount === "foam" && (k.greens || 0) > 0) {
     // (a light one: the leafy kinds as they are, the heavy ones (ferns, palms, pampas) as salal)
     const LIGHT = ["eucalyptus", "ruscus", "olive", "salal", "pittosporum"];
@@ -135,15 +141,22 @@ function drawMechanics(s, k, cages, path, r) {
       green(s, kinds[j % kinds.length], [c.p[0] + c.d[0] * o, c.p[1] + c.d[1] * o, 0.03], d, 0.18 + 0.08 * rnd(), 151 + j);
     }
   }
-  if (k.mount === "moss") {
-    // (moss in chicken wire wrapped round the frame along the covered stretches: lumps of it, a
-    // little uneven, darker and lighter)
-    const rnd = rng(149), R = Math.min(0.05, r * 0.3);
-    made("cloth", () => { for (const c of cages) for (let j = 0; j < 5; j++) {
-      const o = (rnd() - 0.5) * CAGE_STEP * 1.05, tone = 0.75 + 0.4 * rnd();
-      blob(s, R * (0.8 + 0.5 * rnd()), R * (0.7 + 0.4 * rnd()), R * (0.8 + 0.4 * rnd()), c.p[0] + c.d[0] * o - c.d[1] * (rnd() - 0.5) * 0.03, c.p[1] + c.d[1] * o + c.d[0] * (rnd() - 0.5) * 0.03, (rnd() - 0.5) * 0.04,
-           MOSS.map((v) => v * tone), rnd() * 6.3, 6);
-    } });
+}
+// LEAVES_ROUND leaves in a ring round the frame at each end of a cage (c), `reach` along it from
+// its middle, R out from the frame, each pointing in along the frame and lying on the cage: a
+// sheath of leaves with no gap, seen from any side.
+export const LEAVES_ROUND = 9;
+export function cover(s, c, reach, R, cols, rnd) {
+  const perp = [-c.d[1], c.d[0], 0], p = [c.p[0], c.p[1], 0], d = [c.d[0], c.d[1], 0];
+  // (two rings from the ends in, one from the middle out either way, each leaf its own size and
+  // a little askew, so it reads as foliage, not scales)
+  for (const [from, way] of [[-1, 1], [1, -1], [0, 0]]) for (let j = 0; j < LEAVES_ROUND; j++) {
+    const a = ((j + (from + 1) / 3) / LEAVES_ROUND) * 2 * Math.PI + (rnd() - 0.5) * 0.5;
+    const nrm = [Math.cos(a) * perp[0], Math.cos(a) * perp[1], Math.sin(a)], w = way || (j % 2 ? 1 : -1);
+    const at = p.map((v, i) => v + d[i] * reach * from + nrm[i] * R * (0.95 + 0.15 * rnd()));
+    const skew = (rnd() - 0.5) * 0.5, side = [nrm[1] * d[2] - nrm[2] * d[1], nrm[2] * d[0] - nrm[0] * d[2], nrm[0] * d[1] - nrm[1] * d[0]];
+    const dir = d.map((v, i) => w * v + nrm[i] * 0.25 + side[i] * skew), L = Math.hypot(...dir);
+    flatLeaf(s, at, dir.map((v) => v / L), (from ? 0.15 : 0.11) * (0.8 + 0.4 * rnd()), 0.07 * (0.8 + 0.4 * rnd()), cols[(j + (from + 1)) % cols.length], nrm);
   }
 }
 // Where a flower (or a piece of greenery) goes on an arch: into one of its mechanics, chosen by its
