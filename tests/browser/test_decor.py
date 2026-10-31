@@ -38,7 +38,7 @@ class Decor(Viewer):
         self.assertTrue(page.locator("#studio").is_hidden())                       # ...steps aside for decor
         # the starters, by kind: tables and chairs first
         page.evaluate("decor.shelf('tables')")
-        self.assertEqual(page.locator("#decorGroups button").count(), 9)          # (decor.js GROUPS)
+        self.assertEqual(page.locator("#decorGroups button").count(), 10)          # (decor.js GROUPS)
         tables = page.evaluate("[...document.querySelectorAll('#decorItems button')].map((b) => b.dataset.item)")
         self.assertIn("round_table", tables)
         self.assertIn("bench", tables)
@@ -95,7 +95,7 @@ class Decor(Viewer):
         self.assertEqual(page.evaluate("decor.placed().filter((q) => q.item === 'place_setting').length"), 8)
         # lights glow: string lights over the table
         glowing = page.evaluate("decor.glowing()")
-        page.locator("#decorGroups button", has_text="Lights").click()
+        page.locator("#decorGroups button", has_text="Overhead").click()
         page.locator("#decorItems button[data-item=string_lights]").click()
         self.assertEqual(page.evaluate("decor.glowing()"), glowing + 1)
         # handles on the picked thing, like the body's joints: the knob over the candle raises it,

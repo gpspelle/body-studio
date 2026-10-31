@@ -77,9 +77,9 @@ stool that was put in the room.
 A placed thing keeps only the knobs that differ (`opts` in the layout), so layouts made before
 stay as they were.
 
-### Building your own: arches, hanging flowers, table flowers
+### Building your own: arches, hanging flowers, fabric overhead, table flowers
 
-Three starters are kits rather than things (`static/decor/custom.js`, dressed by
+Four starters are kits rather than things (`static/decor/custom.js`, dressed by
 `static/decor/florals.js`), for what a decorator designs for each wedding. Their knobs come in parts:
 
 - **Shape**: the arch's line (round, pointed, square, circle, hexagon, triangle, half moon), drawn
@@ -92,8 +92,24 @@ Three starters are kits rather than things (`static/decor/custom.js`, dressed by
 - **Where the flowers go** (an arch): a cover for each fifth of its line, from the left foot over
   the top to the right foot. The flowers are shared out by cover, so a corner at 100 and the rest at
   0 puts all of them in that corner (as thick as asked), and **Flowers at its feet** adds mounds.
+  **Slide them along** moves the whole pattern along the line (toward the right foot, or the left);
+  what slides off an arch's end is gone, round a ring it comes round the other side.
+- **Frame** (an arch): its **Thickness**; what it is made of is the panel's **Made of**: a metal
+  tube as made, square-cut **Wood**, clear acrylic (**Glass**), wrapped in fabric (**Matte**, with a
+  sash knotted at the top) or painted (**Satin**). Left at its own colour the frame takes the
+  material's (wood brown, clear, ivory); a colour you pick is kept. (Before, Made of only changed the
+  shine of the thin tube under the flowers, so it looked as if it did nothing.)
 - **Greenery**: how much and which kind; **Falling strands** of ivy and their length.
 - **Lights** (hung): filament bulbs and woven lamps under it.
+
+**Fabric overhead** (the decorators' "tecidos aéreos"): lengths of fabric under the roof, w by d, as
+**Swags** side by side, a **Canopy** edge to edge, a **Tent** from the middle out all round, or
+**Waves** caught up every metre or so; how many lengths, **How low it hangs**, posies of flowers
+where they are gathered and bulbs among them. The fabric is in the colour you pick and Made of what
+you pick (Glass for a sheer voile).
+
+Everything hung from the roof (the hanging flowers, fabric ceilings and swags, pendants, string
+lights, the chandelier) is on its own **Overhead** shelf.
 
 A choice knob is `{choices, value}` and a colour knob `{colour: true, palette, value}` (a name or
 "#rrggbb"); decor.py keeps either by its word. The arch and the hung flowers build in a fraction of

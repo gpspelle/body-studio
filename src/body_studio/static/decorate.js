@@ -529,7 +529,7 @@ const knobText = (k, v) => (k.size ? Math.round(v * 100) + " cm" : k.unit ? v + 
 // the knobs in their parts (sizes first, then the shape, the flowers, how much of an arch they
 // cover, the greenery, the lights, the glasses), each part under its name: a slider for a size or
 // a count, chips for a choice (a shape, a kind of flower), swatches and a picker for a colour
-const PARTS = ["", "shape", "flowers", "cover", "greenery", "lights", "glasses", "table"];
+const PARTS = ["", "shape", "frame", "flowers", "cover", "greenery", "lights", "glasses", "table"];
 function knobsUI() {
   const p = placed()[sel];
   if (!p || !STARTERS[p.item]) return;

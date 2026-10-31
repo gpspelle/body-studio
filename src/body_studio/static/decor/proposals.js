@@ -13,7 +13,7 @@ import {
 export const PROPOSALS = {
   // ------------------------------------------------ hung overhead
   edison_bulbs: {
-    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "black", size: { r: 0.5 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "black", size: { r: 0.5 }, block: false,
     make() {
       // a cluster of bare filament bulbs on cords of every length, as over the cake table
       const s = shape(), rnd = rng(61);
@@ -25,7 +25,7 @@ export const PROPOSALS = {
     },
   },
   rattan_pendants: {
-    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { w: 1.7, d: 1.15 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { w: 1.7, d: 1.15 }, block: false,
     make(col) {
       // a cluster of woven lamps of different shapes at different heights: bells, domes, gourds,
       // eggs and a drum, each with its bulb
@@ -37,7 +37,7 @@ export const PROPOSALS = {
     },
   },
   gourd_pendants: {
-    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { w: 2.0, d: 1.6 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { w: 2.0, d: 1.6 }, block: false,
     make(col) {
       // nine woven teardrops glowing warm from inside, at different heights on long cords, as in
       // the venue's vertical garden: pointed at the top, round below, open at the bottom
@@ -50,7 +50,7 @@ export const PROPOSALS = {
     },
   },
   jute_pendant: {
-    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { r: 0.2 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { r: 0.2 }, block: false,
     make(col) {
       // a tall jute shade, a fringe of fibre hanging straight, a bulb glowing through it
       const s = shape();
@@ -62,7 +62,7 @@ export const PROPOSALS = {
     },
   },
   globe_lanterns: {
-    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "white", size: { w: 1.4, d: 0.8 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "white", size: { w: 1.4, d: 0.8 }, block: false,
     make(col) {
       // white paper globes at different heights, glowing softly
       const s = shape(), rnd = rng(67);
@@ -75,7 +75,7 @@ export const PROPOSALS = {
     },
   },
   tropical_cloud: {
-    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "coral", size: { w: 2.9, d: 1.7 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "coral", size: { w: 2.9, d: 1.7 }, block: false,
     make(col) {
       // a cloud of palm fronds and red cordyline hung over a table, a few flowers in it and filament
       // bulbs hanging from under it
@@ -89,7 +89,7 @@ export const PROPOSALS = {
     },
   },
   bougainvillea_cloud: {
-    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "blush", size: { w: 2.5, d: 1.6 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "blush", size: { w: 2.5, d: 1.6 }, block: false,
     make() {
       // a hung mass of magenta bougainvillea with its leaves, strands of greenery falling from it
       const s = shape(), rnd = rng(73), deep = BOUGAIN.map((v) => v * 0.78);
@@ -105,7 +105,7 @@ export const PROPOSALS = {
     },
   },
   orchid_cloud: {
-    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "white", size: { w: 2.2, d: 1.5 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "white", size: { w: 2.2, d: 1.5 }, block: false,
     make(col) {
       // broad monstera leaves hung overhead and white orchids cascading down from among them
       const s = shape();
@@ -117,7 +117,7 @@ export const PROPOSALS = {
     },
   },
   green_cloud: {
-    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "green", size: { w: 2.7, d: 1.9 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "green", size: { w: 2.7, d: 1.9 }, block: false,
     make() {
       // a cloud of ferns and palm leaves, filament bulbs hanging thick under it
       const s = shape();
@@ -127,7 +127,7 @@ export const PROPOSALS = {
     },
   },
   ficus_pendants: {
-    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { w: 1.8, d: 1.1 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { w: 1.8, d: 1.1 }, block: false,
     make(col) {
       // a canopy of small-leaved greenery with woven lamps hung close under it
       const s = shape(), rnd = rng(89);
@@ -142,7 +142,7 @@ export const PROPOSALS = {
     },
   },
   hanging_pots: {
-    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "white", size: { w: 2.0, d: 0.5 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "white", size: { w: 2.0, d: 0.5 }, block: false,
     make(col) {
       // a row of white pots hung on cords, ferns and philodendron spilling from each
       const s = shape(), rnd = rng(97);
@@ -156,7 +156,7 @@ export const PROPOSALS = {
     },
   },
   voile_swags: {
-    group: "ceremony", height: 3.0, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 3 }, block: false,
+    group: "aerial", height: 3.0, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 3 }, block: false,
     make(col) {
       // long lengths of voile hung loose across a roof, side by side, each gathered in soft folds
       // across its width and sagging deep between its ends
@@ -478,11 +478,11 @@ export const PROPOSALS = {
     },
   },
   jute_ceiling: {
-    group: "ceremony", height: 3.4, hangs: true, on: "floor", colour: "rattan", size: { w: 4, d: 4 }, block: false,
+    group: "aerial", height: 3.4, hangs: true, on: "floor", colour: "rattan", size: { w: 4, d: 4 }, block: false,
     make(col) { const s = shape(); swags(s, col, true); return s; },
   },
   jute_swags: {
-    group: "ceremony", height: 3.4, hangs: true, on: "floor", colour: "rattan", size: { w: 4, d: 4 }, block: false,
+    group: "aerial", height: 3.4, hangs: true, on: "floor", colour: "rattan", size: { w: 4, d: 4 }, block: false,
     make(col) { const s = shape(); swags(s, col, false); return s; },
   },
   agave: {

@@ -2,7 +2,7 @@
 // its flowers where you want them, a floral installation hung overhead, the flowers for a table.
 // Each is dressed by florals.js from its knobs: the flowers' kinds, colours and how many, the
 // greenery, and for an arch how thickly each part of it is covered.
-import { shape, made, rod, cyl, box, ball, bulb, shade, lit, tipped, rng, WIRE, WAX, FLAME } from "./shapes.js";
+import { shape, made, vert, quad, rod, cyl, box, ball, bulb, shade, lit, tipped, rng, COLOURS, GLASS, WIRE, WAX, FLAME } from "./shapes.js";
 import { floralKnobs, dress, ivy, flower, around } from "./florals.js";
 
 // ---------------------------------------------------------------- an arch's line
@@ -58,14 +58,29 @@ export function along(line) {
     },
   };
 }
-// Where along an arch's line a flower goes, as its parts' cover asks (k.lfoot..k.rfoot, 0..100): a
-// part is chosen by its share of the cover, then a place in it; null when nothing is covered.
-export function coverPick(k, r1, r2) {
-  const w = PARTS.map((n) => Math.max(0, +k[n] || 0)), sum = w.reduce((a, b) => a + b, 0);
+// Where along an arch's line a flower goes, as its parts' cover asks (k.lfoot..k.rfoot, 0..100),
+// moved along the line by k.shift (-100..100, in a hundred of its length: the flowers slid over
+// toward its right foot, or its left): a part is chosen by its share of the cover still on the
+// line, then a place in it; null when nothing is covered. Round a closed ring (closed) what is
+// slid past one end comes round from the other.
+export function coverPick(k, r1, r2, closed = false) {
+  const s = (+k.shift || 0) / 100, spans = [];
+  PARTS.forEach((n, i) => {
+    const w = Math.max(0, +k[n] || 0), a = i / PARTS.length + s, b = a + 1 / PARTS.length;
+    if (!w) return;
+    if (closed) {
+      // (a part's span, round the ring: at most two pieces)
+      const a0 = a - Math.floor(a), b0 = a0 + 1 / PARTS.length;
+      if (b0 <= 1) spans.push([a0, b0, w]);
+      else spans.push([a0, 1, w], [0, b0 - 1, w]);
+    } else if (Math.min(1, b) > Math.max(0, a)) spans.push([Math.max(0, a), Math.min(1, b), w]);
+  });
+  const sum = spans.reduce((m, [a, b, w]) => m + (b - a) * w, 0);
   if (!sum) return null;
-  let u = r1 * sum, part = 0;
-  while (part < PARTS.length - 1 && u >= w[part]) { u -= w[part]; part++; }
-  return (part + r2) / PARTS.length;
+  let u = r1 * sum, k0 = 0;
+  while (k0 < spans.length - 1 && u >= (spans[k0][1] - spans[k0][0]) * spans[k0][2]) { u -= (spans[k0][1] - spans[k0][0]) * spans[k0][2]; k0++; }
+  const [a, b] = spans[k0];
+  return Math.min(b, a + r2 * (b - a));
 }
 // where an arch stands on the floor: the ends of its line on the ground (a ring's foot)
 export function archPosts(k) {
@@ -88,18 +103,94 @@ function mound(s, k, x, z, r, h, seed, flowers, greens, len = 0.3) {
   }, seed, len);
 }
 
+// An arch's frame, made of what the panel's "Made of" asks (k.finish): a metal tube (as made), a
+// square-cut wooden frame, clear acrylic, a frame wrapped in fabric, or painted (satin); k.thick
+// thick (its radius). Its colour is the arch's own, or, left at the starter's, the material's own:
+// wood brown, acrylic clear, fabric ivory.
+const FRAME_FINISH = { wood: "wood", glass: "glass", cloth: "cloth", satin: "satin", metal: "metal" };
+export function frameColour(col, k) {
+  if (k.colourset) return col;
+  return k.finish === "wood" ? COLOURS.wood : k.finish === "glass" ? GLASS : k.finish === "cloth" ? COLOURS.ivory : col;
+}
+function frame(s, line, col, k) {
+  const r = k.thick || 0.02, c = frameColour(col, k), f = FRAME_FINISH[k.finish] || "metal";
+  made(f, () => {
+    for (let n = 1; n < line.length; n++) {
+      const a = [line[n - 1][0], line[n - 1][1], 0], b = [line[n][0], line[n][1], 0];
+      // (wood is cut square; fabric wraps it a little fuller, in soft turns)
+      if (f === "wood") rod(s, a, b, r * 1.2, c, 4);
+      else if (f === "cloth") rod(s, a, b, r * 1.35, c, 10);
+      else rod(s, a, b, r, c, f === "glass" ? 6 : 8);
+    }
+  });
+  // fabric: a sash knotted at the top, its tails falling
+  if (f === "cloth") {
+    // (at the middle of its top)
+    let top = 0;
+    for (let n = 1; n < line.length; n++) if (line[n][1] > line[top][1] + 1e-6 || (Math.abs(line[n][1] - line[top][1]) < 1e-6 && Math.abs(line[n][0]) < Math.abs(line[top][0]))) top = n;
+    const [x, y] = line[top];
+    made("cloth", () => {
+      for (const side of [-1, 1]) band(s, [x, y, r], [x + side * 0.25, Math.max(0.1, y - 1.1), r + 0.04], 0.16, 0, 1, c, [0, 0, 1]);
+      ball(s, r * 1.8 + 0.03, x, y, r, c, 10);
+    });
+  }
+}
+
+// A length of fabric from a to b ([x, y, z]), wide across (along `across`, a unit way in x-z),
+// dipping `dip` below the line between them in `scallops` swags (0: straight), gathered narrow at
+// its ends and where it is caught up, in soft folds along it.
+export function band(s, a, b, wide, dip, scallops, col, across) {
+  const U = Math.max(12, 16 * Math.max(1, scallops)), V = 8, pts = [];
+  for (let i = 0; i <= U; i++) for (let j = 0; j <= V; j++) {
+    const t = i / U, v = j / V - 0.5, hump = scallops ? Math.abs(Math.sin(Math.PI * scallops * t)) : Math.sin(Math.PI * t);
+    const open = 0.3 + 0.7 * hump, fold = 0.03 * Math.sin(v * Math.PI * 6) * (0.3 + hump);
+    const x = a[0] + (b[0] - a[0]) * t + across[0] * v * wide * open, z = a[2] + (b[2] - a[2]) * t + across[2] * v * wide * open;
+    const y = a[1] + (b[1] - a[1]) * t - (scallops ? dip * hump : 0) + fold - 0.06 * v * v;
+    pts.push(vert(s, x, y, z, col));
+  }
+  for (let i = 0; i < U; i++) for (let j = 0; j < V; j++)
+    quad(s, pts[i * (V + 1) + j], pts[i * (V + 1) + j + 1], pts[(i + 1) * (V + 1) + j + 1], pts[(i + 1) * (V + 1) + j]);
+}
+
+// Where the lengths of an overhead of fabric run, w by d under a roof at `top`, as its style asks:
+// swags across it side by side, a canopy (the same, edge to edge), a tent (from its middle out to
+// its edge all round) or waves (swags caught up every metre or so). Each { a, b, wide, scallops,
+// across }; and the points where they are gathered (for posies, the tent's crown).
+export function fabricRuns(style, w, d, n, top) {
+  const runs = [], gathers = [];
+  if (style === "radial") {
+    for (let j = 0; j < n; j++) {
+      const q = (j / n) * 2 * Math.PI, e = [Math.cos(q) * w / 2, top, Math.sin(q) * d / 2];
+      runs.push({ a: [0, top - 0.05, 0], b: e, wide: Math.min(1.2, (Math.PI * Math.max(w, d)) / n), scallops: 1, across: [-Math.sin(q), 0, Math.cos(q)] });
+      gathers.push(e);
+    }
+    gathers.push([0, top - 0.05, 0]);
+    return { runs, gathers };
+  }
+  const gap = d / n, wide = style === "canopy" ? gap * 1.05 : gap * 0.6;
+  const scallops = style === "waves" ? Math.max(2, Math.round(w / 1.3)) : 1;
+  for (let j = 0; j < n; j++) {
+    const z = -d / 2 + gap * (j + 0.5);
+    runs.push({ a: [-w / 2, top, z], b: [w / 2, top, z], wide, scallops, across: [0, 0, 1] });
+    for (let c = 0; c <= scallops; c++) gathers.push([-w / 2 + (w * c) / scallops, top, z]);
+  }
+  return { runs, gathers };
+}
+
 export const CUSTOM = {
   custom_arch: {
     group: "ceremony", height: 2.6, on: "floor", colour: "gold", size: { w: 2.2, d: 0.9 }, block: "posts", posts: [[-0.755, 0], [0.755, 0]],
-    built: ["w", "d", "h"], postsFor: archPosts, heavy: true,
+    built: ["w", "d", "h"], postsFor: archPosts, heavy: true, finishes: true,
     knobs: {
       shape: { choices: ARCHES, value: "round", part: "shape" },
+      thick: { min: 0.01, max: 0.12, step: 0.005, value: 0.02, size: true, part: "frame" },
       ...floralKnobs({ flowers: 180, greens: 110 }),
       lfoot: { min: 0, max: 100, step: 5, value: 20, unit: "%", part: "cover" },
       lside: { min: 0, max: 100, step: 5, value: 60, unit: "%", part: "cover" },
       crown: { min: 0, max: 100, step: 5, value: 100, unit: "%", part: "cover" },
       rside: { min: 0, max: 100, step: 5, value: 30, unit: "%", part: "cover" },
       rfoot: { min: 0, max: 100, step: 5, value: 0, unit: "%", part: "cover" },
+      shift: { min: -100, max: 100, step: 5, value: 0, unit: "%", part: "cover" },
       feet: { choices: ["none", "left", "right", "both"], value: "left", part: "cover" },
       footflowers: { min: 0, max: 200, value: 50, part: "cover" },
       trails: { min: 0, max: 40, value: 6, part: "greenery" },
@@ -110,11 +201,12 @@ export const CUSTOM = {
       // a ring; over it flowers and greenery as thick as each part's cover, strands falling from
       // the top, mounds at its feet
       const s = shape(), { w: fw, h: fh, r } = frameOf(k), line = archLine(k.shape, fw, fh), path = along(line);
-      for (let n = 1; n < line.length; n++) rod(s, [line[n - 1][0], line[n - 1][1], 0], [line[n][0], line[n][1], 0], 0.018, col, 8);
+      const closed = k.shape === "circle";
+      frame(s, line, col, k);
       if (k.shape === "circle" || k.shape === "halfmoon")
-        made("satin", () => box(s, Math.min(fw, 1.2), 0.05, Math.max(0.3, k.d * 0.6), 0, 0, 0, col));
+        made(FRAME_FINISH[k.finish] || "satin", () => box(s, Math.min(fw, 1.2), 0.05, Math.max(0.3, k.d * 0.6), 0, 0, 0, frameColour(col, k)));
       dress(s, k, (rnd, n, leafy) => {
-        const t = coverPick(k, rnd(), rnd());
+        const t = coverPick(k, rnd(), rnd(), closed);
         if (t === null) return null;
         // (round the frame, most toward the front; leaves further out)
         const at = path.at(t), q = (rnd() - 0.5) * (rnd() < 0.8 ? 2.2 : 6.3), d = around(at.d, q), o = r * (leafy ? 0.6 + 0.5 * rnd() : Math.sqrt(rnd()));
@@ -125,7 +217,7 @@ export const CUSTOM = {
       // strands falling from the covered parts high up
       const rnd = rng(137);
       for (let n = 0, tries = 0; n < k.trails && tries < k.trails * 20; tries++) {
-        const t = coverPick(k, rnd(), rnd());
+        const t = coverPick(k, rnd(), rnd(), closed);
         if (t === null) break;
         const at = path.at(t);
         if (at.p[1] < fh * 0.45) continue;
@@ -142,7 +234,7 @@ export const CUSTOM = {
     },
   },
   floral_cloud: {
-    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "black", size: { w: 2.4, d: 1.2 }, block: false, built: ["w", "d"], heavy: true,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "black", size: { w: 2.4, d: 1.2 }, block: false, built: ["w", "d"], heavy: true,
     knobs: {
       shape: { choices: ["cloud", "ring", "garland", "rain"], value: "cloud", part: "shape" },
       drop: { min: 0.1, max: 1.5, step: 0.05, value: 0.4, size: true, part: "shape" },
@@ -200,6 +292,35 @@ export const CUSTOM = {
         const a = n * 2.4, q = k.lamps > 1 ? Math.sqrt((n + 0.5) / k.lamps) : 0;
         const x = Math.cos(a) * q * w * 0.42, z = Math.sin(a) * q * d * 0.42, h = 0.36 + 0.1 * (n % 3);
         shade(s, kinds[n % kinds.length], h, x, y - thick - h - 0.15 * (n % 2), z, y, [0.74, 0.57, 0.37]);
+      }
+      return s;
+    },
+  },
+  aerial_fabric: {
+    group: "aerial", height: 3.0, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 4 }, block: false, built: ["w", "d"], heavy: true,
+    knobs: {
+      style: { choices: ["swags", "canopy", "radial", "waves"], value: "swags", part: "shape" },
+      strips: { min: 2, max: 24, value: 6, part: "shape" },
+      sag: { min: 0.1, max: 1.5, step: 0.05, value: 0.6, size: true, part: "shape" },
+      ...floralKnobs({ flowers: 0, greens: 0, flower: "rose", tint: "#f7f5ef", accent: "babysbreath", accenttint: "#f7f5ef", share: 30 }),
+      bulbs: { min: 0, max: 60, value: 0, part: "lights" },
+    },
+    make(col, k) {
+      // fabric hung under a roof (3 m), w by d, as the decorators' "tecidos aéreos": lengths of it
+      // in the arch's colour on wires, sagging `sag` (swags, a canopy, a tent from the middle, waves
+      // caught up along them); posies of flowers where they are gathered; bulbs hung among them
+      const s = shape(), top = 3.0, rnd = rng(191), { runs, gathers } = fabricRuns(k.style, k.w, k.d, k.strips, top);
+      for (const g of k.style === "radial" ? [] : [-1, 1]) rod(s, [g * k.w / 2, top, -k.d / 2], [g * k.w / 2, top, k.d / 2], 0.006, WIRE, 4);
+      made("cloth", () => { for (const run of runs) band(s, run.a, run.b, run.wide, k.style === "waves" ? k.sag / 1.6 : k.sag, run.scallops, col, run.across); });
+      // (a tent's middle, caught up on a ring)
+      if (k.style === "radial") rod(s, [0, top, 0], [0, top - 0.05, 0], 0.004, WIRE, 4);
+      dress(s, k, (r) => {
+        const g = gathers[Math.floor(r() * gathers.length)], a = r() * 6.3, q = Math.sqrt(r()) * 0.16, dir = tipped(a, Math.PI * (0.35 + 0.5 * r()));
+        return [[g[0] + Math.sin(a) * q, g[1] - 0.08 - 0.06 * r(), g[2] + Math.cos(a) * q], dir];
+      }, 193, 0.3);
+      for (let n = 0; n < k.bulbs; n++) {
+        const x = (rnd() - 0.5) * k.w * 0.9, z = (rnd() - 0.5) * k.d * 0.9;
+        bulb(s, x, top, top - k.sag - 0.15 - 0.4 * rnd(), z);
       }
       return s;
     },

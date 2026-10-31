@@ -332,7 +332,7 @@ export const WEDDING = {
   },
   // ------------------------------------------------ lights
   string_lights: {
-    group: "lights", height: 2.8, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 0.1 }, block: false,
+    group: "aerial", height: 2.8, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 0.1 }, block: false,
     make() {
       // a festoon 4 m long, hung 2.8 m up at its ends, sagging 35 cm
       const s = shape(), at = (x) => 2.8 - 0.35 * (1 - (x / 2) ** 2);
@@ -352,7 +352,7 @@ export const WEDDING = {
     make(col) { const s = shape(); cyl(s, 0.2, 0.17, 0.4, 0, 0, 0, other(col, COLOURS.black, COLOURS.wood), 20); rod(s, [0, 0.4, 0], [0, 3.0, 0], 0.025, col, 8); return s; },
   },
   chandelier: {
-    group: "lights", height: 3.2, hangs: true, on: "floor", colour: "gold", size: { r: 0.5 }, block: false,
+    group: "aerial", height: 3.2, hangs: true, on: "floor", colour: "gold", size: { r: 0.5 }, block: false,
     make(col) {
       // hung from 3.2 m: chains, two rings of candle bulbs
       const s = shape();
@@ -378,7 +378,7 @@ export const WEDDING = {
     },
   },
   fairy_curtain: {
-    group: "lights", height: 2.41, hangs: true, on: "floor", colour: "white", size: { w: 2.4, d: 0.06 }, block: true,
+    group: "aerial", height: 2.41, hangs: true, on: "floor", colour: "white", size: { w: 2.4, d: 0.06 }, block: true,
     make() {
       // a backdrop of strands of tiny lights, hung from a bar
       const s = shape();

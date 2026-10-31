@@ -225,7 +225,7 @@ export const EXTRAS = {
     },
   },
   rose_ball: {
-    group: "flowers", height: 2.6, hangs: true, on: "floor", colour: "white", size: { r: 0.13 }, block: false,
+    group: "aerial", height: 2.6, hangs: true, on: "floor", colour: "white", size: { r: 0.13 }, block: false,
     knobs: { flowers: { min: 20, max: 140, value: 60 } },
     make(col, k = { flowers: 60 }) {
       // a kissing ball: a sphere of roses hung on a satin ribbon, 2 m up to its middle

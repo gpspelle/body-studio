@@ -6,8 +6,9 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { COLOURS, FINISHES, GROUPS, STARTERS, fixtureTurn, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
          knobs, knobValues, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, PALETTES, isChoice } from "../../src/body_studio/static/decor.js";
-import { ARCHES, PARTS, archLine, along, coverPick, archPosts, frameOf } from "../../src/body_studio/static/decor/custom.js";
+import { ARCHES, PARTS, archLine, along, coverPick, archPosts, frameOf, fabricRuns } from "../../src/body_studio/static/decor/custom.js";
 import { FLOWERS, GREENS } from "../../src/body_studio/static/decor/florals.js";
+import { F } from "../../src/body_studio/static/decor/shapes.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
 
 const env = (k) => process.env[k] && JSON.parse(fs.readFileSync(process.env[k], "utf8"));
@@ -335,7 +336,8 @@ test("colours of your own: HEX and RGB in, the starter's finish kept", () => {
 });
 
 test("the flower shop: many kinds of flowers and ways to show them, each light enough to draw many of", () => {
-  const shop = Object.entries(STARTERS).filter(([, s]) => s.group === "flowers");
+  // (what hangs from the roof is on the overhead shelf)
+  const shop = Object.entries(STARTERS).filter(([, s]) => s.group === "flowers" || s.group === "aerial");
   assert.ok(shop.length >= 15, `${shop.length} in the flower shop`);
   assert.ok(shop.some(([, s]) => s.on === "top") && shop.some(([, s]) => s.on === "floor") && shop.some(([, s]) => s.hangs),
             "on tables, on the floor and hung from the roof");
@@ -567,4 +569,73 @@ test("each shape and kind builds; the colour asked for is the flowers' and the g
   const one = starterShape("place_setting", null, { glasses: 1 }), three = starterShape("place_setting", null, { glasses: 3, glass: "#c98a3c" });
   assert.ok(three.p.length > one.p.length);
   assert.ok(has(three, "#c98a3c") && !has(starterShape("place_setting"), "#c98a3c"));
+});
+
+test("an arch's flowers slide along it; round a ring they come round the other side", () => {
+  const none = Object.fromEntries(PARTS.map((n) => [n, 0])), top = { ...none, crown: 100 };
+  for (let k = 0; k < 50; k++) {
+    const r1 = k / 50, r2 = (k * 7 % 50) / 50;
+    near(coverPick({ ...top, shift: 0 }, r1, r2), coverPick(top, r1, r2), 1e-12, "no slide, as before");
+    const t = coverPick({ ...top, shift: 40 }, r1, r2);
+    assert.ok(t >= 0.8 - 1e-9 && t <= 1, "slid to its right foot: " + t);
+    const w = coverPick({ ...none, rfoot: 100, shift: 40 }, r1, r2, true);
+    assert.ok(w >= 0.2 - 1e-9 && w <= 0.4 + 1e-9, "round a ring: " + w);
+  }
+  // (slid off the end of an arch, they are gone; half off, the rest stays as thick)
+  assert.equal(coverPick({ ...top, shift: 100 }, 0.5, 0.5), null);
+  assert.ok(coverPick({ ...none, rfoot: 100, shift: 10 }, 0.99, 0.99) <= 1);
+  const bare = { greens: 0, trails: 0, feet: "none", ...none, crown: 100 };
+  const left = starterShape("custom_arch", null, { ...bare, shift: -40 }), right = starterShape("custom_arch", null, { ...bare, shift: 40 });
+  assert.ok(share(left, (x) => x < -0.3) > 0.8 && share(right, (x) => x > 0.3) > 0.8, "the flowers moved over");
+  assert.equal(cleanOpts("custom_arch", { shift: 35 }).shift, 35);
+});
+
+test("what an arch is made of is its frame's: wood, acrylic, fabric, as thick as asked", () => {
+  const bare = { flowers: 0, greens: 0, trails: 0, feet: "none" };
+  const of = (sh, f) => sh.m.filter((m) => m === F[f]).length;
+  const metal = starterShape("custom_arch", null, bare);
+  assert.ok(of(metal, "metal") > 0, "a brass tube as made");
+  for (const f of ["wood", "glass", "cloth", "satin"]) {
+    const sh = starterShape("custom_arch", null, { ...bare, finish: f });
+    assert.ok(of(sh, f) > of(metal, f), f + ": the frame is made of it");
+    assert.equal(of(sh, "metal"), 0, f + ": no metal left");
+  }
+  // (left at its own colour, wood is wood brown; a colour chosen is kept)
+  const wood = starterShape("custom_arch", null, { ...bare, finish: "wood" });
+  assert.ok(wood.c.some((v, n) => n % 3 === 0 && v === COLOURS.wood[0] && wood.c[n + 1] === COLOURS.wood[1]), "wood brown");
+  const black = starterShape("custom_arch", "black", { ...bare, finish: "wood" });
+  assert.ok(!black.c.some((v, n) => n % 3 === 0 && v === COLOURS.wood[0] && black.c[n + 1] === COLOURS.wood[1]), "painted black");
+  // (thicker, further round its line)
+  const thin = bounds(starterShape("custom_arch", null, { ...bare, thick: 0.01 }).p), thick = bounds(starterShape("custom_arch", null, { ...bare, thick: 0.1 }).p);
+  near(thick.hi[2] - thin.hi[2], 0.09, 0.01, "a thicker frame");
+  assert.deepEqual(cleanOpts("custom_arch", { finish: "wood" }), { finish: "wood" });
+});
+
+test("overhead: its own shelf, everything on it hung; fabric overhead built your way", () => {
+  assert.ok(GROUPS.includes("aerial"));
+  const aerial = Object.entries(STARTERS).filter(([, s]) => s.group === "aerial");
+  assert.ok(aerial.length >= 20);
+  for (const [id, s] of aerial) assert.ok(s.hangs, id + " hangs");
+  for (const id of ["floral_cloud", "fabric_ceiling", "string_lights", "chandelier", "aerial_fabric"]) assert.equal(STARTERS[id].group, "aerial", id);
+  for (const style of STARTERS.aerial_fabric.knobs.style.choices) {
+    const sh = starterShape("aerial_fabric", null, { style, sag: 0.8 }), b = bounds(sh.p);
+    assert.ok(b.hi[1] <= 3.0 + 0.05, style + ": under the roof");
+    assert.ok(b.lo[1] < 3.0 - 0.5 && b.lo[1] > 3.0 - 0.8 - 0.2, style + ": sags as low as asked: " + b.lo[1]);
+    assert.ok(b.hi[0] <= 2.05 && b.lo[0] >= -2.05 && b.hi[2] <= 2.4 && b.lo[2] >= -2.4, style + ": within its size");
+    assert.ok(sh.i.every((i) => i < sh.p.length / 3), style);
+  }
+  // (a tent's lengths run out from its middle all round; swags across it side by side)
+  const tent = fabricRuns("radial", 4, 4, 8, 3), swags = fabricRuns("swags", 4, 4, 6, 3), waves = fabricRuns("waves", 4, 4, 6, 3);
+  assert.equal(tent.runs.length, 8);
+  for (const r of tent.runs) { near(Math.hypot(r.a[0], r.a[2]), 0, 1e-9, "from the middle"); near(Math.hypot(r.b[0], r.b[2]), 2, 1e-9, "to the edge"); }
+  assert.ok(waves.runs[0].scallops > swags.runs[0].scallops, "waves caught up along them");
+  const more = starterShape("aerial_fabric", null, { strips: 12 }), fewer = starterShape("aerial_fabric", null, { strips: 4 });
+  assert.ok(more.p.length > fewer.p.length * 2, "more lengths of fabric");
+  const lit = (sh) => sh.g.filter(Boolean).length;
+  assert.ok(lit(starterShape("aerial_fabric", null, { bulbs: 20 })) > 0, "bulbs glow");
+  const posies = starterShape("aerial_fabric", null, { flowers: 30, tint: "#c41a24" });
+  assert.ok(posies.p.length > starterShape("aerial_fabric").p.length, "posies where it is gathered");
+  // (made of what is asked, in the colour asked: a sheer voile)
+  const voile = starterShape("aerial_fabric", "blush", { finish: "glass" });
+  assert.ok(voile.m.some((m) => m === F.glass));
 });

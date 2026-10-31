@@ -26,7 +26,7 @@ export { COLOURS, FINISHES, PALETTES };
 export const STARTERS = { ...BASICS, ...WEDDING, ...GARDEN, ...PROPOSALS, ...EXTRAS, ...HOME, ...CUSTOM };
 
 // the groups the panel shows the starters in, in order
-export const GROUPS = ["tables", "flowers", "table", "ceremony", "bar", "lights", "lounge", "garden", "home"];
+export const GROUPS = ["tables", "flowers", "table", "ceremony", "aerial", "bar", "lights", "lounge", "garden", "home"];
 
 // A starter's shape in a colour (a name in COLOURS; its own colour if none), changed by `opts`
 // (knobs()): its size, what its main colour is made of, its own counts.
@@ -36,6 +36,9 @@ export function starterShape(id, colour, opts = null) {
   const col = colourOf(colour, def.colour), k = knobValues(id, opts);
   // (a colour knob reaches make() as its colour: a rose's, a glass's)
   for (const kn of knobs(id)) if (kn.colour) k[kn.name] = colourOf(k[kn.name], kn.value);
+  // (one that draws what it is made of itself, an arch's frame, is told it, and whether its colour
+  // was chosen or is its own)
+  if (def.finishes) { k.finish = opts && MATERIALS.includes(opts.finish) ? opts.finish : null; k.colourset = !!colour && colour !== def.colour; }
   const s = def.make(col, k);
   // a size its make() doesn't draw to is stretched to (round things stay round)
   const [w0, d0, h0] = dims(def), built = def.built || [];
@@ -43,7 +46,7 @@ export function starterShape(id, colour, opts = null) {
   const sz = def.size.r !== undefined ? sx : built.includes("d") ? 1 : k.d / d0;
   if (sx !== 1 || sy !== 1 || sz !== 1) for (let n = 0; n < s.p.length; n += 3) { s.p[n] *= sx; s.p[n + 1] *= sy; s.p[n + 2] *= sz; }
   // what is in its own colour made of something else (a wooden bar in brass, a cloth in satin)
-  if (opts && F[opts.finish] !== undefined && opts.finish !== "glow")
+  if (opts && !def.finishes && F[opts.finish] !== undefined && opts.finish !== "glow")
     for (let v = 0; v < s.m.length; v++)
       if (!s.g[v] && s.c[3 * v] === col[0] && s.c[3 * v + 1] === col[1] && s.c[3 * v + 2] === col[2]) s.m[v] = F[opts.finish];
   return s;

@@ -202,7 +202,7 @@ export const GARDEN = {
     },
   },
   hanging_greenery: {
-    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "gold", size: { w: 2.2, d: 1.6 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "gold", size: { w: 2.2, d: 1.6 }, block: false,
     make(col) {
       // a cloud of greenery hung from the roof, ferns and fronds falling from it, sprays of flowers
       // in it, as over the dessert table in the photos
@@ -218,7 +218,7 @@ export const GARDEN = {
     },
   },
   flower_cloud: {
-    group: "flowers", height: 2.9, hangs: true, on: "floor", colour: "white", size: { r: 0.52 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "white", size: { r: 0.52 }, block: false,
     make(col) {
       // a cloud of baby's breath hung overhead
       const s = shape();
@@ -257,7 +257,7 @@ export const GARDEN = {
     },
   },
   wicker_pendant: {
-    group: "lights", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { r: 0.38 }, block: false,
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { r: 0.38 }, block: false,
     make(col) {
       // a wide woven lampshade hung from the roof, a warm bulb inside
       const s = shape();
@@ -289,7 +289,7 @@ export const GARDEN = {
     },
   },
   fabric_ceiling: {
-    group: "ceremony", height: 3.0, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 4 }, block: false,
+    group: "aerial", height: 3.0, hangs: true, on: "floor", colour: "white", size: { w: 4, d: 4 }, block: false,
     make(col) {
       // white voile hung in swags under a roof, 4 m square: each length falls between two bars
       const s = shape(), n = 8, lo = 2.35;

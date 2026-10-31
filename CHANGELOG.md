@@ -2,6 +2,13 @@
 
 ## 0.1.0 (unreleased)
 
+- **Decor, overhead**: a new **Overhead** shelf with everything hung from the roof (hanging
+  flowers, fabric ceilings and swags, pendants, string lights, the chandelier), and **Fabric
+  overhead, your own**: swags, a canopy, a tent from the middle or waves of fabric, how many and how
+  low, posies where they are gathered and bulbs among them.
+- **Arch, your own**: **Made of** now changes its frame (wood, clear acrylic, wrapped in fabric,
+  painted, metal), which before only changed the shine of the thin tube under the flowers; a frame
+  **Thickness**; **Slide them along** moves the flowers over the arch.
 - **Bake the light** (above Take a photo, in the drawn rooms: the sample rooms and the venue): works
   out the light Take a photo follows (the sun's soft shadows, the sky's light, darker under roofs and
   in corners, the light walls and floors throw back) on the GPU and keeps it on every wall, floor,
