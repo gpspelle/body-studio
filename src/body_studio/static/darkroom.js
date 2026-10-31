@@ -2,10 +2,11 @@
 // (three-gpu-pathtracer, in pathtracer/) in a window of its own over the page, then kept as a PNG.
 // What goes in, its materials and its light are photo.js's; this part copies the room's meshes as
 // they are drawn into a scene of their own, with materials the path tracer understands, and runs
-// it a pass at a time between frames so the page stays responsive. Design: docs/photo.md.
+// it a pass at a time between frames so the page stays responsive. Photo of this piece (Decorate)
+// is the same with only the piece picked, on a plain floor, framed to fill it. Design: docs/photo.md.
 import * as THREE from "three";
 import { WebGLPathTracer, GradientEquirectTexture } from "/static/pathtracer/pathtracer.js";
-import { PHOTO, finishLook, keep, photoName, photoSize, progress, sunWay } from "/static/photo.js";
+import { PHOTO, PIECE, finishLook, frameOn, groundAt, keep, photoName, photoSize, pieceName, progress, sunWay } from "/static/photo.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -14,6 +15,7 @@ const V = app.viewer;
 const box = $("photo"), shot = $("photoCanvas");
 
 let run = null;             // { tracer, renderer, scene, stop } while a photo is being made
+let piece = null;           // { k, item } when the photo is of one piece
 
 // ---------------------------------------------------------------- what goes in
 function describe(o) {
@@ -74,6 +76,7 @@ function photoScene() {
   V.scene.traverse((o) => {
     if (o.userData.room && o.isGroup && o.children.some((c) => c.isDirectionalLight)) decor = o;
     if (!keep(describe(o))) return;
+    if (piece && o.userData.index !== piece.k) return;
     const mats = [].concat(o.material).map(lookOf);
     if (mats.every((m) => !m)) return;
     const copy = new THREE.Mesh(withColour(o.geometry), Array.isArray(o.material) ? mats.map((m) => m || lookOf(o.material[0])) : mats[0]);
@@ -87,6 +90,7 @@ function photoScene() {
   sky.topColor.setRGB(...PHOTO.zenith); sky.bottomColor.setRGB(...PHOTO.ground);
   sky.exponent = 2; sky.update();
   scene.environment = sky; scene.background = sky; scene.environmentIntensity = PHOTO.sky;
+  if (piece) pieceStudio(scene, decor);
   // the sun, from where the decor's is
   const sun = new THREE.DirectionalLight(new THREE.Color(...PHOTO.sunColour), PHOTO.sun);
   const local = decor ? decor.children.find((c) => c.isDirectionalLight).position.toArray() : [2, 5, 3];
@@ -97,13 +101,48 @@ function photoScene() {
   return scene;
 }
 
+// A piece on its own: a wide matte floor under it (the room's floor if it hangs) and a pale
+// backdrop behind (the sky still lights it); where the camera goes to fill the photo with it
+function pieceStudio(scene, decor) {
+  const box = new THREE.Box3();
+  for (const c of scene.children) if (c.isMesh) box.expandByObject(c);
+  if (box.isEmpty()) return;
+  const floorY = decor ? decor.getWorldPosition(new THREE.Vector3()).y : 0;
+  const y = groundAt(box.min.y, floorY), r = box.getBoundingSphere(new THREE.Sphere()).radius;
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(Math.max(20, r * 30), 48),
+    new THREE.MeshPhysicalMaterial({ color: new THREE.Color(...PIECE.floor), roughness: 0.9, metalness: 0 }));
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set((box.min.x + box.max.x) / 2, y - 0.002, (box.min.z + box.max.z) / 2);
+  floor.updateMatrixWorld(true);
+  scene.add(floor);
+  const back = new GradientEquirectTexture();
+  back.topColor.setRGB(...PIECE.backdrop); back.bottomColor.setRGB(...PIECE.backdrop); back.update();
+  scene.background = back;
+  piece.box = box;
+}
+function pieceCamera(camera, w, h) {
+  const s = piece.box.getBoundingSphere(new THREE.Sphere());
+  const eye = frameOn(V.camera.position.toArray(), s.center.toArray(), s.radius, camera.fov, w / h);
+  camera.matrixAutoUpdate = true;
+  camera.position.set(...eye);
+  camera.up.set(0, 1, 0);
+  camera.lookAt(s.center);
+  camera.near = Math.max(0.01, s.radius / 100); camera.far = 1000;
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld(true);
+}
+
 // ---------------------------------------------------------------- making it
 // (tests and scripts: a smaller photo, fewer passes)
 let passes = PHOTO.passes;
+// opts.piece: the index of a placed piece of decor, for a photo of it alone
 function open(opts = {}) {
   if (run || !window.house?.shell()) return;
-  passes = opts.passes || PHOTO.passes;
-  const [w, h] = photoSize(innerWidth, innerHeight, opts.long);
+  const k = opts.piece, p = k != null ? window.decor?.placed()[k] : null;
+  piece = p ? { k, item: p.item } : null;
+  const L = piece ? PIECE : PHOTO;
+  passes = opts.passes || L.passes;
+  const [w, h] = photoSize(innerWidth, innerHeight, opts.long || L.long);
   box.hidden = false;
   $("photoSave").disabled = $("photoMakeReal").disabled = true;
   say("photo.setting");
@@ -118,22 +157,26 @@ function start(w, h) {
   renderer.setSize(w, h, false);
   renderer.toneMapping = THREE.NeutralToneMapping;     // (as the live view)
   renderer.toneMappingExposure = PHOTO.exposure;
+  const t0 = performance.now();
   const scene = photoScene();
   const camera = V.camera.clone();
   camera.aspect = w / h; camera.updateProjectionMatrix();
   camera.matrixWorld.copy(V.camera.matrixWorld); camera.matrixAutoUpdate = false;
+  if (piece?.box) pieceCamera(camera, w, h);
   const tracer = new WebGLPathTracer(renderer);
-  Object.assign(tracer, { bounces: PHOTO.bounces, minSamples: 1, renderDelay: 0, fadeDuration: 0, filterGlossyFactor: 0.5, dynamicLowRes: true });
+  Object.assign(tracer, { bounces: (piece ? PIECE : PHOTO).bounces, minSamples: 1, renderDelay: 0, fadeDuration: 0, filterGlossyFactor: 0.5, dynamicLowRes: true });
   tracer.tiles.set(2, 2);
   tracer.setScene(scene, camera);
   let stopped = false;
-  run = { tracer, renderer, scene, stop: () => (stopped = true) };
+  run = { tracer, renderer, scene, stop: () => (stopped = true), times: { setup: performance.now() - t0, first: 0, all: 0 } };
   const step = () => {
     if (stopped) return;
     tracer.renderSample();
+    if (!run.times.first) run.times.first = performance.now() - t0;
     const p = progress(tracer.samples, passes);
     if (p.done) {
-      say("photo.done");
+      run.times.all = performance.now() - t0;
+      say(piece ? "photo.pieceDone" : "photo.done");
       $("photoSave").disabled = $("photoMakeReal").disabled = false;
       box.dataset.done = "1";
       return;
@@ -155,15 +198,17 @@ function close() {
   looks.clear();
   box.hidden = true;
   delete box.dataset.done;
+  piece = null;
   real = null;
   showReal(null);
 }
 function save() {
   const a = document.createElement("a");
-  a.download = photoName(window.house?.file());
+  a.download = fileName();
   a.href = shot.toDataURL("image/png");
   a.click();
 }
+const fileName = () => (piece ? pieceName(window.house?.file(), piece.item) : photoName(window.house?.file()));
 const say = (k, params) => ($("photoStatus").textContent = t(k, params));
 
 // ---------------------------------------------------------------- made into a photograph
@@ -176,7 +221,7 @@ async function makeReal() {
   const blob = await new Promise((done) => shot.toBlob(done, "image/png"));
   let st;
   try {
-    const r = await fetch("/api/photoreal", { method: "POST", body: blob });
+    const r = await fetch("/api/photoreal" + (piece ? "?piece=1" : ""), { method: "POST", body: blob });
     st = await r.json();
     if (!r.ok) throw new Error(st.error || r.statusText);
   } catch (e) {
@@ -199,10 +244,11 @@ function showReal(id) {
   if (!id) { $("photoReal").removeAttribute("src"); return; }
   $("photoReal").src = `/api/photoreal/${id}/real.png`;
   $("photoRealSave").href = $("photoReal").src;
-  $("photoRealSave").download = photoName(window.house?.file()).replace(/\.png$/, "-ai.png");
+  $("photoRealSave").download = fileName().replace(/\.png$/, "-ai.png");
 }
 
 $("photoBtn").onclick = () => open();
+$("decorPhoto").onclick = () => { const k = window.decor?.selected(); if (k >= 0) open({ piece: k }); };
 $("photoClose").onclick = close;
 $("photoSave").onclick = save;
 $("photoMakeReal").onclick = makeReal;
@@ -210,13 +256,16 @@ addEventListener("keydown", (e) => { if (e.key === "Escape" && !box.hidden) clos
 // only a drawn room (its shell and decor are meshes): a filmed room's splats can't be path traced
 addEventListener("roomchange", () => {
   const drawn = !!window.house?.shell();
-  $("photoBtn").hidden = !drawn;
+  $("photoBtn").hidden = $("decorPhoto").hidden = !drawn;
   if (!drawn) close();
 });
 
 window.darkroom = {
   open, close,
   samples: () => (run ? run.tracer.samples : 0),
+  // how long it took, ms: to set up (the copy and the light's search tree), to the first pass, to done
+  times: () => (run ? { ...run.times } : null),
+  piece: () => (piece ? piece.item : null),
   done: () => box.dataset.done === "1",
   real: () => !$("photoRealFig").hidden && $("photoReal").complete && $("photoReal").naturalWidth > 0,
   // what went into the photo's scene: meshes, triangles (tests)

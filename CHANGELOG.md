@@ -2,6 +2,10 @@
 
 ## 0.1.0 (unreleased)
 
+- **Photo of this piece** (Decorate, on the picked thing): path traces that one piece on its own,
+  on a plain floor in the same sky and sun, framed to fill the photo, from the side you are looking
+  at it. Much quicker than a photo of the whole room, to go back and forth with a decorator; **Make
+  it a photo** on it asks the image model for a product photograph of the piece, at 768 px.
 - **Flowers you build** (arch, hanging flowers, fabric overhead, table flowers): 12 more flowers
   (ranunculus, lisianthus, dahlia, king protea, anemone, carnation, tulip, sunflower, delphinium,
   bird of paradise, button chrysanthemum, waxflower) and 7 more greens (Italian ruscus, olive,

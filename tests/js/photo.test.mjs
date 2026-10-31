@@ -1,7 +1,7 @@
 // Take a photo's maths (src/body_studio/static/photo.js). Run by tests/unit/test_photo_js.py.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PHOTO, finishLook, keep, photoName, photoSize, progress, sunWay } from "../../src/body_studio/static/photo.js";
+import { PHOTO, PIECE, finishLook, frameOn, groundAt, keep, photoName, photoSize, pieceName, progress, sunWay } from "../../src/body_studio/static/photo.js";
 import { FINISHES } from "../../src/body_studio/static/decor/shapes.js";
 
 test("the photo has the window's shape, its long side PHOTO.long, in even pixels", () => {
@@ -66,4 +66,40 @@ test("a photo is saved under the room's name and the time", () => {
   assert.equal(photoName("_sample_venue.ply", when), "venue-2026-10-30-0905.png");
   assert.equal(photoName("My flat (2)", when), "My-flat-2--2026-10-30-0905.png");
   assert.equal(photoName(null, when), "room-2026-10-30-0905.png");
+});
+
+test("a piece's photo is quicker than the room's: smaller, fewer passes and bounces", () => {
+  assert.ok(PIECE.long < PHOTO.long && PIECE.passes < PHOTO.passes && PIECE.bounces < PHOTO.bounces);
+});
+
+test("a piece is framed from where the camera looks at it, as far as fits it in the photo", () => {
+  const near = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 1e-9);
+  // looking from 10 m in front: the camera comes in on the same line
+  const e = frameOn([0, 1, 10], [0, 1, 0], 1, 60, 1, 1);
+  assert.ok(near(e, [0, 1, 2]));              // 1 / sin(30°) = 2
+  // a tall photo is narrower across: further back
+  const tall = frameOn([0, 1, 10], [0, 1, 0], 1, 60, 0.5, 1);
+  assert.ok(tall[2] > 2 && tall[0] === 0);
+  // from above and to the side: the same way round, the same distance
+  const s = frameOn([3, 4, 0], [0, 0, 0], 1, 60, 1, 1);
+  assert.ok(Math.abs(Math.hypot(...s) - 2) < 1e-9 && Math.abs(s[1] / s[0] - 4 / 3) < 1e-9);
+  // the margin moves it back; standing in the piece: from the front, a little above
+  assert.ok(frameOn([0, 1, 10], [0, 1, 0], 1, 60, 1, 1.2)[2] > 2);
+  const inside = frameOn([0, 0, 0], [0, 0, 0], 1, 60);
+  assert.ok(inside[2] > 0 && inside[1] > 0 && inside.every(Number.isFinite));
+  // a tiny piece still gets a camera that isn't in it
+  assert.ok(frameOn([0, 0, 5], [0, 0, 0], 0, 60)[2] > 0);
+});
+
+test("a piece stands on its own floor; one that hangs gets the room's", () => {
+  assert.equal(groundAt(0.75, 0), 0.75);        // flowers on a table
+  assert.equal(groundAt(0, 0), 0);
+  assert.equal(groundAt(2.6, 0), 0);            // an overhead cloud of flowers
+  assert.equal(groundAt(3.2, 1), 1);
+});
+
+test("a piece's photo is named after the room and the piece", () => {
+  const when = new Date(2026, 9, 31, 12, 5);
+  assert.equal(pieceName("workspace/_sample_venue/run_1/venue.room.json", "custom_arch", when).endsWith("-custom-arch-2026-10-31-1205.png"), true);
+  assert.equal(pieceName(null, "floral_cloud", when), "room-floral-cloud-2026-10-31-1205.png");
 });

@@ -62,3 +62,43 @@ export function photoName(room, when = new Date()) {
   const p = (n) => String(n).padStart(2, "0");
   return `${base}-${when.getFullYear()}-${p(when.getMonth() + 1)}-${p(when.getDate())}-${p(when.getHours())}${p(when.getMinutes())}.png`;
 }
+
+// ---------------------------------------------------------------- a photo of one piece
+// The piece picked in Decorate on its own, as a product shot: on a plain floor, lit by the same sky
+// and sun, framed to fill the photo. Far quicker than the room: a few thousand triangles to build
+// the light's search tree over instead of millions (the venue's minute and a half to set up becomes
+// a second or two), most rays leave the piece and end on the backdrop at once, the photo is smaller,
+// and with no walls to bounce off it needs fewer bounces and passes.
+export const PIECE = {
+  long: 1024,           // px (the image model works at 768 for a piece: photoreal.py)
+  passes: 160,          // the light settles sooner with nothing round it
+  bounces: 3,
+  margin: 1.2,          // the piece fills the photo with a little room round it
+  floor: [0.78, 0.75, 0.7],          // a warm pale floor, matte (its shadow shows the light)
+  backdrop: [0.93, 0.92, 0.9],       // what is behind it: a pale studio grey
+  hangs: 1.5,           // m: a piece this far above the room's floor hangs, and its floor is the room's
+};
+
+// Where the camera goes for a piece whose bounding sphere is (centre, radius): on the line from
+// the piece toward where the camera is now (the same side, the same height of view), as far as
+// fits it in the photo both ways. `fov` is the camera's vertical one in degrees, `aspect` w / h.
+export function frameOn(eye, centre, radius, fov, aspect = 1, margin = PIECE.margin) {
+  let d = [eye[0] - centre[0], eye[1] - centre[1], eye[2] - centre[2]];
+  let n = Math.hypot(...d);
+  if (!(n > 1e-6)) { d = [0, 0.3, 1]; n = Math.hypot(...d); }       // (from the front, a little above)
+  const half = (fov * Math.PI) / 360, across = Math.atan(Math.tan(half) * Math.min(1, aspect));
+  const far = (Math.max(radius, 0.05) * margin) / Math.sin(across);
+  return d.map((c, i) => centre[i] + (c / n) * far);
+}
+
+// The floor a piece stands on in its photo: its own lowest point, or the room's floor for a piece
+// that hangs well above it (a cloud of flowers, an overhead canopy), so its shadow lands there
+export function groundAt(lowest, roomFloor = 0, hangs = PIECE.hangs) {
+  return lowest - roomFloor > hangs ? roomFloor : lowest;
+}
+
+// the file a piece's photo is saved as, e.g. "venue-custom-arch-2026-10-31-1205.png"
+export function pieceName(room, item, when = new Date()) {
+  const what = String(item || "piece").replace(/[^\w-]+/g, "-").replace(/_/g, "-");
+  return photoName(room, when).replace(/(-\d{4}-\d\d-\d\d-\d{4}\.png)$/, `-${what}$1`);
+}

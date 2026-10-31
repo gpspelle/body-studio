@@ -34,7 +34,7 @@
     POST /api/decor/<id>                {name, height, on}: change an item; .../retry makes a failed one again
     DELETE /api/decor/<id>              remove an item
     GET  /api/decor/layout?room=<file>  the room's decor layouts; POST the same to save them
-    POST /api/photoreal                 a path-traced photo (PNG): made into a photograph in the background (photoreal.py)
+    POST /api/photoreal[?piece=1]       a path-traced photo (PNG; of one piece of decor): made into a photograph in the background (photoreal.py)
     GET  /api/photoreal/<id>            {id, status: working|ready|failed, error}; .../photo.png, .../real.png the pictures
 
 Runs go through splat-studio's own job runner (splat_studio.server.jobs.Runner): one at a time,
@@ -512,7 +512,7 @@ def make_handler(data: DataDir, runner: Runner):
                 if why:
                     return self._json({"error": why, "code": "photoreal_unsupported"}, 400)
                 try:
-                    st = photoreal.add(data.root, png or b"")
+                    st = photoreal.add(data.root, png or b"", parse_qs(u.query).get("piece", [""])[0] == "1")
                 except photoreal.Failed as e:
                     return self._json({"error": str(e), "code": e.code}, 400)
                 realer.add(st["id"])

@@ -41,6 +41,7 @@ COMMAND = "mflux-generate-flux2-edit"
 STEPS = 4                       # klein is distilled: four steps
 SEED = 7
 LONG = 1024                     # px: the long side the model works at (multiples of 16)
+PIECE_LONG = 768                # px: for one piece of decor on its own (a little under half the pixels)
 MAX_PHOTO = 40 * 1024 * 1024
 TIMEOUT = 60 * 60               # s: a first run downloads the weights too
 PROMPT = (
@@ -49,6 +50,15 @@ PROMPT = (
     "colour: the furniture, flowers, plants, trees, lights, walls, floor and sky. Make the materials "
     "real: wood grain, woven fabric, stone, sand, leaves and petals, glass, metal. Natural daylight, "
     "soft real shadows, true colours, sharp detail. Add nothing and remove nothing; no people."
+)
+# one piece of decor alone on a plain floor (Photo of this piece): a product photograph of it
+PIECE_PROMPT = (
+    "Turn this 3D render into a real product photograph of this wedding decoration, taken in a "
+    "photo studio with a full-frame camera, the same view. Keep the piece exactly as it is: the same "
+    "shape, size, structure, and the same number, kind and colour of every flower, leaf, fabric, "
+    "light and part. Make the materials real: petals and leaves, woven fabric, wood grain, metal, "
+    "glass, candle flames. Soft daylight, a soft real shadow on the plain floor, true colours, sharp "
+    "detail. Add nothing and remove nothing; no people."
 )
 
 
@@ -151,24 +161,25 @@ def png_size(data: bytes) -> tuple:
     return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
 
 
-def args(photo: Path, out: Path, w: int, h: int, quantize: int, cmd: str = COMMAND) -> list:
-    """mflux's command line for one picture."""
-    return [cmd, "--model", MODEL, "--image-paths", str(photo), "--prompt", PROMPT,
+def args(photo: Path, out: Path, w: int, h: int, quantize: int, cmd: str = COMMAND, piece: bool = False) -> list:
+    """mflux's command line for one picture (`piece`: one piece of decor on its own)."""
+    return [cmd, "--model", MODEL, "--image-paths", str(photo), "--prompt", PIECE_PROMPT if piece else PROMPT,
             "--steps", str(STEPS), "--seed", str(SEED), "--width", str(w), "--height", str(h),
             "-q", str(quantize), "--output", str(out)]
 
 
-def make(photo: Path, out: Path) -> None:
-    """The photograph for `photo`, written to `out` (mflux in its own process). Installs what it
-    needs the first time. BODY_STUDIO_PHOTOREAL names a stand-in script instead (the tests' fake)."""
+def make(photo: Path, out: Path, piece: bool = False) -> None:
+    """The photograph for `photo`, written to `out` (mflux in its own process); `piece`: a photo of
+    one piece of decor, made at PIECE_LONG with its own prompt. Installs what it needs the first
+    time. BODY_STUDIO_PHOTOREAL names a stand-in script instead (the tests' fake)."""
     photo, out = Path(photo), Path(out)
-    w, h = size(*png_size(photo.read_bytes()))
+    w, h = size(*png_size(photo.read_bytes()), PIECE_LONG if piece else LONG)
     fake = os.environ.get("BODY_STUDIO_PHOTOREAL")
     if fake:
-        cmd = [sys.executable, fake, *args(photo, out, w, h, 4)[1:]]
+        cmd = [sys.executable, fake, *args(photo, out, w, h, 4, piece=piece)[1:]]
     else:
         install()
-        cmd = args(photo, out, w, h, bits(memory_gb()), command())
+        cmd = args(photo, out, w, h, bits(memory_gb()), command(), piece)
     try:
         r = subprocess.run(cmd, text=True, capture_output=True, timeout=TIMEOUT)
     except subprocess.TimeoutExpired:
@@ -212,14 +223,14 @@ def picture(data_dir: Path, pid: str, real: bool) -> Path | None:
     return p if p.is_file() else None
 
 
-def add(data_dir: Path, png: bytes) -> dict:
-    """Keep a path-traced photo to be made real: {id, status: "working"}."""
+def add(data_dir: Path, png: bytes, piece: bool = False) -> dict:
+    """Keep a path-traced photo to be made real: {id, status: "working", piece}."""
     png_size(png)
     d = photos_dir(data_dir)
     d.mkdir(parents=True, exist_ok=True)
     pid = uuid.uuid4().hex[:12]
     (d / f"{pid}.png").write_bytes(png)
-    s = {"id": pid, "status": "working", "error": None, "code": None, "started": time.time()}
+    s = {"id": pid, "status": "working", "error": None, "code": None, "started": time.time(), "piece": bool(piece)}
     _save_status(data_dir, pid, s)
     return s
 
@@ -230,7 +241,7 @@ class Maker:
 
     def __init__(self, data_dir: Path, make=None, resume: bool = True):
         self.data_dir = Path(data_dir)
-        self.make = make                         # (photo, out png) -> None, raises on failure
+        self.make = make                         # (photo, out png, piece) -> None, raises on failure
         self.lock = threading.Lock()
         self.queue: list = []
         self.busy = False
@@ -273,7 +284,7 @@ class Maker:
             return
         out = photos_dir(self.data_dir) / f"{pid}.real.png"
         try:
-            (self.make or make)(src, out)
+            (self.make or make)(src, out, bool(s.get("piece")))
             s.update(status="ready", error=None, code=None)
         except Exception as e:                   # noqa: BLE001 - any failure is shown on the page
             s.update(status="failed", error=str(e) or type(e).__name__, code=getattr(e, "code", None) or "photoreal")
@@ -286,8 +297,9 @@ def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="python -m body_studio.photoreal")
     ap.add_argument("photo", type=Path, help="a path-traced photo (PNG)")
     ap.add_argument("out", type=Path, help="where to write the photograph (PNG)")
+    ap.add_argument("--piece", action="store_true", help="one piece of decor on its own")
     a = ap.parse_args(argv)
-    make(a.photo, a.out)
+    make(a.photo, a.out, a.piece)
     print(a.out)
 
 

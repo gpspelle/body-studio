@@ -128,12 +128,27 @@ class Making(unittest.TestCase):
         wait(lambda: (photoreal.status(self.d, st["id"]) or {}).get("status") == "ready")
 
     def test_failure_kept_with_its_reason(self):
-        def broken(src, out):
+        def broken(src, out, piece=False):
             raise photoreal.Failed("the image model stopped")
         st = photoreal.add(self.d, png())
         photoreal.Maker(self.d, make=broken, resume=False).add(st["id"])
         done = wait(lambda: (photoreal.status(self.d, st["id"]) or {}).get("status") == "failed" and photoreal.status(self.d, st["id"]))
         self.assertEqual((done["code"], done["error"]), ("photoreal", "the image model stopped"))
+
+    def test_a_piece_is_made_smaller_with_its_own_prompt(self):
+        a = photoreal.args(Path("in.png"), Path("out.png"), 768, 480, 4, piece=True)
+        self.assertEqual(a[a.index("--prompt") + 1], photoreal.PIECE_PROMPT)
+        self.assertNotEqual(photoreal.PIECE_PROMPT, photoreal.PROMPT)
+        self.assertIn("decoration", photoreal.PIECE_PROMPT)
+        self.assertEqual(photoreal.size(1024, 640, photoreal.PIECE_LONG), (768, 480))
+        self.assertLess(photoreal.PIECE_LONG, photoreal.LONG)
+        seen = []
+        st = photoreal.add(self.d, png(), piece=True)
+        self.assertTrue(st["piece"])
+        self.assertFalse(photoreal.add(self.d, png())["piece"])
+        photoreal.Maker(self.d, make=lambda src, out, piece: (seen.append(piece), out.write_bytes(png())), resume=False).add(st["id"])
+        wait(lambda: (photoreal.status(self.d, st["id"]) or {}).get("status") == "ready")
+        self.assertEqual(seen, [True])
 
     def test_ids_are_checked(self):
         self.assertIsNone(photoreal.status(self.d, "../../etc"))
@@ -172,6 +187,11 @@ class Api(unittest.TestCase):
             self.assertEqual(r.read(), body)
         with urllib.request.urlopen(f"{self.base}/api/photoreal/{pid}/photo.png") as r:
             self.assertEqual(r.headers["Content-Type"], "image/png")
+
+    def test_a_piece_s_photo_is_marked(self):
+        req = urllib.request.Request(self.base + "/api/photoreal?piece=1", data=png(64, 40), method="POST")
+        with urllib.request.urlopen(req) as r:
+            self.assertTrue(json.loads(r.read())["piece"])
 
     def test_bad_requests(self):
         with self.assertRaises(urllib.error.HTTPError) as e:

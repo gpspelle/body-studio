@@ -30,6 +30,26 @@ It shows exactly what was put in the room: nothing is made up, so it is the one 
   and three-mesh-bvh (both MIT), bundled by `scripts/pathtracer_bundle.sh` so they import three from
   splat-studio's copy (r180: path tracer 0.0.24, the last that takes it).
 
+## Photo of this piece
+
+**Photo of this piece** (in Decorate, on the thing picked) is the same photo with only that piece
+in it, on a wide plain floor (the room's floor under something that hangs, so its shadow lands
+there) with a pale backdrop, in the same sky and sun, the camera brought in on the line you are
+looking at it from until the piece fills the photo (`frameOn`, `groundAt` and `PIECE` in
+`photo.js`). It is for going round a design with a decorator: change the arch, take its photo,
+change it again. It is much quicker than the room's photo:
+
+- setting up: the path tracer builds a search tree over every triangle before the first pass. An
+  arch is a few tens of thousands; the venue is millions (about a minute and a half before the first
+  pass in software, seconds on a Mac's GPU).
+- each pass: most of the photo is the piece or the backdrop, and a ray that misses the piece ends
+  at once; with no walls and roofs to bounce between, 3 bounces do instead of 6.
+- 1024 px on the long side instead of 1600 (0.4 of the pixels), and 160 passes instead of 400.
+
+Make it a photo on a piece's photo runs the image model at 768 px (about half the pixels of 1024,
+so roughly half the time) and tells it to make a product photograph of the decoration, keeping
+every flower's kind, number and colour.
+
 ## Make it a photo
 
 Once the photo is done, **Make it a photo** sends it to the app, which turns it into a

@@ -351,6 +351,22 @@ class Decor(Viewer):
         page.click("#photoClose")
         self.assertTrue(page.locator("#photo").is_hidden())
         self.assertTrue(page.locator("#photoRealFig").is_hidden())
+        # one piece on its own: only it and a floor, framed, its own file name
+        page.evaluate("decor.open()")
+        page.evaluate("decor.add('custom_arch')")
+        page.wait_for_function("decor.selected() >= 0")
+        self.assertTrue(page.locator("#decorPhoto").is_visible())
+        page.evaluate("darkroom.open({ piece: decor.selected(), long: 160, passes: 2 })")
+        page.wait_for_function("darkroom.done()", timeout=600000)
+        self.assertEqual(page.evaluate("darkroom.piece()"), "custom_arch")
+        alone = page.evaluate("darkroom.scene()")
+        self.assertEqual(alone["meshes"], 2, "the arch and its floor")
+        self.assertLess(alone["tris"], made["tris"])
+        page.click("#photoMakeReal")
+        page.wait_for_function("darkroom.real()", timeout=120000)
+        self.assertIn("-custom-arch-", page.locator("#photoRealSave").get_attribute("download"))
+        page.click("#photoClose")
+        self.assertIsNone(page.evaluate("darkroom.piece()"))
         self.assertEqual(errors, [])
 
     def test_compares_the_room_with_a_video(self):
