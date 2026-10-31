@@ -2,6 +2,9 @@
 
 ## 0.1.0 (unreleased)
 
+- **Move fittings**: a layout of the room's fittings kept from before the sample venue was made
+  again no longer shows its old copies (old skirting, walls without their bricks): copies of what
+  changed are swapped for the room's fittings as they are now; what you added by hand stays.
 - **Take a photo, outdoors**: each part of a thing now keeps its own material in the photo
   (before, a whole tree, wall or floor took one material at random: the sea wall glowed white, a
   tree came out dark and glassy, the sand shone like polished cement). The photo has a sky of its

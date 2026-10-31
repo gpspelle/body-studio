@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { geometry, materials, picture, shadow, studio } from "/static/decorlook.js";
 import { COLOURS, FINISHES, GROUPS, MAX_LIFT, STARTERS, around, fixtureTurn, blocker, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats,
          bounds, fromHex, fromRgb, hexOf, setTable, standY, starterShape, toHex, turnToward, unpack, wrap,
-         knobs, knobValues, presets, presetOf, cleanOpts, optsKey, sized, MATERIALS, movable, fittingItems, fittingChanges, isChoice, PALETTES,
+         knobs, knobValues, presets, presetOf, cleanOpts, optsKey, sized, MATERIALS, movable, fittingItems, fittingChanges, freshFittings, isChoice, PALETTES,
          grabFor, steep, underPointer, landSpot } from "/static/decor.js";
 
 const $ = (id) => document.getElementById(id);
@@ -1062,6 +1062,11 @@ addEventListener("roomchange", async () => {
   room = file; sel = -1;
   try { L = await api("/api/decor/layout?room=" + encodeURIComponent(file)); } catch { L = { current: 0, layouts: [{ name: t("decor.layoutName", { n: 1 }), items: [] }] }; }
   if (room !== file) return;
+  // (a layout of the room's own fittings kept from before the room was made again holds copies of
+  // what is no longer there: it catches up, and is saved so)
+  let caught = false;
+  for (const l of L.layouts) if (l.fittings) { const f = freshFittings(l.items, trees()); if (f !== l.items) { l.items = f; caught = true; } }
+  if (caught) saveSoon();
   await refreshItems();
   await Promise.all([...new Set(placed().map((p) => p.item))].filter((id) => !STARTERS[id] && itemOf(id)?.status === "ready").map(meshFor));
   if (room !== file) return;

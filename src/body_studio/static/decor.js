@@ -256,6 +256,25 @@ export function fittingChanges(placed, trees) {
   return out;
 }
 
+// the layout of the room's fittings, caught up with the room when the room itself changed under it
+// (a new sample venue: its fittings renumbered, moved, new ones added): a copy whose fixture (was.k)
+// is no longer that thing at that place is dropped, the room's fittings it lacks come in where they
+// are now, and what was added by hand stays. Unchanged (the same array) while every copy still
+// matches its fixture and none is missing past the last one, so what was taken away by hand stays away.
+export function freshFittings(items, trees) {
+  trees = trees || [];
+  const same = (p) => {
+    const t = trees[p.was.k];
+    return !!t && movable(t) && t.item === p.item && Math.hypot(t.at[0] - p.was.at[0], t.at[1] - p.was.at[1], t.at[2] - p.was.at[2]) < 0.002 &&
+      Math.abs(wrap(fixtureTurn(t) - p.was.turn)) < 0.002;
+  };
+  const copies = items.filter((p) => p.was), last = Math.max(-1, ...copies.map((p) => p.was.k));
+  const stale = copies.some((p) => !same(p)) || trees.some((t, k) => k > last && movable(t));
+  if (!stale) return items;
+  const kept = items.filter((p) => !p.was || same(p)), have = new Set(kept.filter((p) => p.was).map((p) => p.was.k));
+  return [...kept, ...fittingItems(trees).filter((p) => !have.has(p.was.k))];
+}
+
 // a turn kept within -pi..pi
 export const wrap = (a) => a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
 const rot = (turn, x, z) => [x * Math.cos(turn) + z * Math.sin(turn), -x * Math.sin(turn) + z * Math.cos(turn)];

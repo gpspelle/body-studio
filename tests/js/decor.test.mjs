@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { COLOURS, FINISHES, GROUPS, STARTERS, fixtureTurn, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
-         knobs, knobValues, presets, presetOf, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, PALETTES, isChoice,
+         knobs, knobValues, presets, presetOf, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, freshFittings, PALETTES, isChoice,
          grabFor, steep, underPointer, landSpot, KNOB_PX, RING_PX } from "../../src/body_studio/static/decor.js";
 import { ARCHES, PARTS, archLine, along, coverPick, coverAt, mechanics, mechanicSpot, CAGE_STEP, cover, archPosts, frameOf, fabricRuns } from "../../src/body_studio/static/decor/custom.js";
 import { FLOWERS, GREENS, FILLERS, BLENDS, drift, mixColour, mixSize, toHsl, fromHsl } from "../../src/body_studio/static/decor/florals.js";
@@ -472,6 +472,33 @@ test("the room's own fittings, moved by hand, come back as what changed", () => 
   assert.deepEqual(c[0].was.at, [1, 1.2, 2]);
   assert.deepEqual(c[1].opts, { w: 3 });
   assert.ok(Math.abs(c[3].was.turn - Math.PI / 2) < 1e-9);
+});
+
+test("a layout of the room's fittings catches up when the room was made again under it", () => {
+  const before = [
+    { item: "skirting_board", at: [1, 0, 0], turn: 0, opts: { w: 2 } },
+    { item: "brick_wall", at: [4, 0, 2], turn: 0 },
+    { item: "chair", at: [6, 0, 6], turn: 0 },
+  ];
+  const items = fittingItems(before);
+  items[2].x += 1;                                                           // the chair moved by hand
+  items.push({ item: "bench", x: 9, y: 0, z: 9, turn: 0 });                 // a bench added by hand
+  assert.equal(freshFittings(items, before), items);                         // the same room: as it was
+  const gone = items.filter((p) => p.item !== "brick_wall");                 // a wall taken away by hand
+  assert.equal(freshFittings(gone, before), gone);                           // stays away
+  const after = [                                                            // the room made again
+    { item: "skirting_board", at: [1, 0, 0.05], turn: 0, opts: { w: 1.5 } }, // moved onto its wall
+    { item: "chair", at: [6, 0, 6], turn: 0 },                               // renumbered
+    { item: "brick_wall", at: [4, 0, 2], turn: 0, opts: { hole: 1 } },
+    { item: "framed_art", at: [4, 1.5, 2.1], turn: 0 },                      // new
+  ];
+  const f = freshFittings(items, after);
+  assert.deepEqual(f.map((p) => [p.item, p.was?.k]).sort(), [["bench", undefined], ["brick_wall", 2], ["chair", 1], ["framed_art", 3], ["skirting_board", 0]]);
+  assert.deepEqual(f.find((p) => p.item === "skirting_board").opts, { w: 1.5 });
+  assert.equal(f.find((p) => p.item === "skirting_board").z, 0.05);
+  assert.equal(freshFittings(f, after), f);                                  // caught up: stays so
+  const more = [...before, { item: "framed_art", at: [0, 1.5, 0], turn: 0 }]; // only one added at the end
+  assert.deepEqual(freshFittings(fittingItems(before), more).map((p) => p.was.k), [0, 1, 2, 3]);
 });
 
 // ---------------------------------------------------------------- what you build yourself
