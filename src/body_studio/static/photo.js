@@ -73,7 +73,7 @@ export const PIECE = {
   long: 1024,           // px (the image model works at 768 for a piece: photoreal.py)
   passes: 160,          // the light settles sooner with nothing round it
   bounces: 3,
-  margin: 1.2,          // the piece fills the photo with a little room round it
+  margin: 1.05,         // the piece fills the photo with a little room round it (its sphere is loose)
   floor: [0.78, 0.75, 0.7],          // a warm pale floor, matte (its shadow shows the light)
   backdrop: [0.93, 0.92, 0.9],       // what is behind it: a pale studio grey
   hangs: 1.5,           // m: a piece this far above the room's floor hangs, and its floor is the room's

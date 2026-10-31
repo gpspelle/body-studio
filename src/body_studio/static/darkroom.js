@@ -109,7 +109,7 @@ function pieceStudio(scene, decor) {
   if (box.isEmpty()) return;
   const floorY = decor ? decor.getWorldPosition(new THREE.Vector3()).y : 0;
   const y = groundAt(box.min.y, floorY), r = box.getBoundingSphere(new THREE.Sphere()).radius;
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(Math.max(20, r * 30), 48),
+  const floor = new THREE.Mesh(withColour(new THREE.CircleGeometry(Math.max(20, r * 30), 48)),
     new THREE.MeshPhysicalMaterial({ color: new THREE.Color(...PIECE.floor), roughness: 0.9, metalness: 0 }));
   floor.rotation.x = -Math.PI / 2;
   floor.position.set((box.min.x + box.max.x) / 2, y - 0.002, (box.min.z + box.max.z) / 2);
