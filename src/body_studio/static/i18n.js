@@ -460,6 +460,7 @@
       "decor.item.wall_tiles": "Wall tiles",
       "decor.item.pivot_door": "Pivot door",
       "decor.item.panel_door": "Panelled door",
+      "decor.item.framed_art": "Framed art",
       "decor.item.security_camera": "Security camera",
       "decor.item.steel_sink": "Stainless sink bench",
       "decor.item.gas_range": "Gas range",

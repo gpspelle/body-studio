@@ -9,6 +9,14 @@
   door, one leaf swung open, the side room opening to the right past it. The hall's rustic tiles
   stop in line with the half wall. The vertical garden's curtains are hooked to the posts.
   **Panelled door** gets a louvred leaf; **Tied-back sheer curtain** a hook on the wall (`back`).
+- **The venue's brick walls, as built**: the half wall is thicker, its hole goes right through
+  (lined in brick), a framed piece of art hangs beside it and its bench is the same pale brick, wall
+  to end. The toilets' hall's end and right walls are brick on both sides with their ends closed;
+  its sink stands against the right wall with a tap out of the wall, no counter. The passage's
+  slatted door hangs open in its doorway. The stage has a walkway beside it, jute sheets over it
+  like the ante-room's, opens onto the garden, and the pergola's piers are drawn in brick. No wall
+  of the venue ends in a gap. New starter: **Framed art**; **Panelled door** gets slats; **Brick
+  bench** comes in pale brick.
 - **Arch, your own, built as a florist builds one**: foam cages zip-tied to the frame every 30 cm
   where it is covered (or **Moss and wire**: moss in chicken wire wrapped round it), hidden under
   short greenery; every flower sits on a green stem pushed into them, leafy kinds with leaves on

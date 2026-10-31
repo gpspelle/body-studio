@@ -122,26 +122,42 @@ def fittings() -> list:
     out.append(("panel_door", (-(a1 - a0) / 2, 0.0, a1 - 0.03), math.pi, DOOR, {"w": round(a1 - a0, 3), "h": 2.2, "rows": 5}))
     hx_, hz_, w_, open_ = PASSAGE_DOOR
     out.append(("panel_door", (round(hx_ - w_ / 2 * math.cos(open_), 3), 0.0, round(hz_ - w_ / 2 * math.sin(open_), 3)), round(math.pi - open_, 4), DOOR, {"w": w_, "h": 2.1, "rows": 5}))
-    # the bricks drawn as the furniture is: the half wall (pale, the fireplace's hole left in its
-    # hall side), the toilets' hall's walls (a passage to the stage), the pier at the corner
+    # the bricks drawn as the furniture is: the half wall (pale, HALF_WALL_T thick: a face each side,
+    # its end, the square hole right through it lined in brick), a framed picture hung on its hall
+    # side, a bench of the same brick along its other side from the wall to its end; the toilets'
+    # hall's walls (WC_WALL_T thick, a passage through its end to the stage), the pier at the corner
     hx, reach = HALF_WALL
     a, b, y0, y1 = FIREPLACE
-    pale = FIREPLACE_BRICK
-    for z0, z1, f0, f1 in ((0.0, a, 0.0, H), (b, reach, 0.0, H), (a, b, 0.0, y0), (a, b, y1, H)):
-        out.append(("brick_wall", (hx - 0.1, f0, (z0 + z1) / 2), -math.pi / 2, pale, {"w": round(z1 - z0, 3), "h": round(f1 - f0, 3)}))
-    out.append(("brick_wall", (hx + 0.1, 0.0, reach / 2), math.pi / 2, pale, {"w": reach, "h": H}))
-    out.append(("brick_wall", (hx, 0.0, reach), 0.0, pale, {"w": 0.2, "h": H}))
-    out.append(("brick_bench", (hx + 0.1 + 0.25, 0.0, reach / 2), math.pi / 2, (0.88, 0.84, 0.76), round(reach - 0.3, 3)))
-    wx1, wz = WC[1], WC[2]
-    out.append(("brick_wall", (wx1 - 1.25, 0.0, wz), math.pi, BRICK, {"w": 2.5, "h": H}))
+    pale, t = FIREPLACE_BRICK, HALF_WALL_T / 2
+    for x, turn in ((hx - t, -math.pi / 2), (hx + t, math.pi / 2)):
+        for z0, z1, f0, f1 in ((0.0, a, 0.0, H), (b, reach, 0.0, H), (a, b, 0.0, y0), (a, b, y1, H)):
+            out.append(("brick_wall", (x, f0, round((z0 + z1) / 2, 3)), turn, pale, {"w": round(z1 - z0, 3), "h": round(f1 - f0, 3)}))
+    out.append(("brick_wall", (hx, 0.0, reach), 0.0, pale, {"w": HALF_WALL_T, "h": H}))
+    out += [("brick_wall", (hx, y0, z), turn, pale, {"w": HALF_WALL_T, "h": round(y1 - y0, 3)}) for z, turn in ((a, 0.0), (b, math.pi))]
+    p0, p1, q0, q1 = PICTURE
+    out.append(("framed_art", (hx - t - 0.02, q0, (p0 + p1) / 2), -math.pi / 2, None, {"w": round(p1 - p0, 3), "h": round(q1 - q0, 3)}))
+    out.append(("brick_bench", (hx + t + 0.25, 0.0, reach / 2), math.pi / 2, (0.88, 0.84, 0.76), {"w": reach, "pale": 1}))
+    wx1, wz, T = WC[1], WC[2], WC_WALL_T
+    x0 = PIER[0] + 0.2                                 # (the right wall from the pier on, its end wall's corner closed)
+    out.append(("brick_wall", (round((x0 + wx1 + T) / 2, 3), 0.0, wz), math.pi, BRICK, {"w": round(wx1 + T - x0, 3), "h": H}))
+    out.append(("brick_wall", (round((x0 + wx1 + T) / 2, 3), 0.0, wz + T), 0.0, BRICK, {"w": round(wx1 + T - x0, 3), "h": H}))
     s0, s1 = TO_STAGE
-    for z0, z1, f0, f1 in ((0.0, s0, 0.0, H), (s1, wz, 0.0, H), (s0, s1, TO_STAGE_TOP, H)):
-        out.append(("brick_wall", (wx1, f0, (z0 + z1) / 2), -math.pi / 2, BRICK, {"w": round(z1 - z0, 3), "h": round(f1 - f0, 3)}))
+    for x, turn, z1_ in ((wx1, -math.pi / 2, wz), (wx1 + T, math.pi / 2, wz + T)):
+        for z0, z1, f0, f1 in ((0.0, s0, 0.0, H), (s1, z1_, 0.0, H), (s0, s1, TO_STAGE_TOP, H)):
+            out.append(("brick_wall", (x, f0, round((z0 + z1) / 2, 3)), turn, BRICK, {"w": round(z1 - z0, 3), "h": round(f1 - f0, 3)}))
+    out += [("brick_wall", (wx1 + T / 2, 0.0, z), turn, BRICK, {"w": T, "h": TO_STAGE_TOP}) for z, turn in ((s0, 0.0), (s1, math.pi))]
     out.append(("brick_pier", (PIER[0], 0.0, PIER[1]), 0.0, BRICK, {"w": 0.4, "d": 0.4, "h": H}))
-    out.append(("plain_counter", (wx1 - 1.3, 0.0, sum(COUNTER_Z) / 2), -math.pi / 2, (0.10, 0.10, 0.10), {"w": round(COUNTER_Z[1] - COUNTER_Z[0], 3), "d": 0.6, "h": 1.05}))
-    out += [("sink_cabinet", (wx1 - 0.23, 0.0, SINK_Z), -math.pi / 2, (0.24, 0.16, 0.11), None),
-            ("round_mirror", (wx1, 1.2, SINK_Z), -math.pi / 2, None, None),
-            ("dome_pendant", (wx1 - 0.55, H - 1.2, SINK_Z), 0.0, (0.80, 0.42, 0.16), None)]
+    out += [("brick_pier", (PERGOLA[1] - 0.1, 0.0, z), 0.0, BRICK, {"w": 0.36, "d": 0.36, "h": round(PERGOLA_ROOF - 0.22, 3)}) for z in PIERS]   # (the pergola's, on the garden)
+    # (its sink against the right wall, a brass tap out of the wall over it, a mirror over that)
+    out += [("sink_cabinet", (SINK_X, 0.0, wz - 0.225), math.pi, (0.24, 0.16, 0.11), None),
+            ("round_mirror", (SINK_X, 1.2, wz), math.pi, None, None),
+            ("dome_pendant", (SINK_X, H - 1.2, wz - 0.55), 0.0, (0.80, 0.42, 0.16), None)]
+    # the outside passage's door onto the pergola: a leaf of vertical wooden slats hung at the
+    # corner side of its doorway, swung out into the pergola
+    a, b = OUT_DOOR
+    w, swing = b - a, OUT_DOOR_OPEN
+    out.append(("panel_door", (round(PERGOLA[0] + w / 2 * math.sin(swing), 3), 0.0, round(b - w / 2 * math.cos(swing), 3)), round(math.pi / 2 - swing, 4),
+                (0.47, 0.31, 0.21), {"w": round(w - 0.01, 3), "h": 2.15, "slats": 1}))
     # the toilets' signs over their doors, the ladies' changing table, the gents' mosaic splashback
     out += [("door_sign", ((a0 + a1) / 2, 2.3, 0.0), 0.0, None, {"man": k}) for k, (a0, a1) in enumerate(WC_DOORS)]
     out.append(("changing_table", (CHANGING[0] + 0.275, 0.0, (CHANGING[2] + CHANGING[3]) / 2), math.pi / 2, None, None))
@@ -247,8 +263,8 @@ def fixtures() -> dict:
     cx, cz = (x0 + x1) / 2, (VERTICAL[2] + VERTICAL[3]) / 2
     props += [{"item": "glass_lantern", "at": [cx, 0.0, cz], "scale": [round(LANTERN[0] / 4.5, 4), 1, round(LANTERN[1] / 4.0, 4)]},
               {"item": "gourd_pendants", "at": [cx, 0.2, cz], "scale": [1.0, 1.2, 1.0]}]   # (a tight cluster, hung low under the glass)
-    # the jute ceilings: with black bands over the ante-room, plain over the stage
-    for item, (a0, a1, b0, b1) in (("jute_ceiling", ANTE), ("jute_swags", STAGE[:4])):
+    # the jute ceilings, in sheets with black bands between, over the ante-room and the stage (and its walkway)
+    for item, (a0, a1, b0, b1) in (("jute_ceiling", ANTE), ("jute_ceiling", (WC[1] + WC_WALL_T,) + STAGE[1:4])):
         nx = max(1, round((a1 - a0) / 4.0))
         props += [{"item": item, "at": [round(a0 + (k + 0.5) * (a1 - a0) / nx, 3), 0.0, (b0 + b1) / 2],
                    "scale": [round((a1 - a0) / nx / 4.0, 4), 1, round((b1 - b0) / 4.0, 4)]} for k in range(nx)]

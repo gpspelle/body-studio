@@ -96,15 +96,15 @@ class SampleVenueTest(unittest.TestCase):
         trees = props[:len(V.TREES)]
         # and the planted walls, the beds' borders and the glass roof, as decor too
         self.assertEqual({t["item"] for t in props[len(V.TREES):]},
-                         {"living_wall", "tropical_border", "glass_roof", "glass_lantern", "gourd_pendants", "jute_ceiling", "jute_swags",
+                         {"living_wall", "tropical_border", "glass_roof", "glass_lantern", "gourd_pendants", "jute_ceiling",
                           "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave",
                           "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain",
                           "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp",
                           "reed_roof", "wall_sconce", "sky_dome", "saucer_light",
                           "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher",
                           "brick_wall", "brick_pier", "brick_bench", "door_sign", "sink_cabinet", "changing_table", "mosaic_splash",
-                          "dome_pendant", "plain_counter", "wall_plates", "tile_floor", "rustic_tiles", "wall_tiles",
-                          "pivot_door", "panel_door", "security_camera", "stone_wall", "sunk_light", "glass_pane"})
+                          "dome_pendant", "wall_plates", "tile_floor", "rustic_tiles", "wall_tiles",
+                          "pivot_door", "panel_door", "security_camera", "stone_wall", "sunk_light", "glass_pane", "framed_art"})
         for t, (x, z, item) in zip(trees, V.TREES):
             self.assertEqual(t["item"], item)
             mx, mz = self.to_map(x, z)
@@ -323,12 +323,13 @@ class SampleVenueTest(unittest.TestCase):
         stalls = [f for f in fit if f[0] == "toilet_cubicle" and f[1][0] < V.LADIES[1]]
         self.assertEqual(len(stalls), 3)
         self.assertTrue(all(f[1][2] + f[4]["w"] / 2 < V.LADIES_SCREEN for f in stalls))
-        # the half wall at the end of the hall's dining side: pale brick, a fireplace (not a hole
-        # through it) and a picture on the hall's side
+        # the half wall at the end of the hall's dining side: pale brick, a square hole right through
+        # it (Gabriel, 2026-10-31: seen through to the other side), a framed picture hung on the hall's side
         hx = V.HALF_WALL[0]
         a, b, y0, y1 = V.FIREPLACE
-        back = [r for r in rows if abs(r[0][0] - hx - 0.1) < 0.01 and a < r[0][2] < b and y0 < r[0][1] < y1]
-        self.assertTrue(back)
+        through = [r for r in rows if abs(r[0][0] - hx) < V.HALF_WALL_T and a + 0.02 < r[0][2] < b - 0.02 and y0 + 0.02 < r[0][1] < y1 - 0.02]
+        self.assertFalse(through)
+        self.assertEqual(sum(f[0] == "framed_art" for f in V.fittings()), 1)
         # (Gabriel's tags) the bricks drawn as the furniture is, not splats in the look; a passage
         # through the toilets' hall's end to the stage; a sign over each toilet's door; no fan on
         # the corner's pier

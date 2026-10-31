@@ -279,7 +279,7 @@ def house(rnd, out):
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), base.finish("plaster", (0.12, 0.12, 0.12)), out, CEIL_STEP)
     base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
     base._surface(rnd, (*KITCHEN[:2], H, H, *KITCHEN[2:]), CEILING, out, CEIL_STEP)   # (smooth white paint)
-    for (x0, x1, z0, z1) in ((hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1), (hx1, STAGE[1], 0, WC[2])):
+    for (x0, x1, z0, z1) in ((hx0, NOTCH[1], NOTCH[2], hz1), (NOTCH[1], hx1, hz0, hz1), (hx1, STAGE[1], 0, WC[2] + WC_WALL_T)):   # (over the toilets' hall's brick wall too)
         base._surface(rnd, (x0, x1, H, H, z0, z1), _rough(CONCRETE), out, CEIL_STEP)
     skylight(rnd, out)
 
@@ -365,40 +365,36 @@ def house(rnd, out):
     base._surface(rnd, (NOTCH[1], NOTCH[1], WC_CEILING, H, 0.0, NOTCH[2]), hall_wall, out, WALL_STEP)   # (the step open under it: the corridor)
     wall_x(0.0, NOTCH[1], HALF_WALL[0], [], hall_wall, out, rnd)
     side_room(rnd, out)
-    wall_x(0.0, HALF_WALL[0], WC[1], [(a, b, 0.0, 2.2) for a, b in WC_DOORS], wc_wall, out, rnd)
+    wall_x(0.0, HALF_WALL[0], WC[1] + WC_WALL_T, [(a, b, 0.0, 2.2) for a, b in WC_DOORS], wc_wall, out, rnd)   # (to the end wall's far face)
     for k, (a, b) in enumerate(WC_DOORS):
         open_door_x(0.0, a, b, out, rnd, hinge=1 - k, frame=(0.26, 0.15, 0.10))   # (the ladies' hinged on its right, from the hall; dark frames)
         # (a black sign over each: fittings())
     toilets(rnd, out)
     hx, reach = HALF_WALL
     # (pale bare brick, to the ceiling, the end of the hall's dining side as the walkthrough shows
-    # it at 1:20: a small fireplace in it on the hall's side, a framed picture beside that)
+    # it at 1:20: a small square hole right through it (the toilets' hall seen through it), a framed
+    # picture hung beside that on the hall's side (fittings()); a solid wall HALF_WALL_T thick)
     pale = _brickwork(2, FIREPLACE_BRICK)
     a, b, y0, y1 = FIREPLACE
+    t = HALF_WALL_T / 2
     with base.as_decor(out):                           # (its bricks drawn as the furniture is: fittings())
-        wall_z(hx - 0.1, 0.0, reach, [(a, b, y0, y1)], pale, out, rnd, step=0.04)
-        wall_z(hx + 0.1, 0.0, reach, [], pale, out, rnd, step=0.04)
-        base._surface(rnd, (hx - 0.1, hx + 0.1, 0.0, H, reach, reach), _brickwork(0, FIREPLACE_BRICK), out, 0.04)
-    soot = (0.05, 0.05, 0.05)
-    base._surface(rnd, (hx + 0.06, hx + 0.06, y0, y1, a, b), soot, out, 0.02)
-    for (x0, x1, c0, c1, z0, z1) in ((hx - 0.1, hx + 0.06, y0, y0, a, b), (hx - 0.1, hx + 0.06, y1, y1, a, b),
-                                     (hx - 0.1, hx + 0.06, y0, y1, a, a), (hx - 0.1, hx + 0.06, y0, y1, b, b)):
-        base._surface(rnd, (x0, x1, c0, c1, z0, z1), soot, out, 0.02)
-    # (the picture: a dark wooden frame, a white mount, a thin dark ring drawn on it)
-    p0, p1, q0, q1 = PICTURE
-    base._surface(rnd, (hx - 0.12, hx - 0.12, q0, q1, p0, p1), (0.22, 0.15, 0.10), out, 0.015)
-    pc, qc = (p0 + p1) / 2, (q0 + q1) / 2
-    ring = lambda x, y, z, rnd: (0.25, 0.22, 0.2) if abs(math.hypot(z - pc, y - qc) - 0.27) < 0.012 else (0.92, 0.91, 0.88)
-    base._surface(rnd, (hx - 0.125, hx - 0.125, q0 + 0.07, q1 - 0.07, p0 + 0.07, p1 - 0.07), ring, out, 0.01)
+        for x in (hx - t, hx + t):
+            wall_z(x, 0.0, reach, [(a, b, y0, y1)], pale, out, rnd, step=0.04)
+        base._surface(rnd, (hx - t, hx + t, 0.0, H, reach, reach), _brickwork(0, FIREPLACE_BRICK), out, 0.04)
+    # (the hole's sill and head in the same brick, flat: its sides are bricks, fittings())
+    for y in (y0, y1):
+        base._surface(rnd, (hx - t, hx + t, y, y, a, b), FIREPLACE_BRICK, out, 0.02)
     # (bare brick on the pergola's side, lit from lights sunk in the floor: fittings())
     # the toilets' hall's end, the stage's side: bare brick, a passage through it to the stage; a
     # black counter before that, a sink cabinet under a mirror and an orange dome beside it
     # (the bricks, the counter, the cabinet: fittings(); kept here for the map)
-    with base.as_decor(out):
-        wall_x(WC[2], WC[1] - 2.5, WC[1], [], _brickwork(0), out, rnd)
-        wall_z(WC[1], 0.0, WC[2], [TO_STAGE + (0.0, TO_STAGE_TOP)], _brickwork(2), out, rnd)
-        base._surface(rnd, (WC[1] - 1.6, WC[1] - 1.0, 0.0, 1.05, *COUNTER_Z), (0.10, 0.10, 0.10), out, 0.03)
-        base._surface(rnd, (WC[1] - 0.45, WC[1], 0.0, 0.85, SINK_Z - 0.4, SINK_Z + 0.4), (0.24, 0.16, 0.11), out, 0.03)
+    with base.as_decor(out):                           # (walls WC_WALL_T thick: a face of brick each side)
+        for z in (WC[2], WC[2] + WC_WALL_T):
+            wall_x(z, PIER[0] + 0.2, WC[1] + WC_WALL_T, [], _brickwork(0), out, rnd)
+        for x in (WC[1], WC[1] + WC_WALL_T):
+            wall_z(x, 0.0, WC[2], [TO_STAGE + (0.0, TO_STAGE_TOP)], _brickwork(2), out, rnd)
+        base._surface(rnd, (SINK_X - 0.4, SINK_X + 0.4, 0.0, 0.85, WC[2] - 0.45, WC[2]), (0.24, 0.16, 0.11), out, 0.03)
+    base._surface(rnd, (WC[1], WC[1] + WC_WALL_T, TO_STAGE_TOP, TO_STAGE_TOP, *TO_STAGE), BRICK, out, 0.02)   # (the passage's head)
     # the windows along the right: dark grey frames, linen curtains
     # (three sets of three, the same space between the sets; dark shutters behind the glass)
     windows, lights = hall_windows()
@@ -427,14 +423,18 @@ def house(rnd, out):
             base._surface(rnd, (x, x, 0.0, H, cz - 0.2, cz + 0.2), _brickwork(2), out, 0.04)
     # (short track lights here and there on its ceiling: fittings())
 
-    # the stage: 40 cm up, all in black carpet, black curtains behind and a big white screen (Gabriel:
-    # the Palco keeps it, though the walkthrough's frames don't show it)
+    # the stage: 40 cm up, all in black carpet, a walkway beside it from the toilets' hall's passage,
+    # a black curtain behind it all (a wall and a door behind that, unseen) and a big white screen
+    # (Gabriel: the Palco keeps it, though the walkthrough's frames don't show it); open on its far
+    # end, to the garden and the sea
     sx0, sx1, sz0, sz1, sh = STAGE
+    w0 = WC[1] + WC_WALL_T
+    base._surface(rnd, (w0, sx0, 0, 0, sz0, sz1), _cement(WC_FLOOR), out, FLOOR_STEP)
     base._surface(rnd, (sx0, sx1, sh, sh, sz0, sz1), BLACK, out, FLOOR_STEP)
     base._surface(rnd, (sx0, sx1, 0.0, sh, sz1, sz1), (0.13, 0.13, 0.13), out, 0.04)
-    base._surface(rnd, (sx1, sx1, 0.0, sh, sz0, sz1), (0.13, 0.13, 0.13), out, 0.04)
-    base._surface(rnd, (sx0, sx1, sh, H, 0.0, 0.0), _folds((0.16, 0.16, 0.17), 0), out, 0.04)
-    wall_z(sx1, 0.0, sz1, [], _folds((0.16, 0.16, 0.17), 2), out, rnd)
+    for x in (sx0, sx1):
+        base._surface(rnd, (x, x, 0.0, sh, sz0, sz1), (0.13, 0.13, 0.13), out, 0.04)
+    base._surface(rnd, (w0, sx1, 0.0, H, 0.0, 0.0), _folds((0.16, 0.16, 0.17), 0), out, 0.04)
     base._surface(rnd, (sx0 + 1.4, sx1 - 1.4, sh + 0.9, H - 0.15, 0.06, 0.06), SCREEN, out, 0.04)
 
 
@@ -580,7 +580,7 @@ def side_room(rnd, out):
     base._surface(rnd, (end, NOTCH[1], 0, 0, z1, w), floor, out, FLOOR_STEP)
     base._surface(rnd, (end, NOTCH[1], WC_CEILING, WC_CEILING, z1, w), base.finish("plaster", CEILING), out, CEIL_STEP)
     wall_x(z1, end, NOTCH[1], [], cream, out, rnd, h=WC_CEILING)                # (its right side)
-    wall_z(end, z1, w, [(d0, d1, 0.0, 2.3)], cream, out, rnd, h=WC_CEILING)   # (its end, the door in it)
+    wall_z(end, z1 - 0.03, w, [(d0, d1, 0.0, 2.3)], cream, out, rnd, h=WC_CEILING)   # (its end, the door in it)
     frame_z(end - 0.015, d0, d1, 0.0, 2.3, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.07)
     # the room, and the bay past the door in line with the corridor
     for r in ((x0, x1, z0, z1), (x0, end, z1, w)):
@@ -588,7 +588,7 @@ def side_room(rnd, out):
         base._surface(rnd, (r[0], r[1], WC_CEILING, WC_CEILING, r[2], r[3]), base.finish("plaster", CEILING), out, CEIL_STEP)
     wall_z(x0 + 0.02, z0, w - 0.03, [], beige, out, rnd, h=WC_CEILING)   # (just off the ante-room's wall)
     wall_x(w - 0.03, x0 + 0.02, end, [], beige, out, rnd, h=WC_CEILING)  # (just off the notch's wall)
-    wall_z(end - 0.03, z1, w - 0.03, [(d0, d1, 0.0, 2.3)], beige, out, rnd, h=WC_CEILING)
+    wall_z(end - 0.03, z1 - 0.03, w - 0.03, [(d0, d1, 0.0, 2.3)], beige, out, rnd, h=WC_CEILING)
     wall_z(x1, z0, z1 - 0.03, [], beige, out, rnd, h=WC_CEILING)
     wall_x(z1 - 0.03, end - 0.03, x1, [], beige, out, rnd, h=WC_CEILING)   # (behind the corridor's and the hall's walls)
     ga, gb = GARDEN_DOOR
@@ -678,9 +678,7 @@ def pergola(rnd, out):
     base._surface(rnd, (x0, x1 - 2.0, 0.003, 0.003, z1 - 0.2, z1 - 0.08), (0.12, 0.12, 0.12), out, 0.02)
     # the wall, to 2 m short of the garden (where the beds go round the corner)
     wall_x(z1, x0, x1 - 2.0, [], _rough(ROUGH, 0.08), out, rnd, h=PERGOLA_ROOF)
-    # (near the hall a tall door of vertical wooden slats, shut, flush with it; an exit sign)
-    slats = lambda x, y, z, rnd: (0.17, 0.11, 0.08) if x % 0.1 < 0.014 else (0.47, 0.31, 0.21)
-    base._surface(rnd, (x0 + 0.3, x0 + 1.5, 0.0, 2.7, z1 - 0.03, z1 - 0.03), slats, out, 0.02)
+    # (by the hall the passage's door, its leaf of vertical wooden slats swung out: fittings(); an exit sign)
     for x in strips():
         base._surface(rnd, (x - 0.05, x + 0.05, 0.6, 2.8, z1 - 0.02, z1 - 0.02), TIMBER, out, 0.02)
     # (its exit sign and the up-and-down lights between the strips: fittings())
@@ -688,11 +686,12 @@ def pergola(rnd, out):
     # garden side (the reed matting over them, and the track lights on them: fittings())
     for x in pergola_beams():
         base._surface(rnd, (x - 0.08, x + 0.08, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z1), PERGOLA_BEAM, out, 0.05)
-    base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z0 + 0.16), PERGOLA_BEAM, out, 0.05)
+    base._surface(rnd, (WC[1] + WC_WALL_T, x1, PERGOLA_ROOF - 0.22, PERGOLA_ROOF, z0, z0 + 0.16), PERGOLA_BEAM, out, 0.05)   # (from the brick wall's end)
     for z in (z0 + (z1 - z0) / 3, z0 + 2 * (z1 - z0) / 3):
         base._surface(rnd, (x0, x1, PERGOLA_ROOF - 0.36, PERGOLA_ROOF - 0.22, z - 0.07, z + 0.07), PERGOLA_BEAM, out, 0.05)
-    for z in PIERS:                                  # (on the garden side, piers of bare brick)
-        pier(rnd, out, x1 - 0.1, z, 0.18, PERGOLA_ROOF - 0.22)
+    with base.as_decor(out):                         # (on the garden side, piers of bare brick: fittings())
+        for z in PIERS:
+            pier(rnd, out, x1 - 0.1, z, 0.18, PERGOLA_ROOF - 0.22)
     # 14: along its edge on the garden, a strip of irregular flagstones
     base._surface(rnd, (x1 - 0.7, x1, 0.004, 0.004, z0, z1), _flagstones, out, 0.03)
 

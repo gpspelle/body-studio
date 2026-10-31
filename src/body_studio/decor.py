@@ -248,6 +248,7 @@ STARTERS = (
     {"id": "wall_tiles", "group": "home", "height": 2.0, "on": "floor"},
     {"id": "pivot_door", "group": "home", "height": 2.85, "on": "floor"},
     {"id": "panel_door", "group": "home", "height": 2.1, "on": "floor"},
+    {"id": "framed_art", "group": "home", "height": 0.9, "on": "floor"},
     {"id": "security_camera", "group": "home", "height": 0.111, "on": "floor"},
     {"id": "steel_sink", "group": "home", "height": 1.25, "on": "floor"},
     {"id": "gas_range", "group": "home", "height": 0.86, "on": "floor"},

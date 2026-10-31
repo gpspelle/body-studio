@@ -9,7 +9,7 @@ import {
 const WALNUT = [0.36, 0.24, 0.16], OAK = [0.62, 0.46, 0.3], INK = [0.08, 0.08, 0.09], CHROME = [0.72, 0.73, 0.75];
 const VINYL = [0.1, 0.1, 0.11], OCHRE = [0.8, 0.6, 0.25], TEAL = [0.2, 0.45, 0.47], SHADE_LINEN = [0.96, 0.92, 0.82];
 const SOIL = [0.2, 0.15, 0.11], FIG = [0.2, 0.38, 0.17];
-const BRICK_RED = [0.66, 0.36, 0.24];
+const BRICK_RED = [0.66, 0.36, 0.24], PALE_BRICK = [0.70, 0.56, 0.46];
 const STEEL = [0.7, 0.71, 0.72], SINK_DARK = [0.42, 0.43, 0.44], EXTINGUISHER = [0.78, 0.1, 0.08];
 // the spines of the books, muted as a real shelf's are
 const SPINES = [[0.55, 0.18, 0.15], [0.16, 0.27, 0.4], [0.85, 0.8, 0.68], [0.26, 0.4, 0.3], [0.78, 0.6, 0.3],
@@ -743,16 +743,39 @@ export const HOME = {
   },
   brick_bench: {
     group: "home", height: 0.54, on: "floor", colour: "ivory", size: { w: 2.5, d: 0.5 }, block: true, built: ["w"],
-    seats: [{ x: 0, y: 0.52, z: 0.0, back: false }],
-    make(col, k = { w: 2.5 }) {
+    seats: [{ x: 0, y: 0.52, z: 0.0, back: false }], knobs: { pale: { min: 0, max: 1, value: 0 } },
+    make(col, k = { w: 2.5, pale: 0 }) {
       // a bench built of bare brick against a wall (its back at -z), 42 cm high, a long pale cushion
-      // on it
-      const s = shape(), rnd = rng(Math.round(k.w * 53)), d = 0.5;
+      // on it; red brick, or `pale` (the venue's half wall's)
+      const s = shape(), rnd = rng(Math.round(k.w * 53)), d = 0.5, brick = k.pale ? PALE_BRICK : BRICK_RED;
       made("satin", () => {
-        sharpBox(s, k.w, 0.42, d - 0.02, 0, 0, 0, BRICK_RED.map((v) => v * 0.5));
-        bricks(s, k.w, 0.42, BRICK_RED, rnd, (x, y, w, h, c) => sharpBox(s, w, h, 0.02, x, y, d / 2 - 0.01, c));
+        sharpBox(s, k.w, 0.42, d - 0.02, 0, 0, 0, brick.map((v) => v * 0.5));
+        bricks(s, k.w, 0.42, brick, rnd, (x, y, w, h, c) => sharpBox(s, w, h, 0.02, x, y, d / 2 - 0.01, c));
+        for (const e of [-1, 1]) bricks(s, d - 0.02, 0.42, brick, rnd, (z, y, w, h, c) => sharpBox(s, 0.02, h, w, e * (k.w / 2 - 0.01), y, z, c), 0.11);   // (its ends)
       });
       made("cloth", () => soft(s, k.w - 0.04, 0.12, d - 0.04, 0, 0.42, 0, col, 0.04));
+      return s;
+    },
+  },
+  framed_art: {
+    group: "home", height: 0.9, hangs: true, on: "floor", colour: "wood", size: { w: 0.9, d: 0.06 }, block: false, built: ["w", "h"],
+    make(col, k = { w: 0.9, h: 0.9 }) {
+      // a piece of art in a deep wooden frame hung on a wall (its back at z = 0; hung, lift it to
+      // its foot): a white canvas, a ring of plaster standing out of it, a small round stone at the
+      // ring's foot
+      const s = shape(), f = 0.06, d = 0.06, W = COLOURS.white, R = Math.min(k.w, k.h) * 0.3;
+      made("wood", () => {
+        sharpBox(s, k.w, f, d, 0, 0, d / 2, col);
+        sharpBox(s, k.w, f, d, 0, k.h - f, d / 2, col);
+        sharpBox(s, f, k.h - 2 * f, d, -k.w / 2 + f / 2, f, d / 2, col);
+        sharpBox(s, f, k.h - 2 * f, d, k.w / 2 - f / 2, f, d / 2, col);
+      });
+      made("cloth", () => sharpBox(s, k.w - 2 * f, k.h - 2 * f, 0.02, 0, f, 0.02, W));
+      made("satin", () => {
+        const c = [0.88, 0.86, 0.82], cy = k.h / 2 + 0.03;
+        hoop(s, R, 0, cy, 0.03, 0.018, c, 0, 2 * Math.PI, 48);
+        ball(s, 0.03, 0, cy - R - 0.04, 0.025, c);
+      });
       return s;
     },
   },
@@ -961,16 +984,21 @@ export const HOME = {
   },
   panel_door: {
     group: "home", height: 2.1, hangs: true, on: "floor", colour: "walnut", size: { w: 0.9, d: 0.04 }, block: true, built: ["w", "h"],
-    knobs: { rows: { min: 0, max: 8, value: 0 }, louvres: { min: 0, max: 1, value: 0 } },
-    make(col, k = { w: 0.9, h: 2.1, rows: 0, louvres: 0 }) {
+    knobs: { rows: { min: 0, max: 8, value: 0 }, louvres: { min: 0, max: 1, value: 0 }, slats: { min: 0, max: 1, value: 0 } },
+    make(col, k = { w: 0.9, h: 2.1, rows: 0, louvres: 0, slats: 0 }) {
       // a door's leaf of painted wood (centred on its middle, 4 cm thick; hung, lift it to its
       // foot): flush, or in two columns of `rows` sunk panels inside their rails, or louvred
-      // (`louvres`: tilted slats 5 cm apart inside a stile and rails, dark between); a lever each side
+      // (`louvres`: tilted slats 5 cm apart inside a stile and rails, dark between), or of vertical
+      // `slats` with a gap between; a lever each side
       const s = shape(), t = 0.04, dark = col.map((v) => v * 0.72);
       made("wood", () => {
         if (k.louvres) louvred(s, k.w, k.h, t, col, dark);
-        else sharpBox(s, k.w, k.h, t, 0, 0, 0, col);
-        if (k.rows && !k.louvres) {
+        else if (k.slats) {                       // (vertical boards 10 cm wide, a dark gap between, battens behind)
+          const n = Math.max(2, Math.round(k.w / 0.1)), bw = k.w / n;
+          for (let i = 0; i < n; i++) sharpBox(s, bw - 0.014, k.h, t * 0.6, -k.w / 2 + bw * (i + 0.5), 0, t * 0.2, col);
+          for (const y of [0.25, k.h / 2, k.h - 0.35]) sharpBox(s, k.w, 0.1, t * 0.4, 0, y, -t * 0.3, dark);
+        } else sharpBox(s, k.w, k.h, t, 0, 0, 0, col);
+        if (k.rows && !k.louvres && !k.slats) {
           const m = 0.09, pw = (k.w - 3 * m) / 2, ph = (k.h - (k.rows + 1) * m) / k.rows;
           for (let i = 0; i < 2; i++) for (let j = 0; j < k.rows; j++)
             for (const z of [t / 2 - 0.004, -t / 2 + 0.004])

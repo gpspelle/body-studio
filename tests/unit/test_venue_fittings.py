@@ -1,13 +1,16 @@
 """The sample venue's skirting boards (venue_fittings.py) against its walls (sample_venue.py): each
 board lies on a wall the whole way, never across a doorway or its frame, on the floor it stands on
-(the landing inside the front door), and round the slim pillar where the ante-room opens on the hall."""
+(the landing inside the front door), and round the slim pillar where the ante-room opens on the hall.
+And its walls meet: every end of a wall touches another wall, a frame or its own end, so nothing is
+seen through a gap or into a wall's inside, but where the plan leaves a wall open on purpose."""
+import contextlib
 import math
 import random
 import unittest
 from unittest import mock
 
 from body_studio import sample_room, sample_venue as V, venue_fittings as F
-from body_studio.venue_plan import ANTE, LANDING, NOTCH, RECEPTION, RECEPTION_DOOR
+from body_studio.venue_plan import ANTE, DECK, KITCHEN, LANDING, NOTCH, PERGOLA, RECEPTION, RECEPTION_DOOR, HALF_WALL, HALF_WALL_T
 
 
 def _drawn():
@@ -96,6 +99,75 @@ class SkirtingTest(unittest.TestCase):
             run = sorted((b[2], b[3]) for b in self.boards if b[0] == "x" and abs(b[1] - z) < 0.01 and ANTE[0] - 0.01 <= b[2] < ANTE[1])
             self.assertAlmostEqual(run[0][0], ANTE[0]); self.assertAlmostEqual(run[-1][1], ANTE[1])
             self.assertTrue(all(abs(a[1] - b[0]) < 1e-6 for a, b in zip(run, run[1:])))
+
+
+def _walls():
+    """Every upright face from the floor the page draws, in plan ((x0, z0), (x1, z1), top, what):
+    the house's and the pergola's flat walls (not those drawn as decor), each box's four sides, and
+    the walls drawn as decor (brick faces, glass, tiles, piers, benches)."""
+    segs, decor = [], [False]
+    surface, as_decor = sample_room._surface, sample_room.as_decor
+
+    @contextlib.contextmanager
+    def flagged(out):
+        decor[0] = True
+        try:
+            with as_decor(out):
+                yield
+        finally:
+            decor[0] = False
+
+    def record(rnd, box, colour, out, *a, **k):
+        x0, x1, y0, y1, z0, z1 = box
+        if not decor[0] and y1 - y0 > 0.3 and y0 < 0.05:
+            if z0 == z1 and x1 > x0:
+                segs.append(((x0, z0), (x1, z0), y1, "wall"))
+            elif x0 == x1 and z1 > z0:
+                segs.append(((x0, z0), (x0, z1), y1, "wall"))
+            elif x1 > x0 and z1 > z0:
+                segs.extend((p, q, y1, "box") for p, q in (((x0, z0), (x1, z0)), ((x0, z1), (x1, z1)), ((x0, z0), (x0, z1)), ((x1, z0), (x1, z1))))
+        return surface(rnd, box, colour, out, *a, **k)
+
+    with mock.patch.object(sample_room, "_surface", record), mock.patch.object(sample_room, "as_decor", flagged):
+        out = []
+        V.house(random.Random(1), out)
+        V.pergola(random.Random(1), out)
+    for item, (x, y, z), turn, _, o in F.fittings():
+        c, s = math.cos(turn), math.sin(turn)
+        if item in ("brick_wall", "glass_pane", "wall_tiles", "brick_bench") and y < 0.05:
+            w = o["w"] if isinstance(o, dict) else o
+            segs.append(((x - c * w / 2, z + s * w / 2), (x + c * w / 2, z - s * w / 2), y + (o.get("h", 2.4) if isinstance(o, dict) else 0.42), item))
+        elif item == "brick_pier":
+            w, d = o["w"] / 2, o["d"] / 2
+            p = [(x - w, z - d), (x + w, z - d), (x + w, z + d), (x - w, z + d)]
+            segs += [(p[i], p[(i + 1) % 4], o["h"], item) for i in range(4)]
+    return segs
+
+
+def _touches(p, seg, tol=0.025):
+    (ax, az), (bx, bz) = seg[0], seg[1]
+    dx, dz = bx - ax, bz - az
+    t = max(0.0, min(1.0, ((p[0] - ax) * dx + (p[1] - az) * dz) / (dx * dx + dz * dz)))
+    return math.hypot(ax + t * dx - p[0], az + t * dz - p[1]) < tol
+
+
+class WallsMeetTest(unittest.TestCase):
+
+    def test_every_wall_end_meets_another(self):
+        segs = _walls()
+        loose = set()
+        for i, sg in enumerate(segs):
+            for p in sg[:2]:
+                if not any(j != i and _touches(p, o) for j, o in enumerate(segs)):
+                    loose.add((round(p[0], 2), round(p[1], 2)))
+        open_on_purpose = {
+            (DECK[0] - 0.3, -0.5), (DECK[0] - 0.3, 4.5),            # (the street's backdrop past the deck)
+            (KITCHEN[0] - 3.0, 5.65),                                # (the kitchen yard's low wall's end)
+            (0.0, 3.8),                                              # (the ante-room's way into the hall, its edge)
+            (round(HALF_WALL[0] + HALF_WALL_T / 2 + 0.25, 2), HALF_WALL[1]),   # (the bench's free end)
+            (PERGOLA[1] - 2.0, PERGOLA[3]),                          # (the pergola's wall, open to the garden's beds)
+        }
+        self.assertEqual(loose - {(round(x, 2), round(z, 2)) for x, z in open_on_purpose}, set())
 
 
 if __name__ == "__main__":
