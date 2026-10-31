@@ -114,6 +114,13 @@ Four starters are kits rather than things (`static/decor/custom.js`, dressed by
   not dotted evenly. A **Filler flower** (baby's breath, waxflower, button chrysanthemum,
   delphinium) fills between the big ones. Research and the flower list:
   `/mnt/project-files/body-studio/custom-decor/flowers-and-greenery.md` (project files).
+- **Mechanics** (an arch, `mechanics()` in custom.js): florists never stick flowers to a bare
+  frame. They zip-tie foam cages (a brick of wet floral foam in a plastic cage) to it, or wrap moss
+  in chicken wire round it, cover those with short greenery, then push every stem in. So the arch
+  draws a cage every 30 cm where it is covered (or lumps of moss), a few short greens over each,
+  and each flower on a stem from its head back into one (`stem()` in florals.js: leaves on the
+  leafy kinds), heads clustered round the mechanics, most facing the front. Mounds at its feet
+  sit on a foam brick the same way. **Flowers set in**: foam cages, moss and wire, or none.
 - **Size** chips (arch, hanging flowers, fabric overhead): Small, Medium, Large, Grand set width,
   depth, height and the counts together (`presets`); the sliders still fine-tune.
 - **Lights** (hung): filament bulbs and woven lamps under it.

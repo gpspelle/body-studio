@@ -2,8 +2,8 @@
 // its flowers where you want them, a floral installation hung overhead, the flowers for a table.
 // Each is dressed by florals.js from its knobs: the flowers' kinds, colours and how many, the
 // greenery, and for an arch how thickly each part of it is covered.
-import { shape, made, vert, quad, rod, cyl, box, ball, bulb, shade, lit, tipped, rng, COLOURS, GLASS, WIRE, WAX, FLAME } from "./shapes.js";
-import { floralKnobs, dress, ivy, flower, around } from "./florals.js";
+import { shape, made, vert, quad, rod, cyl, box, ball, blob, bulb, shade, lit, tipped, rng, facing, COLOURS, GLASS, WIRE, WAX, FLAME, MOSS } from "./shapes.js";
+import { floralKnobs, dress, ivy, flower, green, around } from "./florals.js";
 
 // ---------------------------------------------------------------- an arch's line
 export const ARCHES = ["round", "pointed", "square", "circle", "hexagon", "triangle", "halfmoon"];
@@ -82,6 +82,88 @@ export function coverPick(k, r1, r2, closed = false) {
   const [a, b] = spans[k0];
   return Math.min(b, a + r2 * (b - a));
 }
+// How thick the cover is at t along an arch's line (0..100), its parts slid by k.shift as
+// coverPick slides them; round a ring (closed) what slides past an end comes round.
+export function coverAt(k, t, closed = false) {
+  let u = t - (+k.shift || 0) / 100;
+  if (closed) u -= Math.floor(u);
+  else if (u < 0 || u >= 1 + 1e-9) return 0;
+  return Math.max(0, +k[PARTS[Math.min(PARTS.length - 1, Math.floor(u * PARTS.length))]] || 0);
+}
+// The mechanics a florist ties to an arch before a single flower goes in: a foam cage (a brick of
+// wet floral foam in a plastic cage, zip-tied on) every ~30 cm where the arch is covered, or a
+// pillow of moss in chicken wire along the covered stretches. Every stem is pushed into one, the
+// greenery first, so the flowers sit in clusters round them. [{ t, p: [x, y], d (the line's way),
+// w (its cover) }]
+export const CAGE_STEP = 0.3;
+export function mechanics(k, path, closed = false) {
+  const n = Math.max(2, Math.ceil(path.length / CAGE_STEP)), out = [];
+  for (let i = 0; i < n; i++) {
+    const t = closed ? i / n : (i + 0.5) / n, w = coverAt(k, t, closed);
+    if (w > 0) { const at = path.at(t); out.push({ t, p: at.p, d: at.d, w }); }
+  }
+  return out;
+}
+const FOAM = [0.33, 0.45, 0.3], CAGE = [0.16, 0.17, 0.16], TIE = [0.08, 0.08, 0.08];
+// a ring of radius R round the line's way d (in x-y) at c: a zip tie round the frame
+function tie(s, c, d, R) {
+  const nrm = [-d[1], d[0], 0];
+  let prev = null;
+  for (let j = 0; j <= 10; j++) {
+    const a = (j / 10) * 2 * Math.PI, q = [c[0] + R * (Math.cos(a) * nrm[0]), c[1] + R * (Math.cos(a) * nrm[1]), c[2] + R * Math.sin(a)];
+    if (prev) rod(s, prev, q, 0.002, TIE, 3);
+    prev = q;
+  }
+}
+function drawMechanics(s, k, cages, path, r) {
+  if (k.mount === "foam") for (const c of cages) {
+    // (the cage on the front of the frame, along it, tied on at both ends)
+    const at = [c.p[0], c.p[1], 0];
+    made("cloth", () => facing([c.d[0], c.d[1], 0], at, () => {
+      box(s, 0.07, 0.17, 0.06, 0, -0.085, 0, FOAM);
+      for (const y of [-0.07, 0, 0.07]) box(s, 0.08, 0.01, 0.07, 0, y - 0.005, 0, CAGE);
+    }));
+    for (const o of [-0.06, 0.06]) tie(s, [c.p[0] + c.d[0] * o, c.p[1] + c.d[1] * o, 0], c.d, (k.thick || 0.02) + 0.038);
+  }
+  // (the foam hidden first under short pieces of the greenery, tucked in flat over its front)
+  if (k.mount === "foam" && (k.greens || 0) > 0) {
+    // (a light one: the leafy kinds as they are, the heavy ones (ferns, palms, pampas) as salal)
+    const LIGHT = ["eucalyptus", "ruscus", "olive", "salal", "pittosporum"];
+    const rnd = rng(147), kinds = k.green === "mixed" ? ["eucalyptus", "ruscus", "salal"] : [LIGHT.includes(k.green) ? k.green : "salal"];
+    for (const c of cages) for (let j = 0; j < 3; j++) {
+      const d = around(c.d, 1.25 + (rnd() - 0.5) * 1.2), o = (rnd() - 0.5) * 0.18;
+      green(s, kinds[j % kinds.length], [c.p[0] + c.d[0] * o, c.p[1] + c.d[1] * o, 0.03], d, 0.18 + 0.08 * rnd(), 151 + j);
+    }
+  }
+  if (k.mount === "moss") {
+    // (moss in chicken wire wrapped round the frame along the covered stretches: lumps of it, a
+    // little uneven, darker and lighter)
+    const rnd = rng(149), R = Math.min(0.05, r * 0.3);
+    made("cloth", () => { for (const c of cages) for (let j = 0; j < 5; j++) {
+      const o = (rnd() - 0.5) * CAGE_STEP * 1.05, tone = 0.75 + 0.4 * rnd();
+      blob(s, R * (0.8 + 0.5 * rnd()), R * (0.7 + 0.4 * rnd()), R * (0.8 + 0.4 * rnd()), c.p[0] + c.d[0] * o - c.d[1] * (rnd() - 0.5) * 0.03, c.p[1] + c.d[1] * o + c.d[0] * (rnd() - 0.5) * 0.03, (rnd() - 0.5) * 0.04,
+           MOSS.map((v) => v * tone), rnd() * 6.3, 6);
+    } });
+  }
+}
+// Where a flower (or a piece of greenery) goes on an arch: into one of its mechanics, chosen by its
+// cover, its head round it (a little along the line either way, most toward the front), its stem
+// back into it: [head, the way it faces, where its stem goes in]. Greenery starts at the
+// mechanics and reaches out. null when nothing is covered.
+export function mechanicSpot(cages, r, rnd, leafy, mount) {
+  const sum = cages.reduce((m, c) => m + c.w, 0);
+  if (!sum) return null;
+  let u = rnd() * sum, i = 0;
+  while (i < cages.length - 1 && u >= cages[i].w) { u -= cages[i].w; i++; }
+  // (most face the front, the way the guests see it, tipped out over the frame; some go round it)
+  const c = cages[i], along = (rnd() - 0.5) * CAGE_STEP * 1.1, q = rnd() < 0.8 ? 0.75 + (rnd() - 0.5) * 2.2 : (rnd() - 0.5) * 6.3, d = around(c.d, q);
+  const z0 = 0;
+  const base = [c.p[0] + c.d[0] * along * 0.5, c.p[1] + c.d[1] * along * 0.5, z0];
+  if (leafy) return [[base[0] + d[0] * 0.02, base[1] + d[1] * 0.02, base[2] + d[2] * 0.02], d, null];
+  const o = r * (0.25 + 0.55 * Math.sqrt(rnd()));
+  return [[c.p[0] + c.d[0] * along + d[0] * o, c.p[1] + c.d[1] * along + d[1] * o, z0 + d[2] * o], d, base];
+}
+
 // where an arch stands on the floor: the ends of its line on the ground (a ring's foot)
 export function archPosts(k) {
   const { w, h } = frameOf(k), line = archLine(k.shape, w, h), feet = line.filter(([, y]) => y < 0.05);
@@ -91,15 +173,19 @@ export function archPosts(k) {
 // the frame's own width and height, inside the flowers round it (so the whole arch is as wide and
 // as high as asked), and how far the flowers stand round it
 export function frameOf(k) {
-  const r = Math.max(0.08, k.d * 0.25), pad = r + 0.12;
-  return { w: Math.max(0.3, k.w - 2 * pad), h: Math.max(0.3, k.h - pad), r };
+  // (the flowers reach further out at its sides than over its top, where most face the front)
+  const r = Math.max(0.08, k.d * 0.25), side = r + 0.12, top = 0.8 * r + 0.05;
+  return { w: Math.max(0.3, k.w - 2 * side), h: Math.max(0.3, k.h - top), r };
 }
 
 // a mound of flowers and greenery at (x, 0, z), r across: an arch's foot, a low centrepiece
 function mound(s, k, x, z, r, h, seed, flowers, greens, len = 0.3) {
-  dress(s, { ...k, flowers, greens }, (rnd) => {
+  // (set into a brick of foam in its middle, as a florist builds one: stems in from every side)
+  const heart = [x, Math.min(0.08, h * 0.4), z];
+  made("cloth", () => box(s, Math.min(0.2, r), Math.min(0.08, h * 0.5), Math.min(0.11, r * 0.6), x, 0, z, FOAM));
+  dress(s, { ...k, flowers, greens, fillers: Math.round((k.fillers || 0) * flowers / Math.max(1, k.flowers || 1)) }, (rnd) => {
     const a = rnd() * 2 * Math.PI, q = Math.sqrt(rnd()), up = Math.sqrt(Math.max(0, 1 - q * q));
-    return [[x + Math.sin(a) * q * r, Math.max(0.07, up * h), z + Math.cos(a) * q * r * 0.8], tipped(a, 0.2 + Math.min(1.1 * q, 1.2))];
+    return [[x + Math.sin(a) * q * r, Math.max(0.07, up * h), z + Math.cos(a) * q * r * 0.8], tipped(a, 0.2 + Math.min(1.1 * q, 1.2)), heart];
   }, seed, len);
 }
 
@@ -190,6 +276,7 @@ export const CUSTOM = {
     knobs: {
       shape: { choices: ARCHES, value: "round", part: "shape" },
       thick: { min: 0.01, max: 0.12, step: 0.005, value: 0.02, size: true, part: "frame" },
+      mount: { choices: ["foam", "moss", "none"], value: "foam", part: "frame" },
       ...floralKnobs({ flowers: 180, greens: 110 }),
       lfoot: { min: 0, max: 100, step: 5, value: 20, unit: "%", part: "cover" },
       lside: { min: 0, max: 100, step: 5, value: 60, unit: "%", part: "cover" },
@@ -211,24 +298,20 @@ export const CUSTOM = {
       frame(s, line, col, k);
       if (k.shape === "circle" || k.shape === "halfmoon")
         made(FRAME_FINISH[k.finish] || "satin", () => box(s, Math.min(fw, 1.2), 0.05, Math.max(0.3, k.d * 0.6), 0, 0, 0, frameColour(col, k)));
-      dress(s, k, (rnd, n, leafy) => {
-        const t = coverPick(k, rnd(), rnd(), closed);
-        if (t === null) return null;
-        // (round the frame, most toward the front; leaves further out)
-        const at = path.at(t), q = (rnd() - 0.5) * (rnd() < 0.8 ? 2.2 : 6.3), d = around(at.d, q), o = r * (leafy ? 0.6 + 0.5 * rnd() : Math.sqrt(rnd()));
-        const y = at.p[1] + d[1] * o;
+      // the mechanics, then everything set into them: greenery, flowers on their stems, strands
+      const cages = mechanics(k, path, closed);
+      drawMechanics(s, k, cages, path, r);
+      const lowest = (at) => {
         // (near the floor, nothing pointing down into it)
-        return [[at.p[0] + d[0] * o, Math.max(0.08, y), d[2] * o], y < 0.3 && d[1] < 0 ? [d[0], 0.2, d[2]].map((v, _, a) => v / Math.hypot(...a)) : d];
-      }, 131, 0.55 * r);
-      // strands falling from the covered parts high up
-      const rnd = rng(137);
-      for (let n = 0, tries = 0; n < k.trails && tries < k.trails * 20; tries++) {
-        const t = coverPick(k, rnd(), rnd(), closed);
-        if (t === null) break;
-        const at = path.at(t);
-        if (at.p[1] < fh * 0.45) continue;
-        ivy(s, [at.p[0], at.p[1] - r * 0.4, (rnd() - 0.3) * r], k.traillen * (0.6 + 0.6 * rnd()), 139 + n);
-        n++;
+        if (!at || at[0][1] >= 0.3 || at[1][1] >= 0) return at && [[at[0][0], Math.max(0.08, at[0][1]), at[0][2]], at[1], at[2]];
+        return [[at[0][0], Math.max(0.08, at[0][1]), at[0][2]], [at[1][0], 0.2, at[1][2]].map((v, _, a) => v / Math.hypot(...a)), at[2]];
+      };
+      dress(s, k, (rnd, n, leafy) => lowest(mechanicSpot(cages, r, rnd, leafy, k.mount)), 131, 0.55 * r);
+      // strands falling from the mechanics high up
+      const rnd = rng(137), high = cages.filter((c) => c.p[1] >= fh * 0.45);
+      for (let n = 0; n < k.trails && high.length; n++) {
+        const c = high[Math.floor(rnd() * high.length)];
+        ivy(s, [c.p[0], c.p[1] - 0.03, 0.04 + (rnd() - 0.3) * r * 0.5], k.traillen * (0.6 + 0.6 * rnd()), 139 + n);
       }
       const feet = archPosts(k);
       const left = Math.min(...feet.map(([x]) => x)), right = Math.max(...feet.map(([x]) => x));

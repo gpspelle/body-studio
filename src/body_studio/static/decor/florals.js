@@ -3,7 +3,7 @@
 // which kinds, which colours, how much of each) from the knobs a starter shows (floralKnobs). Each
 // flower is built facing up at the origin and put in place by facing(), as in shapes.js.
 import {
-  shape, made, rod, ball, blob, bloom, daisy, calla, orchid, torch, pompom, plume, leaf, frond, sprig, facing, tipped, rng,
+  shape, made, vert, quad, rod, ball, blob, bloom, daisy, calla, orchid, torch, pompom, plume, leaf, frond, sprig, facing, tipped, rng,
   LEAF, DARK_LEAF, PALM, MONSTERA, EUCALYPTUS, STEM, SPADIX, CENTRE, PAMPAS,
 } from "./shapes.js";
 
@@ -201,30 +201,56 @@ export function green(s, kind, p, d, len, seed) {
   else if (kind === "fern") frond(s, p, a, len * 0.8, FERN);
   else if (kind === "palm") frond(s, p, a, len * 1.1, seed % 2 ? PALM : DARK_LEAF);
   else if (kind === "monstera") leaf(s, p, d, len * 0.75, 0.45, MONSTERA);
-  else if (kind === "ruscus") stemmed(s, p, d, len, seed, 9, (q, l, r) => blob(s, l * 0.025, 0.002, l * 0.09, q[0], q[1], q[2], RUSCUS, r, 5));
-  else if (kind === "olive") stemmed(s, p, d, len, seed, 12, (q, l, r) => blob(s, l * 0.02, 0.002, l * 0.08, q[0], q[1], q[2], OLIVE, r, 5));
-  else if (kind === "pittosporum") stemmed(s, p, d, len * 0.8, seed, 6, (q, l, r) => {
-    for (let k = 0; k < 4; k++) blob(s, l * 0.05, 0.003, l * 0.07, q[0] + Math.sin(r + k * 1.6) * l * 0.05, q[1], q[2] + Math.cos(r + k * 1.6) * l * 0.05, PITTO, r + k * 1.6, 5);
+  else if (kind === "ruscus") stemmed(s, p, d, len, seed, 9, (q, l, dir) => flatLeaf(s, q, dir, l * 0.16, 0.022, RUSCUS));
+  else if (kind === "olive") stemmed(s, p, d, len, seed, 12, (q, l, dir) => flatLeaf(s, q, dir, l * 0.13, 0.012, OLIVE));
+  else if (kind === "pittosporum") stemmed(s, p, d, len * 0.8, seed, 6, (q, l, dir) => {
+    for (let k = 0; k < 4; k++) flatLeaf(s, q, turnAbout(dir, k * 1.6), l * 0.09, 0.03, PITTO);
   });
-  else if (kind === "asparagus") stemmed(s, p, d, len, seed, 12, (q, l, r) => {
-    for (let k = 0; k < 3; k++) blob(s, l * 0.045, 0.004, l * 0.02, q[0], q[1] + 0.004 * k, q[2], PLUMOSUS, r + k, 4);
+  else if (kind === "asparagus") stemmed(s, p, d, len, seed, 12, (q, l, dir) => {
+    for (let k = 0; k < 3; k++) flatLeaf(s, q, turnAbout(dir, k * 2.1), l * 0.06, 0.008, PLUMOSUS);
   });
   else if (kind === "pampas") plume(s, len * 1.3, len * 0.1, p, PAMPAS, seed, Math.atan2(d[0], d[2]), Math.acos(Math.max(-1, Math.min(1, d[1]))));
   else if (kind === "magnolia") { leaf(s, p, d, len * 0.5, 0.32, MAGNOLIA); leaf(s, p, tipped(a + 0.7, Math.acos(Math.max(-1, Math.min(1, d[1]))) + 0.3), len * 0.45, 0.32, MAGNOLIA_BACK); }
-  else if (kind === "salal") stemmed(s, p, d, len * 0.8, seed, 5, (q, l, r) => blob(s, l * 0.1, 0.003, l * 0.13, q[0], q[1], q[2], SALAL, r, 6));
+  else if (kind === "salal") stemmed(s, p, d, len * 0.8, seed, 5, (q, l, dir) => flatLeaf(s, q, dir, l * 0.2, 0.05, SALAL));
   else ivy(s, p, len, seed);
 }
 const RUSCUS = [0.2, 0.4, 0.18], OLIVE = [0.52, 0.58, 0.46], PITTO = [0.18, 0.35, 0.17], PLUMOSUS = [0.38, 0.58, 0.29];
 const MAGNOLIA = [0.13, 0.27, 0.13], MAGNOLIA_BACK = [0.47, 0.32, 0.19], SALAL = [0.28, 0.45, 0.22];
-// a stem from p toward d, len long, with n leaves (leafAt(point, len, turn)) along it, either side
+// a stem from p toward d, len long, with n leaves (leafAt(point, len, the way it points)) along it,
+// either side, pointing out and on toward the tip
 function stemmed(s, p, d, len, seed, n, leafAt) {
-  const rnd = rng(seed), a = Math.atan2(d[0], d[2]);
+  const rnd = rng(seed), side = across(d);
   rod(s, p, [p[0] + d[0] * len, p[1] + d[1] * len, p[2] + d[2] * len], 0.0025, STEM, 4);
   for (let k = 1; k <= n; k++) {
-    const t = k / (n + 0.5), side = k % 2 ? 1 : -1, o = 0.02 + 0.01 * rnd();
-    const q = [p[0] + d[0] * len * t + Math.cos(a) * side * o, p[1] + d[1] * len * t, p[2] + d[2] * len * t - Math.sin(a) * side * o];
-    leafAt(q, len, a + side * 0.6 + (rnd() - 0.5) * 0.4);
+    const t = k / (n + 0.5), sg = k % 2 ? 1 : -1, q = [p[0] + d[0] * len * t, p[1] + d[1] * len * t, p[2] + d[2] * len * t];
+    const dir = unit(side.map((v, i) => sg * v * (0.9 + 0.3 * rnd()) + d[i] * 0.8));
+    leafAt(q, len, dir);
   }
+}
+const unit = (v) => { const L = Math.hypot(...v) || 1; return v.map((x) => x / L); };
+// the way across d that lies in the plane facing the front (+z), else up: where its leaves go
+function across(d) {
+  const c = [d[1] * 1 - 0, 0 - d[0] * 1, 0];   // d x z
+  return Math.hypot(...c) > 0.2 ? unit(c) : unit([d[1] * 0 - d[2] * 1, d[2] * 0 - d[0] * 0, d[0] * 1 - d[1] * 0]);
+}
+// dir turned by a about the front's way (+z): leaves of a rosette round their stem
+function turnAbout(dir, a) { return unit([dir[0] * Math.cos(a) - dir[1] * Math.sin(a), dir[0] * Math.sin(a) + dir[1] * Math.cos(a), dir[2]]); }
+// A flat leaf from p toward dir (unit), len long and wide across, facing the front (+z) as far as
+// its way allows (so a leaf on an arch shows its face to the guests, not its edge): a pointed oval.
+export function flatLeaf(s, p, dir, len, wide, col) {
+  let n = [0, 0, 1];
+  const dn = n[0] * dir[0] + n[1] * dir[1] + n[2] * dir[2];
+  n = unit(n.map((v, i) => v - dir[i] * dn + (Math.abs(dn) > 0.95 ? [0, 1, 0][i] : 0)));
+  const w = unit([dir[1] * n[2] - dir[2] * n[1], dir[2] * n[0] - dir[0] * n[2], dir[0] * n[1] - dir[1] * n[0]]);
+  const U = 4, pts = [];
+  for (let i = 0; i <= U; i++) {
+    const t = i / U, half = wide * 0.5 * Math.sin(Math.PI * Math.min(1, t * 1.1)) ** 0.8, bend = -0.15 * len * t * t;
+    for (const sg of [-1, 0, 1]) {
+      const c = [p[0] + dir[0] * len * t + n[0] * (bend + (sg ? -0.15 : 0) * half), p[1] + dir[1] * len * t + n[1] * (bend + (sg ? -0.15 : 0) * half), p[2] + dir[2] * len * t + n[2] * (bend + (sg ? -0.15 : 0) * half)];
+      pts.push(vert(s, c[0] + w[0] * sg * half, c[1] + w[1] * sg * half, c[2] + w[2] * sg * half, sg ? col : col.map((v) => v * 0.85)));
+    }
+  }
+  for (let i = 0; i < U; i++) for (let j = 0; j < 2; j++) quad(s, pts[i * 3 + j], pts[i * 3 + j + 1], pts[(i + 1) * 3 + j + 1], pts[(i + 1) * 3 + j]);
 }
 // a strand of ivy falling from p, len long: small leaves either side of a thin stem
 export function ivy(s, p, len, seed, col = IVY) {
@@ -234,7 +260,7 @@ export function ivy(s, p, len, seed, col = IVY) {
     const t = k / n, q = [p[0] + 0.04 * Math.sin(t * 5 + seed), p[1] - len * t, p[2] + 0.04 * Math.cos(t * 4 + seed)];
     rod(s, prev, q, 0.002, STEM, 3);
     const side = k % 2 ? 1 : -1, l = 0.035 + 0.015 * rnd();
-    blob(s, l * 0.55, 0.003, l * 0.5, q[0] + side * 0.02, q[1], q[2], k % 3 ? col : LEAF, rnd() * 6.3, 5);
+    flatLeaf(s, [q[0] + side * 0.004, q[1], q[2]], unit([side * 0.85, -0.35 + 0.3 * rnd(), 0.25]), l, l * 0.75, k % 3 ? col : LEAF);
     prev = q;
   }
 }
@@ -318,6 +344,28 @@ export function mixSize(k, d, r1, r2) {
   return Math.min(1.9, Math.max(0.5, (0.92 + 0.16 * r2) * Math.exp(g * 0.28 * v) * (1 + 0.5 * v * (d - 0.5))));
 }
 
+// The kinds that carry leaves on their stems (a rose's, a peony's); the others' stems are bare
+// (an orchid's, a calla's, baby's breath's fine sprays)
+export const LEAFY = new Set(["rose", "peony", "hydrangea", "gerbera", "ranunculus", "lisianthus", "dahlia", "protea", "carnation",
+                              "tulip", "sunflower", "chrysanthemum", "anemone", "delphinium"]);
+const STEMS = { hydrangea: [0.28, 0.42, 0.22], protea: [0.38, 0.33, 0.24] };
+// A flower's stem, from just under its head (b across, at p facing d) back to where it is pushed
+// into the foam or the moss (to), thicker for a big head; one or two leaves on it, off to its sides.
+export function stem(s, kind, b, p, d, to, rnd) {
+  const from = [p[0] - d[0] * b * 0.15, p[1] - d[1] * b * 0.15, p[2] - d[2] * b * 0.15];
+  const v = [to[0] - from[0], to[1] - from[1], to[2] - from[2]], L = Math.hypot(...v);
+  if (L < 0.01) return;
+  const col = STEMS[kind] || STEM;
+  rod(s, from, to, Math.max(0.0022, Math.min(0.006, b * 0.05)), col, 4);
+  if (!LEAFY.has(kind) || L < 0.05) return;
+  const u = v.map((x) => x / L), side = [u[1] * d[2] - u[2] * d[1], u[2] * d[0] - u[0] * d[2], u[0] * d[1] - u[1] * d[0]], sl = Math.hypot(...side) || 1;
+  for (let j = 0, n = L > 0.12 ? 2 : 1; j < n; j++) {
+    const f = 0.3 + 0.35 * j + 0.1 * rnd(), sg = j % 2 ? -1 : 1, q = from.map((x, i) => x + v[i] * f);
+    // (a leaf points out from the stem and a little toward the head)
+    const dir = side.map((x, i) => sg * x / sl * 0.8 - u[i] * 0.5 + d[i] * 0.2), dl = Math.hypot(...dir) || 1;
+    flatLeaf(s, q, dir.map((x) => x / dl), Math.min(0.08, b * 0.8 + 0.02), Math.min(0.035, b * 0.35 + 0.01), LEAF);
+  }
+}
 // Dress a shape: k.greens pieces of greenery first, then k.flowers flowers over them, each where
 // spot(rnd, k) puts it ([p, d] a point and the way it faces, or null to leave it out: a part of an
 // arch left bare), then k.fillers small filler flowers among them. About k.share in a hundred of
@@ -334,10 +382,12 @@ export function dress(s, k, spot, seed, greenLen = 0.3) {
     else green(s, kind, at[0], at[1], greenLen * (0.7 + 0.6 * rnd()), seed + n);
   }
   const tint = k.tint || [1, 1, 1], acc = k.accenttint || tint;
-  const one = (kind, base, isAccent, size, p, d, spin) => {
+  const one = (kind, base, isAccent, size, p, d, spin, stemTo) => {
     const x01 = clamp01(p[0] / w + 0.5);
     const col = mixColour({ ...k, accenttint: acc }, base, isAccent, drift(p, seed + 3), x01, mix(), mix(), mix());
-    flower(s, kind, size * mixSize(k, drift(p, seed + 4), mix(), mix()), col, p, d, spin);
+    const b = size * mixSize(k, drift(p, seed + 4), mix(), mix());
+    if (stemTo) stem(s, kind, b, p, d, stemTo, mix);
+    flower(s, kind, b, col, p, d, spin);
   };
   for (let n = 0; n < (k.flowers || 0); n++) {
     const at = spot(rnd, n, false);
@@ -345,14 +395,14 @@ export function dress(s, k, spot, seed, greenLen = 0.3) {
     // (the accent in drifts: likelier where the drift is high, as often as asked over the piece)
     const r = rnd(), accent = r * 100 < (k.share || 0) * (0.3 + 1.4 * drift(at[0], seed + 2)), kind = kindOf(accent ? k.accent : k.flower, n);
     rnd();
-    one(kind, accent ? acc : tint, accent, k.bloomsize || 0.08, at[0], at[1], rnd() * 6.3);
+    one(kind, accent ? acc : tint, accent, k.bloomsize || 0.08, at[0], at[1], rnd() * 6.3, at[2]);
   }
   if (k.filler && k.filler !== "none") for (let n = 0; n < (k.fillers || 0); n++) {
     const at = spot(rnd, n, false);
     if (!at) continue;
     // (baby's breath near white, waxflower a pale accent, the others in the main colours)
     const base = k.filler === "babysbreath" ? shadeOf(tint, 0.8) : k.filler === "waxflower" ? shadeOf(acc, 0.45) : rnd() < 0.5 ? tint : acc;
-    one(k.filler, base, true, (k.bloomsize || 0.08) * (k.filler === "chrysanthemum" ? 0.55 : 0.5), at[0], at[1], rnd() * 6.3);
+    one(k.filler, base, true, (k.bloomsize || 0.08) * (k.filler === "chrysanthemum" ? 0.55 : 0.5), at[0], at[1], rnd() * 6.3, at[2]);
   }
 }
 // a unit direction out from a line's direction t (in x-y), tipped toward the front (+z) by q

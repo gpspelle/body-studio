@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- **Arch, your own, built as a florist builds one**: foam cages zip-tied to the frame every 30 cm
+  where it is covered (or **Moss and wire**: moss in chicken wire wrapped round it), hidden under
+  short greenery; every flower sits on a green stem pushed into them, leafy kinds with leaves on
+  it, the heads clustered round the mechanics and most facing the guests. Leaves now show their
+  face, not their edge. **Flowers set in** chooses foam cages, moss and wire, or none.
 - **Photo of this piece** (Decorate, on the picked thing): path traces that one piece on its own,
   on a plain floor in the same sky and sun, framed to fill the photo, from the side you are looking
   at it. Much quicker than a photo of the whole room, to go back and forth with a decorator; **Make

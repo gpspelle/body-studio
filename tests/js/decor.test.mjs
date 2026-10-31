@@ -7,7 +7,7 @@ import fs from "node:fs";
 import { COLOURS, FINISHES, GROUPS, STARTERS, fixtureTurn, bounds as shapeBounds, thumbView, around, blocker, covers, dropY, MAX_LIFT, clampLift, freeSpot, handles, heightOnRay, itemDef, listing, mapMatrix, row, seats, setTable, standY, starterShape, turnToward, unpack, wrap, colourOf, fromHex, fromRgb, hexOf, toHex,
          knobs, knobValues, presets, presetOf, cleanOpts, optsKey, sized, dims, MATERIALS, movable, fittingItems, fittingChanges, PALETTES, isChoice,
          grabFor, steep, underPointer, landSpot, KNOB_PX, RING_PX } from "../../src/body_studio/static/decor.js";
-import { ARCHES, PARTS, archLine, along, coverPick, archPosts, frameOf, fabricRuns } from "../../src/body_studio/static/decor/custom.js";
+import { ARCHES, PARTS, archLine, along, coverPick, coverAt, mechanics, mechanicSpot, CAGE_STEP, archPosts, frameOf, fabricRuns } from "../../src/body_studio/static/decor/custom.js";
 import { FLOWERS, GREENS, FILLERS, BLENDS, drift, mixColour, mixSize, toHsl, fromHsl } from "../../src/body_studio/static/decor/florals.js";
 import { F } from "../../src/body_studio/static/decor/shapes.js";
 import { Placement, RoomMap } from "../../src/body_studio/static/room.js";
@@ -766,4 +766,34 @@ test("an arch and the overhead pieces come in sizes to pick at once", () => {
   const b = (o) => bounds(starterShape("custom_arch", null, o).p);
   assert.ok(b(presets("custom_arch").grand).hi[1] > b(presets("custom_arch").small).hi[1] + 1);
   assert.equal(presetOf("custom_arch", { w: 1.6, d: 0.7, h: 2.2, flowers: 110, greens: 70, fillers: 35 }), "small");
+});
+
+test("an arch's flowers are set as a florist sets them: in foam or moss tied on where it is covered, on stems with leaves", () => {
+  const none = Object.fromEntries(PARTS.map((n) => [n, 0])), k = { ...none, crown: 100, lside: 50 };
+  near(coverAt(k, 0.5), 100, 0, "the top"); near(coverAt(k, 0.3), 50, 0, "the left side"); near(coverAt(k, 0.9), 0, 0, "bare");
+  near(coverAt({ ...k, shift: 40 }, 0.9), 100, 0, "slid along");
+  const path = along(archLine("round", 1.8, 2.3)), cages = mechanics(k, path);
+  assert.ok(cages.length >= 2 && cages.every((c) => c.t >= 0.2 && c.t < 0.6), "only where it is covered");
+  for (let i = 1; i < cages.length; i++) assert.ok((cages[i].t - cages[i - 1].t) * path.length <= CAGE_STEP + 1e-9, "about 30 cm apart");
+  // every flower's stem goes into one of them, its head within reach round it, most facing the front
+  const rnd = (() => { let q = 7; return () => ((q = (q * 16807) % 2147483647) / 2147483647); })();
+  let front = 0;
+  for (let n = 0; n < 300; n++) {
+    const [p, d, to] = mechanicSpot(cages, 0.2, rnd, false, "foam");
+    assert.ok(cages.some((c) => Math.hypot(c.p[0] - to[0], c.p[1] - to[1]) <= CAGE_STEP), "its stem in a cage");
+    assert.ok(Math.hypot(p[0] - to[0], p[1] - to[1], p[2] - to[2]) < 0.4, "a stem of a florist's length");
+    near(Math.hypot(...d), 1, 1e-9, "a way to face");
+    if (d[2] > 0.3) front++;
+  }
+  assert.ok(front > 180, "most toward the guests: " + front);
+  assert.equal(mechanicSpot([], 0.2, rnd, false, "foam"), null);
+  // the mechanics are drawn (foam, moss) or not; flowers carry stems with leaves
+  const bare = { flowers: 0, fillers: 0, greens: 0, trails: 0, feet: "none" };
+  const pts = (o) => starterShape("custom_arch", null, { ...bare, ...o }).p.length;
+  assert.ok(pts({ mount: "foam" }) > pts({ mount: "none" }) && pts({ mount: "moss" }) > pts({ mount: "none" }));
+  const has = (sh, col) => sh.c.some((v, n) => n % 3 === 0 && Math.abs(v - col[0]) < 1e-6 && Math.abs(sh.c[n + 1] - col[1]) < 1e-6);
+  const roses = starterShape("custom_arch", null, { ...bare, mount: "none", flowers: 30, flower: "rose", share: 0 });
+  assert.ok(has(roses, [0.36, 0.55, 0.28]), "green stems");
+  assert.ok(has(roses, [0.29, 0.45, 0.27]), "leaves on them");
+  assert.equal(STARTERS.custom_arch.knobs.mount.value, "foam");
 });
