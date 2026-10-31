@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 
-VERSION = 34
+VERSION = 35
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -15,7 +15,7 @@ HALL = (0.0, 17.8, 0.0, 8.6)        # x0, x1, z0, z1
 NOTCH = (0.0, 5.0, 1.5)
 BEAM_GAP = 0.3                      # the beam where the hall widens stops this far under the ceiling (white wall over it)             # the hall's first 5 m are 1.5 m narrower on the left
 HALF_WALL = (11.3, 3.24)            # x, how far it comes out from the left wall
-TILES_END = 10.0                    # x: where the hall's rustic tiles give way to grey cement (the walkthrough at 1:45)
+TILES_END = HALF_WALL[0] - 0.1      # x: where the hall's rustic tiles give way to grey cement: in line with the half wall's face
 FIREPLACE = (2.2, 2.85, 0.85, 1.3)  # in its hall side: z0, z1, y0, y1
 PICTURE = (0.55, 1.45, 1.05, 1.95)   # beside it: z0, z1, y0, y1
 TO_STAGE, TO_STAGE_TOP = (0.2, 1.5), 2.4   # z: the passage from the toilets' hall's end to the stage, and its height
@@ -47,6 +47,7 @@ INTO_ANTE = (0.35, 3.65)                # z: the wide opening from it into the a
 RECEPTION = (-19.8, -13.8, 0.0, 4.0)
 DECK = (-21.8, -19.8, 0.0, 4.0)
 RECEPTION_LAMPS = ((-17.6, 0.0), (-15.8, 4.0))   # its floor spotlights: x, the wall they light
+RECEPTION_DOOR = (-18.35, -17.45)       # x: the dark door in its right wall, just past the landing's step
 TRACK = (-16.8, 1.85)                   # its track light's socket on the ceiling: x, z
 STEP_DOWN = 0.08                    # the deck is a step down from the reception's floor (the map's floor is within 10 cm)
 FRONT_LEAVES = ((2.3, 0.84, math.radians(6)), (0.8, 1.2, math.radians(70)))   # the front door's leaves: where each pivots (z), how wide, how far swung in
@@ -60,9 +61,12 @@ WC_DOORS = ((13.0, 13.9), (15.2, 16.1))
 LADIES_SCREEN, LADIES_SCREEN_FROM = -1.65, 12.6  # z of the ladies' grey wall across the room, and where it starts (x; it runs to the right wall)
 LADIES_STALLS = (13.1, -1.8, 3)                   # its cubicles in a row along its right wall: their fronts' x, the first's side (z), how many
 WC_CEILING = 2.8
-CORRIDOR = (1.4, 1.4)                   # on from the notch's step (left open) to the side room: x where it ends, how wide (z from 0)
-SIDE = (0.0, 6.0, -3.6, 0.0)            # the small room behind it, through its louvred double door
-SIDE_DOOR = (1.75, 2.75)                # x: that door, in the corridor's wall just past the corner
+CORRIDOR = (1.4, NOTCH[2])              # on from the notch's step (left open) to the side room: x where it ends, how wide (z from
+                                        # 0: the notch's own wall is its left side, no gap between)
+SIDE = (0.0, 6.0, -3.6, 0.0)            # the small room behind it, through its louvred double door; past the door it opens to
+                                        # the right (a bay x 0..CORRIDOR[0] in line with the corridor, the room to its -z)
+SIDE_DOOR = (0.1, 1.4)                  # z: that door, across the corridor's end: two louvred leaves hung each side
+SIDE_DOOR_OPEN = math.radians(65)       # how far its left leaf (from the corridor) is swung out into it; the right one shut
 GARDEN_DOOR = (2.4, 4.0)                # x: the room's glass doors onto a planted patio (where the venue stops), across from it
 SIDE_TILE = (0.08, 0.065, 0.055)         # its stone tiles and the corridor's (dark: a floor drawn as the furniture is is lit brighter)
 OUT_WAY = 10.6                          # z: the outside passage's far side, from the kitchen's yard along the hall's
@@ -102,6 +106,8 @@ SCREEN = (0.90, 0.90, 0.89)
 REED = (0.66, 0.54, 0.38)           # the pergola's woven reed roof
 DOOR = (0.23, 0.16, 0.14)           # the doors, dark wood
 DOOR_FRAME = (0.45, 0.28, 0.19)
+LOUVRE_WOOD = (0.30, 0.17, 0.10)    # the side room's louvred leaves, dark wood
+DOOR_POST = 0.07                    # m: a door frame's post, each side of the opening (skirting stops at it)
 STEEL = (0.14, 0.14, 0.15)
 GREY_FRAME = (0.36, 0.37, 0.38)     # the windows' frames
 BLACK = (0.10, 0.10, 0.10)          # the stage's carpet and curtains

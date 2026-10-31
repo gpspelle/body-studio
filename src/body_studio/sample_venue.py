@@ -266,9 +266,9 @@ def house(rnd, out):
     # edge dark)
     base._surface(rnd, (RECEPTION[0], RECEPTION[0], -STEP_DOWN, 0.0, *DECK[2:]), CEMENT, out, 0.02)
     lx = RECEPTION[0] + LANDING[0]
-    base._surface(rnd, (RECEPTION[0], lx, LANDING[1], LANDING[1], 0.05, 3.95), _cement(LANDING_GREY, joint=2.0, cloud=0.008), out, 0.03)
-    base._surface(rnd, (lx, lx, 0.0, LANDING[1], 0.05, 3.95), (0.17, 0.11, 0.08), out, 0.015)
-    base._surface(rnd, (lx - 0.05, lx, LANDING[1] + 0.002, LANDING[1] + 0.002, 0.05, 3.95), (0.86, 0.72, 0.22), out, 0.012)   # (a yellow line along its edge)
+    base._surface(rnd, (RECEPTION[0], lx, LANDING[1], LANDING[1], 0.0, 4.0), _cement(LANDING_GREY, joint=2.0, cloud=0.008), out, 0.03)
+    base._surface(rnd, (lx, lx, 0.0, LANDING[1], 0.0, 4.0), (0.17, 0.11, 0.08), out, 0.015)
+    base._surface(rnd, (lx - 0.05, lx, LANDING[1] + 0.002, LANDING[1] + 0.002, 0.0, 4.0), (0.86, 0.72, 0.22), out, 0.012)   # (a yellow line along its edge)
     # (outside the door, daylight: orange steps down off the deck's far edge, and the bright street
     # beyond)
     for k in range(3):
@@ -290,8 +290,8 @@ def house(rnd, out):
     wall_x(0.0, ANTE[0], ANTE[1], [], _washed(wall, spots), out, rnd)   # (the ante-room's walls: white plaster, uplit)
     # the right side of the reception (a dark door near the front), the vertical garden (green both
     # sides) and the ante-room; the kitchen behind
-    wall_x(4.0, RECEPTION[0], RECEPTION[1], [(-18.7, -17.8, 0.0, 2.2)], _washed(wall, [x for x, z in RECEPTION_LAMPS if z == 4.0]), out, rnd)
-    door_x(4.0, -18.7, -17.8, out, rnd, colour=(0.10, 0.09, 0.08), frame=(0.14, 0.12, 0.11))
+    wall_x(4.0, RECEPTION[0], RECEPTION[1], [RECEPTION_DOOR + (0.0, 2.2)], _washed(wall, [x for x, z in RECEPTION_LAMPS if z == 4.0]), out, rnd)
+    door_x(4.0, *RECEPTION_DOOR, out, rnd, colour=(0.10, 0.09, 0.08), frame=(0.14, 0.12, 0.11))
     # (beside it: an exit sign, a white notice and a small red fire sign)
     base._surface(rnd, (-19.3, -19.09, 1.45, 1.75, 3.988, 3.988), (0.94, 0.94, 0.92), out, 0.012)
     base._surface(rnd, (-19.02, -18.88, 1.45, 1.65, 3.988, 3.988), (0.80, 0.15, 0.12), out, 0.012)
@@ -324,6 +324,7 @@ def house(rnd, out):
     # (the wall's end there a slim white pillar, 12 cm: a camera and a speaker high on it, fittings())
     base._surface(rnd, (-0.12, 0.0, 0.0, 2.9, NOTCH[2] + 0.2, NOTCH[2] + 0.2), hall_wall, out, 0.03)
     base._surface(rnd, (-0.12, -0.12, 0.0, 2.9, NOTCH[2], NOTCH[2] + 0.2), hall_wall, out, 0.03)
+    base._surface(rnd, (-0.12, 0.0, 0.0, 2.9, NOTCH[2], NOTCH[2]), hall_wall, out, 0.03)   # (its side toward the ante-room's wall)
     # the kitchen from the hall: a passage behind a grey partition with a reed mat on it, a
     # serving hatch in a deep white surround along it, and beside it the kitchen's door, a plain
     # opening, its leaf of dark wooden panels swung out across the passage
@@ -348,15 +349,15 @@ def house(rnd, out):
     # windows' wall, over a window: no post there)
     # (the beam a little under the ceiling, white wall over it)
     bt = H - BEAM_GAP
-    base._surface(rnd, (NOTCH[1] - 0.15, NOTCH[1] + 0.15, bt - 0.32, bt, 0.0, hz1), BEAM, out, 0.04)
+    base._surface(rnd, (NOTCH[1] - 0.15, NOTCH[1] + 0.15, bt - 0.32, bt, NOTCH[2], hz1), BEAM, out, 0.04)   # (none over the corridor)
     for x in (NOTCH[1] - 0.12, NOTCH[1] + 0.12):
-        base._surface(rnd, (x, x, bt, H, 0.0, hz1), HALL_WALL, out, 0.04)
+        base._surface(rnd, (x, x, bt, H, NOTCH[2], hz1), HALL_WALL, out, 0.04)
     for z0, z1 in ((NOTCH[2], NOTCH[2] + 0.16),):           # (on the left only: the right wall is windows there)
         for x in (NOTCH[1] - 0.1, NOTCH[1] + 0.1):
             base._surface(rnd, (x, x, 0.0, bt - 0.32, z0, z1), BEAM, out, 0.03)
         for z in (z0, z1):
             base._surface(rnd, (NOTCH[1] - 0.1, NOTCH[1] + 0.1, 0.0, bt - 0.32, z, z), BEAM, out, 0.03)
-    base._surface(rnd, (NOTCH[1] - 0.06, NOTCH[1] + 0.06, bt - 0.325, bt - 0.325, 0.05, hz1 - 0.05), (1.0, 0.72, 0.42), out, 0.02)
+    base._surface(rnd, (NOTCH[1] - 0.06, NOTCH[1] + 0.06, bt - 0.325, bt - 0.325, NOTCH[2] + 0.05, hz1 - 0.05), (1.0, 0.72, 0.42), out, 0.02)
 
     # the hall: the notch on the left, the half wall, the toilets' hall and the stage beside it
     wc_wall = _wall(WC_WALL, skirting=None)
@@ -563,30 +564,33 @@ def _louvres(x, y, z, rnd):
 
 def side_room(rnd, out):
     """The small room behind the hall (the walkthrough at 1:22-1:33): the notch's step is open, a
-    short corridor running on from it along the outside of the hall's left wall; just past its
-    corner, in its wall on the right, a louvred double door (swung in), and right behind it the
-    room: khaki walls (the corridor's too), dark stone tiles (drawn as the furniture is, and the
-    skirting: fittings()) and across it wooden glass doors onto a planted patio. The kitchen's staff come in this way; the
-    venue stops at the glass doors, the patio only seen through them (faint: the map leaves it
-    out; the page draws its plants, from fixtures())."""
+    short corridor running on from it inside the notch, its walls the hall's own cream plaster
+    (the notch's wall its left side), to a louvred double door across its end (the left leaf swung
+    out into it, the right one shut: fittings()); past the door the room opens to the right: khaki
+    walls, dark stone tiles (drawn as the furniture is, and the skirting: fittings()) and across it
+    wooden glass doors onto a planted patio. The kitchen's staff come in this way; the venue stops
+    at the glass doors, the patio only seen through them (faint: the map leaves it out; the page
+    draws its plants, from fixtures())."""
     end, w = CORRIDOR
     x0, x1, z0, z1 = SIDE
     d0, d1 = SIDE_DOOR
-    beige = _wall((0.60, 0.57, 0.47), skirting=None)   # (khaki, as filmed: the corridor too)
+    beige = _wall((0.60, 0.57, 0.47), skirting=None)   # (khaki, as filmed)
+    cream = _wall(HALL_WALL, skirting=None)
     floor = (0.30, 0.26, 0.23)
-    base._surface(rnd, (end, NOTCH[1], 0, 0, 0.0, w), floor, out, FLOOR_STEP)
-    base._surface(rnd, (end, NOTCH[1], WC_CEILING, WC_CEILING, 0.0, w), base.finish("plaster", CEILING), out, CEIL_STEP)
-    wall_x(w, end, NOTCH[1], [], beige, out, rnd, h=WC_CEILING)
-    wall_z(end, 0.0, w, [], beige, out, rnd, h=WC_CEILING)
-    frame_x(z1, d0, d1, 0.0, 2.3, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.04)
-    for x in (d0 + 0.02, d1 - 0.06):                  # the louvred leaves, swung into the room
-        base._surface(rnd, (x, x + 0.04, 0.0, 2.25, z1 - (d1 - d0) / 2, z1 - 0.04), _louvres, out, 0.02)
-    base._surface(rnd, (x0, x1, 0, 0, z0, z1), _shaded(floor, SIDE), out, FLOOR_STEP)
-    base._surface(rnd, (x0, x1, WC_CEILING, WC_CEILING, z0, z1), base.finish("plaster", CEILING), out, CEIL_STEP)
-    wall_z(x0 + 0.02, z0, z1, [], beige, out, rnd, h=WC_CEILING)   # (just off the ante-room's wall)
-    wall_z(x1, z0, z1, [], beige, out, rnd, h=WC_CEILING)
-    wall_x(z1, x0, NOTCH[1], [(d0, d1, 0.0, 2.3)], beige, out, rnd, h=WC_CEILING)
-    wall_x(z1 - 0.03, NOTCH[1], x1, [], beige, out, rnd, h=WC_CEILING)   # (behind the hall's own wall)
+    base._surface(rnd, (end, NOTCH[1], 0, 0, z1, w), floor, out, FLOOR_STEP)
+    base._surface(rnd, (end, NOTCH[1], WC_CEILING, WC_CEILING, z1, w), base.finish("plaster", CEILING), out, CEIL_STEP)
+    wall_x(z1, end, NOTCH[1], [], cream, out, rnd, h=WC_CEILING)                # (its right side)
+    wall_z(end, z1, w, [(d0, d1, 0.0, 2.3)], cream, out, rnd, h=WC_CEILING)   # (its end, the door in it)
+    frame_z(end - 0.015, d0, d1, 0.0, 2.3, out, rnd, colour=DOOR_FRAME, t=0.07, d=0.07)
+    # the room, and the bay past the door in line with the corridor
+    for r in ((x0, x1, z0, z1), (x0, end, z1, w)):
+        base._surface(rnd, (r[0], r[1], 0, 0, r[2], r[3]), _shaded(floor, SIDE), out, FLOOR_STEP)
+        base._surface(rnd, (r[0], r[1], WC_CEILING, WC_CEILING, r[2], r[3]), base.finish("plaster", CEILING), out, CEIL_STEP)
+    wall_z(x0 + 0.02, z0, w - 0.03, [], beige, out, rnd, h=WC_CEILING)   # (just off the ante-room's wall)
+    wall_x(w - 0.03, x0 + 0.02, end, [], beige, out, rnd, h=WC_CEILING)  # (just off the notch's wall)
+    wall_z(end - 0.03, z1, w - 0.03, [(d0, d1, 0.0, 2.3)], beige, out, rnd, h=WC_CEILING)
+    wall_z(x1, z0, z1 - 0.03, [], beige, out, rnd, h=WC_CEILING)
+    wall_x(z1 - 0.03, end - 0.03, x1, [], beige, out, rnd, h=WC_CEILING)   # (behind the corridor's and the hall's walls)
     ga, gb = GARDEN_DOOR
     wall_x(z0, x0, x1, [(ga, gb, 0.0, 2.4)], beige, out, rnd, h=WC_CEILING)
     wood = (0.42, 0.28, 0.18)

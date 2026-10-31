@@ -417,32 +417,37 @@ export const HOME = {
   sheer_curtain: {
     group: "home", height: 3.25, on: "floor", colour: "ivory", size: { w: 0.6, d: 0.1 }, block: false,
     knobs: { tie: { min: 0, max: 1, value: 0, size: true, step: 0.01 }, left: { min: 0, max: 1, value: 0 },
-             full: { min: 1, max: 3, value: 1, size: true, step: 0.05 } },
-    make(col, k = { tie: 0, left: 0, full: 1 }) {
+             full: { min: 1, max: 3, value: 1, size: true, step: 0.05 }, back: { min: 0, max: 0.3, value: 0, size: true, step: 0.01 } },
+    make(col, k = { tie: 0, left: 0, full: 1, back: 0 }) {
       // a sheer curtain on a short black rod, gathered and tied back a metre up: full under the
       // rod, pinched at the tie, flaring a little to the floor, falling in soft folds; with a tie
-      // `tie` long, its band runs off to its right (or left) to the post it is tied to; `full`
-      // times as wide above and below the tie (a wide panel gathered in at its waist)
-      const s = shape(), top = 3.25, tie = 1.0, N = 40, M = 16, f = k.full || 1;
+      // `tie` long, it is held by a hook on the wall that far to its right (or left) and `back`
+      // behind it: the band round its waist runs to the hook, the waist pulled over to it (the
+      // cloth falls from the rod's middle to the hook and on to the floor); `full` times as wide
+      // above and below the tie (a wide panel gathered in at its waist)
+      const s = shape(), top = 3.25, tie = 1.0, N = 40, M = 16, f = k.full || 1, band = col.map((v) => v * 0.85);
       const half = (y) => (y > tie ? 0.04 + 0.2 * f * ((y - tie) / (top - 0.05 - tie)) ** 0.8 : 0.04 + 0.08 * f * (tie - y) / tie);
+      const hook = k.tie > 0 ? [(k.left ? -1 : 1) * k.tie, k.back || 0] : null;
+      const waist = hook ? curtainWaist(hook) : [0, 0];
+      const pull = (y) => (y > tie ? (1 - (y - tie) / (top - tie)) ** 1.5 : 1 - (0.5 * (tie - y)) / tie);
       made("cloth", () => {
         const rows = [];
         for (let j = 0; j <= N; j++) {
-          const y = ((top - 0.05) * j) / N, w = half(y);
+          const y = ((top - 0.05) * j) / N, w = half(y), g = pull(y), cx = waist[0] * g, cz = waist[1] * g;
           rows.push(Array.from({ length: M + 1 }, (_, i) => {
             const u = i / M, fold = Math.sin(u * Math.PI * 6);
             const shade = 0.9 + 0.1 * fold;
-            return vert(s, -w + 2 * w * u, y, 0.012 + 0.25 * w * fold, col.map((v) => Math.min(1, v * shade)));
+            return vert(s, cx - w + 2 * w * u, y, cz + 0.012 + 0.25 * w * fold, col.map((v) => Math.min(1, v * shade)));
           }));
         }
         for (let j = 0; j < N; j++) for (let i = 0; i < M; i++) quad(s, rows[j][i], rows[j][i + 1], rows[j + 1][i + 1], rows[j + 1][i]);
-        cyl(s, 0.055, 0.055, 0.05, 0, tie - 0.025, 0.012, col.map((v) => v * 0.85), 18);   // (its tie)
-        if (k.tie > 0) {
-          const end = (k.left ? -1 : 1) * k.tie;
-          rod(s, [0, tie, 0.012], [end, tie, 0.0], 0.02, col.map((v) => v * 0.85), 8);
-          cyl(s, 0.03, 0.03, 0.06, end, tie - 0.03, 0.0, col.map((v) => v * 0.85), 12);
+        cyl(s, 0.055, 0.055, 0.05, waist[0], tie - 0.025, waist[1] + 0.012, band, 18);   // (its tie)
+        if (hook) {
+          const side = Math.sign(hook[0]);
+          rod(s, [waist[0] + side * 0.05, tie, waist[1] + 0.012], [hook[0], tie, hook[1]], 0.02, band, 8);
         }
       });
+      if (hook) made("metal", () => cyl(s, 0.018, 0.018, 0.05, hook[0], tie - 0.025, hook[1], COLOURS.gold, 12));   // (the hook on the wall)
       made("metal", () => rod(s, [-0.3 * f, top - 0.03, 0.012], [0.3 * f, top - 0.03, 0.012], 0.012, INK, 8));
       return s;
     },
@@ -956,14 +961,16 @@ export const HOME = {
   },
   panel_door: {
     group: "home", height: 2.1, hangs: true, on: "floor", colour: "walnut", size: { w: 0.9, d: 0.04 }, block: true, built: ["w", "h"],
-    knobs: { rows: { min: 0, max: 8, value: 0 } },
-    make(col, k = { w: 0.9, h: 2.1, rows: 0 }) {
+    knobs: { rows: { min: 0, max: 8, value: 0 }, louvres: { min: 0, max: 1, value: 0 } },
+    make(col, k = { w: 0.9, h: 2.1, rows: 0, louvres: 0 }) {
       // a door's leaf of painted wood (centred on its middle, 4 cm thick; hung, lift it to its
-      // foot): flush, or in two columns of `rows` sunk panels inside their rails; a lever each side
+      // foot): flush, or in two columns of `rows` sunk panels inside their rails, or louvred
+      // (`louvres`: tilted slats 5 cm apart inside a stile and rails, dark between); a lever each side
       const s = shape(), t = 0.04, dark = col.map((v) => v * 0.72);
       made("wood", () => {
-        sharpBox(s, k.w, k.h, t, 0, 0, 0, col);
-        if (k.rows) {
+        if (k.louvres) louvred(s, k.w, k.h, t, col, dark);
+        else sharpBox(s, k.w, k.h, t, 0, 0, 0, col);
+        if (k.rows && !k.louvres) {
           const m = 0.09, pw = (k.w - 3 * m) / 2, ph = (k.h - (k.rows + 1) * m) / k.rows;
           for (let i = 0; i < 2; i++) for (let j = 0; j < k.rows; j++)
             for (const z of [t / 2 - 0.004, -t / 2 + 0.004])
@@ -1138,5 +1145,31 @@ function mottled(s, w, h, z, side, col, rnd) {
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
     const a = pts[j * (nx + 1) + i], b = pts[j * (nx + 1) + i + 1], c = pts[(j + 1) * (nx + 1) + i + 1], d = pts[(j + 1) * (nx + 1) + i];
     if (side > 0) quad(s, a, b, c, d); else quad(s, a, d, c, b);
+  }
+}
+
+// Where a tied-back curtain's waist goes (sheer_curtain): pulled toward the hook its band is tied
+// to ([x along the curtain, z behind or before it]), mostly back toward the wall the hook is on
+// (so it stays in front of what is beside it, a planted wall), a little along, the band showing
+export function curtainWaist(hook) {
+  return [hook[0] * 0.25, hook[1] * 0.6];
+}
+
+// A louvred leaf (panel_door): its stiles and rails, and slats tilted down across the gap between,
+// a dark backing behind them for the shadow through it
+export function louvreSlats(w, h, m = 0.08, gap = 0.05) {
+  const n = Math.floor((h - 2 * m - 0.1) / gap), y0 = m + 0.05;
+  return { n, w: w - 2 * m, ys: Array.from({ length: n }, (_, j) => y0 + gap * (j + 0.5)) };
+}
+function louvred(s, w, h, t, col, dark) {
+  const m = 0.08, rail = 0.13;
+  sharpBox(s, m, h, t, -w / 2 + m / 2, 0, 0, col);
+  sharpBox(s, m, h, t, w / 2 - m / 2, 0, 0, col);
+  sharpBox(s, w - 2 * m, m, t, 0, h - m, 0, col);
+  sharpBox(s, w - 2 * m, rail, t, 0, 0, 0, col);
+  sharpBox(s, w - 2 * m, h - m - rail, 0.004, 0, rail, 0, dark.map((v) => v * 0.4));
+  const L = louvreSlats(w, h - (rail - m), m);
+  for (const y of L.ys) {
+    facing([0, Math.cos(0.7), Math.sin(0.7)], [0, y + rail - m, 0], () => sharpBox(s, L.w, 0.045, 0.008, 0, -0.0225, 0, col));
   }
 }

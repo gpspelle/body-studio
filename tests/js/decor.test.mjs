@@ -825,3 +825,18 @@ test("the foam and the moss are never seen: wrapped all round in leaves, end to 
   }
 });
 const along_ = (k) => { const { w, h } = frameOf(k); return along(archLine(k.shape, w, h)); };
+
+test("a tied-back curtain's waist is pulled toward the hook on the wall, its band reaching it", () => {
+  const sh = starterShape("sheer_curtain", null, { tie: 0.3, left: 1, back: 0.2 });
+  const metal = [];
+  for (let i = 0; i < sh.m.length; i++) if (sh.m[i] === F.metal) metal.push([sh.p[3 * i], sh.p[3 * i + 1], sh.p[3 * i + 2]]);
+  const low = metal.filter((p) => p[1] < 1.5);               // (the hook; the rod is up at the top)
+  assert.ok(low.length > 0);
+  for (const p of low) { assert.ok(Math.abs(p[0] + 0.3) < 0.03, `hook at x ${p[0]}`); assert.ok(Math.abs(p[2] - 0.2) < 0.03, `hook at z ${p[2]}`); }
+  // (the cloth at the tie's height is pulled back and over toward the hook; at the rod it hangs from the rod's middle)
+  const mean = (y, k) => { const v = []; for (let i = 0; i < sh.m.length; i++) if (sh.m[i] === F.cloth && Math.abs(sh.p[3 * i + 1] - y) < 0.05) v.push(sh.p[3 * i + k]); return v.reduce((a, b) => a + b) / v.length; };
+  assert.ok(mean(1.0, 0) < -0.05 && mean(1.0, 2) > 0.1, `waist at ${mean(1.0, 0)}, ${mean(1.0, 2)}`);
+  assert.ok(Math.abs(mean(3.1, 0)) < 0.05 && mean(3.1, 2) < 0.06, `top at ${mean(3.1, 0)}, ${mean(3.1, 2)}`);
+  const plain = starterShape("sheer_curtain", null, {});      // (untied: straight down the middle as before)
+  assert.ok(!plain.m.some((m, i) => m === F.metal && plain.p[3 * i + 1] < 1.5));
+});

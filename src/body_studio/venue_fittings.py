@@ -28,10 +28,19 @@ def fittings() -> list:
     out = []
     rx0, rx1 = RECEPTION[:2]
     ax0, ax1 = ANTE[:2]
-    for x0, x1, z, turn in ((rx0, rx1, 0.0, 0.0), (rx0, -18.7, 4.0, math.pi), (-17.8, rx1, 4.0, math.pi),
-                            (ax0, ax1, 0.0, 0.0), (ax0, ax1, 3.98, math.pi)):
-        out.append(("skirting_board", ((x0 + x1) / 2, 0.0, z), turn, SKIRTING_BOARD, x1 - x0))
-    out.append(("skirting_board", (ax1, 0.0, NOTCH[2] / 2 + 0.1), -math.pi / 2, SKIRTING_BOARD, NOTCH[2] + 0.2))
+    # (on the landing inside the front door, then on the floor past its step; never across a door's
+    # frame; round the slim pillar where the ante-room opens on the hall, each of its sides)
+    lx, ly = RECEPTION[0] + LANDING[0], LANDING[1]
+    d0, d1 = RECEPTION_DOOR[0] - DOOR_POST, RECEPTION_DOOR[1] + DOOR_POST
+    pz, pw = NOTCH[2], 0.2
+    for x0, x1, z, turn, y in ((rx0 + 0.02, lx, 0.0, 0.0, ly), (lx, rx1, 0.0, 0.0, 0.0),
+                               (rx0 + 0.02, lx, 4.0, math.pi, ly), (lx, d0, 4.0, math.pi, 0.0), (d1, rx1, 4.0, math.pi, 0.0),
+                               (ax0, ax1, 0.0, 0.0, 0.0), (ax0, ax1, 3.98, math.pi, 0.0),
+                               (-0.12, 0.0, pz, math.pi, 0.0), (-0.12, 0.0, pz + pw, 0.0, 0.0)):
+        out.append(("skirting_board", (round((x0 + x1) / 2, 3), y, z), turn, SKIRTING_BOARD, round(x1 - x0, 3)))
+    for z0, z1, x, turn in ((0.0, pz, ax1, -math.pi / 2), (pz, pz + pw, -0.12, -math.pi / 2), (pz, pz + pw, ax1, math.pi / 2),
+                            (4.0 - pw, 3.98, ax1, -math.pi / 2)):
+        out.append(("skirting_board", (x, 0.0, round((z0 + z1) / 2, 3)), turn, SKIRTING_BOARD, round(z1 - z0, 3)))
     lamps = [(x, z) for x, z in RECEPTION_LAMPS] + [(VERTICAL[0] + 0.75 + 1.0 * k, z) for k in range(4) for z in (0.0, 4.0)]
     lamps += [(x, z) for x in ANTE_SPOTS for z in (0.0, 4.0)]
     for x, z in lamps:
@@ -57,23 +66,32 @@ def fittings() -> list:
                            (NOTCH[1], TILES_END, HALL[2], HALL[3])):
         out.append(("rustic_tiles", (round((x0 + x1) / 2, 3), 0.0, round((z0 + z1) / 2, 3)), 0.0, None,
                     {"w": round(x1 - x0, 3), "d": round(z1 - z0, 3), "ox": round(-x0 % 0.4, 3), "oz": round(-z0 % 0.4, 3)}))
-    # the side room's and its corridor's dark stone tiles, and skirting boards along their khaki walls
+    # the side room's and its corridor's dark stone tiles (the room, the bay past its door, the
+    # corridor), skirting boards along their walls, the corridor's louvred double door
     end, w = CORRIDOR
     sx0, sx1, sz0, sz1 = SIDE
-    for x0, x1, z0, z1 in ((end, NOTCH[1], 0.0, w), (sx0, sx1, sz0, sz1)):
+    for x0, x1, z0, z1 in ((end, NOTCH[1], sz1, w), (sx0, sx1, sz0, sz1), (sx0, end, sz1, w)):
         out.append(("tile_floor", (round((x0 + x1) / 2, 3), 0.0, round((z0 + z1) / 2, 3)), 0.0, SIDE_TILE,
                     {"w": round(x1 - x0, 3), "d": round(z1 - z0, 3), "tx": 0.5, "tz": 0.5, "ox": round(-x0 % 0.5, 3), "oz": round(-z0 % 0.5, 3), "matte": 1, "grout": 0.006}))
     ga, gb = GARDEN_DOOR
-    d0, d1 = SIDE_DOOR
-    for x0, x1, z, turn in ((end, NOTCH[1], w, math.pi), (end, d0 - 0.07, 0.0, 0.0), (d1 + 0.07, NOTCH[1], 0.0, 0.0),
-                            (sx0, d0 - 0.07, sz1, math.pi), (d1 + 0.07, sx1, sz1, math.pi), (sx0, ga - 0.08, sz0, 0.0), (gb + 0.08, sx1, sz0, 0.0)):
-        if x1 - x0 > 0.5:                              # (none in the short bit by the door's frame)
-            out.append(("skirting_board", (round((x0 + x1) / 2, 3), 0.0, z), turn, SKIRTING_BOARD, round(x1 - x0, 3)))
-    for z0, z1, x, turn in ((0.0, w, end, math.pi / 2), (sz0, sz1, sx0 + 0.02, math.pi / 2), (sz0, sz1, sx1, -math.pi / 2)):
+    for x0, x1, z, turn in ((end, NOTCH[1], w, math.pi), (end, NOTCH[1], sz1, 0.0),                 # (the corridor)
+                            (sx0 + 0.02, end - 0.03, w - 0.03, math.pi), (end - 0.03, sx1, sz1 - 0.03, math.pi),
+                            (sx0 + 0.02, ga - 0.08, sz0, 0.0), (gb + 0.08, sx1, sz0, 0.0)):
+        out.append(("skirting_board", (round((x0 + x1) / 2, 3), 0.0, z), turn, SKIRTING_BOARD, round(x1 - x0, 3)))
+    for z0, z1, x, turn in ((sz0, w - 0.03, sx0 + 0.02, math.pi / 2), (sz0, sz1 - 0.03, sx1, -math.pi / 2)):
         out.append(("skirting_board", (x, 0.0, round((z0 + z1) / 2, 3)), turn, SKIRTING_BOARD, round(z1 - z0, 3)))
+    d0, d1 = SIDE_DOOR
+    leaf, a = (d1 - d0) / 2, SIDE_DOOR_OPEN
+    out.append(("panel_door", (end, 0.0, round(d0 + leaf / 2, 3)), math.pi / 2, LOUVRE_WOOD, {"w": round(leaf - 0.01, 3), "h": 2.25, "louvres": 1}))
+    out.append(("panel_door", (round(end + leaf / 2 * math.sin(a), 3), 0.0, round(d1 - leaf / 2 * math.cos(a), 3)), round(math.pi / 2 - a, 4),
+                LOUVRE_WOOD, {"w": round(leaf - 0.01, 3), "h": 2.25, "louvres": 1}))
     # the vertical garden's curtains, each tied back to the wooden post (or the doorway's frame) beside it
-    for x, turn, ties in ((VERTICAL[0] + 0.2, -math.pi / 2, ((0.35, 1), (3.65, 0))), (VERTICAL[1] - 0.2, math.pi / 2, ((0.6, 0), (3.4, 1)))):
-        out += [("sheer_curtain", (x, 0.0, z), turn, SHEER, {"tie": 0.25, "left": left}) for z, left in ties]
+    # (each hooked to the face of the post (or the doorway's frame) beside it: `tie` along to it,
+    # `back` behind the curtain - the post's face 27 cm along and 20 cm back, clear of the leaves;
+    # the frame's 30 cm along and 13 cm back)
+    for x, turn, ties, tie, back in ((VERTICAL[0] + 0.2, -math.pi / 2, ((0.35, 1), (3.65, 0)), 0.27, 0.2),
+                                     (VERTICAL[1] - 0.2, math.pi / 2, ((0.6, 0), (3.4, 1)), 0.3, 0.13)):
+        out += [("sheer_curtain", (x, 0.0, z), turn, SHEER, {"tie": tie, "left": left, "back": back}) for z, left in ties]
     # the kitchen: stainless sink benches under its windows, a gas range in the middle under a
     # hood, its duct along the ceiling to the windows' wall; a fire extinguisher on its far wall
     kx0, _, _, kz1 = KITCHEN
@@ -143,7 +161,7 @@ def fittings() -> list:
     nx, nz = NOTCH[1], NOTCH[2]
     for x0, x1, z, turn in ((hx0, hx1, hz1, math.pi), (hx0, nx, nz, 0.0), (nx, HALF_WALL[0], 0.0, 0.0)):
         out.append(("skirting_board", ((x0 + x1) / 2, 0.0, z), turn, SKIRTING_BOARD, x1 - x0))
-    out.append(("skirting_board", (hx0, 0.0, (4.0 + KITCHEN_DOOR[0]) / 2), math.pi / 2, SKIRTING_BOARD, KITCHEN_DOOR[0] - 4.0))
+    out.append(("skirting_board", (hx0, 0.0, (3.8 + KITCHEN_DOOR[0]) / 2), math.pi / 2, SKIRTING_BOARD, KITCHEN_DOOR[0] - 3.8))   # (from the ante-room's opening)
     windows, lights = hall_windows()
     out += [("floor_spot", (x, 0.0, hz1 - 0.15), math.pi, None, None) for x in lights]
     out += [("floor_spot", (hx0 + 0.3, 0.0, 3.6), math.pi / 2, None, None)]

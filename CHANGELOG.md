@@ -2,6 +2,13 @@
 
 ## 0.1.0 (unreleased)
 
+- **The venue's walls, doors and skirting, as built**: the reception's side door stands past
+  the landing's step; skirting runs on the landing, stops at every door frame, wraps the ante-room's
+  slim pillar and sits on a wall the whole way. The corridor behind the hall is the notch itself
+  (no gap between walls, the hall's cream plaster, no beam over it) and ends in a louvred double
+  door, one leaf swung open, the side room opening to the right past it. The hall's rustic tiles
+  stop in line with the half wall. The vertical garden's curtains are hooked to the posts.
+  **Panelled door** gets a louvred leaf; **Tied-back sheer curtain** a hook on the wall (`back`).
 - **Arch, your own, built as a florist builds one**: foam cages zip-tied to the frame every 30 cm
   where it is covered (or **Moss and wire**: moss in chicken wire wrapped round it), hidden under
   short greenery; every flower sits on a green stem pushed into them, leafy kinds with leaves on
