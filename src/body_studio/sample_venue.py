@@ -879,7 +879,10 @@ def make(d: Path) -> Path:
     ply = base.write_drawn(d / "splat" / PLY, splats, mirror=True)
     from .room import fixtures_file
     # (in the file's coordinates: y down, and mirrored as the splats are)
-    fx = {"trees": [dict(t, at=[t["at"][0], -t["at"][1], -t["at"][2]]) for t in fixtures()["trees"]]}
+    flip = lambda v: [v[0], -v[1], -v[2]]
+    fx = fixtures()
+    fx = {"trees": [dict(t, at=flip(t["at"])) for t in fx["trees"]],
+          "sea": dict(fx["sea"], at=flip(fx["sea"]["at"]), facing=flip(fx["sea"]["facing"]))}
     fixtures_file(ply).write_text(json.dumps(fx, indent=1))
     from . import room
     room.build_and_save(ply)

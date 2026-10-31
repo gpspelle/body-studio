@@ -2,6 +2,15 @@
 
 ## 0.1.0 (unreleased)
 
+- **Take a photo, outdoors**: each part of a thing now keeps its own material in the photo
+  (before, a whole tree, wall or floor took one material at random: the sea wall glowed white, a
+  tree came out dark and glassy, the sand shone like polished cement). The photo has a sky of its
+  own with soft clouds and a glow round the sun, and draws the beach, the wet sand, the foam, the
+  sea and the island across the channel (the venue is drawn again to know where the sea is).
+- **Trees**: trunks and boughs are one smooth piece spreading into roots at the foot (no more
+  stacked cylinders), crowns are sprays of leaves on twigs with the sky showing through (not
+  lumps), beach almonds have big leaves in flat tiers, coconut palms a ringed trunk and fronds of
+  narrow leaflets. Fewer triangles than before, so walking round costs the same.
 - **The venue's walls, doors and skirting, as built**: the reception's side door stands past
   the landing's step; skirting runs on the landing, stops at every door frame, wraps the ante-room's
   slim pillar and sits on a wall the whole way. The corridor behind the hall is the notch itself

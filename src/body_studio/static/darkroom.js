@@ -6,7 +6,8 @@
 // is the same with only the piece picked, on a plain floor, framed to fill it. Design: docs/photo.md.
 import * as THREE from "three";
 import { WebGLPathTracer, GradientEquirectTexture } from "/static/pathtracer/pathtracer.js";
-import { PHOTO, PIECE, finishLook, frameOn, groundAt, keep, photoName, photoSize, pieceName, progress, sunWay } from "/static/photo.js";
+import { finishMaps } from "/static/shell.js";
+import { PHOTO, PIECE, SHORE, byMaterial, finishLook, frameOn, groundAt, keep, photoName, photoSize, pieceName, progress, seascape, skyColour, sunWay, waveNormals } from "/static/photo.js";
 
 const $ = (id) => document.getElementById(id);
 const t = window.t;
@@ -69,6 +70,30 @@ function withColour(g) {
   return coloured.get(g);
 }
 
+// a geometry as one geometry per material (byMaterial in photo.js), each with three colours a
+// corner; made once per geometry for a photo, let go when its window closes
+const split = new Map();
+function parts(g) {
+  if (split.has(g)) return split.get(g);
+  const whole = withColour(g), out = [];
+  const list = byMaterial(g.index ? g.index.array : null, g.groups, g.getAttribute("position").count);
+  if (list.length === 1) out.push({ material: list[0].material, geometry: whole });
+  else for (const p of list) {
+    const part = new THREE.BufferGeometry();
+    for (const name of ["position", "normal", "color", "uv"]) {
+      const a = whole.getAttribute(name);
+      if (!a) continue;
+      const n = a.itemSize, dst = new Float32Array(p.verts.length * n);
+      for (let i = 0; i < p.verts.length; i++) for (let c = 0; c < n; c++) dst[i * n + c] = a.getComponent(p.verts[i], c);
+      part.setAttribute(name, new THREE.BufferAttribute(dst, n));
+    }
+    part.setIndex(new THREE.BufferAttribute(p.index, 1));
+    out.push({ material: p.material, geometry: part });
+  }
+  split.set(g, out);
+  return out;
+}
+
 function photoScene() {
   const scene = new THREE.Scene();
   V.scene.updateMatrixWorld(true);
@@ -79,26 +104,80 @@ function photoScene() {
     if (piece && o.userData.index !== piece.k) return;
     const mats = [].concat(o.material).map(lookOf);
     if (mats.every((m) => !m)) return;
-    const copy = new THREE.Mesh(withColour(o.geometry), Array.isArray(o.material) ? mats.map((m) => m || lookOf(o.material[0])) : mats[0]);
-    copy.matrixAutoUpdate = false;
-    copy.matrix.copy(o.matrixWorld);
-    copy.matrixWorld.copy(o.matrixWorld);
-    scene.add(copy);
+    // (a mesh per material: the path tracer gives a whole mesh one)
+    for (const part of parts(o.geometry)) {
+      const look = mats[part.material] || mats[0];
+      if (!look) continue;
+      const copy = new THREE.Mesh(part.geometry, look);
+      copy.matrixAutoUpdate = false;
+      copy.matrix.copy(o.matrixWorld);
+      copy.matrixWorld.copy(o.matrixWorld);
+      scene.add(copy);
+    }
   });
-  // the sky: blue overhead, paler at the horizon, the ground below (its light, and what glass shows)
-  const sky = new GradientEquirectTexture();
-  sky.topColor.setRGB(...PHOTO.zenith); sky.bottomColor.setRGB(...PHOTO.ground);
-  sky.exponent = 2; sky.update();
-  scene.environment = sky; scene.background = sky; scene.environmentIntensity = PHOTO.sky;
-  if (piece) pieceStudio(scene, decor);
   // the sun, from where the decor's is
-  const sun = new THREE.DirectionalLight(new THREE.Color(...PHOTO.sunColour), PHOTO.sun);
   const local = decor ? decor.children.find((c) => c.isDirectionalLight).position.toArray() : [2, 5, 3];
   const way = sunWay(local, decor ? decor.matrixWorld.elements : new THREE.Matrix4().elements);
+  // the sky: deep blue overhead, hazy at the horizon, a glow round the sun, a few clouds (its
+  // light, and what glass and the sea show)
+  const sky = new GradientEquirectTexture(piece ? 256 : 1024);     // (a piece is on a backdrop: its sky only lights it)
+  const dir = new THREE.Vector3();
+  sky.generationCallback = (sph, uv, size, colour) => { dir.setFromSpherical(sph); colour.setRGB(...skyColour(dir.toArray(), way)); };
+  sky.update();
+  scene.environment = sky; scene.background = sky; scene.environmentIntensity = PHOTO.sky;
+  if (piece) pieceStudio(scene, decor);
+  else if (decor && window.house?.fixtures()?.sea) shore(scene, window.house.fixtures().sea, decor.matrixWorld);
+  const sun = new THREE.DirectionalLight(new THREE.Color(...PHOTO.sunColour), PHOTO.sun);
   sun.position.set(...way).multiplyScalar(100);
   sun.target.position.set(0, 0, 0);
   scene.add(sun, sun.target);
   return scene;
+}
+
+// The far beach, the sea and the island (drawn in faint splats in the live view, which the path
+// tracer can't use) as surfaces: the dry sand with the room's sand's grain, the wet sand, the foam,
+// the sea rippled so it shows the sky in glints, the island hazy across the channel
+function shore(scene, sea, frame) {
+  const look = {
+    sand: () => { const m = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, metalness: 0 }); grain(m, "sand"); return m; },
+    wet: () => new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.32, metalness: 0 }),
+    foam: () => new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }),
+    sea: () => {
+      const m = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.03, metalness: 0, ior: 1.33 });
+      m.normalMap = tiles(waveNormals(256, 0.9), 256, 9);
+      m.normalScale.set(0.5, 0.5);
+      return m;
+    },
+    island: () => new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, metalness: 0 }),
+  };
+  for (const p of seascape(sea)) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(p.position, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(p.uv, 2));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(p.colour, 3));
+    g.setIndex(p.index);
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, look[p.name]());
+    m.userData.own = true;                       // (let go when the photo's window closes)
+    m.matrixAutoUpdate = false;
+    m.matrix.copy(frame); m.matrixWorld.copy(frame);
+    scene.add(m);
+  }
+}
+// a small square map that tiles every `metres` (uv in metres)
+function tiles(data, size, metres) {
+  const t = new THREE.DataTexture(data, size, size);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1 / metres, 1 / metres);
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+  t.needsUpdate = true;
+  return t;
+}
+// a finish's grain (shell.js: colour, bumps and shine), as the room's own floor has it
+function grain(m, finish) {
+  const f = finishMaps(finish);
+  Object.assign(m, { map: tiles(f.color, f.size, f.metres), normalMap: tiles(f.normal, f.size, f.metres), roughnessMap: tiles(f.rough, f.size, f.metres) });
+  m.color.setScalar(1 / f.mean);
 }
 
 // A piece on its own: a wide matte floor under it (the room's floor if it hangs) and a pale
@@ -190,12 +269,17 @@ function start(w, h) {
 function close() {
   if (run) {
     run.stop();
+    // (what the photo made for itself: the shore's surfaces and maps, the sky)
+    run.scene.traverse((o) => { if (o.userData.own) { o.geometry.dispose(); for (const k of ["map", "normalMap", "roughnessMap"]) o.material[k]?.dispose(); o.material.dispose(); } });
+    run.scene.background?.dispose();
     run.tracer.dispose();
     run.renderer.dispose();
     run = null;
   }
   for (const m of looks.values()) m?.dispose();
   looks.clear();
+  for (const [g, list] of split) for (const p of list) if (p.geometry !== g && p.geometry !== coloured.get(g)) p.geometry.dispose();
+  split.clear();
   box.hidden = true;
   delete box.dataset.done;
   piece = null;

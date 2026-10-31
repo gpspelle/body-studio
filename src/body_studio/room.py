@@ -57,7 +57,7 @@ OPAQUE = 0.5
 # what each key of a fixture is, to turn it from the PLY's coordinates into the map's: a point, a
 # direction or a length; anything else (an angle, a name) is kept as it is
 FIXTURE_KEYS = {"at": "point", "centre": "point", "head": "dir", "facing": "dir", "normal": "dir", "right": "dir",
-                "length": "length", "width": "length", "height": "length"}
+                "length": "length", "width": "length", "height": "length", "beach": "length", "distance": "length"}
 
 
 class RoomError(ValueError):

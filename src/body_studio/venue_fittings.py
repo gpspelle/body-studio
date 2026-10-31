@@ -319,4 +319,9 @@ def fixtures() -> dict:
     bays = round(COVER_LEN / 3.3)
     props += [{"item": "glass_roof", "at": [round(GARDEN_X + (k + 0.5) * COVER_LEN / bays, 3), 0.0, GARDEN_W / 2],
                "scale": [round(COVER_LEN / bays / 3.3, 4), 1, 1]} for k in range(bays)]
-    return {"trees": props}
+    # where the sea is, for a photo (static/photo.js seascape): the middle of where the garden
+    # meets the beach, the way out to sea, how deep the dry sand is and how far the island is
+    (ax, az), L, (tx, tz), (nx, nz) = far_side()
+    sea = {"at": [round(ax + tx * L / 2, 3), 0.0, round(az + tz * L / 2, 3)], "facing": [round(-nx, 4), 0.0, round(-nz, 4)],
+           "beach": BEACH, "distance": SEA}
+    return {"trees": props, "sea": sea}

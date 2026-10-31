@@ -463,53 +463,116 @@ export function tropical(s, w, d, h, col, seed) {
 }
 // ---------------------------------------------------------------- trees
 export const BARK = [0.42, 0.36, 0.3], PALM_BARK = [0.6, 0.54, 0.45], CANOPY = [[0.2, 0.36, 0.16], [0.26, 0.43, 0.19], [0.17, 0.3, 0.14], [0.32, 0.47, 0.22]];
-// a limb from a to b, thinning from r0 to r1 and bending a little (sag: how far its middle drops)
-export function limb(s, a, b, r0, r1, col, sag = 0, n = 5) {
-  let prev = a;
-  for (let k = 1; k <= n; k++) {
-    const t = k / n, q = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - sag * Math.sin(Math.PI * t), a[2] + (b[2] - a[2]) * t];
-    rod(s, prev, q, r0 + (r1 - r0) * (t - 0.5 / n), col, 8);
-    if (k < n) ball(s, r0 + (r1 - r0) * t, q[0], q[1], q[2], col, 8);   // (the joint, rounded)
-    prev = q;
+// a tube through the points `pts`, its radius at each `rad(t, q)` (t 0..1 along it, q the angle
+// round it), in one smooth skin: rings that share their corners, each turned on from the last so
+// it never twists (a trunk or a bough is one piece, not cylinders stacked with balls at the joints).
+// Bark: lighter and darker streaks up it, darker in the furrows.
+export function tube(s, pts, rad, col, sides = 12, furrows = 0) {
+  const n = pts.length, sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const unit = (v) => { const l = Math.hypot(...v) || 1; return v.map((x) => x / l); };
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const way = (k) => unit(sub(pts[Math.min(n - 1, k + 1)], pts[Math.max(0, k - 1)]));
+  let w = way(0), u = unit(cross(w, Math.abs(w[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), along = 0;
+  const rings = [];
+  for (let k = 0; k < n; k++) {
+    const w2 = way(k);
+    u = unit(cross(cross(w2, u), w2));             // (turned on with the tube: no twist)
+    w = w2;
+    const v = cross(w, u), t = k / (n - 1);
+    if (k) along += Math.hypot(...sub(pts[k], pts[k - 1]));
+    rings.push(Array.from({ length: sides + 1 }, (_, j) => {
+      const q = (j / sides) * 2 * Math.PI, r = rad(t, q), cs = Math.cos(q) * r, sn = Math.sin(q) * r;
+      const streak = Math.sin(j % sides * 2.399 + along * 0.9) * 0.5 + Math.sin(j % sides * 5.1 + along * 3.7) * 0.25;
+      const furrow = furrows ? 0.82 + 0.18 * Math.cos(q * furrows + along * 0.6) : 1;
+      const shade = (0.88 + 0.12 * streak) * furrow;
+      return vert(s, pts[k][0] + u[0] * cs + v[0] * sn, pts[k][1] + u[1] * cs + v[1] * sn, pts[k][2] + u[2] * cs + v[2] * sn,
+                  col.map((x) => Math.min(1, x * shade)));
+    }));
   }
+  for (let k = 0; k < n - 1; k++) for (let j = 0; j < sides; j++) quad(s, rings[k][j], rings[k + 1][j], rings[k + 1][j + 1], rings[k][j + 1]);
 }
-// a clump of foliage round c, r across: a soft mass of leaf (so no sky shows through it) and leaves
-// standing out of it all round, each its own green, lighter on top where the sun is
-export function clump(s, c, r, rnd, flat = 1) {
-  const col = CANOPY[Math.floor(rnd() * CANOPY.length)];
-  blob(s, r * 0.82, r * 0.62 * flat, r * 0.82, c[0], c[1], c[2], col.map((v) => v * 0.8), rnd() * 6, 10);
-  for (let k = 0; k < Math.round(70 * r * r * flat + 10); k++) {
-    const a = rnd() * 2 * Math.PI, up = rnd() * 2 - 1 + 0.3, h = Math.sqrt(Math.max(0, 1 - up * up));
-    const n = [h * Math.sin(a), up * flat, h * Math.cos(a)], p = [c[0] + n[0] * r * 0.75, c[1] + n[1] * r * 0.6, c[2] + n[2] * r * 0.75];
-    const lit = 0.85 + 0.3 * Math.max(0, up);
-    const shade = CANOPY[Math.floor(rnd() * CANOPY.length)].map((v) => Math.min(1, v * lit));
-    leaf(s, p, tipped(a, 0.4 + 0.9 * rnd()), 0.16 + 0.1 * rnd(), 0.42, shade);
+// a limb from a to b, thinning from r0 to r1 and bending a little (sag: how far its middle drops),
+// as one smooth tube; `flare`: how much wider it spreads into roots at a (a trunk's foot)
+export function limb(s, a, b, r0, r1, col, sag = 0, n = 5, flare = 0) {
+  const steps = Math.max(4, n * 3), pts = [], L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps;
+    pts.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t - sag * Math.sin(Math.PI * t), a[2] + (b[2] - a[2]) * t]);
+  }
+  const sides = r0 > 0.12 ? 18 : r0 > 0.05 ? 10 : 6;
+  tube(s, pts, (t, q) => {
+    const r = r0 + (r1 - r0) * Math.pow(t, 0.8), foot = flare * Math.exp(-t * L / 0.35);
+    return r * (1 + foot * (0.7 + 0.5 * Math.max(0, Math.cos(q * 5 + 0.7))));    // (roots spreading at its foot)
+  }, col, sides, r0 > 0.12 ? 9 : 0);
+}
+// a leaf from its stalk at p toward d (unit), len long, `wide` its width over its length, its face
+// toward n (about: unit), cupped a little along its midrib; four corners, two triangles
+export function leafCard(s, p, d, len, wide, col, n = [0, 1, 0]) {
+  let x = [d[1] * n[2] - d[2] * n[1], d[2] * n[0] - d[0] * n[2], d[0] * n[1] - d[1] * n[0]];
+  let l = Math.hypot(...x);
+  if (l < 1e-4) { x = Math.abs(d[0]) < 0.9 ? [0, -d[2], d[1]] : [-d[2], 0, d[0]]; l = Math.hypot(...x) || 1; }
+  x = x.map((v) => v / l);
+  const up = [x[1] * d[2] - x[2] * d[1], x[2] * d[0] - x[0] * d[2], x[0] * d[1] - x[1] * d[0]];
+  const half = (len * wide) / 2, cup = half * 0.35, m = 0.45 * len;
+  const at = (a, side) => vert(s, p[0] + d[0] * a + x[0] * side - up[0] * cup * Math.abs(side) / half, p[1] + d[1] * a + x[1] * side - up[1] * cup * Math.abs(side) / half,
+                                p[2] + d[2] * a + x[2] * side - up[2] * cup * Math.abs(side) / half, col);
+  const b = at(0, 0), L = at(m, half), t = at(len, 0), R = at(m, -half);
+  s.i.push(b, L, t, b, t, R);
+}
+// a clump of foliage round c, r across: sprays of small leaves on twigs, thickest near its outside
+// where the light is, so the sky shows through here and there as through a real crown; the leaves
+// deep inside darker (in the shade of the rest), the ones on top lighter. `leaf`: [length, width
+// over length], `face`: how much the leaves turn up to the sky (flat tiers: 1)
+export const TWIG = [0.33, 0.27, 0.2];
+export function clump(s, c, r, rnd, flat = 1, leaf = [0.15, 0.45], face = 0.45, density = 1) {
+  const sprays = Math.round((150 * r * r * flat + 6) * density), base = CANOPY[Math.floor(rnd() * CANOPY.length)];
+  for (let k = 0; k < sprays; k++) {
+    // where the spray is: a way out from the middle (flatter for a flat clump), mostly near the outside
+    const a = rnd() * 2 * Math.PI, y = (rnd() * 2 - 1) * 0.9 + 0.1, h = Math.sqrt(Math.max(0, 1 - y * y));
+    const out = [h * Math.sin(a), y * flat, h * Math.cos(a)], deep = 0.45 + 0.55 * Math.pow(rnd(), 0.4);
+    const at = [c[0] + out[0] * r * deep, c[1] + out[1] * r * 0.8 * deep, c[2] + out[2] * r * deep];
+    const tone = (0.55 + 0.45 * deep) * (0.88 + 0.22 * Math.max(0, y));
+    const col = (rnd() < 0.5 ? base : CANOPY[Math.floor(rnd() * CANOPY.length)]).map((v) => Math.min(1, v * tone * (0.92 + 0.16 * rnd())));
+    if (k % 3 === 0) made("wood", () => rod(s, [c[0] + out[0] * r * deep * 0.4, c[1] + out[1] * r * 0.3 * deep, c[2] + out[2] * r * deep * 0.4], at, 0.008, TWIG, 3));
+    const lean = Math.hypot(out[0], out[2]) || 1, ox = out[0] / lean, oz = out[2] / lean;
+    for (let j = 0; j < 6; j++) {
+      const q = a + (rnd() - 0.5) * 2.4, tilt = 0.9 + 0.9 * rnd();
+      const d = [Math.sin(tilt) * Math.sin(q), Math.cos(tilt) * (rnd() < 0.5 ? 0.6 : -0.6) - 0.15, Math.sin(tilt) * Math.cos(q)];
+      const dl = Math.hypot(...d), dir = d.map((v) => v / dl);
+      const p = [at[0] + (rnd() - 0.5) * 0.12, at[1] + (rnd() - 0.5) * 0.08, at[2] + (rnd() - 0.5) * 0.12];
+      const n = [ox * (1 - face) * 0.6 + (rnd() - 0.5) * 0.5, face + 0.4, oz * (1 - face) * 0.6 + (rnd() - 0.5) * 0.5];
+      const len = leaf[0] * (0.75 + 0.5 * rnd());
+      leafCard(s, p, dir, len, leaf[1], j % 3 ? col : col.map((v) => Math.min(1, v * 1.12)), n.map((v) => v / Math.hypot(...n)));
+    }
   }
 }
 export function broadTree(s, h, r, seed) {
-  // a trunk forking into four limbs, a rounded crown of clumps over them
+  // a trunk forking into four limbs, each splitting again, a rounded crown of leafy clumps on them
   const rnd = rng(seed), fork = h * 0.38;
-  made("wood", () => limb(s, [0, 0, 0], [0.08, fork, 0.05], 0.24, 0.17, BARK, 0, 4));
-  made("wood", () => cyl(s, 0.36, 0.24, 0.3, 0, 0, 0, BARK, 14));          // (its foot, flared)
+  made("wood", () => limb(s, [0, 0, 0], [0.08, fork + 0.2, 0.05], 0.26, 0.17, BARK, 0, 5, 0.5));
   const ends = [];
   for (let k = 0; k < 4; k++) {
     const a = k * 1.6 + rnd() * 0.6, out = r * (0.45 + 0.2 * rnd());
     const e = [0.08 + out * Math.sin(a), h * (0.66 + 0.1 * rnd()), 0.05 + out * Math.cos(a)];
     made("wood", () => limb(s, [0.08, fork, 0.05], e, 0.15, 0.06, BARK, -0.25));
+    // (each limb splits into two boughs up into the crown)
+    for (const turn of [-0.7, 0.7]) {
+      const b = [e[0] + Math.sin(a + turn) * r * 0.3, e[1] + h * 0.1, e[2] + Math.cos(a + turn) * r * 0.3];
+      made("wood", () => limb(s, e, b, 0.06, 0.025, BARK, -0.05, 2));
+    }
     ends.push(e);
   }
   for (let k = 0; k < 16; k++) {
     const a = rnd() * 2 * Math.PI, d = Math.sqrt(rnd()) * r * 0.62;
     const y = h * 0.74 + (1 - d / r) * h * 0.14 + (rnd() - 0.5) * 0.4;
-    clump(s, [0.08 + d * Math.sin(a), y, 0.05 + d * Math.cos(a)], r * (0.34 + 0.12 * rnd()), rnd);
+    clump(s, [0.08 + d * Math.sin(a), y, 0.05 + d * Math.cos(a)], r * (0.34 + 0.12 * rnd()), rnd, 1, [0.15, 0.45], 0.45, 1.25);
   }
 }
 export function almondTree(s, h, r, seed) {
-  // a beach almond: a straight trunk, branches in level whorls, each tier a flat spread of leaves,
-  // wider down low
+  // a beach almond: a straight trunk, branches in level whorls, each tier a flat spread of big
+  // leaves in rosettes, wider down low
   const rnd = rng(seed), tiers = 4;
-  made("wood", () => limb(s, [0, 0, 0], [0, h * 0.86, 0], 0.22, 0.07, BARK, 0, 6));
-  made("wood", () => cyl(s, 0.32, 0.22, 0.25, 0, 0, 0, BARK, 14));
+  made("wood", () => limb(s, [0, 0, 0], [0, h * 0.86, 0], 0.22, 0.07, BARK, 0, 6, 0.4));
   for (let t = 0; t < tiers; t++) {
     const y = h * (0.42 + 0.15 * t), w = r * (1 - 0.2 * t);
     for (let k = 0; k < 5; k++) {
@@ -517,27 +580,42 @@ export function almondTree(s, h, r, seed) {
       made("wood", () => limb(s, [0, y, 0], e, 0.08 - 0.01 * t, 0.03, BARK, -0.1, 3));
       for (let j = 0; j < 3; j++) {
         const f = 0.45 + 0.28 * j;
-        clump(s, [e[0] * f + (rnd() - 0.5) * 0.3, y + 0.25 * f + 0.15, e[2] * f + (rnd() - 0.5) * 0.3], w * 0.3, rnd, 0.45);
+        clump(s, [e[0] * f + (rnd() - 0.5) * 0.3, y + 0.25 * f + 0.15, e[2] * f + (rnd() - 0.5) * 0.3], w * 0.3, rnd, 0.45, [0.24, 0.55], 0.85, 0.7);
       }
     }
   }
 }
 export function coconutPalm(s, h, seed) {
-  // a coconut palm: a thin ringed trunk curving up, a crown of long arching fronds, a few nuts
+  // a coconut palm: a thin trunk curving up in one piece, ringed where the old fronds fell, a crown
+  // of long arching fronds of narrow leaflets, a few nuts
   const rnd = rng(seed), lean = 0.6, at = (t) => [lean * t * t, h * t, 0];
-  made("wood", () => {
-    for (let k = 0; k < 24; k++) {
-      const a = at(k / 24), b = at((k + 1) / 24), r = 0.16 - 0.04 * (k / 24);
-      rod(s, a, b, r, k % 2 ? PALM_BARK : PALM_BARK.map((v) => v * 0.86), 10);
-    }
-  });
+  made("wood", () => tube(s, Array.from({ length: 49 }, (_, k) => at(k / 48)), (t) => {
+    const ring = 0.012 * Math.pow(Math.abs(Math.sin(t * h * Math.PI / 0.14)), 6);
+    return 0.17 - 0.05 * t + 0.08 * Math.exp(-t * h / 0.4) + ring;
+  }, PALM_BARK, 12));
   const top = at(1);
   blob(s, 0.2, 0.3, 0.2, top[0], top[1], top[2], [0.35, 0.42, 0.22], 0, 10);
   for (let k = 0; k < 16; k++) {
     const a = (k / 16) * 2 * Math.PI + rnd() * 0.2, len = 2.2 + 0.6 * rnd();
-    frond(s, [top[0], top[1] + 0.15, top[2]], a, len, CANOPY[k % CANOPY.length]);
+    palmFrond(s, [top[0], top[1] + 0.15, top[2]], a, len, CANOPY[k % CANOPY.length], rnd, k < 4 ? 0.9 : 0.35 + 0.3 * rnd());
   }
   for (let k = 0; k < 5; k++) { const a = k * 1.3; ball(s, 0.1, top[0] + 0.2 * Math.sin(a), top[1] - 0.2, top[2] + 0.2 * Math.cos(a), [0.42, 0.33, 0.18], 10); }
+}
+// a coconut palm's frond: a stalk arching out from p toward the angle a and drooping, narrow
+// leaflets either side all along it, longest in its middle, hanging down off it in a V
+export function palmFrond(s, p, a, len, col, rnd, rise = 0.35) {
+  const n = 34, at = (t) => [p[0] + Math.sin(a) * len * t, p[1] + len * rise * t - len * (0.25 + rise * 0.6) * t * t, p[2] + Math.cos(a) * len * t];
+  let prev = p;
+  for (let k = 1; k <= n; k++) {
+    const t = k / n, q = at(t), nx = at(Math.min(1, t + 0.02)), d = [nx[0] - q[0], nx[1] - q[1], nx[2] - q[2]];
+    if (k % 3 === 0 || k === n) { made("wood", () => rod(s, prev, q, 0.012 * (1 - t) + 0.003, col.map((v) => v * 1.3), 4)); prev = q; }
+    const dl = Math.hypot(...d) || 1;
+    for (const side of [-1, 1]) {
+      const sa = a + side * Math.PI / 2, l = len * 0.3 * Math.sin(Math.PI * (0.15 + 0.85 * t)) * (0.85 + 0.3 * rnd());
+      const dir = [Math.sin(sa) * 0.75 + d[0] / dl * 0.35, -0.55, Math.cos(sa) * 0.75 + d[2] / dl * 0.35], m = Math.hypot(...dir);
+      leafCard(s, q, dir.map((v) => v / m), l, 0.09, col.map((v) => Math.min(1, v * (0.9 + 0.25 * rnd()))), [0, 1, 0]);
+    }
+  }
 }
 export function smallTree(s, h, r, seed) {
   // a small garden tree: three slim stems from the sand, fanning out, a light open crown

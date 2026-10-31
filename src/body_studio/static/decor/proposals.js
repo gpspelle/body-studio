@@ -421,7 +421,7 @@ export const PROPOSALS = {
   },
   // trees, as in the venue's garden (and for any garden)
   small_tree: {
-    group: "garden", height: 3.3, on: "floor", colour: "green", size: { w: 2.4, d: 2.5 }, block: "posts", posts: [[0, 0]],
+    group: "garden", height: 3.03, on: "floor", colour: "green", size: { w: 2.8, d: 2.7 }, block: "posts", posts: [[0, 0]],
     make() { const s = shape(); smallTree(s, 3.2, 1.6, 31); return grounded(s); },
   },
   tropical_border: {
@@ -527,15 +527,15 @@ export const PROPOSALS = {
     },
   },
   broad_tree: {
-    group: "garden", height: 5.65, on: "floor", colour: "green", size: { r: 2.4 }, block: "posts", posts: [[0.04, 0.03]],
+    group: "garden", height: 5.7, on: "floor", colour: "green", size: { r: 2.55 }, block: "posts", posts: [[0.04, 0.03]],
     make() { const s = shape(); broadTree(s, 5.5, 2.6, 11); return grounded(s); },
   },
   beach_almond: {
-    group: "garden", height: 5.89, on: "floor", colour: "green", size: { r: 3.6 }, block: "posts", posts: [[0, 0]],
+    group: "garden", height: 5.79, on: "floor", colour: "green", size: { r: 3.95 }, block: "posts", posts: [[0, 0]],
     make() { const s = shape(); almondTree(s, 6.0, 3.0, 23); return grounded(s); },
   },
   coconut_palm: {
-    group: "garden", height: 8.34, on: "floor", colour: "green", size: { w: 6.0, d: 5.2 }, block: "posts", posts: [[0, 0]],
+    group: "garden", height: 8.84, on: "floor", colour: "green", size: { w: 5.0, d: 5.0 }, block: "posts", posts: [[0, 0]],
     make() { const s = shape(); coconutPalm(s, 8.0, 5); return grounded(s); },
   },
   // seen at Casa Arandella (the walkthrough filmed there, 2026-10-24)

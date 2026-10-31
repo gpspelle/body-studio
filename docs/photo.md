@@ -24,8 +24,13 @@ It shows exactly what was put in the room: nothing is made up, so it is the one 
 - `static/darkroom.js`: copies the room's meshes as they are drawn (the shell, its fittings and
   the decor, not the body's splats, its clothes, the handles or the soft shadow cards) into a scene
   of their own with materials the path tracer understands, and runs it a pass at a time between
-  frames (400 passes, 6 bounces) on a canvas of its own. The sky is a gradient in the sky dome's
-  colours and is what lights the room; the sun is where the decor's is.
+  frames (400 passes, 6 bounces) on a canvas of its own. The path tracer gives a whole mesh one
+  material, so a mesh with a material per part (the decor's linen, wood and brass; the shell's
+  finishes) goes in as one mesh per material (`byMaterial`). The sky is its own (`skyColour`: deep
+  blue overhead, haze at the horizon, a glow round the sun, soft clouds) and is what lights the
+  room; the sun is where the decor's is. Outdoors, what the live view draws in faint splats (the far
+  beach, the sea, the island) is drawn as surfaces where the room's fixtures' `sea` says
+  (`seascape`): dry and wet sand, foam, a rippled sea that shows the sky, the island in the haze.
 - `static/pathtracer/`: [three-gpu-pathtracer](https://github.com/gkjohnson/three-gpu-pathtracer)
   and three-mesh-bvh (both MIT), bundled by `scripts/pathtracer_bundle.sh` so they import three from
   splat-studio's copy (r180: path tracer 0.0.24, the last that takes it).

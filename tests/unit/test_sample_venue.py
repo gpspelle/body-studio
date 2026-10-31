@@ -139,6 +139,21 @@ class SampleVenueTest(unittest.TestCase):
         mx, _ = self.to_map(V.garden_end(V.GARDEN_W) + V.BEACH, V.GARDEN_W)
         self.assertLess(abs(self.map["x0"] + self.map["nx"] * self.map["cell"] - mx), 4.5)   # (its thin slanted corner is cut off)
 
+    def test_the_photo_knows_where_the_sea_is(self):
+        # (static/photo.js draws the shore, the sea and the island in a photo, where the faint splats are)
+        sea = self.map["fixtures"]["sea"]
+        (ax, az), L, (tx, tz), (nx, nz) = V.far_side()
+        mx, mz = self.to_map(ax + tx * L / 2, az + tz * L / 2)
+        self.assertAlmostEqual(sea["at"][0], mx, delta=0.05)
+        self.assertAlmostEqual(sea["at"][2], mz, delta=0.05)
+        self.assertAlmostEqual(sea["beach"], V.BEACH, delta=0.05)
+        self.assertAlmostEqual(sea["distance"], V.SEA, delta=0.5)
+        # facing out to sea: from the garden's middle, the water is ahead
+        out = self.to_map(ax + tx * L / 2 - nx * 10, az + tz * L / 2 - nz * 10)
+        way = [(out[0] - mx) / 10, (out[1] - mz) / 10]
+        self.assertGreater(sea["facing"][0] * way[0] + sea["facing"][2] * way[1], 0.99)
+        self.assertAlmostEqual(sea["facing"][1], 0.0, places=3)
+
     def test_nothing_near_is_drawn_in_splats(self):
         # (Gabriel, 2026-10-29: the old way) what the page shows as splats is only the far beach, the
         # sea and the island; the rest is the shell's smooth sheets or drawn as the furniture is
