@@ -652,17 +652,22 @@ export function border(s, w, d, seed) {
 // one bay of a glass roof on painted steel: posts at its two ends, a deep pitched rafter, a heavy
 // beam along each eave, purlins along, two panes of tinted glass (the sky darker through them, as
 // filmed); w along (x), d across (z)
-export function roofBay(s, w, d, eave, ridge, steel = STEEL_DARK) {
+export function roofBay(s, w, d, eave, ridge, steel = STEEL_DARK, rafters = 1) {
+  // (rafters: how many cross the bay from each eave up to the ridge, the first over its posts and the
+  // rest evenly between; the ridge a stout beam, the purlins along it thin)
   const roof = (z) => eave + (ridge - eave) * (1 - Math.abs(z) / (d / 2));
   made("metal", () => {
     for (const z of [-d / 2, d / 2]) box(s, 0.14, eave, 0.14, 0, 0, z, steel);
     for (const z of [-d / 2, d / 2]) {
       box(s, w, 0.22, 0.12, 0, eave - 0.2, z, steel);
-      rod(s, [0, roof(z), z], [0, ridge, 0], 0.07, steel, 6);
+      for (let k = 0; k < rafters; k++) {
+        const x = k === 0 ? 0 : -w / 2 + (w * k) / rafters;
+        rod(s, [x, roof(z), z], [x, ridge, 0], k === 0 ? 0.07 : 0.05, steel, 6);
+      }
     }
-    for (const f of [0, 0.25, 0.5, 0.75, 1]) for (const side of [-1, 1]) {
+    for (const f of [0, 0.25, 0.5, 0.75, 1]) for (const side of f === 0 ? [1] : [-1, 1]) {
       const z = side * f * d / 2;
-      rod(s, [-w / 2, roof(z) + 0.04, z], [w / 2, roof(z) + 0.04, z], 0.035, steel, 6);
+      rod(s, [-w / 2, roof(z) + 0.04, z], [w / 2, roof(z) + 0.04, z], f === 0 ? 0.09 : 0.035, steel, 6);
     }
   });
   made("glass", () => {

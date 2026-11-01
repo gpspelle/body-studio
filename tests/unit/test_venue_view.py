@@ -62,7 +62,7 @@ class Route(unittest.TestCase):
         self.assertEqual([n for n, _ in venue_view.route("0:04,1:17")][0], "0:04.08")
         self.assertEqual(len(venue_view.route("all")), len(json.loads(venue_view.ROUTE.read_text())["views"]))
         with self.assertRaises(SystemExit):
-            venue_view.route("3:40")              # (none near the beach yet)
+            venue_view.route("3:48")              # (none at the very end)
 
     def test_seconds(self):
         self.assertEqual(venue_view.seconds("1:20.5"), 80.5)

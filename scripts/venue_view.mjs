@@ -7,12 +7,15 @@
 // tests/js/venue_view.test.mjs (tests/unit/test_venue_view_js.py).
 import fs from "node:fs";
 import zlib from "node:zlib";
-import { STARTERS, starterShape } from "../src/body_studio/static/decor.js";
+import { STARTERS, starterShape, FINISHES } from "../src/body_studio/static/decor.js";
+
+const GLASS = FINISHES.findIndex((f) => f.name === "glass");
 
 // ---------------------------------------------------------------- the scene
 // Each fixture's shape where it stands: the starter's triangles turned by `turn` about y (three.js's
 // sense: its front then points along [sin turn, cos turn]), stretched by `scale`, moved to `at`.
-// -> { item, k, tris: Float32Array (9 per triangle), cols: Float32Array (3 per triangle), glow, lo, hi }
+// -> { item, k, tris: Float32Array (9 per triangle), cols: Float32Array (3 per triangle), glow (1 lit,
+// 2 glass: the render leaves glass out, as the page shows through it), lo, hi }
 const shapes = new Map();
 export function placed(t, k = 0) {
   if (!STARTERS[t.item]) return null;
@@ -30,6 +33,7 @@ export function placed(t, k = 0) {
       for (let a = 0; a < 3; a++) { tris[9 * f + 3 * j + a] = w[a]; lo[a] = Math.min(lo[a], w[a]); hi[a] = Math.max(hi[a], w[a]); }
       for (let a = 0; a < 3; a++) cols[3 * f + a] += s.c[3 * v + a] / 3;
       g |= s.g[v] ? 1 : 0;
+      if (s.m[v] === GLASS) g |= 2;
     }
     glow[f] = g;
   }
@@ -300,10 +304,11 @@ export function render(scene, v, w, h, sky = [0.78, 0.84, 0.9]) {
     if (!p) return;
     const T = p.tris;
     for (let f = 0; f < T.length / 9; f++) {
+      if (p.glow[f] & 2) continue;
       const o = 9 * f, a = [T[o], T[o + 1], T[o + 2]], b = [T[o + 3], T[o + 4], T[o + 5]], c = [T[o + 6], T[o + 7], T[o + 8]];
       const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
       const nn = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]], len = Math.hypot(...nn) || 1;
-      const lit = p.glow[f] ? 1.1 : 0.62 + 0.38 * Math.abs((nn[0] * LIGHT[0] + nn[1] * LIGHT[1] + nn[2] * LIGHT[2]) / len);
+      const lit = p.glow[f] & 1 ? 1.1 : 0.62 + 0.38 * Math.abs((nn[0] * LIGHT[0] + nn[1] * LIGHT[1] + nn[2] * LIGHT[2]) / len);
       const col = byte([p.cols[3 * f], p.cols[3 * f + 1], p.cols[3 * f + 2]], lit);
       for (const tri of clip([toCam(C, a), toCam(C, b), toCam(C, c)])) raster(tri.map((q) => project(C, q)), w, h, (x, y, z) => put(x, y, z, col));
     }

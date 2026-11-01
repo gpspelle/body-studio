@@ -2,6 +2,8 @@
 
 ## 0.1.0 (unreleased)
 
+- **The venue's garden cover**: its steel rafters now cross the roof about every 1.1 m and its ridge
+  is a stout beam, as in the walkthrough (before, one rafter every 3.3 m).
 - **Move fittings**: a layout of the room's fittings kept from before the sample venue was made
   again no longer shows its old copies (old skirting, walls without their bricks): copies of what
   changed are swapped for the room's fittings as they are now; what you added by hand stays.
