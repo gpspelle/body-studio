@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 
-VERSION = 36
+VERSION = 37
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -29,6 +29,7 @@ STAGE = (21.15, 28.6, 0.0, 3.2, 0.4)  # x0, x1, z0, z1, its height (a walkway 1 
 PERGOLA = (17.8, 28.6, 3.2, 10.6)
 GARDEN_X = 28.6                     # where the garden starts
 GARDEN_W = 17.8
+GARDEN_WALL_H = 3.0                 # its dark walls along both sides (tops just under the cover's eaves)
 COVER_LEN = 20.0                    # m of the garden under the glass rain cover: from the pergola to the end of its wall
 PERGOLA_ROOF = 3.2                  # the pergola's flat reed roof
 GARDEN_RIGHT, GARDEN_LEFT = 20.0, 30.0   # (along z = 0 and z = GARDEN_W: the plan's own right and left, as drawn)

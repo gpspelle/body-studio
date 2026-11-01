@@ -733,12 +733,13 @@ def garden(rnd, out):
     # beside the pergola, to the garden's right wall
     base._surface(rnd, (PERGOLA[0], GARDEN_X, 0, 0, PERGOLA[3], GARDEN_W), _sand, out, LAWN_STEP)
     # its walls, along the left (on from the house's) and the right, and across beside the pergola,
-    # 2 m high and painted near black, to where the sand starts; tropical beds along them behind a
+    # GARDEN_WALL_H high (the walkthrough at 3:00-3:06: their tops just under the cover's eaves, above
+    # the plants) and painted near black, to where the sand starts; tropical beds along them behind a
     # kerb (planted all along: the page draws the borders in front of them, from fixtures())
     dark = _rough((0.17, 0.18, 0.17), 0.03)
-    wall_x(0.0, GARDEN_X, garden_end(0.0), [], dark, out, rnd, h=2.0)
-    wall_x(GARDEN_W, PERGOLA[0], garden_end(GARDEN_W), [], dark, out, rnd, h=2.0)
-    wall_z(PERGOLA[0], PERGOLA[3], GARDEN_W, [], dark, out, rnd, h=2.0)
+    wall_x(0.0, GARDEN_X, garden_end(0.0), [], dark, out, rnd, h=GARDEN_WALL_H)
+    wall_x(GARDEN_W, PERGOLA[0], garden_end(GARDEN_W), [], dark, out, rnd, h=GARDEN_WALL_H)
+    wall_z(PERGOLA[0], PERGOLA[3], GARDEN_W, [], dark, out, rnd, h=GARDEN_WALL_H)
     # a cement path out from the pergola's corner into the sand
     base._surface(rnd, (GARDEN_X, GARDEN_X + 3.0, 0.006, 0.006, PERGOLA[3] - 1.7, PERGOLA[3] - 0.2), _cement(PERGOLA_FLOOR, joint=1.0), out, FLOOR_STEP)
     # the planted beds along the walls: the page draws them (tropical_border); here their tops, a metre

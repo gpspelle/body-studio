@@ -1,5 +1,5 @@
 {
- "about": "Camera poses along walkthrough.mp4 (venue metres; look/pitch radians, look 0 along +x, +pi/2 toward -z; fov vertical degrees), lined up by Gabriel in Compare with video (2026-10-25..29); fov set to 100 to match the phone's lens. Add poses for times not here. Poses from 2:34 on were fitted roughly by eye with venue_view.py (Gabriel's stop at 2:26).",
+ "about": "Camera poses along walkthrough.mp4 (venue metres; look/pitch radians, look 0 along +x, +pi/2 toward -z; fov vertical degrees), lined up by Gabriel in Compare with video (2026-10-25..29); fov set to 100 to match the phone's lens. Add poses for times not here. Poses from 2:34 on were fitted by eye with venue_view.py (Gabriel's stop at 2:26); 2:54-3:46 tightened 2026-11-01.",
  "views": {
   "0:00.00": {
    "t": 0.0,
@@ -353,36 +353,124 @@
    "eye": 1.5,
    "fov": 100.0
   },
-  "3:02.00": {
-   "t": 182.0,
+  "2:54.00": {
+   "t": 174.0,
    "at": [
-    31.0,
-    9.0
+    26,
+    4.2
    ],
-   "look": 0.2618,
-   "pitch": 0.4363,
+   "look": -0.3491,
+   "pitch": -0.0873,
    "eye": 1.5,
    "fov": 100.0
   },
-  "3:18.00": {
-   "t": 198.0,
+  "3:00.00": {
+   "t": 180.0,
    "at": [
-    33.0,
-    8.0
+    30,
+    4
    ],
-   "look": -0.1745,
-   "pitch": 0.0873,
+   "look": 0.1745,
+   "pitch": 0.3491,
+   "eye": 1.5,
+   "fov": 100.0
+  },
+  "3:05.00": {
+   "t": 185.0,
+   "at": [
+    29.3,
+    8.5
+   ],
+   "look": -0.6109,
+   "pitch": 0.1745,
+   "eye": 1.5,
+   "fov": 100.0
+  },
+  "3:09.00": {
+   "t": 189.0,
+   "at": [
+    29.3,
+    8.5
+   ],
+   "look": -2.9671,
+   "pitch": -0.0873,
+   "eye": 1.5,
+   "fov": 100.0
+  },
+  "3:14.00": {
+   "t": 194.0,
+   "at": [
+    29.3,
+    8.5
+   ],
+   "look": 1.9199,
+   "pitch": -0.1745,
+   "eye": 1.5,
+   "fov": 100.0
+  },
+  "3:19.00": {
+   "t": 199.0,
+   "at": [
+    37,
+    9.5
+   ],
+   "look": 0.0349,
+   "pitch": 0.1396,
+   "eye": 1.5,
+   "fov": 100.0
+  },
+  "3:26.00": {
+   "t": 206.0,
+   "at": [
+    40,
+    8
+   ],
+   "look": 0.0873,
+   "pitch": 0.2094,
+   "eye": 1.5,
+   "fov": 100.0
+  },
+  "3:30.00": {
+   "t": 210.0,
+   "at": [
+    41,
+    10
+   ],
+   "look": -0.8727,
+   "pitch": 0.0,
+   "eye": 1.5,
+   "fov": 100.0
+  },
+  "3:34.00": {
+   "t": 214.0,
+   "at": [
+    44,
+    11
+   ],
+   "look": -1.3963,
+   "pitch": 0.0,
    "eye": 1.5,
    "fov": 100.0
   },
   "3:38.00": {
    "t": 218.0,
    "at": [
-    47.0,
-    8.0
+    50,
+    9
    ],
-   "look": 0.0,
+   "look": 0.1745,
    "pitch": 0.0,
+   "eye": 1.5,
+   "fov": 100.0
+  },
+  "3:46.00": {
+   "t": 226.0,
+   "at": [
+    53,
+    9
+   ],
+   "look": 3.1067,
+   "pitch": 0.1396,
    "eye": 1.5,
    "fov": 100.0
   }

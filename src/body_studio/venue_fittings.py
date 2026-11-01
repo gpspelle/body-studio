@@ -269,8 +269,10 @@ def fixtures() -> dict:
         props += [{"item": item, "at": [round(a0 + (k + 0.5) * (a1 - a0) / nx, 3), 0.0, (b0 + b1) / 2],
                    "scale": [round((a1 - a0) / nx / 4.0, 4), 1, round((b1 - b0) / 4.0, 4)]} for k in range(nx)]
     # the beds along the garden's dark walls
-    for z, turn, x0 in ((0.0, 0.0, GARDEN_X), (GARDEN_W, math.pi, PERGOLA[0])):
-        props += _along("tropical_border", x0 + 0.3, garden_end(z) - 0.5, z, turn, 2.0, 0.95)
+    # (on the bungalow's side tall and dense, up to about 2.6 m; along the other lower, palms behind its wall)
+    for z, turn, x0, tall in ((0.0, 0.0, GARDEN_X, 1.0), (GARDEN_W, math.pi, PERGOLA[0], 1.25)):
+        beds = _along("tropical_border", x0 + 0.3, garden_end(z) - 0.5, z, turn, 2.0, 0.95)
+        props += [dict(b, scale=[b["scale"][0], tall, 1]) for b in beds]
     # climbers and bougainvillea falling over the pergola's edge on the garden
     px1, pz1 = PERGOLA[1], PERGOLA[3]
     props += [{"item": "hanging_greenery", "at": [px1 - 0.6, 0.3, z]} for z in (4.6, 7.0)]
@@ -317,8 +319,10 @@ def fixtures() -> dict:
     # fans on the brick piers, turned to the garden
     props += [{"item": "wall_fan", "at": [round(PERGOLA[1] + 0.28, 3), 2.0, round(z, 3)], "turn": round(math.pi / 2, 4)} for z in PIERS]
     bays = round(COVER_LEN / 3.3)
-    props += [{"item": "glass_roof", "at": [round(GARDEN_X + (k + 0.5) * COVER_LEN / bays, 3), 0.0, GARDEN_W / 2],
-               "scale": [round(COVER_LEN / bays / 3.3, 4), 1, 1]} for k in range(bays)]
+    # (the last bay with a beam across its eaves, closing the cover's far end, as filmed)
+    props += [dict({"item": "glass_roof", "at": [round(GARDEN_X + (k + 0.5) * COVER_LEN / bays, 3), 0.0, GARDEN_W / 2],
+                    "scale": [round(COVER_LEN / bays / 3.3, 4), 1, 1]}, **({"opts": {"tie": 1}} if k == bays - 1 else {}))
+              for k in range(bays)]
     # where the sea is, for a photo (static/photo.js seascape): the middle of where the garden
     # meets the beach, the way out to sea, how deep the dry sand is and how far the island is
     (ax, az), L, (tx, tz), (nx, nz) = far_side()
