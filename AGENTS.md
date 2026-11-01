@@ -25,6 +25,12 @@
   CI (`docs.yml`) fails a PR touching user-facing code without README or docs/ unless its
   description has `No docs needed: <reason>`. Screenshots: `python3 scripts/screenshots.py <name>`
   for just the one you changed; look at it at 100% before committing.
+- The sample venue without a browser (seconds, not minutes): `python3 scripts/venue_view.py` -
+  `plan` (walls, doors, fittings from above as text), `elev z=4 -r -20 0` (one wall as text, `--by
+  colour` / `depth`), `list` (the fittings in an area and what they fill), `view --at X Z --look DEG`
+  (a tiny picture) and `route 1:47,2:13` (the walkthrough's frame beside the render, from the poses
+  in `scripts/venue_route.json`). Use them to find and check venue fixes; a real screenshot only for
+  tones or the final look (lighting isn't drawn: decor floors render brighter in the page).
 - Big files are cut into sections headed `// ------...` (JS) or `# ------...` (Python): grep for
   those headers and read the section you need, not the whole file.
 - splat-studio changes: batch them, then bump the pin once.
