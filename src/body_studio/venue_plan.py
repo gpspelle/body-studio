@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 
-VERSION = 37
+VERSION = 38
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -162,7 +162,11 @@ def garden_end(z):
 # sea, and coconut palms standing up behind the garden's walls. The page draws them as it draws
 # the decor (decor.js), from the fixtures make() writes; here only their trunks' feet, inside those,
 # so the map walks round them
-TREES = ((44.5, 3.2, "broad_tree"), (52.5, 10.8, "broad_tree"),
+COVER_BAYS = round(COVER_LEN / 3.3)    # the cover's bays (venue_fittings: a glass_roof each), 3 rafters a bay
+# the broad tree under the cover grows up through its roof where a rafter is left out: the +x rafter of
+# its 5th bay, so its limbs pass between steel, never through it (TREE_GAP: that bay, that rafter)
+TREE_GAP = (4, 3)
+TREES = ((round(GARDEN_X + (TREE_GAP[0] + 0.5 + (TREE_GAP[1] - 2) / 3) * COVER_LEN / COVER_BAYS, 3), 3.2, "broad_tree"), (52.5, 10.8, "broad_tree"),
          (garden_end(3.0) + 2.5, 3.0, "beach_almond"), (garden_end(13.0) + 2.0, 13.0, "beach_almond"),
          (34.0, -1.4, "coconut_palm"), (47.0, -1.4, "coconut_palm"), (36.0, GARDEN_W + 1.4, "coconut_palm"),
          (30.5, -1.6, "coconut_palm"), (39.5, -1.5, "coconut_palm"), (43.0, -1.7, "coconut_palm"),

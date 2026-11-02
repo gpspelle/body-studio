@@ -5,7 +5,9 @@
 - **The venue's garden cover**: its steel rafters now cross the roof evenly about every 1.1 m, with
   a stout ridge beam, fewer purlins and a beam across the eaves at its far end, as in the
   walkthrough. The garden's dark walls stand 3 m high (their tops just under the cover's eaves) and
-  the beds along the bungalow's side grow taller.
+  the beds along the bungalow's side grow taller. The broad tree under the cover now comes up
+  through a gap where one rafter is left out, its limbs clear of all the steel (before, a rafter
+  ran through them).
 - **Move fittings**: a layout of the room's fittings kept from before the sample venue was made
   again no longer shows its old copies (old skirting, walls without their bricks): copies of what
   changed are swapped for the room's fittings as they are now; what you added by hand stays.

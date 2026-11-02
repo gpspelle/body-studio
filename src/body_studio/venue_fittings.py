@@ -318,10 +318,14 @@ def fixtures() -> dict:
               for x, z in ((bx0 + 0.8, bz0 - 0.6), (bx0 + 2.6, bz0 - 0.6), (bx1 - 2.6, bz0 - 0.6), (bx1 - 0.8, bz0 - 0.6))]
     # fans on the brick piers, turned to the garden
     props += [{"item": "wall_fan", "at": [round(PERGOLA[1] + 0.28, 3), 2.0, round(z, 3)], "turn": round(math.pi / 2, 4)} for z in PIERS]
-    bays = round(COVER_LEN / 3.3)
-    # (the last bay with a beam across its eaves, closing the cover's far end, as filmed)
+    bays = COVER_BAYS
+    # (the last bay with a beam across its eaves, closing the cover's far end, as filmed; the tree's bay
+    # without the rafter its limbs come up through)
+    def roof_opts(k):
+        o = {"tie": 1} if k == bays - 1 else {}
+        return dict(o, gap=TREE_GAP[1]) if k == TREE_GAP[0] else o
     props += [dict({"item": "glass_roof", "at": [round(GARDEN_X + (k + 0.5) * COVER_LEN / bays, 3), 0.0, GARDEN_W / 2],
-                    "scale": [round(COVER_LEN / bays / 3.3, 4), 1, 1]}, **({"opts": {"tie": 1}} if k == bays - 1 else {}))
+                    "scale": [round(COVER_LEN / bays / 3.3, 4), 1, 1]}, **({"opts": roof_opts(k)} if roof_opts(k) else {}))
               for k in range(bays)]
     # where the sea is, for a photo (static/photo.js seascape): the middle of where the garden
     # meets the beach, the way out to sea, how deep the dry sand is and how far the island is

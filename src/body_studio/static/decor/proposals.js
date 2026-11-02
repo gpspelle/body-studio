@@ -445,10 +445,10 @@ export const PROPOSALS = {
   },
   glass_roof: {
     group: "garden", height: 4.85, on: "floor", colour: "black", size: { w: 3.3, d: 16.6 }, block: "posts", posts: [[0, -8.3], [0, 8.3]],
-    knobs: { tie: { min: 0, max: 1, value: 0 } },
+    knobs: { tie: { min: 0, max: 1, value: 0 }, gap: { min: 0, max: 3, value: 0 } },
     // (as filmed: rafters about 1.1 m apart down both slopes, few purlins along them, and a beam across
-    // the eaves at the cover's far end: tie 1)
-    make(col, k = { tie: 0 }) { const s = shape(); roofBay(s, 3.3, 16.6, 3.4, 4.8, STEEL_MAROON, 3, [0.5], !!k.tie); return s; },
+    // the eaves at the cover's far end: tie 1; gap n: its nth rafter left out, for a tree growing up through it)
+    make(col, k = { tie: 0, gap: 0 }) { const s = shape(); roofBay(s, 3.3, 16.6, 3.4, 4.8, STEEL_MAROON, 3, [0.5], !!k.tie, (k.gap || 0) - 1); return s; },
   },
   glass_lantern: {
     group: "garden", height: 4.6, hangs: true, on: "floor", colour: "wood", size: { w: 4.5, d: 4.0 }, block: false,

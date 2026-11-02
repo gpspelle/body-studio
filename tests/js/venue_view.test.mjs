@@ -138,3 +138,48 @@ test("points cover a face seen edge on, and keep to the box", () => {
   P.src.forEach((s, k) => { if (s === 0) xs.add(Math.round(P.pos[3 * k] * 10)); });
   assert.ok(xs.size >= 19, "the wall's points run its whole width");
 });
+
+// ---------------------------------------------------------------- the real venue (FIXTURES)
+// No tree may pass through the garden cover's steel (Gabriel, 2026-11-02): a tree's leaves stay
+// above its roof, and where a trunk or limb comes up through the roof it is clear of every rafter,
+// purlin and post (glass is left out: a pane would have its hole cut round the trunk).
+test("the venue's trees grow clear of the garden cover's steel", { skip: !process.env.FIXTURES }, async () => {
+  const fs = await import("node:fs");
+  const fixtures = JSON.parse(fs.readFileSync(process.env.FIXTURES, "utf8"));
+  const steel = [];                                     // the cover's steel, as points about 5 cm apart
+  const roofs = fixtures.map((t, k) => [t, k]).filter(([t]) => t.item === "glass_roof");
+  assert.ok(roofs.length >= 4, "the garden has its cover");
+  for (const [t, k] of roofs) {
+    const p = placed(t, k), T = p.tris;
+    for (let f = 0; f < T.length / 9; f++) {
+      if (p.glow[f] & 2) continue;
+      for (let j = 0; j < 3; j++) steel.push([T[9 * f + 3 * j], T[9 * f + 3 * j + 1], T[9 * f + 3 * j + 2]]);
+      steel.push([0, 1, 2].map((a) => (T[9 * f + a] + T[9 * f + 3 + a] + T[9 * f + 6 + a]) / 3));
+    }
+  }
+  const lo = [Infinity, Infinity], hi = [-Infinity, -Infinity];
+  for (const [t, k] of roofs) { const p = placed(t, k); lo[0] = Math.min(lo[0], p.lo[0]); lo[1] = Math.min(lo[1], p.lo[2]); hi[0] = Math.max(hi[0], p.hi[0]); hi[1] = Math.max(hi[1], p.hi[2]); }
+  // (the roof's height over z, from its steel: the highest steel within 10 cm across)
+  const top = new Map();
+  for (const q of steel) { const b = Math.round(q[2] * 10); top.set(b, Math.max(top.get(b) ?? -Infinity, q[1])); }
+  const roofAt = (z) => top.get(Math.round(z * 10)) ?? 0;
+  let checked = 0;
+  fixtures.forEach((t, k) => {
+    if (!["broad_tree", "beach_almond", "coconut_palm"].includes(t.item)) return;
+    const p = placed(t, k), T = p.tris;
+    for (let f = 0; f < T.length / 9; f++) {
+      const v = [0, 1, 2].map((j) => [T[9 * f + 3 * j], T[9 * f + 3 * j + 1], T[9 * f + 3 * j + 2]]);
+      if (!v.every((q) => q[0] > lo[0] && q[0] < hi[0] && q[2] > lo[1] && q[2] < hi[1])) continue;
+      const d = v.map((q) => q[1] - roofAt(q[2]));
+      const c = p.cols.slice(3 * f, 3 * f + 3), leaf = c[1] > c[0] * 1.15 && c[1] > c[2];
+      if (leaf) assert.ok(Math.min(...d) > -0.05 || Math.max(...v.map((q) => q[1])) < 1.0, `${t.item} ${k}: leaves under the cover's roof at ${v[0].map((x) => x.toFixed(2))}`);
+      if (!(Math.min(...d) < 0.15 && Math.max(...d) > -0.15)) continue;
+      checked++;
+      for (const q of v) for (const s of steel) {
+        const gap = Math.hypot(q[0] - s[0], q[1] - s[1], q[2] - s[2]);
+        assert.ok(gap > 0.12, `${t.item} ${k} meets the cover's steel at (${s.map((x) => x.toFixed(2))})`);
+      }
+    }
+  });
+  assert.ok(checked > 0, "the broad tree under the cover comes up through its roof");
+});
