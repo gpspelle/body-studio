@@ -240,6 +240,71 @@ def fittings() -> list:
     return boards
 
 
+def street_front() -> list:
+    """The street front's decor (Gabriel's street-view photos, 2026-11-03; sample_venue.street() draws
+    the rest): the brick right of the door, the glass of the entry and of the floor above, the
+    handrails down the steps, the two big round concrete pots either side of them and the beds along
+    the front, the ledge's planting, the traveller's palms and the bed by the neighbour's wall, its
+    tall stone wall at the street, and the street tree."""
+    fy, x0 = FORECOURT_Y, RECEPTION[0]
+    face = -math.pi / 2                                     # (facing the street, -x)
+    def put(item, at, turn=0.0, colour=None, opts=None, scale=None):
+        t = {"item": item, "at": [round(v, 4) for v in at], "turn": round(turn, 4)}
+        if colour:
+            t["colour"] = base.hexed(colour)
+        if opts:
+            t["opts"] = opts
+        if scale:
+            t["scale"] = [round(v, 4) for v in scale]
+        return t
+    out = []
+    bays = {what: (z0, z1) for z0, z1, what in FRONT_BAYS}
+    b0, b1 = bays["brick"]
+    n = math.ceil((b1 - b0) / 4.0)                           # (a decor brick face is at most 5 m wide)
+    out += [put("brick_wall", (x0 - 0.01, fy, b0 + (k + 0.5) * (b1 - b0) / n), face, BRICK, {"w": round((b1 - b0) / n, 3), "h": round(LEDGE[0] - fy, 3)})
+            for k in range(n)]
+    # (the glass: the entry's two doors in their wooden frame; the floor above's panes between its mullions)
+    e0, e1 = bays["glass entry"]
+    mid = (e0 + e1) / 2
+    for a0, a1 in ((e0 + 0.12, mid - 0.06), (mid + 0.06, e1 - 0.12)):
+        out.append(put("glass_pane", (x0 - 0.06, fy, (a0 + a1) / 2), face, None, {"w": round(a1 - a0, 3), "h": round(LEDGE[0] - 0.2 - fy, 3)}))
+    uy0, uy1, _ = UPPER
+    edges = sorted(set(MULLIONS) | {z for g in UPPER_GLASS for z in g})
+    for a0, a1 in zip(edges, edges[1:]):
+        if not any(g0 <= a0 and a1 <= g1 for g0, g1 in UPPER_GLASS):
+            continue
+        n = math.ceil((a1 - a0) / 4.0)
+        for k in range(n):
+            c0, c1 = a0 + (a1 - a0) * k / n, a0 + (a1 - a0) * (k + 1) / n
+            out.append(put("glass_pane", (x0, uy0, (c0 + c1) / 2), face, None, {"w": round(c1 - c0 - 0.04, 3), "h": round(uy1 - uy0, 3)}))
+    # (the steel handrails, from the forecourt's edge down the steps to the deck)
+    run = 0.3 * (WELL_STEPS - 1) + 0.15
+    out += [put("stair_rail", (DECK[0] + run / 2, -STEP_DOWN, z), 0.0, (0.76, 0.77, 0.79), {"w": round(run, 3), "drop": round(fy + STEP_DOWN, 3)}) for z in RAILS]
+    # (the pots, and the beds along the front either side of the door: low leaves and grasses)
+    out += [put("egg_planter", (x, fy, z), face, (0.74, 0.72, 0.67), scale=(1.3, 1.3, 1.3)) for x, z in POTS]
+    for z0, z1 in ((bays["concrete"][0] + 0.1, DECK[2] - 0.1), (DECK[3] + 0.1, b1 - 0.1)):
+        n = math.ceil((z1 - z0) / 3.0)
+        out += [put("leafy_border", (x0 - 0.6, fy, z0 + (k + 0.5) * (z1 - z0) / n), face, scale=((z1 - z0) / n / 3.0, 1, 1)) for k in range(n)]
+    # (the ledge's planting, along its top)
+    ly0, ly1, deep, lz0, lz1 = LEDGE
+    n = math.ceil((lz1 - lz0 - 0.2) / 3.0)
+    out += [put("leafy_border", (x0 - deep / 2 - 0.08, ly1, lz0 + 0.1 + (k + 0.5) * (lz1 - lz0 - 0.2) / n), face, opts={"trail": 1.5},
+                scale=((lz1 - lz0 - 0.2) / n / 3.0, 0.7, deep / 1.1)) for k in range(n)]
+    # (the floor above: its row of round lit mirrors on the dark wall behind the glass)
+    out += [put("round_mirror", (x0 + 1.18, uy0 + 1.05, z), face, (0.95, 0.95, 0.93), {"lit": 1}, scale=(1.3, 1.3, 1)) for z in MIRRORS]
+    # (left of the glass entry: traveller's palms in a dense bed against the neighbour's dark wall)
+    out += [put("traveller_palm", (x, fy, z), face + 0.25 * (k - 1)) for k, (x, z) in enumerate(TRAVELLER_PALMS)]
+    bx = UTILITY_BOX[0] + 0.4
+    n = math.ceil((x0 - bx) / 2.0)
+    out += [put("tropical_border", (bx + (k + 0.5) * (x0 - bx) / n, fy, FORECOURT[2] - 0.75), 0.0, scale=((x0 - bx) / n / 3.0, 1.1, 0.7)) for k in range(n)]
+    # (the neighbour's tall wall of tan stones at the street; the street tree in its circle of grass)
+    s0, s1 = STONE_WALL[1:]
+    out += [put("stone_wall", (STONE_WALL[0], fy + 1.1 * k, (s0 + s1) / 2), face, (0.58, 0.50, 0.40), {"w": round(s1 - s0, 3), "d": 0.5, "h": 1.1})
+            for k in range(2)]                              # (2.2 m: two courses of the starter, each at most 1.1 m)
+    out.append(put("broad_tree", (STREET_TREE[0], fy, STREET_TREE[1]), 0.0, scale=(0.9, 1.35, 0.9)))   # (slimmer and taller than the garden's)
+    return out
+
+
 def fixtures() -> dict:
     """What the page is told besides the splat (room.py's map, in its metres): the trees, and the
     things it draws as it draws the decor (decor.js starters), so they look as the decor does: the
@@ -327,6 +392,7 @@ def fixtures() -> dict:
     props += [dict({"item": "glass_roof", "at": [round(GARDEN_X + (k + 0.5) * COVER_LEN / bays, 3), 0.0, GARDEN_W / 2],
                     "scale": [round(COVER_LEN / bays / 3.3, 4), 1, 1]}, **({"opts": roof_opts(k)} if roof_opts(k) else {}))
               for k in range(bays)]
+    props += street_front()
     # where the sea is, for a photo (static/photo.js seascape): the middle of where the garden
     # meets the beach, the way out to sea, how deep the dry sand is and how far the island is
     (ax, az), L, (tx, tz), (nx, nz) = far_side()

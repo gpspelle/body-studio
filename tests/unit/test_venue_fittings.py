@@ -161,7 +161,7 @@ class WallsMeetTest(unittest.TestCase):
                 if not any(j != i and _touches(p, o) for j, o in enumerate(segs)):
                     loose.add((round(p[0], 2), round(p[1], 2)))
         open_on_purpose = {
-            (DECK[0] - 0.3, -0.5), (DECK[0] - 0.3, 4.5),            # (the street's backdrop past the deck)
+            (DECK[0], DECK[2]), (DECK[0], DECK[3]),                  # (the deck's sides, where its steps rise to the forecourt)
             (KITCHEN[0] - 3.0, 5.65),                                # (the kitchen yard's low wall's end)
             (0.0, 3.8),                                              # (the ante-room's way into the hall, its edge)
             (round(HALF_WALL[0] + HALF_WALL_T / 2 + 0.25, 2), HALF_WALL[1]),   # (the bench's free end)
@@ -169,6 +169,55 @@ class WallsMeetTest(unittest.TestCase):
         }
         self.assertEqual(loose - {(round(x, 2), round(z, 2)) for x, z in open_on_purpose}, set())
 
+
+class StreetFrontTest(unittest.TestCase):
+    """The street front as Gabriel's street-view photos show it (2026-11-03)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = []
+        V.street(random.Random(1), cls.rows)
+        cls.props = F.street_front()
+
+    def items(self, name):
+        return [t for t in self.props if t["item"] == name]
+
+    def test_the_deck_is_sunk_below_the_forecourt_and_only_it_is_mapped(self):
+        fy = V.FORECOURT_Y
+        self.assertGreater(fy, 0.1, "too high for the map's floor: it is seen, not walked on")
+        steps = V.well_steps()
+        rises = [steps[0][2] + V.STEP_DOWN] + [b[2] - a[2] for a, b in zip(steps, steps[1:])] + [fy - steps[-1][2]]
+        self.assertTrue(all(abs(r - rises[0]) < 1e-9 for r in rises), "even steps")
+        self.assertTrue(all(r < 0.18 for r in rises))
+        mapped = [r for r in self.rows if len(r) < 4]
+        self.assertTrue(mapped and all(DECK[0] - 0.01 <= r[0][0] <= DECK[1] + 0.01 and r[0][1] < 0.25 for r in mapped), "no seats on the top steps")
+        self.assertTrue(all(r[3] == V.FAR for r in self.rows if len(r) > 3))
+        # (the forecourt at its level, yellow parking lines on it)
+        court = [c for p, c, *_ in self.rows if abs(p[1] - fy) < 0.005 and p[0] < DECK[0]]
+        self.assertTrue(court and sum(c[0] > 0.75 and c[2] < 0.3 for c in court) > 0.02 * len(court))
+
+    def test_the_front_left_to_right_as_seen_from_the_street(self):
+        # (+z on the right facing the door: the glass entry, bare concrete, the door, brick, the gate)
+        bays = [b[2] for b in sorted(V.FRONT_BAYS)]
+        self.assertEqual(bays, ["glass entry", "concrete", "door", "brick", "gate"])
+        door = next(b for b in V.FRONT_BAYS if b[2] == "door")
+        self.assertEqual(door[:2], (DECK[2], DECK[3]))
+        bricks = self.items("brick_wall")
+        self.assertTrue(bricks and all(t["at"][2] > DECK[3] and t["opts"]["w"] <= 5.0 for t in bricks))
+        # (the pots either side of the steps, the handrails on them, the palms left of the glass entry)
+        pots = sorted(t["at"][2] for t in self.items("egg_planter"))
+        self.assertEqual(len(pots), 2)
+        self.assertLess(pots[0], DECK[2])
+        self.assertGreater(pots[1], DECK[3])
+        rails = self.items("stair_rail")
+        self.assertEqual(len(rails), 2)
+        self.assertTrue(all(DECK[2] < t["at"][2] < DECK[3] and abs(t["opts"]["drop"] - V.FORECOURT_Y - V.STEP_DOWN) < 1e-3 for t in rails))
+        self.assertTrue(all(t["at"][2] < V.FRONT_BAYS[0][0] for t in self.items("traveller_palm")))
+        self.assertEqual(len(self.items("round_mirror")), len(V.MIRRORS))
+        self.assertTrue(any(t.get("opts", {}).get("trail") for t in self.items("leafy_border")), "vines off the ledge")
+        # (each built size within what its knobs allow)
+        self.assertTrue(all(t["opts"]["w"] <= 4.0 for t in self.items("glass_pane")))
+        self.assertTrue(all(t["opts"]["h"] <= 1.125 for t in self.items("stone_wall")))
 
 if __name__ == "__main__":
     unittest.main()

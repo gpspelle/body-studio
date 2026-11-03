@@ -54,7 +54,7 @@ class SampleVenueTest(unittest.TestCase):
         self.assertAlmostEqual(self.map["frame"]["metres"], 1.0, delta=0.03)
         # (from the door to the water's edge, the slanted far side's middle: its far corner is cut off
         # as a few stray splats would be)
-        long = V.GARDEN_X + (V.GARDEN_LEFT + V.GARDEN_RIGHT) / 2 + V.BEACH - V.DECK[0]
+        long = V.GARDEN_X + (V.GARDEN_LEFT + V.GARDEN_RIGHT) / 2 + V.BEACH - V.DECK[0]   # (the street front is seen, not mapped)
         self.assertAlmostEqual(self.map["nx"] * self.map["cell"], long + 0.4, delta=3.0)
         self.assertAlmostEqual(self.map["nz"] * self.map["cell"], V.GARDEN_W - V.SIDE[2] + 0.4, delta=2.0)   # (with the toilets and the side room behind the hall)   # (the beach is slanted, and is more of the splats now the garden is drawn by the page)
         self.assertLess(self.map["cell"], 0.12, "cells small enough for doorways, long and wide as it is")
@@ -98,6 +98,7 @@ class SampleVenueTest(unittest.TestCase):
         self.assertEqual({t["item"] for t in props[len(V.TREES):]},
                          {"living_wall", "tropical_border", "glass_roof", "glass_lantern", "gourd_pendants", "jute_ceiling",
                           "hanging_greenery", "bougainvillea_cloud", "wicker_pendant", "wall_fan", "pink_shrub", "agave",
+                          "stair_rail", "egg_planter", "traveller_palm", "broad_tree", "leafy_border",   # (the street front)
                           "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain",
                           "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp",
                           "reed_roof", "wall_sconce", "sky_dome", "saucer_light",
@@ -161,12 +162,12 @@ class SampleVenueTest(unittest.TestCase):
         self.assertTrue(rest)
         self.assertTrue(all(len(r) > 3 and r[3] == V.FAR for r in rest))
         props = V.fixtures()["trees"]
-        walls = [t for t in props if t["item"] == "stone_wall"]
+        walls = [t for t in props if t["item"] == "stone_wall" and t["at"][0] > V.GARDEN_X]   # (the sea wall; not the street's)
         (ax, az), L, _, _ = V.far_side()
         self.assertAlmostEqual(sum(t["opts"]["w"] for t in walls), L * (1 - 2 * V.SEA_GAP), places=2)
         self.assertTrue(all(abs(t["at"][2] - az) <= V.GARDEN_W + 1 for t in walls))
         self.assertEqual(sum(t["item"] == "sunk_light" for t in props), 4)
-        self.assertEqual([t["item"] for t in props if t["item"] in ("glass_pane", "tile_floor") and t["at"][2] < V.SIDE[2] + 0.01],
+        self.assertEqual([t["item"] for t in props if t["item"] in ("glass_pane", "tile_floor") and t["at"][2] < V.SIDE[2] + 0.01 and t["at"][0] > V.RECEPTION[0]],
                          ["glass_pane", "tile_floor"])
         # (the sea wall is still in the map: the body walks out to the beach through its gap only)
         (ax, az), L, (tx, tz), (nx, nz) = V.far_side()
@@ -208,7 +209,7 @@ class SampleVenueTest(unittest.TestCase):
         rows = V.splats()
         def at(x0, x1, y0, y1, z0, z1):
             return [r for r in rows if x0 <= r[0][0] <= x1 and y0 <= r[0][1] <= y1 and z0 <= r[0][2] <= z1]
-        # the deck is grey cement, not boards, orange steps at its far edge; a yellow line along the edge
+        # the deck is grey cement, not boards, sunk in front of the door; a yellow line along the edge
         # of the landing inside the door, deep enough for the open leaf
         deck = at(V.DECK[0] + 0.95, V.DECK[1] - 0.25, -V.STEP_DOWN - 0.01, -V.STEP_DOWN + 0.001, 0.5, 3.5)
         self.assertTrue(deck and all(max(c) - min(c) < 0.06 for _, c, *_ in deck))
@@ -216,8 +217,18 @@ class SampleVenueTest(unittest.TestCase):
         line = at(lx - 0.04, lx - 0.01, V.LANDING[1] + 0.001, V.LANDING[1] + 0.003, 0.5, 3.5)
         self.assertGreaterEqual(V.LANDING[0], max(w * math.sin(a) for _, w, a in V.FRONT_LEAVES))
         self.assertTrue(line and all(c[0] > 0.7 and c[2] < 0.35 for _, c, *_ in line))
-        steps = at(V.DECK[0], V.DECK[0] + 0.85, -V.STEP_DOWN + 0.001, -V.STEP_DOWN + 0.003, 1.0, 3.0)
-        self.assertTrue(steps and all(c[0] > 0.7 and c[0] > c[1] > c[2] for _, c, *_ in steps))
+        # (grey steps up from it to the forecourt at its far edge, as in the street photos, each a rise
+        # the map still sees as floor at the bottom, a yellow line on each nose)
+        steps = V.well_steps()
+        self.assertEqual(len(steps), V.WELL_STEPS - 1)
+        self.assertAlmostEqual(steps[0][1], V.DECK[0] + 0.3 * (V.WELL_STEPS - 1))
+        self.assertAlmostEqual(steps[-1][0], V.DECK[0])
+        self.assertLess(steps[0][2], 0.1)
+        for a0, a1, y in steps:
+            tread = at(a0 + 0.01, a1 - 0.08, y - 0.01, y + 0.01, 0.5, 3.5)
+            nose = at(a1 - 0.05, a1 - 0.01, y - 0.01, y + 0.01, 0.5, 3.5)
+            self.assertTrue(tread and all(max(c) - min(c) < 0.06 for _, c, *_ in tread))
+            self.assertTrue(nose and all(c[0] > 0.7 and c[2] < 0.35 for _, c, *_ in nose))
         # its fittings are drawn as the furniture is (decor starters), not splats: skirting boards
         # along the white walls (no painted band), spotlights, the track light, signs, curtains
         fit = [f for f in V.fittings() if f[1][0] <= V.ANTE[1] and not V.KITCHEN[2] < f[1][2] <= V.KITCHEN[3]]
@@ -390,7 +401,7 @@ class SampleVenueTest(unittest.TestCase):
         self.assertGreaterEqual(sum(t[1] < 0 for t in palms), 4)
         self.assertGreaterEqual(sum(t[1] > V.GARDEN_W for t in palms), 4)
         props = V.fixtures()["trees"]
-        self.assertTrue(all(t.get("scale", [1])[0] > 1.2 for t in props if t["item"] == "broad_tree"))
+        self.assertTrue(all(t.get("scale", [1])[0] > 1.2 for t in props if t["item"] == "broad_tree" and t["at"][0] > V.GARDEN_X))
         fit = V.fittings()
         hall = [f for f in fit if f[0] == "sheer_curtain" and f[1][2] > V.HALL[3] - 0.5 and f[1][0] < V.HALL[1] - 0.5]
         self.assertTrue(hall and all(f[4]["full"] > 1.5 for f in hall))

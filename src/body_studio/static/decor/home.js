@@ -480,11 +480,14 @@ export const HOME = {
   },
   round_mirror: {
     group: "home", height: 0.66, hangs: true, on: "floor", colour: "black", size: { w: 0.66, d: 0.02 }, block: false,
-    make(col) {
-      // a round mirror on a wall (its back at z = 0; hung, lift it to its foot), a thin dark rim
+    knobs: { lit: { min: 0, max: 1, value: 0 } },
+    make(col, k = { lit: 0 }) {
+      // a round mirror on a wall (its back at z = 0; hung, lift it to its foot), a thin dark rim;
+      // lit 1: a make-up mirror, a ring of light round it (as in the salon over the venue's door)
       const s = shape();
       made("metal", () => facing([0, 0, 1], [0, 0.33, 0.005], () => cyl(s, 0.32, 0.32, 0.006, 0, 0, 0, [0.74, 0.77, 0.79], 48)));
       made("satin", () => hoop(s, 0.32, 0, 0.33, 0.01, 0.007, col, 0, 2 * Math.PI, 64));
+      if (k.lit) lit(() => { for (const r of [0.285, 0.3]) hoop(s, r, 0, 0.33, 0.012, 0.009, BULB, 0, 2 * Math.PI, 64); });
       return s;
     },
   },
@@ -1087,6 +1090,22 @@ export const HOME = {
       const s = shape();
       made("metal", () => cyl(s, 0.045, 0.045, 0.003, 0, 0, 0, col, 24));
       lit(() => cyl(s, 0.034, 0.034, 0.004, 0, 0, 0, BULB, 24));
+      return s;
+    },
+  },
+  stair_rail: {
+    group: "home", height: 1.51, on: "floor", colour: "white", size: { w: 1.05, d: 0.05 }, block: false, built: ["w"],
+    knobs: { drop: { min: 0.1, max: 1.5, step: 0.01, value: 0.53, size: true } },
+    make(col, k = { w: 1.05, drop: 0.53 }) {
+      // a steel handrail down a flight of steps (along x, falling toward +x by drop over w): a post
+      // at each end, a ball on the top one, the rail sloping between them at hand height
+      const s = shape(), w = k.w, h = k.drop, top = 0.92;
+      made("metal", () => {
+        rod(s, [-w / 2, h, 0], [-w / 2, h + top + 0.03, 0], 0.022, col, 10);
+        rod(s, [w / 2, 0, 0], [w / 2, top, 0], 0.022, col, 10);
+        rod(s, [-w / 2, h + top, 0], [w / 2, top, 0], 0.02, col, 10);
+        ball(s, 0.035, -w / 2, h + top + 0.03, 0, col, 12);
+      });
       return s;
     },
   },

@@ -2,6 +2,16 @@
 
 ## 0.1.0 (unreleased)
 
+- **The venue's street front**: outside the door there is now the street the photos show, not a
+  white wall: the deck sunk in front of the door with grey steps up (a yellow line on each nose, a
+  steel handrail each side) to a cement forecourt with yellow parking lines, a street tree in a
+  circle of grass and the street's red cycle lane. The building over the door: the door's dark
+  panels, bare concrete with a rusted plaque on its left, brick and a slatted gate on its right, the
+  wooden-framed glass entry to the floor upstairs, a planted ledge with vines trailing off it, and
+  the glass floor above with its row of lit round mirrors. Two big round concrete pots and leafy
+  beds stand along the front, traveller's palms by the neighbour's dark wall, its stone wall and a
+  green utility box at the street. New in Decor: **Traveller's palm**, **Leafy border** (with
+  trailing vines), **Stair handrail**; a **Round mirror** can be lit.
 - **The venue's garden cover**: its steel rafters now cross the roof evenly about every 1.1 m, with
   a stout ridge beam, fewer purlins and a beam across the eaves at its far end, as in the
   walkthrough. The garden's dark walls stand 3 m high (their tops just under the cover's eaves) and

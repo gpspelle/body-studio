@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 
-VERSION = 38
+VERSION = 39
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -56,6 +56,36 @@ FRONT_LEAVES = ((2.3, 0.84, math.radians(6)), (0.8, 1.2, math.radians(70)))   # 
 LANDING_GREY = (0.42, 0.44, 0.46)   # its top: the floor's cement, lighter in the door's light
 LANDING = (1.25, 0.08)              # inside the front door: a landing across the front wall, how deep (the open leaf fits on it), how high
 BUNGALOW = (41.5, 50.5, 12.7, 17.5)
+# the street front (Gabriel's street-view photos, 2026-11-03): a cement forecourt with yellow
+# parking lines, up a few steps from the deck, which is sunk in front of the door; the building
+# over the door (another business upstairs: a glass floor over a planted ledge) and what stands
+# along it. x out from the front wall toward the street (more negative), z as inside (+z right
+# facing the door from the street)
+FORECOURT_Y = 0.45                  # the forecourt's level over the reception's floor
+WELL_STEPS = 4                      # steps from the deck up to it, at its far edge, 30 cm treads
+FORECOURT = (-28.0, DECK[0], -9.5, 13.0)    # x0 (the street's kerb), x1, z0, z1
+STREET = 4.5                        # m of street drawn past the kerb (its red cycle lane along it)
+CYCLE_LANE = 1.8
+BAY_LINES = (-7.4, -4.6, -1.9, 0.7, 3.5, 6.3, 9.1)   # z: the yellow lines between parking bays
+BAY_LEN = 5.0
+RAILS = (0.7, 3.2)                  # z: the steel handrails down the steps
+FRONT_BAYS = (                      # along the front wall (x = RECEPTION[0]), above the forecourt: z0, z1, what
+    (-7.3, -4.6, "glass entry"),    # the wooden-framed glass doors to the stairs up
+    (-4.6, 0.0, "concrete"),        # bare grey concrete, a rusted plaque on it
+    (0.0, 4.0, "door"),             # the venue's door: dark rust-brown from the deck to the ledge
+    (4.0, 9.7, "brick"),
+    (9.7, 11.7, "gate"),            # a gate of wooden slats
+)
+LEDGE = (3.4, 3.95, 0.8, -6.6, 11.0)   # the planted concrete ledge over the door: y0, y1, how far out, z0, z1
+UPPER = (3.95, 6.95, 8.0)           # the glass floor above: its bottom, top, the roof's fascia top
+UPPER_GLASS = ((-4.6, 6.5), (9.6, 11.0))   # z: its glass (between them a concrete panel)
+MULLIONS = (-4.6, -0.2, 4.7, 6.5)
+MIRRORS = (-3.6, -1.9, -0.3, 1.3, 3.1, 4.8)   # z: round lit mirrors seen through it, in a row
+POTS = ((-21.2, -1.2), (-21.2, 4.6))   # the two big round concrete pots (x, z)
+STREET_TREE = (-27.2, 3.0)          # the street tree in its circle of grass, near the kerb
+STONE_WALL = (-27.0, -14.0, -11.6)  # the neighbour's tall stone wall at the street: x, z0, z1
+UTILITY_BOX = (-26.6, -11.4, -10.0)  # a green utility box before it: x, z0, z1
+TRAVELLER_PALMS = ((-21.4, -9.0), (-22.6, -8.2), (-20.6, -10.2))   # traveller's palms left of the glass entry
 DECK_UP = 0.09                      # its deck, a step up off the sand (any higher and the map no longer sees a floor there)
 LADIES = (11.3, 14.5, -4.0, 0.0)        # the toilets, behind the toilets' hall's left wall: x0, x1, z0, z1
 GENTS = (14.5, 18.6, -4.0, 0.0)
@@ -96,6 +126,12 @@ DARK_CEILING = (0.58, 0.58, 0.57)   # the reception's and the vertical garden's,
 SLAB = POLISHED                     # the ante-room's slabs: the same cement
 WC_GREY = (0.60, 0.61, 0.63)        # the toilets' walls
 RUST = (0.31, 0.18, 0.13)           # the front door's pivoting leaves
+FACADE_CONCRETE = (0.66, 0.66, 0.64)   # the street front's bare concrete: the ledge, the wall left of the door, the fascia
+FORECOURT_GREY = (0.66, 0.66, 0.64)  # its forecourt, in the sun
+BAY_YELLOW = (0.88, 0.66, 0.18)
+ENTRY_WOOD = (0.58, 0.30, 0.13)     # the glass entry's frame and the gate's slats, a warm orange-brown
+UTILITY_GREEN = (0.27, 0.36, 0.31)
+NEIGHBOUR_GREEN = (0.20, 0.26, 0.24)   # the dark green wall behind the palms
 CONCRETE = (0.60, 0.58, 0.55)       # the hall's ceiling, bare concrete, a mid warm grey (dim, as filmed)
 HALL_WALL = (0.88, 0.88, 0.87)
 WC_WALL = (0.78, 0.81, 0.84)        # pale blue-grey

@@ -7,7 +7,7 @@ import {
   tipped, daisy, orchid, cloud, plume, torch, leaf, sprig, tropical, broadTree,
   almondTree, coconutPalm, smallTree, border, roofBay, STEEL_MAROON, woven, CORDYLINE, BOUGAIN, MONSTERA, MOSS,
   JUTE, CLAY, BAMBOO, TRUNK, CUSHION, BEIGE, SNAP, at, bulb, shade,
-  canopy, hangers, cascade, braided, jute, florets,
+  canopy, hangers, cascade, braided, jute, florets, PALM_BARK, CANOPY,
 } from "./shapes.js";
 
 export const PROPOSALS = {
@@ -540,6 +540,65 @@ export const PROPOSALS = {
   coconut_palm: {
     group: "garden", height: 8.84, on: "floor", colour: "green", size: { w: 5.0, d: 5.0 }, block: "posts", posts: [[0, 0]],
     make() { const s = shape(); coconutPalm(s, 8.0, 5); return grounded(s); },
+  },
+  traveller_palm: {
+    group: "garden", height: 5.53, on: "floor", colour: "green", size: { w: 7.0, d: 0.9 }, block: "posts", posts: [[0, 0]],
+    make() {
+      // a traveller's palm, as by the venue's street door: a short grey trunk, then a flat fan of
+      // long stalks spread across (along x), each with a big paddle of a leaf, the old ones torn
+      // into strips and drooping at the sides
+      const s = shape(), rnd = rng(211), trunk = 1.1, n = 15;
+      made("wood", () => { for (let k = 0; k < 5; k++) rod(s, [0, trunk * k / 5, 0], [0, trunk * (k + 1) / 5, 0], 0.2 - 0.015 * k, k % 2 ? PALM_BARK : PALM_BARK.map((v) => v * 0.82), 10); });
+      blob(s, 0.24, 0.35, 0.16, 0, trunk + 0.2, 0, [0.42, 0.48, 0.32], 0, 10);
+      for (let k = 0; k < n; k++) {
+        const t = (k + 0.5) / n - 0.5, a = t * 2.3 + (rnd() - 0.5) * 0.06;     // (from about 65 degrees one side to the other)
+        const stalk = 1.7 + 0.4 * (1 - Math.abs(t) * 2) + 0.2 * rnd(), zz = (rnd() - 0.5) * 0.2;
+        const base = [Math.sin(a) * 0.12, trunk + 0.3, zz], tip = [Math.sin(a) * stalk, trunk + 0.3 + Math.cos(a) * stalk, zz * 2];
+        made("wood", () => rod(s, base, tip, 0.03, [0.52, 0.56, 0.42], 5));
+        // (the leaf: on along the stalk's line, bending over a little at the sides)
+        const len = 1.9 + 0.3 * rnd(), droop = Math.abs(t) * 0.9, d = [Math.sin(a + Math.sign(t) * droop), Math.cos(a + Math.sign(t) * droop), 0];
+        const col = CANOPY[k % CANOPY.length], torn = Math.abs(t) > 0.3;
+        if (!torn) leaf(s, tip, d, len, 0.17, col);
+        else for (let j = 0; j < 4; j++) leaf(s, tip, [d[0] + 0.12 * (j - 1.5) * d[1], d[1] - 0.12 * (j - 1.5) * d[0], 0.08 * (j - 1.5)], len * (0.85 + 0.15 * rnd()), 0.05, col);
+      }
+      return grounded(s);
+    },
+  },
+  leafy_border: {
+    group: "garden", height: 1.02, on: "floor", colour: "green", size: { w: 3.2, d: 1.2 }, block: true,
+    knobs: { trail: { min: 0, max: 1.5, step: 0.05, value: 0, size: true } },
+    // (trail: vines hanging that far down off its front edge, for a bed on a ledge: the venue's over its door)
+    make(col, k = { trail: 0 }) {
+      // a low bed along a wall, as either side of the venue's street door: tufts of tall strappy
+      // grass at the back, broad split philodendron leaves on long stalks in front, packed so no
+      // soil shows
+      const s = shape(), rnd = rng(223), w = 3.0, d = 1.0;
+      box(s, w, 0.04, d, 0, 0, 0, [0.24, 0.19, 0.14]);
+      for (let k = 0; k < 14; k++) {
+        const x = 0.8 * (-w / 2 + (k + 0.5) * w / 14) + (rnd() - 0.5) * 0.1, z = -d / 2 + 0.25 + rnd() * 0.1;
+        for (let j = 0; j < 16; j++) leaf(s, [x, 0.04, z], tipped(rnd() * 6.28, 0.05 + 0.35 * rnd()), 0.6 + 0.45 * rnd(), 0.05, j % 3 ? DARK_LEAF : [0.30, 0.42, 0.24]);
+      }
+      for (let k = 0; k < 34; k++) {
+        const x = (rnd() - 0.5) * w * 0.84, z = -0.15 + rnd() * 0.35, a = rnd() * 6.28, up = 0.3 + 0.35 * rnd();
+        const tip = [x + 0.15 * Math.sin(a), 0.04 + up, z + 0.15 * Math.cos(a) + 0.1];
+        rod(s, [x, 0.04, z], tip, 0.008, STEM, 4);
+        leaf(s, tip, tipped(a, 1.0 + 0.4 * rnd()), 0.35 + 0.2 * rnd(), 0.42, k % 3 ? MONSTERA : DARK_LEAF);
+      }
+      grounded(s);
+      // (after grounding: the vines hang below its foot)
+      if (k.trail > 0) for (let j = 0; j < 40; j++) {
+        // (each vine a thin stem down over the edge, small leaves along it; some short, a few long)
+        const x = -w / 2 + (j + 0.5) * w / 40 + (rnd() - 0.5) * 0.06, len = k.trail * (0.1 + 0.9 * rnd() ** 2);
+        let prev = [x, 0.04, d / 2];
+        for (let t = 1; t <= 8; t++) {
+          const q = [x + 0.03 * Math.sin(t + j), 0.04 - len * t / 8, d / 2 + 0.02];
+          rod(s, prev, q, 0.004, STEM, 3);
+          leaf(s, q, tipped(rnd() * 6.28, 1.3), 0.09, 0.5, t % 2 ? DARK_LEAF : MONSTERA);
+          prev = q;
+        }
+      }
+      return s;
+    },
   },
   // seen at Casa Arandella (the walkthrough filmed there, 2026-10-24)
   blue_bookcase: {

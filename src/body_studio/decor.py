@@ -161,6 +161,8 @@ STARTERS = (
     {"id": "broad_tree", "group": "garden", "height": 5.7, "on": "floor"},
     {"id": "beach_almond", "group": "garden", "height": 5.79, "on": "floor"},
     {"id": "coconut_palm", "group": "garden", "height": 8.84, "on": "floor"},
+    {"id": "leafy_border", "group": "garden", "height": 1.02, "on": "floor"},
+    {"id": "traveller_palm", "group": "garden", "height": 5.53, "on": "floor"},
     {"id": "blue_bookcase", "group": "lounge", "height": 1.9, "on": "floor"},
     {"id": "iron_shelves", "group": "lounge", "height": 2.0, "on": "floor"},
     {"id": "high_table", "group": "bar", "height": 1.1, "on": "floor"},
@@ -267,6 +269,7 @@ STARTERS = (
     {"id": "sheer_curtain", "group": "home", "height": 3.25, "on": "floor"},
     {"id": "stone_wall", "group": "garden", "height": 0.45, "on": "floor"},
     {"id": "sunk_light", "group": "lights", "height": 0.004, "on": "floor"},
+    {"id": "stair_rail", "group": "home", "height": 1.51, "on": "floor"},
     {"id": "glass_pane", "group": "home", "height": 2.4, "on": "floor"},
     # built your own (static/decor/custom.js): an arch, a hung floral installation, a table's flowers
     {"id": "custom_arch", "group": "ceremony", "height": 2.6, "on": "floor"},

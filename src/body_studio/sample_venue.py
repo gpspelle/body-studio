@@ -260,21 +260,14 @@ def house(rnd, out):
     base._surface(rnd, (TILES_END, WC[0], 0, 0, hz0, WC[2]), cement, out, FLOOR_STEP)
     # (the toilets' hall, from the half wall on: grey cement, as in the toilets)
     base._surface(rnd, (WC[0], WC[1], 0, 0, 0, WC[2]), _shaded(_cement(WC_FLOOR), (WC[0] - 2, WC[1], 0, WC[2])), out, FLOOR_STEP)
-    # (the deck outside the door: the same grey cement in the sun, not boards)
-    base._surface(rnd, (*DECK[:2], -STEP_DOWN, -STEP_DOWN, *DECK[2:]), _cement(SUNLIT, joint=1.5, cloud=0.02), out, 0.04)   # (finer: the map's end)
-    # (a step down to it at the front door; inside, a landing a step up across the front wall, its
-    # edge dark)
+    # (outside the door: the deck sunk below the forecourt, a step down from the reception's floor
+    # at the door, its steps up to the street, and the street front: street())
     base._surface(rnd, (RECEPTION[0], RECEPTION[0], -STEP_DOWN, 0.0, *DECK[2:]), CEMENT, out, 0.02)
     lx = RECEPTION[0] + LANDING[0]
     base._surface(rnd, (RECEPTION[0], lx, LANDING[1], LANDING[1], 0.0, 4.0), _cement(LANDING_GREY, joint=2.0, cloud=0.008), out, 0.03)
     base._surface(rnd, (lx, lx, 0.0, LANDING[1], 0.0, 4.0), (0.17, 0.11, 0.08), out, 0.015)
     base._surface(rnd, (lx - 0.05, lx, LANDING[1] + 0.002, LANDING[1] + 0.002, 0.0, 4.0), (0.86, 0.72, 0.22), out, 0.012)   # (a yellow line along its edge)
-    # (outside the door, daylight: orange steps down off the deck's far edge, and the bright street
-    # beyond)
-    for k in range(3):
-        base._surface(rnd, (DECK[0] + 0.3 * k, DECK[0] + 0.3 * k + 0.06, -STEP_DOWN + 0.002, -STEP_DOWN + 0.002, 0.8, 3.2), (0.86, 0.50, 0.26), out, 0.02)
-        base._surface(rnd, (DECK[0] + 0.3 * k + 0.06, DECK[0] + 0.3 * (k + 1), -STEP_DOWN + 0.002, -STEP_DOWN + 0.002, 0.8, 3.2), (0.93, 0.62, 0.36), out, 0.03)
-    base._surface(rnd, (DECK[0] - 0.3, DECK[0] - 0.3, -STEP_DOWN, H, -0.5, 4.5), (0.96, 0.95, 0.92), out, 0.06)
+    street(rnd, out)
     # (the ante-room's jute ceiling hangs under a black one: the page draws it, from fixtures())
     base._surface(rnd, (ANTE[0], ANTE[1], H, H, ANTE[2], ANTE[3]), base.finish("plaster", (0.12, 0.12, 0.12)), out, CEIL_STEP)
     base._surface(rnd, (*RECEPTION[:2], H, H, *RECEPTION[2:]), base.finish("plaster", DARK_CEILING), out, CEIL_STEP)
@@ -310,7 +303,7 @@ def house(rnd, out):
     # the front: the deck and the reception's tall door. Inside, the wall is clad in rust-brown
     # panels to the ceiling, the door's two big leaves the same: the one on the left (from inside)
     # shut but a hand's width ajar, the one on the right swung in
-    wall_z(RECEPTION[0], 0.0, 4.0, [(0.8, 3.2, 0.0, 2.9)], wall, out, rnd)
+    wall_z(RECEPTION[0], 0.0, 4.0, [(0.8, 3.2, 0.0, 2.9)], _cladding, out, rnd, step=0.03)   # (outside: the same dark panels, to the ledge)
     wall_z(RECEPTION[0] + 0.02, 0.0, 4.0, [(0.8, 3.2, 0.0, 2.9)], _cladding, out, rnd, step=0.03)
     with base.as_decor(out):                           # (its leaves drawn as the furniture is: fittings())
         for hinge, width, swing in FRONT_LEAVES:
@@ -664,6 +657,143 @@ def green_x(rnd, z, x0, x1, side, out):
     """A wall of leaves along x at z (the room on its `side`): here only its backing, green; the page
     draws the planted wall over it (living_wall, from fixtures())."""
     base._surface(rnd, (x0, x1, 0.0, H, z + 0.005 * side, z + 0.005 * side), _greenwall, out, 0.04)
+
+
+# ---------------------------------------------------------------- outside: the street front
+
+def _nosed(edge):
+    """A step's tread in the sun, a yellow line 6 cm wide along its nose at x = edge."""
+    tread = _cement(SUNLIT, joint=4.0, cloud=0.02)
+    f = lambda x, y, z, rnd: BAY_YELLOW if edge - 0.06 < x <= edge else tread(x, y, z, rnd)
+    return base.finish("cement", f)
+
+
+def well_steps():
+    """The steps up from the deck to the forecourt, at the deck's far edge: each tread's (x0, x1, y),
+    the lowest (nearest the door) first."""
+    r = (FORECOURT_Y + STEP_DOWN) / WELL_STEPS
+    return [(DECK[0] + 0.3 * (WELL_STEPS - 2 - k), DECK[0] + 0.3 * (WELL_STEPS - 1 - k), -STEP_DOWN + r * (k + 1))
+            for k in range(WELL_STEPS - 1)]
+
+
+def street(rnd, out):
+    """What Gabriel's street-view photos show in front of the door: the deck sunk in front of it with
+    concrete sides, grey steps up to the forecourt (a yellow line on each nose), the forecourt's
+    cement and yellow parking lines, a street tree in a circle of grass, the street with its red cycle
+    lane; the front of the building: the door's dark panels, bare concrete left of it, the glass entry
+    to the floor upstairs, a slatted gate, the planted ledge over it all and the glass floor above.
+    The brick, the glass, the pots, the beds and the palms are drawn as the decor is (fittings())."""
+    fy, (fx0, fx1, fz0, fz1), x0 = FORECOURT_Y, FORECOURT, RECEPTION[0]
+    near, out = out, []
+    sunlit = _cement(FORECOURT_GREY, joint=2.5, cloud=0.03)
+    # the deck: grey cement in the sun, sunk in front of the door; its steps up at the far edge
+    steps = well_steps()
+    base._surface(rnd, (steps[0][1], DECK[1], -STEP_DOWN, -STEP_DOWN, *DECK[2:]), _cement(SUNLIT, joint=1.5, cloud=0.02), out, 0.04)
+    y = -STEP_DOWN
+    for a0, a1, top in steps:
+        base._surface(rnd, (a1, a1, y, top, *DECK[2:]), _rough(FACADE_CONCRETE, 0.03), out, 0.03)         # (its riser)
+        base._surface(rnd, (a0, a1, top, top, *DECK[2:]), _nosed(a1), out, 0.025)   # (a yellow line on its nose)
+        y = top
+    base._surface(rnd, (DECK[0], DECK[0], y, fy, *DECK[2:]), _rough(FACADE_CONCRETE, 0.03), out, 0.03)
+    for z in DECK[2:]:                                     # (its sides, up to the forecourt)
+        base._surface(rnd, (DECK[0], DECK[1], -STEP_DOWN, fy, z, z), _rough(FACADE_CONCRETE, 0.04), out, 0.04)
+    # the forecourt, out to the kerb and either side of the deck to the front wall
+    def lined(x, y, z, rnd):                               # (its yellow lines, from the beds along the front, or
+        for b in BAY_LINES:                                #  the deck's edge, toward the street)
+            a1 = DECK[0] if DECK[2] < b < DECK[3] else x0 - 1.2
+            if abs(z - b) < 0.06 and a1 - BAY_LEN < x < a1:
+                return BAY_YELLOW
+        return sunlit(x, y, z, rnd)
+    lined.finish = sunlit.finish
+    for a0, a1, b0, b1 in ((fx0, fx1, fz0, fz1), (fx1, x0, fz0, DECK[2]), (fx1, x0, DECK[3], fz1)):
+        base._surface(rnd, (a0, a1, fy, fy, b0, b1), lined, out, 0.09)
+    base._surface(rnd, (fx0, fx0, fy - 0.15, fy, fz0 - 6.0, fz1), FACADE_CONCRETE, out, 0.04)   # (the kerb)
+    base._surface(rnd, (fx0 + 0.02, fx1, fy - 0.15, fy, fz1, fz1), FACADE_CONCRETE, out, 0.05)
+    # (the street tree's circle of grass)
+    tx, tz = STREET_TREE
+    for k in range(15):                                   # (in strips 10 cm wide)
+        dz = -0.75 + 0.1 * (k + 0.5)
+        hw = math.sqrt(0.75 ** 2 - dz ** 2)
+        base._surface(rnd, (tx - hw, tx + hw, fy + 0.03, fy + 0.03, tz + dz - 0.05, tz + dz + 0.05), base.finish("grass", (0.27, 0.43, 0.19)), out, 0.04, 0.05)
+    # (the pavement past the forecourt's left edge, to the neighbour's wall and box)
+    base._surface(rnd, (fx0, STONE_WALL[0] + 0.6, fy, fy, fz0 - 6.0, fz0), sunlit, out, 0.14)
+    # the street: its red cycle lane along the kerb, a white line, the road
+    sy = fy - 0.15
+    base._surface(rnd, (fx0 - CYCLE_LANE, fx0, sy, sy, fz0 - 6.0, fz1 + 3.0), (0.70, 0.36, 0.35), out, 0.14)
+    base._surface(rnd, (fx0 - CYCLE_LANE - 0.12, fx0 - CYCLE_LANE, sy + 0.002, sy + 0.002, fz0 - 6.0, fz1 + 3.0), (0.93, 0.93, 0.90), out, 0.06)
+    base._surface(rnd, (fx0 - STREET, fx0 - CYCLE_LANE - 0.12, sy, sy, fz0 - 6.0, fz1 + 3.0), _cement((0.48, 0.48, 0.48), joint=50.0, cloud=0.03), out, 0.22)
+
+    # the front wall either side of the door, from the forecourt to the ledge
+    concrete = _rough(FACADE_CONCRETE, 0.05)
+    for z0, z1, what in FRONT_BAYS:
+        if what == "concrete":
+            base._surface(rnd, (x0, x0, fy, LEDGE[0], z0, z1), concrete, out, WALL_STEP)
+            base._surface(rnd, (x0 - 0.025, x0 - 0.025, fy + 1.2, fy + 1.85, -3.0, -2.1), _cladding, out, 0.03)   # (a rusted plaque)
+        elif what == "gate":
+            slats = lambda x, y, z, rnd: (0.20, 0.12, 0.08) if z % 0.11 < 0.02 else tuple(c + rnd.uniform(-0.03, 0.03) for c in ENTRY_WOOD)
+            base._surface(rnd, (x0 - 0.02, x0 - 0.02, fy, LEDGE[0], z0, z1), slats, out, 0.05)
+        elif what == "glass entry":
+            # (its wooden frame round two tall glass doors; behind them the stairs up, dark)
+            for z in (z0, (z0 + z1) / 2 - 0.06, z1 - 0.12):
+                base._surface(rnd, (x0 - 0.12, x0, fy, LEDGE[0], z, z + 0.12), ENTRY_WOOD, out, 0.05)
+            base._surface(rnd, (x0 - 0.12, x0, LEDGE[0] - 0.2, LEDGE[0], z0 - 1.3, z1), ENTRY_WOOD, out, 0.03)
+            base._surface(rnd, (x0 + 1.4, x0 + 1.4, fy, LEDGE[0], z0, z1), (0.16, 0.13, 0.11), out, 0.06)
+            for z in (z0, z1):
+                base._surface(rnd, (x0, x0 + 1.4, fy, LEDGE[0], z, z), (0.22, 0.18, 0.15), out, 0.06)
+            base._surface(rnd, (x0, x0 + 1.4, fy, fy, z0, z1), (0.30, 0.27, 0.25), out, 0.06)
+            for k in range(6):                             # (the first treads of the stairs, through the glass)
+                base._surface(rnd, (x0 + 0.3 + 0.18 * k, x0 + 0.48 + 0.18 * k, fy + 0.18 * (k + 1), fy + 0.18 * (k + 1), z0 + 0.2, z0 + 1.2), ENTRY_WOOD, out, 0.03)
+    # (the entry's wooden post and the pergola up over its stairs, at the floor above's height)
+    ez0, ez1 = FRONT_BAYS[0][:2]
+    base._surface(rnd, (x0 - 1.32, x0 - 1.2, fy, 5.75, ez0 - 1.3, ez0 - 1.18), ENTRY_WOOD, out, 0.03)
+    for k in range(int((ez1 - ez0 + 1.3) / 0.25)):
+        z = ez0 - 1.3 + 0.25 * k
+        base._surface(rnd, (x0 - 1.4, x0 + 0.6, 5.6, 5.68, z, z + 0.06), ENTRY_WOOD, out, 0.06)
+    base._surface(rnd, (x0 - 1.4, x0 - 1.28, 5.4, 5.6, ez0 - 1.35, ez1), ENTRY_WOOD, out, 0.03)
+    # (the neighbour's dark green wall behind the palms, the bed in front of it)
+    nz = UTILITY_BOX[1] + 0.4
+    base._surface(rnd, (UTILITY_BOX[0] + 0.4, x0, fy, fy + 2.8, nz, nz), NEIGHBOUR_GREEN, out, WALL_STEP)
+    base._surface(rnd, (UTILITY_BOX[0] + 0.4, x0, fy + 0.01, fy + 0.01, nz, fz0), (0.24, 0.19, 0.14), out, 0.06)
+    # (the green utility box at the street, a vent in its face)
+    bx, bz0, bz1 = UTILITY_BOX
+    base._surface(rnd, (bx - 0.3, bx + 0.3, fy, fy + 1.2, bz0, bz1), _rough(UTILITY_GREEN, 0.03), out, 0.07)
+    base._surface(rnd, (bx - 0.31, bx - 0.31, fy + 0.7, fy + 0.95, (bz0 + bz1) / 2 - 0.12, (bz0 + bz1) / 2 + 0.12),
+                  lambda x, y, z, rnd: (0.12, 0.14, 0.13) if y % 0.04 < 0.015 else UTILITY_GREEN, out, 0.015)
+
+    # the planted ledge over the door, all along the front: bare concrete, streaked under the
+    # vines falling from it
+    ly0, ly1, deep, lz0, lz1 = LEDGE
+    lf = x0 - deep
+    streaked = lambda x, y, z, rnd: tuple(c * (0.86 if (z * 7.3) % 1.0 < 0.08 else 1.0) + rnd.uniform(-0.02, 0.02) for c in FACADE_CONCRETE)
+    base._surface(rnd, (lf, lf, ly0, ly1, lz0, lz1), streaked, out, 0.07)
+    base._surface(rnd, (lf, x0, ly0, ly0, lz0, lz1), concrete, out, 0.1)
+    base._surface(rnd, (lf, x0, ly1, ly1, lz0, lz1), (0.24, 0.19, 0.14), out, 0.1)
+    for z in (lz0, lz1):
+        base._surface(rnd, (lf, x0, ly0, ly1, z, z), concrete, out, 0.04)
+    # (its planting, the vines trailing down off its edge: fittings())
+    # the floor above, behind glass (the glass and the row of round lit mirrors are fittings()'): a
+    # wooden counter against a dark wall inside; a concrete panel between its glass; its fascia
+    uy0, uy1, roof = UPPER
+    back = x0 + 1.2
+    base._surface(rnd, (back, back, uy0, uy1, UPPER_GLASS[0][0], UPPER_GLASS[1][1]), (0.22, 0.25, 0.27), out, 0.12)
+    base._surface(rnd, (x0, back, uy1, uy1, UPPER_GLASS[0][0], UPPER_GLASS[1][1]), (0.20, 0.21, 0.22), out, 0.14)
+    base._surface(rnd, (x0, back, uy0, uy0, UPPER_GLASS[0][0], UPPER_GLASS[1][1]), (0.25, 0.23, 0.21), out, 0.14)
+    base._surface(rnd, (back - 0.45, back, uy0 + 0.75, uy0 + 0.8, UPPER_GLASS[0][0] + 0.3, UPPER_GLASS[0][1] - 0.3), (0.62, 0.45, 0.30), out, 0.07)
+    for z in MULLIONS:
+        base._surface(rnd, (x0 - 0.04, x0 + 0.04, uy0, uy1, z - 0.04, z + 0.04), STEEL, out, 0.05)
+    gz1, gz0 = UPPER_GLASS[0][1], UPPER_GLASS[1][0]
+    base._surface(rnd, (x0, x0, uy0, uy1, gz1, gz0), _rough((0.80, 0.79, 0.77), 0.03), out, WALL_STEP)
+    panel = lambda x, y, z, rnd: (0.62, 0.62, 0.60) if z % 1.4 < 0.02 else tuple(c + rnd.uniform(-0.02, 0.02) for c in (0.84, 0.84, 0.82))
+    base._surface(rnd, (x0 - 0.3, x0 - 0.3, uy1, roof, lz0 - 0.1, lz1 - 1.0), panel, out, 0.09)
+    base._surface(rnd, (x0 - 0.3, x0, uy1, uy1, lz0 - 0.1, lz1 - 1.0), (0.55, 0.55, 0.53), out, 0.1)
+    base._surface(rnd, (x0 - 0.3, x0 + 1.5, roof, roof, lz0 - 0.1, lz1 - 1.0), (0.50, 0.50, 0.48), out, 0.16)
+    # only the deck and its lowest steps are the map's: the rest is seen, never walked on (the
+    # forecourt is too high for its floor, the top steps would be seats), so it is drawn a little
+    # see-through and the map leaves it out and keeps to the venue (the page draws the surfaces
+    # whole all the same: they are the shell's)
+    def mapped(p):
+        return DECK[0] - 0.01 <= p[0] <= DECK[1] + 0.01 and DECK[2] - 0.01 <= p[2] <= DECK[3] + 0.01 and p[1] < 0.25
+    near.extend((p, c, s) if mapped(p) else (p, c, s, FAR) for p, c, s in out)
 
 
 # ---------------------------------------------------------------- outside: the pergola and the garden
