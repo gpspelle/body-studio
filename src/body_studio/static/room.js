@@ -261,12 +261,20 @@ export function panSpeed(height, run) { return (run ? 2.5 : 1) * Math.max(3, 0.6
 // Without the body (house.js, "Fly through"): the camera at eye height goes where it looks with
 // W A S D, through walls and much faster than a walk, and stays over the room's map. `at` [x, z]
 // in map metres, `way` the map's [x, z] way to go (unit; null: still), `box` [x0, z0, x1, z1].
-export const FLY = { eye: 1.6, speed: 4, run: 11 };
+export const FLY = { eye: 1.6, speed: 4, run: 11, low: 0.2, high: 30 };
 export function flyStep(at, way, run, dt, box) {
   if (!way) return at.slice();
   const s = (run ? FLY.run : FLY.speed) * Math.min(Math.max(dt, 0), 0.1);
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   return [clamp(at[0] + way[0] * s, box[0], box[2]), clamp(at[1] + way[1] * s, box[1], box[3])];
+}
+// The flying camera's height: `eye` metres up now, `rise` +1 (Space or E held), -1 (C or Q) or 0,
+// as fast as it flies across (faster with Shift); kept between a hand off the floor and well over
+// the roof. -> the new height
+export function flyRise(eye, rise, run, dt) {
+  if (!rise) return eye;
+  const s = (run ? FLY.run : FLY.speed) * Math.min(Math.max(dt, 0), 0.1);
+  return Math.max(FLY.low, Math.min(FLY.high, eye + Math.sign(rise) * s));
 }
 // The eye in first person, kept steady: the head sways and bobs as the body walks, and a camera
 // fixed to it would sway too. `held` the eye as it was, `now` where the head puts it, both

@@ -5,7 +5,7 @@
 // walls and seats are) is room.py's, the maths room.js's; the walk and the sitting are walk.js's.
 import * as THREE from "three";
 import { SplatMesh, dyno } from "@sparkjsdev/spark";
-import { FLY, Placement, RoomMap, SKY, eyeView, flyStep, lookBy, panSpeed, skyView, steadyEye } from "/static/room.js";
+import { FLY, Placement, RoomMap, SKY, eyeView, flyRise, flyStep, lookBy, panSpeed, skyView, steadyEye } from "/static/room.js";
 import { v3 } from "/static/pose.js";
 import { finishMaps, parseShell, shellGeometry } from "/static/shell.js";
 
@@ -301,7 +301,8 @@ V.frameHooks.push((before) => {
 //   above  from above, without the body: the ceiling taken off, the orbit turns and zooms, W A S D
 //          slide the view across the plan
 //   fly    fly through, without the body: the camera at eye height, a drag looks round, W A S D go
-//          where it looks, through walls and fast (Shift faster still); back to the body or its
+//          where it looks, through walls and fast (Shift faster still), Space or E up, C or Q down;
+//          back to the body or its
 //          eyes, the body is put down where the flight ended
 // Leaving the eyes or above, the camera goes back behind the body (view()).
 let mode = "body";
@@ -379,13 +380,15 @@ function gaze() {
 }
 
 // the keys, while the body isn't the one moving (tattoo.js has its own for walking)
-const KEYS = { KeyW: "f", ArrowUp: "f", KeyS: "b", ArrowDown: "b", KeyA: "l", ArrowLeft: "l", KeyD: "r", ArrowRight: "r" };
+const KEYS = { KeyW: "f", ArrowUp: "f", KeyS: "b", ArrowDown: "b", KeyA: "l", ArrowLeft: "l", KeyD: "r", ArrowRight: "r",
+               Space: "u", KeyE: "u", KeyC: "d", KeyQ: "d" };    // (up and down: flying only)
 const held = new Set();
 let hurry = false;
 addEventListener("keydown", (e) => {
   hurry = e.shiftKey;
   if (e.metaKey || e.ctrlKey || e.altKey || $("guide").open || e.target.closest?.("input, textarea, select, [contenteditable]")) return;
   if (KEYS[e.code]) held.add(KEYS[e.code]);
+  if (fly && (e.code === "Space" || KEYS[e.code] === "d")) e.preventDefault();   // (no page scroll)
 });
 addEventListener("keyup", (e) => { hurry = e.shiftKey; held.delete(KEYS[e.code]); });
 addEventListener("blur", () => { held.clear(); hurry = false; });
@@ -608,6 +611,7 @@ function bounds() {
 function flyNow(dt) {
   const way = keysWay(fly.look);
   fly.at = flyStep(fly.at, way && R.P.wayToMap(way), hurry, dt, bounds());
+  fly.eye = flyRise(fly.eye ?? FLY.eye, (held.has("u") ? 1 : 0) - (held.has("d") ? 1 : 0), hurry, dt);
   const w = window.tattooStudio.walker(), dir = lookWay(fly.look), p = Math.max(-1.4, Math.min(1.4, fly.pitch));
   const look = v3.add(v3.scale(dir, Math.cos(p)), v3.scale(w.up, Math.sin(p)));
   V.holder.updateMatrixWorld();

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Skeleton, q, v3 } from "../../src/body_studio/static/pose.js";
 import { Walker } from "../../src/body_studio/static/walk.js";
-import { Placement, ROOM, RoomMap, EYE, FLY, SKY, eyeView, flyStep, lookBy, panSpeed, skyView, steadyEye } from "../../src/body_studio/static/room.js";
+import { Placement, ROOM, RoomMap, EYE, FLY, SKY, eyeView, flyRise, flyStep, lookBy, panSpeed, skyView, steadyEye } from "../../src/body_studio/static/room.js";
 
 const map = JSON.parse(readFileSync(process.env.ROOM_JSON, "utf8"));
 const rig = JSON.parse(readFileSync(process.env.RIG_JSON, "utf8"));
@@ -248,6 +248,15 @@ test("flying through: fast, straight, and kept over the map", () => {
   assert.deepEqual(flyStep([19.9, 5], [1, 0], true, 0.1, box), [20, 5], "stops at the map's edge");
   assert.deepEqual(flyStep([3, 4], null, true, 0.1, box), [3, 4], "no keys: still");
   near(flyStep([5, 5], [0, 1], false, 5, box)[1], 5 + 0.1 * FLY.speed, 1e-9, "a long frame counts as a tenth of a second");
+  // up (Space or E) and down (C or Q), as fast as across, between the floor and over the roof
+  let eye = FLY.eye;
+  for (let i = 0; i < 60; i++) eye = flyRise(eye, 1, false, 1 / 60);
+  near(eye, FLY.eye + FLY.speed, 1e-9, "a second's climb");
+  near(flyRise(5, -1, true, 0.1), 5 - 0.1 * FLY.run, 1e-9, "down, faster with Shift");
+  assert.equal(flyRise(3, 0, true, 0.1), 3, "neither: the height stays");
+  assert.equal(flyRise(0.3, -1, true, 0.1), FLY.low, "not through the floor");
+  assert.equal(flyRise(FLY.high - 0.1, 1, true, 0.1), FLY.high, "not off into the sky");
+  assert.ok(FLY.low < 0.5 && FLY.high > 10, "low enough to look under a table, high enough to see over the roof");
   // from above, the plan slides faster the higher the camera
   assert.ok(panSpeed(28, false) > panSpeed(6, false) && panSpeed(6, true) > panSpeed(6, false));
 });

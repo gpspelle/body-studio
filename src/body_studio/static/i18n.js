@@ -209,7 +209,7 @@
       "flash.lightning": "Lightning",
       "guide.rest": "In a room: sit on the seat nearby or lean on the wall (in the tattoo studio: go to the bed or the chair, where the tattoo is made); again to get up.",
       "guide.eye": "In a room: see it through the body's eyes (drag to look round, W A S D to walk); again to see the body.",
-      "guide.views": "In a room: third person, first person, from above (W A S D slide the plan), fly through without the body (drag to look, W A S D to go, Shift faster). Back to the body after a flight, it stands where you stopped.",
+      "guide.views": "In a room: third person, first person, from above (W A S D slide the plan), fly through without the body (drag to look, W A S D to go, Space or E up, C or Q down, Shift faster). Back to the body after a flight, it stands where you stopped.",
       "guide.room": "Put the body in a room you filmed.",
       "err.no_room": "That room isn't here any more.",
       "err.no_photo": "That photo is gone.",

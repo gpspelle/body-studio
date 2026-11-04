@@ -562,6 +562,7 @@ addEventListener("keydown", async (e) => {
     if (S) { S.walker.home(); follow.set(0, 0, 0); drawPose(); save(); }
     return;
   }
+  if (window.house?.mode?.() === "fly" && (e.code === "Space" || LIMB_KEYS[e.code])) return;   // (up and down while flying, house.js)
   const k = KEYS[e.code];
   if (S) S.hold = false;
   if (k) held.add(k);

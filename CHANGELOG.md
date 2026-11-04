@@ -2,6 +2,8 @@
 
 ## 0.1.0 (unreleased)
 
+- **Fly through goes up and down**: Space or E rises, C or Q sinks (Shift faster, as across),
+  from just off the floor to well over the roof.
 - **The venue's street front**: outside the door there is now the street the photos show, not a
   white wall: the deck sunk in front of the door with grey steps up (a yellow line on each nose, a
   steel handrail each side) to a cement forecourt with yellow parking lines, a street tree in a
