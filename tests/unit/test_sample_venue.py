@@ -101,7 +101,7 @@ class SampleVenueTest(unittest.TestCase):
                           "stair_rail", "egg_planter", "traveller_palm", "broad_tree", "leafy_border",   # (the street front)
                           "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain",
                           "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp",
-                          "reed_roof", "lean_to_roof", "wall_sconce", "sky_dome", "saucer_light",
+                          "reed_roof", "lean_to_roof", "pole_fence", "basket_pendant", "wall_sconce", "sky_dome", "saucer_light",
                           "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher",
                           "brick_wall", "brick_pier", "brick_bench", "door_sign", "sink_cabinet", "changing_table", "mosaic_splash",
                           "dome_pendant", "wall_plates", "tile_floor", "rustic_tiles", "wall_tiles",

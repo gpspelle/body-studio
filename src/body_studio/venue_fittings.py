@@ -19,6 +19,32 @@ def _along(item, x0, x1, z, turn, width, depth=0.0):
             for k in range(n)]
 
 
+BASKETS = [(x, z) for x in (22.6, 25.0, 27.3) for z in (4.5, 6.6)]             # the basket pendants over the dance floor
+FENCE_OUT = 0.22                       # the bamboo fence: how far in from the sand's edge (before the stone wall)
+
+
+def garden_extras() -> list:
+    """From Gabriel's 2026-11-14 videos: where the garden meets the sand, a low fence of bamboo poles
+    before the stone wall (open where the path goes down to the beach), warm uplights in the sand at
+    its foot; over the dance floor before the stage, rattan bell pendants and hanging greenery."""
+    out = []
+    (ax, az), L, (tx, tz), (nx, nz) = far_side()
+    turn = round(-math.atan2(tz, tx), 4)
+    for u0, u1 in ((0.0, L * (0.5 - SEA_GAP)), (L * (0.5 + SEA_GAP), L)):
+        n = max(1, math.ceil((u1 - u0) / 3.0))
+        for k in range(n):
+            u = u0 + (k + 0.5) * (u1 - u0) / n
+            out.append({"item": "pole_fence", "at": [round(ax + tx * u + FENCE_OUT * nx, 3), 0.0, round(az + tz * u + FENCE_OUT * nz, 3)],
+                        "turn": round(turn + math.pi, 4), "opts": {"w": round((u1 - u0) / n, 3)}})   # (its poles' face to the sand)
+        for k in range(int((u1 - u0) / 1.6)):
+            u = u0 + 0.8 + 1.6 * k
+            out.append({"item": "floor_spot", "at": [round(ax + tx * u - 0.15 * nx, 3), 0.0, round(az + tz * u - 0.15 * nz, 3)],
+                        "turn": round(turn + math.pi, 4)})
+    out += [{"item": "basket_pendant", "at": [x, 0.3, z]} for x, z in BASKETS]
+    out += [{"item": "hanging_greenery", "at": [x, 0.3, 5.55]} for x in (23.8, 26.15)]
+    return out
+
+
 def service_roof() -> list:
     """The lean-to roof over the service corridor, from the kitchen's yard to the pergola's wall,
     its high side on the house: (item, (x, y, z), turn, colour, knobs), as fittings()."""
@@ -389,6 +415,9 @@ def fixtures() -> dict:
     # rattan lamps hung in the tree under the cover
     tx, tz = TREES[0][:2]
     props += [{"item": "wicker_pendant", "at": [round(tx + dx, 3), -0.2, round(tz + dz, 3)]} for dx, dz in ((-1.2, 0.5), (0.9, 1.0), (0.2, -0.9))]
+    # (Gabriel's 2026-11-14 videos) the bamboo fence where the garden meets the sand, its uplights;
+    # rattan bell pendants and hanging greenery over the dance floor before the stage
+    props += garden_extras()
     # pink flowering shrubs at the foot of the pergola's corner pier by the garden
     props += [{"item": "pink_shrub", "at": [round(PERGOLA[1] + 0.6, 3), 0.0, round(z, 3)]} for z in (PIERS[1] - 0.9, PIERS[1] + 0.6)]
     # agaves along the bungalow's front, either side of its steps

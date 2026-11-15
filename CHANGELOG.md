@@ -2,6 +2,9 @@
 
 ## 0.1.0 (unreleased)
 
+- **More of the venue from the new videos**: a low bamboo-pole fence with uplights where the garden
+  meets the sand (before the stone wall, open for the path to the beach), and rattan bell pendants
+  with hanging greenery over the dance floor (new decor starters: Bamboo pole fence, Rattan bell pendant).
 - **The venue's service corridor**, from Gabriel's video of it: the passage from the kitchen's
   yard along the hall's windows to the pergola now has a tall wall painted near black (not a low
   white one), a cement kerb and a drain along its foot, red tiles before the kitchen's way out, and a

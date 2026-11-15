@@ -568,6 +568,22 @@ export const HOME = {
   },
 
   // ------------------------------------------------ the venue's pergola
+  pole_fence: {
+    group: "garden", height: 0.62, on: "floor", colour: "rattan", size: { w: 3.0, d: 0.12 }, block: true, built: ["w"],
+    make(col, k = { w: 3.0 }) {
+      // a low fence of bamboo poles side by side, 9 cm across, cut level at 60 cm or so (each a little
+      // off), two rails behind them (-z) holding them; as before a garden bed by the bungalow
+      const s = shape(), rnd = rng(Math.round(k.w * 71)), r = 0.045;
+      made("wood", () => {
+        for (let x = -k.w / 2 + r; x <= k.w / 2 - r + 1e-6; x += 2 * r + 0.004) {
+          const t = 0.08 * (rnd() - 0.5), c = col.map((v) => Math.min(1, Math.max(0, v + t)));
+          cyl(s, r, r * 0.95, 0.6 + 0.02 * rnd(), x, 0, 0.0, c, 10);
+        }
+        for (const y of [0.15, 0.45]) box(s, k.w, 0.05, 0.03, 0, y, -r - 0.015, col.map((v) => v * 0.6));
+      });
+      return s;
+    },
+  },
   lean_to_roof: {
     group: "garden", height: 0.33, hangs: true, on: "floor", colour: "black", size: { w: 4.0, d: 2.0 }, block: false, built: ["w", "d"],
     make(col, k = { w: 4.0, d: 2.0 }) {

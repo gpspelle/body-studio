@@ -241,3 +241,25 @@ class ServiceCorridorTest(unittest.TestCase):
             self.assertGreater(y, 2.5)                                # (clear of the kitchen's windows and the doors)
         self.assertAlmostEqual(x, V.PERGOLA[0], places=2)
         self.assertTrue(all(t in F.fittings() for t in roofs))
+
+
+class GardenExtrasTest(unittest.TestCase):
+    """From Gabriel's 2026-11-14 videos: the bamboo fence where the garden meets the sand (open for
+    the path to the beach), its uplights in the sand, the bell pendants under the pergola's roof."""
+
+    def test_where_they_stand(self):
+        from body_studio.venue_plan import SEA_GAP, far_side
+        props = F.garden_extras()
+        (ax, az), L, (tx, tz), (nx, nz) = far_side()
+        along = lambda p: (p["at"][0] - ax) * tx + (p["at"][2] - az) * tz
+        inward = lambda p: (p["at"][0] - ax) * nx + (p["at"][2] - az) * nz
+        fence = [p for p in props if p["item"] == "pole_fence"]
+        self.assertAlmostEqual(sum(p["opts"]["w"] for p in fence), L * (1 - 2 * SEA_GAP), places=2)
+        self.assertTrue(all(abs(inward(p) - F.FENCE_OUT) < 1e-3 for p in fence))
+        self.assertFalse(any(abs(along(p) / L - 0.5) < SEA_GAP for p in fence))       # (the path is left open)
+        lights = [p for p in props if p["item"] == "floor_spot"]
+        self.assertTrue(lights and all(inward(p) < 0 and 0 < along(p) < L for p in lights))   # (out on the sand)
+        bells = [p for p in props if p["item"] == "basket_pendant"]
+        self.assertEqual(len(bells), len(F.BASKETS))
+        self.assertTrue(all(PERGOLA[0] < p["at"][0] < PERGOLA[1] and PERGOLA[2] < p["at"][2] < PERGOLA[3] for p in bells))
+        self.assertTrue(all(p["at"][1] + 2.9 <= V.PERGOLA_ROOF + 0.01 for p in bells))   # (hung from its roof)

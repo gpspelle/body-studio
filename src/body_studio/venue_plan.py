@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 
-VERSION = 40
+VERSION = 41
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
