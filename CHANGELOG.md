@@ -2,6 +2,10 @@
 
 ## 0.1.0 (unreleased)
 
+- **The venue's service corridor**, from Gabriel's video of it: the passage from the kitchen's
+  yard along the hall's windows to the pergola now has a tall wall painted near black (not a low
+  white one), a cement kerb and a drain along its foot, red tiles before the kitchen's way out, and a
+  translucent lean-to roof on dark rafters over it all (new decor starter: Lean-to roof).
 - **Fly through goes up and down**: Space or E rises, C or Q sinks (Shift faster, as across),
   from just off the floor to well over the roof.
 - **The venue's street front**: outside the door there is now the street the photos show, not a

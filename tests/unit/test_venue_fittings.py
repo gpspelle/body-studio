@@ -221,3 +221,23 @@ class StreetFrontTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ServiceCorridorTest(unittest.TestCase):
+    """The service corridor as Gabriel's video of 2026-11-14 shows it: roofed end to end under a
+    lean-to on the house, its high side on the house and its low edge under the black wall's top."""
+
+    def test_the_roof_covers_the_corridor_end_to_end(self):
+        roofs = sorted(F.service_roof(), key=lambda t: t[1][0])
+        self.assertTrue(all(t[0] == "lean_to_roof" and t[4]["w"] <= 10.0 for t in roofs))
+        x = V.KITCHEN[0] - 3.0
+        for _, (cx, y, cz), turn, _, k in roofs:
+            self.assertAlmostEqual(cx - k["w"] / 2, x, places=2)     # (each piece on from the last, no gap)
+            x = cx + k["w"] / 2
+            self.assertEqual(turn, 0.0)                               # (its high side, -z, on the house)
+            self.assertAlmostEqual(cz - k["d"] / 2, V.HALL[3], places=2)
+            self.assertLess(cz + k["d"] / 2, V.OUT_WAY)               # (short of the black wall's face)
+            self.assertLess(y, V.OUT_WALL_H)                          # (under its top)
+            self.assertGreater(y, 2.5)                                # (clear of the kitchen's windows and the doors)
+        self.assertAlmostEqual(x, V.PERGOLA[0], places=2)
+        self.assertTrue(all(t in F.fittings() for t in roofs))

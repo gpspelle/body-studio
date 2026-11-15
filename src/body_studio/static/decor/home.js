@@ -568,6 +568,35 @@ export const HOME = {
   },
 
   // ------------------------------------------------ the venue's pergola
+  lean_to_roof: {
+    group: "garden", height: 0.33, hangs: true, on: "floor", colour: "black", size: { w: 4.0, d: 2.0 }, block: false, built: ["w", "d"],
+    make(col, k = { w: 4.0, d: 2.0 }) {
+      // a lean-to roof over a service passage (hung, lift it to its low edge): dark timber rafters
+      // about every metre, sloping 25 cm down from its high side on a house wall (-z) to its low side
+      // (+z), a plate along each side, and milky translucent sheets over them with faint ribs
+      const s = shape(), rise = 0.25, timber = col.map((v) => v * 0.9 + 0.04);
+      const y = (z) => rise * (0.5 - z / k.d);
+      const n = Math.max(2, Math.round(k.w / 1.0) + 1);
+      made("wood", () => {
+        for (let i = 0; i < n; i++) {
+          const x = -k.w / 2 + 0.04 + (k.w - 0.08) * i / (n - 1);
+          rod(s, [x, y(-k.d / 2) + 0.04, -k.d / 2], [x, y(k.d / 2) + 0.04, k.d / 2], 0.035, timber, 6);
+        }
+        box(s, k.w, 0.06, 0.08, 0, rise, -k.d / 2 + 0.04, timber);
+        box(s, k.w, 0.06, 0.08, 0, 0.0, k.d / 2 - 0.04, timber);
+      });
+      made("glass", () => {
+        const sheet = [0.9, 0.9, 0.86], rib = [0.8, 0.8, 0.77], t = 0.075;
+        quad(s, vert(s, -k.w / 2, y(-k.d / 2) + t, -k.d / 2, sheet), vert(s, k.w / 2, y(-k.d / 2) + t, -k.d / 2, sheet),
+          vert(s, k.w / 2, y(k.d / 2) + t, k.d / 2, sheet), vert(s, -k.w / 2, y(k.d / 2) + t, k.d / 2, sheet));
+        for (let x = -k.w / 2 + 0.1; x < k.w / 2; x += 0.2) {
+          quad(s, vert(s, x - 0.01, y(-k.d / 2) + t - 0.004, -k.d / 2, rib), vert(s, x + 0.01, y(-k.d / 2) + t - 0.004, -k.d / 2, rib),
+            vert(s, x + 0.01, y(k.d / 2) + t - 0.004, k.d / 2, rib), vert(s, x - 0.01, y(k.d / 2) + t - 0.004, k.d / 2, rib));
+        }
+      });
+      return s;
+    },
+  },
   reed_roof: {
     group: "garden", height: 0.03, hangs: true, on: "floor", colour: "rattan", size: { w: 4.0, d: 4.0 }, block: false, built: ["w", "d"],
     make(col, k = { w: 4.0, d: 4.0 }) {

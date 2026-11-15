@@ -101,7 +101,7 @@ class SampleVenueTest(unittest.TestCase):
                           "stair_rail", "egg_planter", "traveller_palm", "broad_tree", "leafy_border",   # (the street front)
                           "skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain",
                           "downlight", "wash_counter", "round_mirror", "strap_mirror", "toilet_cubicle", "trough_urinal", "globe_lamp",
-                          "reed_roof", "wall_sconce", "sky_dome", "saucer_light",
+                          "reed_roof", "lean_to_roof", "wall_sconce", "sky_dome", "saucer_light",
                           "steel_sink", "gas_range", "steel_hood", "steel_duct", "fire_extinguisher",
                           "brick_wall", "brick_pier", "brick_bench", "door_sign", "sink_cabinet", "changing_table", "mosaic_splash",
                           "dome_pendant", "wall_plates", "tile_floor", "rustic_tiles", "wall_tiles",
@@ -231,7 +231,7 @@ class SampleVenueTest(unittest.TestCase):
             self.assertTrue(nose and all(c[0] > 0.7 and c[2] < 0.35 for _, c, *_ in nose))
         # its fittings are drawn as the furniture is (decor starters), not splats: skirting boards
         # along the white walls (no painted band), spotlights, the track light, signs, curtains
-        fit = [f for f in V.fittings() if f[1][0] <= V.ANTE[1] and not V.KITCHEN[2] < f[1][2] <= V.KITCHEN[3]]
+        fit = [f for f in V.fittings() if f[1][0] <= V.ANTE[1] and not V.KITCHEN[2] < f[1][2] <= V.KITCHEN[3] and f[1][2] <= V.HALL[3]]   # (not the service corridor's)
         kinds = {f[0] for f in fit}
         self.assertEqual(kinds, {"skirting_board", "floor_spot", "track_light", "exit_sign", "wall_speaker", "sheer_curtain", "saucer_light",
                                  "security_camera", "pivot_door", "tile_floor", "rustic_tiles"})

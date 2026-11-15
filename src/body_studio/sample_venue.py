@@ -623,12 +623,14 @@ def kitchen(rnd, out):
     wall_z(x0, z0, z1, [d + (0.0, 2.2) for d in KITCHEN_DOORS] + [KITCHEN_WAY_OUT + (0.0, 2.2)], TILE_WHITE, out, rnd)
     for (a, b), c in zip(KITCHEN_DOORS, ((0.22, 0.13, 0.10), (0.30, 0.09, 0.09))):   # (their leaves: fittings())
         frame_z(x0, a, b, 0.0, 2.2, out, rnd, colour=c, t=0.06, d=0.04)
-    # (through the doorway, the outside in daylight: a sunlit yard, a low white wall, the sky)
+    # (through the doorway, the outside: the yard, its far wall as black as the corridor's)
     a, b = KITCHEN_WAY_OUT
     frame_z(x0, a, b, 0.0, 2.2, out, rnd, colour=(0.80, 0.80, 0.78), t=0.05, d=0.04)
     base._surface(rnd, (x0 - 3.0, x0, 0.0, 0.0, a - 1.0, z1), _cement(SUNLIT, joint=1.2), out, 0.05)
-    base._surface(rnd, (x0 - 3.0, x0 - 3.0, 0.0, 1.3, a - 1.0, OUT_WAY), (0.94, 0.93, 0.90), out, 0.05)
-    base._surface(rnd, (x0 - 3.2, x0 - 3.2, 1.3, 4.0, a - 1.5, OUT_WAY + 0.5), _view, out, 0.06)
+    wall_z(x0 - 3.0, a - 1.0, OUT_WAY, [], OUT_BLACK, out, rnd, h=OUT_WALL_H)
+    kerb_z(rnd, x0 - 3.0, a - 1.0, OUT_WAY, out)
+    # (red tiles on the ground before the doorway: the video's "entrada da cozinha")
+    base._surface(rnd, (x0 - 1.2, x0, 0.01, 0.01, a - 0.1, b + 0.1), _tiles(KITCHEN_RED, 0.2), out, 0.04)
     out_way(rnd, out)
     # (kept, for the map, where they stand: the sink benches and the range, drawn by fittings())
     with base.as_decor(out):
@@ -639,15 +641,46 @@ def kitchen(rnd, out):
     base._surface(rnd, (x0 + 0.3, x0 + 1.05, 0.0, 1.9, z0, z0 + 0.72), (0.94, 0.94, 0.93), out, 0.03)
 
 
+OUT_BLACK = _rough((0.11, 0.115, 0.11), 0.04)
+
+
+def _tiles(colour, size):
+    """Square floor tiles `size` across, each a shade of `colour`, dark joints between."""
+    def f(x, y, z, rnd):
+        u, v = (x / size) % 1.0, (z / size) % 1.0
+        if min(u, v) < 0.04:
+            return tuple(c * 0.6 for c in colour)
+        t = 0.05 * math.sin(math.floor(x / size) * 12.9898 + math.floor(z / size) * 78.233)
+        return tuple(min(1.0, max(0.0, c + t)) for c in colour)
+    return base.finish("tile", f)
+
+
+def kerb_x(rnd, x0, x1, z, out):
+    """The kerb along the corridor's black wall (from z to the wall, on +z), the drain behind it."""
+    w, h, d = OUT_KERB
+    base._surface(rnd, (x0, x1, 0.0, h, z, z + w), _cement(WC_FLOOR, joint=2.0), out, 0.06)
+    base._surface(rnd, (x0, x1, 0.005, 0.005, z + w, z + w + d), (0.10, 0.10, 0.10), out, 0.06)
+
+
+def kerb_z(rnd, x, z0, z1, out):
+    """The same kerb along the yard's black wall at x (the wall on -x)."""
+    w, h, d = OUT_KERB
+    base._surface(rnd, (x + d, x + d + w, 0.0, h, z0, z1), _cement(WC_FLOOR, joint=2.0), out, 0.06)
+    base._surface(rnd, (x, x + d, 0.005, 0.005, z0, z1), (0.10, 0.10, 0.10), out, 0.06)
+
+
 def out_way(rnd, out):
-    """The passage outside, along the house's long side (Gabriel's drawing): out of the kitchen's
-    left door into its yard, round the corner and along the kitchen's and the hall's windows, in
-    cement behind a low white wall like the yard's, to a wooden door onto the pergola, in a wall of
-    the pergola's rough cement closing its corner beside the hall's end (an open doorway)."""
+    """The service corridor (corredor de serviço) outside, along the house's long side (Gabriel's
+    drawing and his video of 2026-11-14): out of the kitchen's way out into its yard, round the
+    corner and along the kitchen's and the hall's windows, in wet grey cement, to a wooden door onto
+    the pergola, in a wall of the pergola's rough cement closing its corner beside the hall's end. Its
+    far side a tall wall painted near black, a cement kerb and a drain along its foot; over it a
+    translucent lean-to roof on dark rafters (drawn as the furniture is: fittings())."""
     x0, z0 = KITCHEN[0] - 3.0, HALL[3]
     x1 = PERGOLA[0]
     base._surface(rnd, (x0, x1, 0.0, 0.0, z0, OUT_WAY), _cement(SUNLIT, joint=1.2), out, 0.05)
-    wall_x(OUT_WAY, x0, x1, [], (0.94, 0.93, 0.90), out, rnd, h=1.3, step=0.05)
+    wall_x(OUT_WAY, x0, x1, [], OUT_BLACK, out, rnd, h=OUT_WALL_H)
+    kerb_x(rnd, x0 + OUT_KERB[0] + OUT_KERB[2], x1, OUT_WAY - OUT_KERB[0] - OUT_KERB[2], out)
     a, b = OUT_DOOR
     wall_z(x1, z0, OUT_WAY, [(a, b, 0.0, 2.2)], _rough(ROUGH, 0.08), out, rnd, h=PERGOLA_ROOF)
     frame_z(x1, a, b, 0.0, 2.2, out, rnd, colour=TIMBER, t=0.06, d=0.06)

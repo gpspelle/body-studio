@@ -19,6 +19,17 @@ def _along(item, x0, x1, z, turn, width, depth=0.0):
             for k in range(n)]
 
 
+def service_roof() -> list:
+    """The lean-to roof over the service corridor, from the kitchen's yard to the pergola's wall,
+    its high side on the house: (item, (x, y, z), turn, colour, knobs), as fittings()."""
+    x0, x1 = KITCHEN[0] - 3.0, PERGOLA[0]
+    z0, z1 = HALL[3], OUT_WAY - 0.02
+    n = math.ceil((x1 - x0) / 10.0)
+    w = (x1 - x0) / n
+    return [("lean_to_roof", (round(x0 + (k + 0.5) * w, 3), OUT_ROOF, round((z0 + z1) / 2, 3)), 0.0, (0.20, 0.14, 0.10),
+             {"w": round(w, 3), "d": round(z1 - z0, 3)}) for k in range(n)]
+
+
 def fittings() -> list:
     """The way in's fittings, drawn by the page as the decor and furniture are (sample_room's
     FIXTURES): wooden skirting boards along the white walls, small floor spotlights, the
@@ -158,6 +169,9 @@ def fittings() -> list:
     w, swing = b - a, OUT_DOOR_OPEN
     out.append(("panel_door", (round(PERGOLA[0] + w / 2 * math.sin(swing), 3), 0.0, round(b - w / 2 * math.cos(swing), 3)), round(math.pi / 2 - swing, 4),
                 (0.47, 0.31, 0.21), {"w": round(w - 0.01, 3), "h": 2.15, "slats": 1}))
+    # the service corridor's roof: translucent sheets on dark rafters, from the house's wall down to
+    # the black wall's top (Gabriel's video of 2026-11-14), in pieces at most 10 m long
+    out += service_roof()
     # the toilets' signs over their doors, the ladies' changing table, the gents' mosaic splashback
     out += [("door_sign", ((a0 + a1) / 2, 2.3, 0.0), 0.0, None, {"man": k}) for k, (a0, a1) in enumerate(WC_DOORS)]
     out.append(("changing_table", (CHANGING[0] + 0.275, 0.0, (CHANGING[2] + CHANGING[3]) / 2), math.pi / 2, None, None))
