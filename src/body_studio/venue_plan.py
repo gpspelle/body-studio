@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import math
 
-VERSION = 39
+VERSION = 40
 PLY = "wedding_venue_clean.ply"
 SEED = 23
 
@@ -105,6 +105,10 @@ OUT_WAY = 10.6                          # z: the outside passage's far side, fro
                                         # windows to the pergola (as far out as the pergola goes)
 OUT_DOOR = (9.15, 10.05)                # z: its wooden door onto the pergola, in the wall beside the hall's end
 OUT_DOOR_OPEN = math.radians(80)        # its slatted leaf, hung at the corner's side, swung out into the pergola
+OUT_WALL_H = 3.0                        # the service corridor's far wall, painted near black (Gabriel's 2026-11-14 video)
+OUT_ROOF = 2.9                          # its translucent lean-to roof's low edge, on that wall (25 cm higher at the house)
+OUT_KERB = (0.15, 0.12, 0.17)           # along that wall's foot: a cement kerb (how wide, how high), a drain behind it (how wide)
+KITCHEN_RED = (0.46, 0.17, 0.12)        # the red tiles outside the kitchen's way out
 BEACH = 8.0                         # m of dry sand from the garden's far side to the water
 SEA = 130.0                         # m out to the island across the channel
 

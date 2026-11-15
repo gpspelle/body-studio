@@ -241,6 +241,7 @@ STARTERS = (
     {"id": "downlight", "group": "lights", "height": 0.02, "on": "floor"},
     {"id": "toilet_cubicle", "group": "home", "height": 2.1, "on": "floor"},
     {"id": "trough_urinal", "group": "home", "height": 1.24, "on": "floor"},
+    {"id": "lean_to_roof", "group": "garden", "height": 0.33, "on": "floor"},
     {"id": "reed_roof", "group": "garden", "height": 0.03, "on": "floor"},
     {"id": "wall_sconce", "group": "lights", "height": 0.243, "on": "floor"},
     {"id": "sky_dome", "group": "garden", "height": 280, "on": "floor"},
