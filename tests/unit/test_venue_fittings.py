@@ -244,22 +244,21 @@ class ServiceCorridorTest(unittest.TestCase):
 
 
 class GardenExtrasTest(unittest.TestCase):
-    """The four extras from Gabriel's 2026-11-14 videos: the bamboo fence and its uplights inside the
-    garden, the deck's glass balustrades on its ends, the bell pendants under the pergola's roof."""
+    """From Gabriel's 2026-11-14 videos: the bamboo fence where the garden meets the sand (open for
+    the path to the beach), its uplights in the sand, the bell pendants under the pergola's roof."""
 
     def test_where_they_stand(self):
-        from body_studio.venue_plan import BUNGALOW, DECK_UP, GARDEN_W, garden_end
+        from body_studio.venue_plan import SEA_GAP, far_side
         props = F.garden_extras()
+        (ax, az), L, (tx, tz), (nx, nz) = far_side()
+        along = lambda p: (p["at"][0] - ax) * tx + (p["at"][2] - az) * tz
+        inward = lambda p: (p["at"][0] - ax) * nx + (p["at"][2] - az) * nz
         fence = [p for p in props if p["item"] == "pole_fence"]
-        z0, z1 = F.FENCE_Z
-        self.assertAlmostEqual(sum(p["opts"]["w"] for p in fence), z1 - z0, places=2)
-        self.assertTrue(all(p["at"][0] < garden_end(p["at"][2]) - 1.0 and p["at"][2] < GARDEN_W for p in fence))
+        self.assertAlmostEqual(sum(p["opts"]["w"] for p in fence), L * (1 - 2 * SEA_GAP), places=2)
+        self.assertTrue(all(abs(inward(p) - F.FENCE_OUT) < 1e-3 for p in fence))
+        self.assertFalse(any(abs(along(p) / L - 0.5) < SEA_GAP for p in fence))       # (the path is left open)
         lights = [p for p in props if p["item"] == "floor_spot"]
-        self.assertTrue(lights and all(z0 <= p["at"][2] <= z1 and p["at"][0] > F.FENCE_X for p in lights))
-        panes = [p for p in props if p["item"] == "glass_pane"]
-        self.assertEqual(len(panes), 4)
-        self.assertTrue(all(p["at"][1] == DECK_UP and p["opts"]["h"] == 1.0 and p["opts"]["w"] <= 4.0 for p in panes))
-        self.assertTrue(all(BUNGALOW[0] <= p["at"][0] <= BUNGALOW[1] for p in panes))
+        self.assertTrue(lights and all(inward(p) < 0 and 0 < along(p) < L for p in lights))   # (out on the sand)
         bells = [p for p in props if p["item"] == "basket_pendant"]
         self.assertEqual(len(bells), len(F.BASKETS))
         self.assertTrue(all(PERGOLA[0] < p["at"][0] < PERGOLA[1] and PERGOLA[2] < p["at"][2] < PERGOLA[3] for p in bells))

@@ -163,11 +163,6 @@ def _shutters(x, y, z, rnd):
     return (0.09, 0.07, 0.06) if y % 0.08 < 0.008 else (0.24, 0.16, 0.11)
 
 
-def _louvres(x, y, z, rnd):
-    """A fixed shutter's slats seen face on: dark wooden boards 9 cm, a lighter gap of 1.5 cm between."""
-    return (0.55, 0.53, 0.48) if y % 0.09 < 0.015 else (0.20, 0.13, 0.09)
-
-
 def _sand(x, y, z, rnd):
     """Beach sand, pale and fine, a little darker in drifts and footprints."""
     t = 0.03 * math.sin(x * 0.9 + 2 * math.sin(z * 0.6)) * math.sin(z * 1.3 + x * 0.2) + rnd.uniform(-0.035, 0.035)
@@ -404,10 +399,11 @@ def house(rnd, out):
     for a, b in windows:
         frame_x(hz1, a, b, w0, w1, out, rnd, colour=GREY_FRAME, t=0.04)
         base._surface(rnd, (a, b, (w0 + w1) / 2 - 0.015, (w0 + w1) / 2 + 0.015, hz1 - 0.02, hz1 + 0.02), GREY_FRAME, out, 0.03)
-        # (outside, over the whole window, dark wooden louvres: the slats of a fixed shutter, as Gabriel's
-        # video of the service corridor shows them from outside; light between the slats)
+        # (the sky through the top 40 cm; below, dark wooden shutters hinged at the top, kicked out)
         base._surface(rnd, (a, b, w0, w1, OUT_WAY + 0.2, OUT_WAY + 0.2), _view, out, 0.04)   # (past the passage outside)
-        base._surface(rnd, (a - 0.03, b + 0.03, w0 - 0.03, w1 + 0.03, hz1 + 0.07, hz1 + 0.07), _louvres, out, 0.045)
+        for k in range(7):
+            y = w1 - 0.42 - 0.08 * (k + 1)
+            base._surface(rnd, (a + 0.02, b - 0.02, y, y + 0.09, hz1 + 0.04 + 0.045 * k, hz1 + 0.04 + 0.045 * k), _shutters, out, 0.03)
     # (its curtains, tied back each side of each set of windows: fittings())
     # its end: wide open onto the pergola under a dark beam, sheer curtains drawn back each side (fittings()), a
     # column of bare brick at the corner with the toilets' hall
