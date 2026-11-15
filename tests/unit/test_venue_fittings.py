@@ -241,3 +241,26 @@ class ServiceCorridorTest(unittest.TestCase):
             self.assertGreater(y, 2.5)                                # (clear of the kitchen's windows and the doors)
         self.assertAlmostEqual(x, V.PERGOLA[0], places=2)
         self.assertTrue(all(t in F.fittings() for t in roofs))
+
+
+class GardenExtrasTest(unittest.TestCase):
+    """The four extras from Gabriel's 2026-11-14 videos: the bamboo fence and its uplights inside the
+    garden, the deck's glass balustrades on its ends, the bell pendants under the pergola's roof."""
+
+    def test_where_they_stand(self):
+        from body_studio.venue_plan import BUNGALOW, DECK_UP, GARDEN_W, garden_end
+        props = F.garden_extras()
+        fence = [p for p in props if p["item"] == "pole_fence"]
+        z0, z1 = F.FENCE_Z
+        self.assertAlmostEqual(sum(p["opts"]["w"] for p in fence), z1 - z0, places=2)
+        self.assertTrue(all(p["at"][0] < garden_end(p["at"][2]) - 1.0 and p["at"][2] < GARDEN_W for p in fence))
+        lights = [p for p in props if p["item"] == "floor_spot"]
+        self.assertTrue(lights and all(z0 <= p["at"][2] <= z1 and p["at"][0] > F.FENCE_X for p in lights))
+        panes = [p for p in props if p["item"] == "glass_pane"]
+        self.assertEqual(len(panes), 4)
+        self.assertTrue(all(p["at"][1] == DECK_UP and p["opts"]["h"] == 1.0 and p["opts"]["w"] <= 4.0 for p in panes))
+        self.assertTrue(all(BUNGALOW[0] <= p["at"][0] <= BUNGALOW[1] for p in panes))
+        bells = [p for p in props if p["item"] == "basket_pendant"]
+        self.assertEqual(len(bells), len(F.BASKETS))
+        self.assertTrue(all(PERGOLA[0] < p["at"][0] < PERGOLA[1] and PERGOLA[2] < p["at"][2] < PERGOLA[3] for p in bells))
+        self.assertTrue(all(p["at"][1] + 2.9 <= V.PERGOLA_ROOF + 0.01 for p in bells))   # (hung from its roof)

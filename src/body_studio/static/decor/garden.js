@@ -267,6 +267,18 @@ export const GARDEN = {
       return s;
     },
   },
+  basket_pendant: {
+    group: "aerial", height: 2.9, hangs: true, on: "floor", colour: "rattan", size: { r: 0.57 }, block: false,
+    make(col) {
+      // a tall bell of open-woven rattan, as the venue hangs over its dance floor: 1.05 m high, its
+      // mouth 1.1 m across at the bottom, narrowing to a neck at the top on a short cord; a warm bulb inside
+      const s = shape();
+      rod(s, [0, 2.9, 0], [0, 2.8, 0], 0.006, WIRE, 4);
+      woven(s, 1.05, (t) => 0.5 * Math.pow(1 - t, 1.6) + 0.07, 0, 1.75, 0, col, 14, 30);
+      lit(() => ball(s, 0.05, 0, 2.1, 0, BULB, 10));
+      return s;
+    },
+  },
   wicker_lantern: {
     group: "lights", height: 0.6, on: "floor", colour: "rattan", size: { r: 0.2 }, block: false,
     make(col) {

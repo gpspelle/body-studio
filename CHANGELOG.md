@@ -2,6 +2,10 @@
 
 ## 0.1.0 (unreleased)
 
+- **More of the venue from the new videos**: dark louvred shutters over the hall's windows outside,
+  a low bamboo-pole fence with uplights before the bed at the bungalow's beach end, glass
+  balustrades on the bungalow deck's ends, and rattan bell pendants with hanging greenery over the
+  dance floor (new decor starters: Bamboo pole fence, Rattan bell pendant).
 - **The venue's service corridor**, from Gabriel's video of it: the passage from the kitchen's
   yard along the hall's windows to the pergola now has a tall wall painted near black (not a low
   white one), a cement kerb and a drain along its foot, red tiles before the kitchen's way out, and a

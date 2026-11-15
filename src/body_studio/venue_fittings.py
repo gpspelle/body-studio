@@ -19,6 +19,30 @@ def _along(item, x0, x1, z, turn, width, depth=0.0):
             for k in range(n)]
 
 
+FENCE_X, FENCE_Z = BUNGALOW[1] + 1.75, (BUNGALOW[2] - 0.6, GARDEN_W - 0.3)   # the bamboo fence: x, from z to z
+BASKETS = [(x, z) for x in (22.6, 25.0, 27.3) for z in (4.5, 6.6)]             # the basket pendants over the dance floor
+
+
+def garden_extras() -> list:
+    """The fence of bamboo poles with its uplights, the bungalow deck's glass balustrades and the
+    basket pendants over the dance floor, as fixtures (fixtures()'s props)."""
+    out = []
+    z0, z1 = FENCE_Z
+    n = math.ceil((z1 - z0) / 3.0)
+    w = (z1 - z0) / n
+    out += [{"item": "pole_fence", "at": [FENCE_X, 0.0, round(z0 + (k + 0.5) * w, 3)], "turn": round(math.pi / 2, 4),
+             "opts": {"w": round(w, 3)}} for k in range(n)]
+    out += [{"item": "floor_spot", "at": [round(FENCE_X + 0.35, 3), 0.0, round(z0 + 0.6 + 1.5 * k, 3)], "turn": round(math.pi / 2, 4)}
+            for k in range(int((z1 - z0 - 0.6) / 1.5) + 1)]
+    bx0, bx1, bz0, bz1 = BUNGALOW
+    for x in (bx0 + 0.03, bx1 - 0.03):
+        out += [{"item": "glass_pane", "at": [x, DECK_UP, round(bz0 + (k + 0.5) * (bz1 - bz0) / 2, 3)], "turn": round(math.pi / 2, 4),
+                 "opts": {"w": round((bz1 - bz0) / 2 - 0.04, 3), "h": 1.0}} for k in range(2)]
+    out += [{"item": "basket_pendant", "at": [x, 0.3, z]} for x, z in BASKETS]
+    out += [{"item": "hanging_greenery", "at": [x, 0.3, 5.55]} for x in (23.8, 26.15)]
+    return out
+
+
 def service_roof() -> list:
     """The lean-to roof over the service corridor, from the kitchen's yard to the pergola's wall,
     its high side on the house: (item, (x, y, z), turn, colour, knobs), as fittings()."""
@@ -389,6 +413,10 @@ def fixtures() -> dict:
     # rattan lamps hung in the tree under the cover
     tx, tz = TREES[0][:2]
     props += [{"item": "wicker_pendant", "at": [round(tx + dx, 3), -0.2, round(tz + dz, 3)]} for dx, dz in ((-1.2, 0.5), (0.9, 1.0), (0.2, -0.9))]
+    # (Gabriel's 2026-11-14 videos) a low fence of bamboo poles before the bed at the bungalow's
+    # beach end, warm uplights at its foot; glass balustrades along the deck's ends; woven basket
+    # pendants and hanging greenery over the dance floor before the stage
+    props += garden_extras()
     # pink flowering shrubs at the foot of the pergola's corner pier by the garden
     props += [{"item": "pink_shrub", "at": [round(PERGOLA[1] + 0.6, 3), 0.0, round(z, 3)]} for z in (PIERS[1] - 0.9, PIERS[1] + 0.6)]
     # agaves along the bungalow's front, either side of its steps
